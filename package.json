@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "postinstall": "npm --prefix packages/shared run build",
-    "web": "expo start --web --port 8082 --offline -c"
+    "web": "expo start --web --port 8082"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",

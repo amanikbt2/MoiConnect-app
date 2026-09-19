@@ -389,8 +389,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     fontSize: 14,
-    color: '#0f172a'
-  },
+    color: '#0f172a',
+    outlineStyle: 'none',
+  } as any,
   section: {
     marginBottom: 24
   },
