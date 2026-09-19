@@ -17,6 +17,9 @@ import ProfileScreen from './app/(tabs)/profile';
 
 import CommunityScreen from './app/community';
 import PrivacyScreen from './app/privacy';
+import NotesScreen from './app/notes';
+import PastPapersScreen from './app/past-papers';
+import CatPapersScreen from './app/cat-papers';
 
 import LoginScreen from './app/(auth)/login';
 import RegisterScreen from './app/(auth)/register';
@@ -308,6 +311,9 @@ export default function App() {
               <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
               <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
+              <Stack.Screen name="Notes" component={NotesScreen} options={{ title: 'Notes PDF & Study Guides', headerShown: true }} />
+              <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
+              <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
               <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
               <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
               <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />

@@ -246,7 +246,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.notesCard}
             activeOpacity={0.7}
-            onPress={() => router.push('/(tabs)/academics?type=notes')}
+            onPress={() => router.push('/notes')}
           >
             <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
               <NotesIcon color="#2563eb" size={28} />
@@ -262,7 +262,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.quickCard}
               activeOpacity={0.7}
-              onPress={() => router.push('/(tabs)/academics?type=past_paper')}
+              onPress={() => router.push('/past-papers')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#dcfce7' }]}>
                 <FileTextIcon color="#15803d" size={28} />
@@ -274,7 +274,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.quickCard}
               activeOpacity={0.7}
-              onPress={() => router.push('/(tabs)/academics?type=cat')}
+              onPress={() => router.push('/cat-papers')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#fef3c7' }]}>
                 <BookIcon color="#d97706" size={28} />
