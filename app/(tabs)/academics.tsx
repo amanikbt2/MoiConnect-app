@@ -771,24 +771,6 @@ export default function AcademicsScreen({ route }: any) {
             ))}
           </ScrollView>
 
-          {/* Submit Notes / Past Paper Banner */}
-          <TouchableOpacity
-            style={styles.uploadBanner}
-            activeOpacity={0.88}
-            onPress={() => setShowUploadModal(true)}
-          >
-            <View style={styles.uploadIconCircle}>
-              <PlusIcon color="#ffffff" size={20} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.uploadBannerTitle}>Share Your Notes or Past Papers</Text>
-              <Text style={styles.uploadBannerSub}>Upload PDFs & exam revision materials for your campus peers</Text>
-            </View>
-            <View style={styles.uploadBtnBadge}>
-              <Text style={styles.uploadBtnText}>Upload +</Text>
-            </View>
-          </TouchableOpacity>
-
           {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionIconCircle}>
