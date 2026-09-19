@@ -365,27 +365,39 @@ export default function ChatRoomScreen({ route }: any) {
         </View>
       )}
 
-      {/* Input Bar */}
+      {/* WhatsApp Style Input Bar */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity style={{ padding: 6 }} onPress={() => setShowFileModal(true)}>
-          <PaperclipIcon color="#64748b" size={22} />
-        </TouchableOpacity>
+        <View style={styles.inputPill}>
+          <TouchableOpacity style={styles.pillIconBtn} activeOpacity={0.7}>
+            <SmileIcon color="#8696a0" size={22} />
+          </TouchableOpacity>
 
-        <TextInput
-          placeholder="Type your message..."
-          placeholderTextColor="#94a3b8"
-          value={text}
-          onChangeText={setText}
-          style={styles.textInput}
-          multiline
-        />
+          <TextInput
+            placeholder="Type your message..."
+            placeholderTextColor="#8696a0"
+            value={text}
+            onChangeText={setText}
+            style={styles.textInput}
+            multiline
+            maxHeight={100}
+          />
+
+          <TouchableOpacity
+            style={styles.pillIconBtn}
+            onPress={() => setShowFileModal(true)}
+            activeOpacity={0.7}
+          >
+            <PaperclipIcon color="#8696a0" size={22} />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.sendBtn, ((!text.trim() && !selectedFile) || sending) && styles.sendBtnDisabled]}
           onPress={handleSend}
           disabled={(!text.trim() && !selectedFile) || sending}
+          activeOpacity={0.8}
         >
-          <SendIcon color="#ffffff" size={18} />
+          <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
         </TouchableOpacity>
       </View>
 
@@ -592,32 +604,63 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#ffffff',
+    alignItems: 'flex-end',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: '#efeae2',
+    gap: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    gap: 8
+    borderTopColor: '#e9edef'
+  },
+  inputPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
+    minHeight: 44,
+    maxHeight: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e9edef'
+  },
+  pillIconBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
+    fontSize: 15,
+    color: '#111b21',
     maxHeight: 100,
-    outlineStyle: 'none'
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    lineHeight: 20,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {})
   } as any,
   sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#15803d',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3
   },
   sendBtnDisabled: {
-    backgroundColor: '#cbd5e1'
+    backgroundColor: '#15803d',
+    opacity: 0.55
   },
   modalOverlay: {
     flex: 1,

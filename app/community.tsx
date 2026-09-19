@@ -450,15 +450,11 @@ export default function CommunityScreen() {
 
           {/* WhatsApp Style Bottom Input Bar */}
           <View style={styles.inputContainer}>
-            <TouchableOpacity
-              style={styles.attachBtn}
-              onPress={() => setShowFileModal(true)}
-              activeOpacity={0.7}
-            >
-              <PaperclipIcon color="#54656f" size={24} />
-            </TouchableOpacity>
+            <View style={styles.inputPill}>
+              <TouchableOpacity style={styles.pillIconBtn} activeOpacity={0.7}>
+                <SmileIcon color="#8696a0" size={22} />
+              </TouchableOpacity>
 
-            <View style={styles.textInputCard}>
               <TextInput
                 style={styles.input}
                 placeholder="Message campus community..."
@@ -468,6 +464,14 @@ export default function CommunityScreen() {
                 multiline
                 maxHeight={100}
               />
+
+              <TouchableOpacity
+                style={styles.pillIconBtn}
+                onPress={() => setShowFileModal(true)}
+                activeOpacity={0.7}
+              >
+                <PaperclipIcon color="#8696a0" size={22} />
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -479,7 +483,7 @@ export default function CommunityScreen() {
               disabled={!inputText.trim() && !selectedFile}
               activeOpacity={0.8}
             >
-              <SendIcon color="#ffffff" size={20} />
+              <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
             </TouchableOpacity>
           </View>
         </View>
@@ -847,31 +851,44 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f0f2f5',
+    alignItems: 'flex-end',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: '#efeae2',
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#e9edef'
   },
-  attachBtn: {
-    padding: 6
-  },
-  textInputCard: {
+  inputPill: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
+    minHeight: 44,
+    maxHeight: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#e9edef',
-    justifyContent: 'center'
+    borderColor: '#e9edef'
+  },
+  pillIconBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   input: {
+    flex: 1,
     fontSize: 15,
     color: '#111b21',
     maxHeight: 100,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     lineHeight: 20,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {})
   } as any,
@@ -881,10 +898,16 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#15803d',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3
   },
   sendBtnDisabled: {
-    backgroundColor: '#94a3b8'
+    backgroundColor: '#15803d',
+    opacity: 0.55
   },
   modalOverlay: {
     flex: 1,
