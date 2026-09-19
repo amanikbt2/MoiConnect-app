@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#14532d"
       },
-      "package": "com.moiconnect.studenthub"
+      "package": "com.amanikbt1.moiconnect"
     },
     "web": {
       "favicon": "./assets/favicon.png"
