@@ -4,7 +4,7 @@ import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
-import { GoogleIcon, AppleIcon } from '../../src/components/Icons';
+import { GoogleIcon, AppleIcon, ArrowLeftIcon } from '../../src/components/Icons';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -59,8 +59,20 @@ export default function RegisterScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
+        <ArrowLeftIcon size={20} color="#0f172a" />
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <Text style={styles.title}>Create Student Account</Text>
         <Text style={styles.subtitle}>Join MoiConnect to access past papers, notes, and houses</Text>
@@ -153,8 +165,24 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
+    paddingTop: 54,
     backgroundColor: '#ffffff',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    position: 'relative'
+  },
+  backBtn: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50
   },
   header: {
     marginBottom: 20

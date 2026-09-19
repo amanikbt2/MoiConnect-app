@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
-  Alert
+  Alert,
+  Image,
+  Dimensions
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
 import { IPaper, MOI_SCHOOLS, PAPER_TYPES } from '@moi/shared';
-import { PaperCard } from '../../src/components/PaperCard';
 import { Skeleton } from '../../src/components/Skeleton';
 import { EmptyState } from '../../src/components/EmptyState';
 import { Input } from '../../src/components/Input';
@@ -23,20 +24,472 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers } from '../../src/services/offlineStorage';
 
+import {
+  DownloadIcon,
+  PlusIcon,
+  SearchIcon,
+  SparklesIcon,
+  StarIcon,
+  ChevronRightIcon,
+  FileTextIcon,
+  BookIcon
+} from '../../src/components/Icons';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const GRID_CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
+
+export interface NoteItem {
+  id: string;
+  title: string;
+  unitCode: string;
+  unitName: string;
+  school: string;
+  paperType: string;
+  downloads: string;
+  rating: string;
+  examYear: string;
+  tag: string;
+  thumbnail: string;
+  author: string;
+}
+
+// Mock Data Sets
+const FOR_YOU_CAROUSEL: NoteItem[] = [
+  {
+    id: 'fy1',
+    title: 'Data Structures & Algorithms Complete Revision Notes',
+    unitCode: 'COM 310',
+    unitName: 'Data Structures',
+    school: 'Info Sciences',
+    paperType: 'Revision Notes',
+    downloads: '1,420',
+    rating: '4.9 ⭐',
+    examYear: '2025',
+    tag: '✨ 99% Match',
+    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+    author: 'Prof. Omondi'
+  },
+  {
+    id: 'fy2',
+    title: 'STA 210 Probability & Statistics Final Exam Prep Pack',
+    unitCode: 'STA 210',
+    unitName: 'Statistics II',
+    school: 'School of Science',
+    paperType: 'Exam Pack',
+    downloads: '2,180',
+    rating: '4.8 ⭐',
+    examYear: '2024',
+    tag: '✨ Top Recommendation',
+    thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
+    author: 'Dr. Kiprop'
+  },
+  {
+    id: 'fy3',
+    title: 'Calculus II Integration & Infinite Series Solutions',
+    unitCode: 'MAT 210',
+    unitName: 'Calculus II',
+    school: 'School of Science',
+    paperType: 'Worked Solutions',
+    downloads: '980',
+    rating: '5.0 ⭐',
+    examYear: '2024',
+    tag: '✨ High Rating',
+    thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
+    author: 'Math Club Moi'
+  },
+  {
+    id: 'fy4',
+    title: 'Operating Systems Kernel & Concurrency Summary',
+    unitCode: 'COM 220',
+    unitName: 'Operating Systems',
+    school: 'Info Sciences',
+    paperType: 'PDF Summary',
+    downloads: '1,750',
+    rating: '4.7 ⭐',
+    examYear: '2025',
+    tag: '✨ Recommended',
+    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
+    author: 'Alex K.'
+  },
+  {
+    id: 'fy5',
+    title: 'Software Engineering Architecture & Design Patterns',
+    unitCode: 'COM 410',
+    unitName: 'Software Eng',
+    school: 'Info Sciences',
+    paperType: 'Cheatsheet',
+    downloads: '3,110',
+    rating: '4.9 ⭐',
+    examYear: '2024',
+    tag: '✨ Popular Year 4',
+    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80',
+    author: 'Dev Society'
+  }
+];
+
+const GRID_SECTION_1: NoteItem[] = [
+  {
+    id: 'g1_1',
+    title: 'Discrete Mathematics Logic & Graph Theory',
+    unitCode: 'COM 112',
+    unitName: 'Discrete Math',
+    school: 'Math Dept',
+    paperType: 'Past Paper',
+    downloads: '890',
+    rating: '4.8',
+    examYear: '2024',
+    tag: 'CAT 1 + 2',
+    thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
+    author: 'Dept Notes'
+  },
+  {
+    id: 'g1_2',
+    title: 'Information Storage & Retrieval Systems Guide',
+    unitCode: 'INS 320',
+    unitName: 'Info Retrieval',
+    school: 'Info Sciences',
+    paperType: 'Notes PDF',
+    downloads: '640',
+    rating: '4.7',
+    examYear: '2025',
+    tag: 'Full Syllabus',
+    thumbnail: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80',
+    author: 'Jane W.'
+  },
+  {
+    id: 'g1_3',
+    title: 'Constitutional Law I Landmark Case Studies',
+    unitCode: 'LAW 210',
+    unitName: 'Constitutional Law',
+    school: 'School of Law',
+    paperType: 'Case Book',
+    downloads: '1,210',
+    rating: '5.0',
+    examYear: '2024',
+    tag: 'Verified',
+    thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+    author: 'Law Reps'
+  },
+  {
+    id: 'g1_4',
+    title: 'Principles of Microeconomics Lecture Slides',
+    unitCode: 'ECO 101',
+    unitName: 'Microeconomics',
+    school: 'Business School',
+    paperType: 'Lecture Slides',
+    downloads: '1,890',
+    rating: '4.6',
+    examYear: '2025',
+    tag: 'Year 1 Core',
+    thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80',
+    author: 'Econ Dept'
+  },
+  {
+    id: 'g1_5',
+    title: 'Educational Psychology Learning Theories',
+    unitCode: 'EDU 211',
+    unitName: 'Edu Psychology',
+    school: 'School of Education',
+    paperType: 'Revision Pack',
+    downloads: '730',
+    rating: '4.8',
+    examYear: '2024',
+    tag: 'Exam Ready',
+    thumbnail: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80',
+    author: 'Grace M.'
+  },
+  {
+    id: 'g1_6',
+    title: 'General University Physics Mechanics & Optics',
+    unitCode: 'PHY 110',
+    unitName: 'Physics I',
+    school: 'School of Science',
+    paperType: 'Formula Sheet',
+    downloads: '1,450',
+    rating: '4.9',
+    examYear: '2025',
+    tag: 'Solved Problems',
+    thumbnail: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=600&q=80',
+    author: 'Physics Lab'
+  },
+  {
+    id: 'g1_7',
+    title: 'Organic Chemistry II Mechanisms & Reaction Paths',
+    unitCode: 'CHM 112',
+    unitName: 'Organic Chem',
+    school: 'School of Science',
+    paperType: 'Diagram Notes',
+    downloads: '920',
+    rating: '4.7',
+    examYear: '2024',
+    tag: 'High Yield',
+    thumbnail: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
+    author: 'Brian N.'
+  },
+  {
+    id: 'g1_8',
+    title: 'Human Anatomy & Physiology Clinical Summaries',
+    unitCode: 'NUR 202',
+    unitName: 'Anatomy',
+    school: 'School of Nursing',
+    paperType: 'Study Guide',
+    downloads: '1,680',
+    rating: '5.0',
+    examYear: '2025',
+    tag: 'Medical Core',
+    thumbnail: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
+    author: 'Nurse Guild'
+  },
+  {
+    id: 'g1_9',
+    title: 'Advanced Academic Writing & Essay Structuring',
+    unitCode: 'ENG 105',
+    unitName: 'Communication',
+    school: 'Humanities',
+    paperType: 'PDF Guide',
+    downloads: '2,040',
+    rating: '4.9',
+    examYear: '2024',
+    tag: 'All Schools',
+    thumbnail: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=600&q=80',
+    author: 'Dept of Lit'
+  }
+];
+
+const TRENDING_CAROUSEL: NoteItem[] = [
+  {
+    id: 'tr1',
+    title: 'Object-Oriented Programming (Java) Exam 2024 with Solutions',
+    unitCode: 'COM 211',
+    unitName: 'OOP Java',
+    school: 'Info Sciences',
+    paperType: 'Exam + Answer',
+    downloads: '4,200',
+    rating: '5.0 ⭐',
+    examYear: '2024',
+    tag: '🔥 #1 Trending',
+    thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
+    author: 'Moi Code Hub'
+  },
+  {
+    id: 'tr2',
+    title: 'Database Management Systems CAT 1 Worked Answers',
+    unitCode: 'COM 315',
+    unitName: 'DBMS SQL',
+    school: 'Info Sciences',
+    paperType: 'CAT Answers',
+    downloads: '3,850',
+    rating: '4.9 ⭐',
+    examYear: '2025',
+    tag: '🔥 #2 Trending',
+    thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
+    author: 'Sammy T.'
+  },
+  {
+    id: 'tr3',
+    title: 'Microprocessor Systems Assembly Language Notes',
+    unitCode: 'COM 322',
+    unitName: 'Microprocessors',
+    school: 'Info Sciences',
+    paperType: 'Lab Manual',
+    downloads: '2,910',
+    rating: '4.8 ⭐',
+    examYear: '2024',
+    tag: '🔥 #3 Trending',
+    thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
+    author: 'Hardware Rep'
+  },
+  {
+    id: 'tr4',
+    title: 'Research Methods & Project Proposal Writing Guide',
+    unitCode: 'INS 410',
+    unitName: 'Research Methods',
+    school: 'Info Sciences',
+    paperType: 'Proposal Template',
+    downloads: '5,100',
+    rating: '5.0 ⭐',
+    examYear: '2025',
+    tag: '🔥 #4 Trending',
+    author: 'Dr. Wanjala',
+    thumbnail: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'tr5',
+    title: 'Linear Algebra Systems of Equations & Vector Spaces',
+    unitCode: 'MAT 110',
+    unitName: 'Linear Algebra',
+    school: 'School of Science',
+    paperType: 'Formula & Proofs',
+    downloads: '2,640',
+    rating: '4.9 ⭐',
+    examYear: '2024',
+    tag: '🔥 #5 Trending',
+    thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
+    author: 'Math Club'
+  }
+];
+
+const GRID_SECTION_2: NoteItem[] = [
+  {
+    id: 'g2_1',
+    title: 'Artificial Intelligence & Machine Learning Fundamentals',
+    unitCode: 'COM 420',
+    unitName: 'AI & ML',
+    school: 'Info Sciences',
+    paperType: 'Python Code + PDF',
+    downloads: '2,310',
+    rating: '5.0',
+    examYear: '2025',
+    tag: 'New Release',
+    thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80',
+    author: 'AI Lab'
+  },
+  {
+    id: 'g2_2',
+    title: 'Business Administration & Organizational Behavior',
+    unitCode: 'BAM 310',
+    unitName: 'Business Mgmt',
+    school: 'Business School',
+    paperType: 'Lecture Summary',
+    downloads: '1,120',
+    rating: '4.7',
+    examYear: '2024',
+    tag: 'Popular',
+    thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+    author: 'MBA Class'
+  },
+  {
+    id: 'g2_3',
+    title: 'Time Series Analysis & Forecasting Methods',
+    unitCode: 'STA 310',
+    unitName: 'Time Series',
+    school: 'School of Science',
+    paperType: 'R Script + Notes',
+    downloads: '940',
+    rating: '4.8',
+    examYear: '2025',
+    tag: 'Stats Core',
+    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80',
+    author: 'Stat Lab'
+  },
+  {
+    id: 'g2_4',
+    title: 'History of East Africa Pre-Colonial to Modern Era',
+    unitCode: 'HIS 110',
+    unitName: 'History I',
+    school: 'Humanities',
+    paperType: 'Essay Compilation',
+    downloads: '680',
+    rating: '4.6',
+    examYear: '2024',
+    tag: 'Year 1',
+    thumbnail: 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=600&q=80',
+    author: 'Hist Society'
+  },
+  {
+    id: 'g2_5',
+    title: 'Cloud Computing & AWS Architecture Guide',
+    unitCode: 'COM 430',
+    unitName: 'Cloud Systems',
+    school: 'Info Sciences',
+    paperType: 'Lab Practical',
+    downloads: '1,950',
+    rating: '4.9',
+    examYear: '2025',
+    tag: 'Industry Ready',
+    thumbnail: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80',
+    author: 'Cloud Club'
+  },
+  {
+    id: 'g2_6',
+    title: 'Introduction to Computer Programming C++',
+    unitCode: 'COM 110',
+    unitName: 'C++ Prog',
+    school: 'Info Sciences',
+    paperType: 'Past Paper + Sol',
+    downloads: '3,400',
+    rating: '4.8',
+    examYear: '2024',
+    tag: 'Freshman Essential',
+    thumbnail: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=600&q=80',
+    author: 'Peer Tutors'
+  },
+  {
+    id: 'g2_7',
+    title: 'Digital Electronics Logic Gates & Flip Flops',
+    unitCode: 'COM 210',
+    unitName: 'Digital Logic',
+    school: 'Info Sciences',
+    paperType: 'Diagram Book',
+    downloads: '1,560',
+    rating: '4.7',
+    examYear: '2025',
+    tag: 'Circuit Schematics',
+    thumbnail: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=600&q=80',
+    author: 'Hardware Team'
+  },
+  {
+    id: 'g2_8',
+    title: 'Mobile Application Development React Native Expo',
+    unitCode: 'COM 340',
+    unitName: 'Mobile Dev',
+    school: 'Info Sciences',
+    paperType: 'Project Code Notes',
+    downloads: '2,890',
+    rating: '5.0',
+    examYear: '2025',
+    tag: 'Hot Course',
+    thumbnail: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80',
+    author: 'Moi App Devs'
+  },
+  {
+    id: 'g2_9',
+    title: 'E-Commerce Systems Payment Gateway Integration',
+    unitCode: 'BIT 301',
+    unitName: 'E-Commerce',
+    school: 'Info Sciences',
+    paperType: 'Case Study Notes',
+    downloads: '1,280',
+    rating: '4.8',
+    examYear: '2024',
+    tag: 'Fintech Focus',
+    thumbnail: 'https://images.unsplash.com/photo-1556742049-0a670fc80799?auto=format&fit=crop&w=600&q=80',
+    author: 'Kevin O.'
+  }
+];
+
+const FILTER_DISCS = [
+  { id: 'all', label: 'All Resources' },
+  { id: 'hot', label: '🔥 Hot Now' },
+  { id: 'profile', label: '✨ For You' },
+  { id: 'new', label: '⚡ New Releases' },
+  { id: 'trending', label: '📈 Trending' },
+  { id: 'past_paper', label: '📄 Past Papers' },
+  { id: 'cat', label: '📝 CAT Papers' },
+  { id: 'date', label: '📅 Filter by Date' },
+];
+
 export default function AcademicsScreen({ route }: any) {
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
+  const [activeFilterDisc, setActiveFilterDisc] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [papers, setPapers] = useState<IPaper[]>([]);
   const [mySubmissions, setMySubmissions] = useState<IPaper[]>([]);
   const [downloadedPapers, setDownloadedPapers] = useState<IPaper[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filters
-  const [selectedType, setSelectedType] = useState<string>('');
-  const [selectedSchool, setSelectedSchool] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Carousel Active Indexes
+  const [forYouIndex, setForYouIndex] = useState(0);
+  const [trendingIndex, setTrendingIndex] = useState(0);
 
-  // Upload Submission Modal State
+  const forYouListRef = useRef<FlatList>(null);
+  const trendingListRef = useRef<FlatList>(null);
+  const isForYouInteracting = useRef(false);
+  const isTrendingInteracting = useRef(false);
+
+  // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [title, setTitle] = useState('');
   const [school, setSchool] = useState(MOI_SCHOOLS[0]);
@@ -57,19 +510,36 @@ export default function AcademicsScreen({ route }: any) {
       setShowUploadModal(true);
     }
     if (route?.params?.type) {
-      setSelectedType(route.params.type);
+      setActiveFilterDisc(route.params.type);
+    }
+    if (route?.params?.search) {
+      setSearchQuery(route.params.search);
     }
   }, [route?.params]);
 
+  // Auto Scroll For You Carousel
   useEffect(() => {
-    if (activeTab === 'browse') {
-      fetchPapers();
-    } else if (activeTab === 'submissions') {
-      fetchMySubmissions();
-    } else if (activeTab === 'offline') {
-      fetchOfflinePapers();
-    }
-  }, [activeTab, selectedType, selectedSchool]);
+    const timer = setInterval(() => {
+      if (!isForYouInteracting.current && forYouListRef.current) {
+        const nextIndex = (forYouIndex + 1) % FOR_YOU_CAROUSEL.length;
+        setForYouIndex(nextIndex);
+        forYouListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+      }
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [forYouIndex]);
+
+  // Auto Scroll Trending Carousel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!isTrendingInteracting.current && trendingListRef.current) {
+        const nextIndex = (trendingIndex + 1) % TRENDING_CAROUSEL.length;
+        setTrendingIndex(nextIndex);
+        trendingListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+      }
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [trendingIndex]);
 
   const fetchOfflinePapers = async () => {
     setLoading(true);
@@ -77,21 +547,6 @@ export default function AcademicsScreen({ route }: any) {
     setDownloadedPapers(saved);
     setLoading(false);
     setRefreshing(false);
-  };
-
-  const fetchPapers = async () => {
-    setLoading(true);
-    let url = `/papers?limit=30`;
-    if (selectedType) url += `&type=${selectedType}`;
-    if (selectedSchool) url += `&school=${encodeURIComponent(selectedSchool)}`;
-    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
-
-    const res = await apiRequest<{ data: IPaper[] }>(url);
-    setLoading(false);
-    setRefreshing(false);
-    if (res.success && res.data) {
-      setPapers(res.data);
-    }
   };
 
   const fetchMySubmissions = async () => {
@@ -103,10 +558,6 @@ export default function AcademicsScreen({ route }: any) {
     if (res.success && res.data) {
       setMySubmissions(res.data);
     }
-  };
-
-  const handleSearchSubmit = () => {
-    fetchPapers();
   };
 
   const handleUploadPaper = async () => {
@@ -148,16 +599,87 @@ export default function AcademicsScreen({ route }: any) {
     }
   };
 
+  const renderCarouselCard = (item: NoteItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.carouselCard}
+      activeOpacity={0.88}
+      onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(item.unitCode)}`)}
+    >
+      <View style={styles.carouselThumbnailContainer}>
+        <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+        <View style={styles.carouselOverlay} />
+        <View style={styles.carouselBadgeRow}>
+          <View style={styles.carouselTypeBadge}>
+            <Text style={styles.carouselTypeText}>{item.paperType}</Text>
+          </View>
+          <View style={styles.carouselTagBadge}>
+            <Text style={styles.carouselTagText}>{item.tag}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.carouselBody}>
+        <Text style={styles.carouselMeta}>{item.unitCode} • {item.school}</Text>
+        <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+
+        <View style={styles.carouselFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <DownloadIcon color="#15803d" size={13} />
+            <Text style={styles.carouselStats}>{item.downloads} downloads</Text>
+          </View>
+          <Text style={styles.ratingText}>{item.rating}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderGridCard = (item: NoteItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.gridCard}
+      activeOpacity={0.88}
+      onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(item.unitCode)}`)}
+    >
+      <View style={styles.gridImageContainer}>
+        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+        <View style={styles.gridBadge}>
+          <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+        </View>
+        <View style={styles.gridRatingBadge}>
+          <StarIcon color="#eab308" size={11} />
+          <Text style={styles.gridRatingText}>{item.rating}</Text>
+        </View>
+      </View>
+
+      <View style={styles.gridBody}>
+        <Text style={styles.gridPaperType}>{item.paperType}</Text>
+        <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.gridSub}>{item.school} • {item.examYear}</Text>
+
+        <View style={styles.gridFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <DownloadIcon color="#15803d" size={12} />
+            <Text style={styles.gridDownloads}>{item.downloads}</Text>
+          </View>
+          <View style={styles.miniArrow}>
+            <ChevronRightIcon color="#15803d" size={14} />
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Top Tabs */}
+      {/* Top Header Tabs */}
       <View style={styles.tabHeader}>
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === 'browse' && styles.tabBtnActive]}
           onPress={() => setActiveTab('browse')}
         >
           <Text style={[styles.tabBtnText, activeTab === 'browse' && styles.tabBtnTextActive]}>
-            Browse Resources
+            Notes & Past Papers
           </Text>
         </TouchableOpacity>
 
@@ -168,6 +690,7 @@ export default function AcademicsScreen({ route }: any) {
               router.push('/(auth)/login');
             } else {
               setActiveTab('submissions');
+              fetchMySubmissions();
             }
           }}
         >
@@ -184,7 +707,7 @@ export default function AcademicsScreen({ route }: any) {
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <DownloadIcon color={activeTab === 'offline' ? '#ffffff' : '#475569'} size={14} />
+            <DownloadIcon color={activeTab === 'offline' ? '#15803d' : '#64748b'} size={14} />
             <Text style={[styles.tabBtnText, activeTab === 'offline' && styles.tabBtnTextActive]}>
               Offline ({downloadedPapers.length})
             </Text>
@@ -192,107 +715,235 @@ export default function AcademicsScreen({ route }: any) {
         </TouchableOpacity>
       </View>
 
-      {activeTab === 'offline' ? (
+      {activeTab === 'browse' ? (
+        <ScrollView
+          style={styles.feedScroll}
+          contentContainerStyle={styles.feedContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                setTimeout(() => setRefreshing(false), 1000);
+              }}
+              colors={['#15803d']}
+            />
+          }
+        >
+          {/* Top Search Bar */}
+          <View style={styles.searchSection}>
+            <View style={styles.searchBar}>
+              <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
+              <TextInput
+                placeholder="Search notes, unit codes (e.g. COM 310, STA 210)..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Filter Discs Header */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.discScroll}
+            contentContainerStyle={styles.discContent}
+          >
+            {FILTER_DISCS.map((disc) => (
+              <TouchableOpacity
+                key={disc.id}
+                style={[styles.discPill, activeFilterDisc === disc.id && styles.discPillActive]}
+                onPress={() => setActiveFilterDisc(disc.id)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.discText, activeFilterDisc === disc.id && styles.discTextActive]}>
+                  {disc.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Submit Notes / Past Paper Banner */}
+          <TouchableOpacity
+            style={styles.uploadBanner}
+            activeOpacity={0.88}
+            onPress={() => setShowUploadModal(true)}
+          >
+            <View style={styles.uploadIconCircle}>
+              <PlusIcon color="#ffffff" size={20} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.uploadBannerTitle}>Share Your Notes or Past Papers</Text>
+              <Text style={styles.uploadBannerSub}>Upload PDFs & exam revision materials for your campus peers</Text>
+            </View>
+            <View style={styles.uploadBtnBadge}>
+              <Text style={styles.uploadBtnText}>Upload +</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionIconCircle}>
+              <SparklesIcon color="#15803d" size={18} />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>Based on your profile</Text>
+              <Text style={styles.sectionSub}>Recommended for your course & year</Text>
+            </View>
+          </View>
+
+          <FlatList
+            ref={forYouListRef}
+            data={FOR_YOU_CAROUSEL}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.carouselListContent}
+            snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+            decelerationRate="fast"
+            onScrollBeginDrag={() => { isForYouInteracting.current = true; }}
+            onScrollEndDrag={() => { setTimeout(() => { isForYouInteracting.current = false; }, 3000); }}
+            renderItem={({ item }) => renderCarouselCard(item)}
+            getItemLayout={(_, index) => ({
+              length: CAROUSEL_CARD_WIDTH + 14,
+              offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+              index
+            })}
+            onScrollToIndexFailed={(info) => {
+              forYouListRef.current?.scrollToOffset({
+                offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                animated: true
+              });
+            }}
+          />
+
+          {/* Carousel Pagination Dots */}
+          <View style={styles.dotsRow}>
+            {FOR_YOU_CAROUSEL.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, i === forYouIndex ? styles.activeDot : styles.inactiveDot]}
+              />
+            ))}
+          </View>
+
+          {/* SECTION 2: GRID SECTION 1 (9 CARDS) */}
+          <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+            <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+              <BookIcon color="#15803d" size={18} />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>Essential Course Notes & Papers</Text>
+              <Text style={styles.sectionSub}>Top rated revision materials</Text>
+            </View>
+          </View>
+
+          <View style={styles.gridContainer}>
+            {GRID_SECTION_1.map((item) => renderGridCard(item))}
+          </View>
+
+          {/* SECTION 3: TRENDING NOW CAROUSEL */}
+          <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+            <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
+              <Text style={{ fontSize: 16 }}>🔥</Text>
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>Trending on Campus</Text>
+              <Text style={styles.sectionSub}>Most downloaded notes this week</Text>
+            </View>
+          </View>
+
+          <FlatList
+            ref={trendingListRef}
+            data={TRENDING_CAROUSEL}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.carouselListContent}
+            snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+            decelerationRate="fast"
+            onScrollBeginDrag={() => { isTrendingInteracting.current = true; }}
+            onScrollEndDrag={() => { setTimeout(() => { isTrendingInteracting.current = false; }, 3000); }}
+            renderItem={({ item }) => renderCarouselCard(item)}
+            getItemLayout={(_, index) => ({
+              length: CAROUSEL_CARD_WIDTH + 14,
+              offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+              index
+            })}
+            onScrollToIndexFailed={(info) => {
+              trendingListRef.current?.scrollToOffset({
+                offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                animated: true
+              });
+            }}
+          />
+
+          {/* Trending Carousel Dots */}
+          <View style={styles.dotsRow}>
+            {TRENDING_CAROUSEL.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, i === trendingIndex ? styles.activeDot : styles.inactiveDot]}
+              />
+            ))}
+          </View>
+
+          {/* SECTION 4: GRID SECTION 2 (9 CARDS) */}
+          <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+            <View style={[styles.sectionIconCircle, { backgroundColor: '#dbeafe' }]}>
+              <FileTextIcon color="#2563eb" size={18} />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>Recently Uploaded & Recommended</Text>
+              <Text style={styles.sectionSub}>Fresh notes uploaded by students & lecturers</Text>
+            </View>
+          </View>
+
+          <View style={styles.gridContainer}>
+            {GRID_SECTION_2.map((item) => renderGridCard(item))}
+          </View>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      ) : activeTab === 'offline' ? (
         <FlatList
           data={downloadedPapers}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ padding: 16 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={fetchOfflinePapers} colors={['#15803d']} />
           }
           renderItem={({ item }) => (
-            <PaperCard paper={item} onPress={() => router.push(`/paper/${item._id}`)} />
+            <TouchableOpacity
+              style={styles.submissionCard}
+              onPress={() => router.push(`/paper/${item._id}`)}
+            >
+              <Text style={styles.subTitle}>{item.title}</Text>
+              <Text style={styles.subDetail}>{item.unitCode} • {item.school}</Text>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <EmptyState
-              title="No Offline Papers Downloaded"
-              message="Tap 'Save for Offline Reading' on any past paper or CAT to read it later without internet."
+              title="No Offline Notes Downloaded"
+              message="Tap 'Save for Offline Reading' on any notes or past paper to read it offline anytime."
             />
-          }
-        />
-      ) : activeTab === 'browse' ? (
-        <FlatList
-          data={papers}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPapers(); }} colors={['#15803d']} />
-          }
-          ListHeaderComponent={
-            <View>
-              {/* Search input */}
-              <View style={styles.searchRow}>
-                <TextInput
-                  placeholder="Search title, unit code (e.g. COM 310)..."
-                  placeholderTextColor="#94a3b8"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmitEditing={handleSearchSubmit}
-                  style={styles.searchInput}
-                />
-                <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
-                  <Text style={styles.searchBtnText}>Search</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Resource Type Filter Pills */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-                <TouchableOpacity
-                  style={[styles.pill, selectedType === '' && styles.pillActive]}
-                  onPress={() => setSelectedType('')}
-                >
-                  <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
-                </TouchableOpacity>
-                {PAPER_TYPES.map((pt) => (
-                  <TouchableOpacity
-                    key={pt}
-                    style={[styles.pill, selectedType === pt && styles.pillActive]}
-                    onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
-                  >
-                    <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
-                      {pt.replace('_', ' ')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Upload Button Header Action */}
-              <TouchableOpacity style={styles.uploadBanner} onPress={() => setShowUploadModal(true)}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#15803d', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                  <PlusIcon color="#ffffff" size={20} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.uploadBannerTitle}>Submit Past Paper or Notes</Text>
-                  <Text style={styles.uploadBannerSub}>Share revision materials with fellow Moi University students</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <PaperCard paper={item} onPress={() => router.push(`/paper/${item._id}`)} />
-          )}
-          ListEmptyComponent={
-            loading ? (
-              <View style={{ gap: 10, marginTop: 12 }}>
-                <Skeleton height={120} />
-                <Skeleton height={120} />
-                <Skeleton height={120} />
-              </View>
-            ) : (
-              <EmptyState
-                title="No Academic Resources Found"
-                message="Try clearing filters or search query to view available past papers and revision notes."
-              />
-            )
           }
         />
       ) : (
         <FlatList
           data={mySubmissions}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ padding: 16 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMySubmissions(); }} colors={['#15803d']} />
+            <RefreshControl refreshing={refreshing} onRefresh={fetchMySubmissions} colors={['#15803d']} />
           }
           renderItem={({ item }) => (
             <View style={styles.submissionCard}>
@@ -305,20 +956,13 @@ export default function AcademicsScreen({ route }: any) {
               </View>
               <Text style={styles.subTitle}>{item.title}</Text>
               <Text style={styles.subDetail}>{item.unitCode} - {item.unitName}</Text>
-              {item.rejectionReason && (
-                <Text style={styles.rejectionText}>Reason for Rejection: {item.rejectionReason}</Text>
-              )}
             </View>
           )}
           ListEmptyComponent={
-            loading ? (
-              <Skeleton height={100} />
-            ) : (
-              <EmptyState
-                title="No Submissions Yet"
-                message="You have not submitted any academic papers. Click 'Submit Paper' to upload revision notes."
-              />
-            )
+            <EmptyState
+              title="No Submissions Yet"
+              message="You haven't uploaded any notes or past papers yet. Click 'Upload +' to contribute!"
+            />
           }
         />
       )}
@@ -375,83 +1019,98 @@ const styles = StyleSheet.create({
     borderBottomColor: '#15803d'
   },
   tabBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#64748b'
   },
   tabBtnTextActive: {
     color: '#15803d'
   },
-  listContent: {
-    padding: 16
+  feedScroll: {
+    flex: 1
   },
-  searchRow: {
+  feedContent: {
+    padding: 16,
+    paddingBottom: 40
+  },
+  /* Search Bar */
+  searchSection: {
+    marginBottom: 14
+  },
+  searchBar: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1
   },
   searchInput: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
     fontSize: 14,
     color: '#0f172a',
-    outlineStyle: 'none',
+    outlineStyle: 'none'
   } as any,
-  searchBtn: {
-    backgroundColor: '#15803d',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  searchBtnText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 13
-  },
-  pillScroll: {
+
+  /* Filter Discs */
+  discScroll: {
     flexDirection: 'row',
     marginBottom: 16
   },
-  pill: {
+  discContent: {
+    gap: 8,
+    paddingRight: 16
+  },
+  discPill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    marginRight: 8
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3
   },
-  pillActive: {
+  discPillActive: {
     backgroundColor: '#15803d',
     borderColor: '#15803d'
   },
-  pillText: {
+  discText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#475569',
-    textTransform: 'capitalize'
+    color: '#475569'
   },
-  pillTextActive: {
+  discTextActive: {
     color: '#ffffff'
   },
+
+  /* Upload Banner */
   uploadBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
-    marginBottom: 16
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#bbf7d0'
   },
-  uploadBannerIcon: {
-    fontSize: 24,
+  uploadIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#15803d',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12
   },
   uploadBannerTitle: {
@@ -460,10 +1119,275 @@ const styles = StyleSheet.create({
     color: '#166534'
   },
   uploadBannerSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#15803d',
     marginTop: 2
   },
+  uploadBtnBadge: {
+    backgroundColor: '#15803d',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10
+  },
+  uploadBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800'
+  },
+
+  /* Section Header */
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14
+  },
+  sectionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a'
+  },
+  sectionSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803d'
+  },
+
+  /* Carousel Card */
+  carouselListContent: {
+    gap: 14,
+    paddingRight: 16
+  },
+  carouselCard: {
+    width: CAROUSEL_CARD_WIDTH,
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3
+  },
+  carouselThumbnailContainer: {
+    height: 120,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#0f172a'
+  },
+  carouselImage: {
+    width: '100%',
+    height: '100%'
+  },
+  carouselOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.3)'
+  },
+  carouselBadgeRow: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  carouselTypeBadge: {
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  carouselTypeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  carouselTagBadge: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10
+  },
+  carouselTagText: {
+    color: '#15803d',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  carouselBody: {
+    padding: 14
+  },
+  carouselMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    marginBottom: 3
+  },
+  carouselTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    height: 38,
+    lineHeight: 19,
+    marginBottom: 10
+  },
+  carouselFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9'
+  },
+  carouselStats: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#15803d'
+  },
+  ratingText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0f172a'
+  },
+
+  /* Pagination Dots */
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3
+  },
+  activeDot: {
+    width: 18,
+    backgroundColor: '#15803d'
+  },
+  inactiveDot: {
+    width: 6,
+    backgroundColor: '#cbd5e1'
+  },
+
+  /* Grid Cards */
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12
+  },
+  gridCard: {
+    width: GRID_CARD_WIDTH,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  gridImageContainer: {
+    height: 95,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#0f172a'
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%'
+  },
+  gridBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#15803d',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  gridBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  gridRatingBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3
+  },
+  gridRatingText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  gridBody: {
+    padding: 10
+  },
+  gridPaperType: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    marginBottom: 2
+  },
+  gridTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+    height: 34,
+    lineHeight: 16,
+    marginBottom: 6
+  },
+  gridSub: {
+    fontSize: 10,
+    color: '#64748b',
+    marginBottom: 8
+  },
+  gridFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9'
+  },
+  gridDownloads: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803d'
+  },
+  miniArrow: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#f0fdf4',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  /* Submission Cards */
   submissionCard: {
     backgroundColor: '#ffffff',
     padding: 16,
@@ -483,23 +1407,14 @@ const styles = StyleSheet.create({
     color: '#94a3b8'
   },
   subTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0f172a',
     marginBottom: 4
   },
   subDetail: {
-    fontSize: 13,
-    color: '#64748b'
-  },
-  rejectionText: {
-    marginTop: 8,
     fontSize: 12,
-    color: '#b91c1c',
-    backgroundColor: '#fee2e2',
-    padding: 8,
-    borderRadius: 6,
-    fontWeight: '600'
+    color: '#64748b'
   },
   modalContent: {
     padding: 24,
@@ -526,3 +1441,4 @@ const styles = StyleSheet.create({
     color: '#dc2626'
   }
 });
+

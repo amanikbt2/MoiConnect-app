@@ -8,7 +8,7 @@ function HomeHeaderTitle() {
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Image
         source={require('../../assets/mc-logo.png')}
-        style={{ width: 32, height: 32, marginRight: 6 }}
+        style={{ width: 30, height: 30, marginRight: 8 }}
         resizeMode="contain"
       />
       <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
