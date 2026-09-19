@@ -224,6 +224,21 @@ function HeaderProfileAvatar({ navigation }: any) {
   );
 }
 
+function HomeHeaderTitle() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Image
+        source={require('./assets/mc-logo.png')}
+        style={{ width: 32, height: 32, marginRight: 6 }}
+        resizeMode="contain"
+      />
+      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+        Connect
+      </Text>
+    </View>
+  );
+}
+
 function MainTabs({ navigation }: any) {
   return (
     <Tab.Navigator
@@ -248,7 +263,7 @@ function MainTabs({ navigation }: any) {
         component={HomeScreen}
         options={{
           title: 'Home',
-          headerTitle: 'MConnect',
+          headerTitle: () => <HomeHeaderTitle />,
           tabBarIcon: ({ color }) => <HomeIcon color={color} size={22} />
         }}
       />

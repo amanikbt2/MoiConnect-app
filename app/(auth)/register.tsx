@@ -74,14 +74,19 @@ export default function RegisterScreen() {
 
       {/* Social Register Options */}
       <View style={styles.socialSection}>
-        <TouchableOpacity
-          style={styles.googleBtn}
-          activeOpacity={0.8}
-          onPress={() => handleSocialRegister('Google')}
-        >
-          <GoogleIcon size={22} style={styles.socialIcon} />
-          <Text style={styles.googleBtnText}>Continue with Google</Text>
-        </TouchableOpacity>
+        <View style={styles.googleWrapper}>
+          <View style={styles.recommendedBadge}>
+            <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.googleBtn}
+            activeOpacity={0.8}
+            onPress={() => handleSocialRegister('Google')}
+          >
+            <GoogleIcon size={22} style={styles.socialIcon} />
+            <Text style={styles.googleBtnText}>Continue with Google</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={styles.appleBtn}
@@ -182,13 +187,40 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12
   },
+  googleWrapper: {
+    position: 'relative',
+    width: '100%',
+    marginTop: 8
+  },
+  recommendedBadge: {
+    position: 'absolute',
+    top: -10,
+    left: 14,
+    backgroundColor: '#15803d',
+    paddingHorizontal: 9,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+    zIndex: 10,
+    elevation: 4,
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3
+  },
+  recommendedBadgeText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase'
+  },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
+    borderColor: '#15803d',
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,

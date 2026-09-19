@@ -368,20 +368,19 @@ export default function HomeScreen() {
 
       {/* App Footer */}
       <View style={styles.footer}>
-        <View style={styles.footerLinks}>
-          <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
-            <Text style={styles.footerLink}>Privacy Policy</Text>
-          </TouchableOpacity>
-          <Text style={styles.footerDivider}>·</Text>
-          <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
-            <Text style={styles.footerLink}>Terms of Use</Text>
-          </TouchableOpacity>
-          <Text style={styles.footerDivider}>·</Text>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={styles.footerLink}>Support</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.footerVersion}>MConnect_V1.0.0 · Moi University</Text>
+        <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+          <Text style={styles.footerLink}>Privacy Policy</Text>
+        </TouchableOpacity>
+        <Text style={styles.footerDivider}>·</Text>
+        <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+          <Text style={styles.footerLink}>Terms of Use</Text>
+        </TouchableOpacity>
+        <Text style={styles.footerDivider}>·</Text>
+        <TouchableOpacity activeOpacity={0.7}>
+          <Text style={styles.footerLink}>Support</Text>
+        </TouchableOpacity>
+        <Text style={styles.footerDivider}>·</Text>
+        <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
       </View>
     </ScrollView>
   );
@@ -662,30 +661,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1'
   },
   footer: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
-    marginTop: 4
-  },
-  footerLinks: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 3
+    paddingTop: 16,
+    paddingBottom: 4,
+    marginTop: 8
   },
   footerLink: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
-    color: '#c8d0db'
+    color: '#94a3b8'
   },
   footerDivider: {
-    fontSize: 9,
-    color: '#dde1e7'
+    fontSize: 10,
+    color: '#cbd5e1'
   },
   footerVersion: {
-    fontSize: 8,
-    color: '#d1d7e0',
-    fontWeight: '400',
-    letterSpacing: 0.3
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '500'
   }
 });
