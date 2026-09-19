@@ -455,22 +455,14 @@ export default function CommunityScreen() {
               onPress={() => setShowFileModal(true)}
               activeOpacity={0.7}
             >
-              <PaperclipIcon color="#475569" size={22} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.botMentionChip}
-              onPress={() => setInputText((prev) => (prev.includes('@bot') ? prev : `@bot ${prev}`))}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.botMentionChipText}>@bot</Text>
+              <PaperclipIcon color="#54656f" size={24} />
             </TouchableOpacity>
 
             <View style={styles.textInputCard}>
               <TextInput
                 style={styles.input}
-                placeholder="Message community... (@bot to mention campus bot)"
-                placeholderTextColor="#94a3b8"
+                placeholder="Message campus community..."
+                placeholderTextColor="#8696a0"
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
@@ -856,12 +848,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    padding: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f0f2f5',
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0'
+    borderTopColor: '#e9edef'
   },
   attachBtn: {
     padding: 6
@@ -871,15 +863,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 24,
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
     borderWidth: 1,
-    borderColor: '#cbd5e1'
+    borderColor: '#e9edef',
+    justifyContent: 'center'
   },
   input: {
-    fontSize: 14,
-    color: '#0f172a',
-    maxHeight: 100
-  },
+    fontSize: 15,
+    color: '#111b21',
+    maxHeight: 100,
+    lineHeight: 20,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {})
+  } as any,
   sendBtn: {
     width: 44,
     height: 44,
@@ -972,17 +967,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 13
-  },
-  botMentionChip: {
-    backgroundColor: '#e0e7ff',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 14,
-    marginRight: 6
-  },
-  botMentionChipText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#4338ca'
   }
 });

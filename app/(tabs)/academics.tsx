@@ -23,9 +23,7 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers } from '../../src/services/offlineStorage';
 
-import { DownloadIcon, PlusIcon, SearchIcon } from '../../src/components/Icons';
-
-export default function AcademicsScreen() {
+export default function AcademicsScreen({ route }: any) {
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
   const [papers, setPapers] = useState<IPaper[]>([]);
   const [mySubmissions, setMySubmissions] = useState<IPaper[]>([]);
@@ -53,6 +51,12 @@ export default function AcademicsScreen() {
 
   const { user } = useAuth();
   const router = useAppNavigation();
+
+  useEffect(() => {
+    if (route?.params?.upload === 'true' || route?.params?.upload === true) {
+      setShowUploadModal(true);
+    }
+  }, [route?.params]);
 
   useEffect(() => {
     if (activeTab === 'browse') {

@@ -24,7 +24,8 @@ import {
   UsersIcon,
   SparklesIcon,
   DownloadIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  UploadIcon
 } from '../../src/components/Icons';
 
 interface SuggestedMaterial {
@@ -282,13 +283,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.quickCard}
               activeOpacity={0.7}
-              onPress={() => router.push('/community')}
+              onPress={() => router.push('/(tabs)/academics?upload=true')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#f3e8ff' }]}>
-                <UsersIcon color="#7c3aed" size={28} />
+                <UploadIcon color="#7c3aed" size={28} />
               </View>
-              <Text style={styles.quickTitle}>Campus Community</Text>
-              <Text style={styles.quickSub}>Share thoughts & chat</Text>
+              <Text style={styles.quickTitle}>Contribute</Text>
+              <Text style={styles.quickSub}>Upload study materials</Text>
             </TouchableOpacity>
           </View>
         </View>

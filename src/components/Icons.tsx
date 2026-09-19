@@ -447,4 +447,19 @@ export function BellIcon({ color = '#ffffff', size = 22, style }: IconProps) {
   );
 }
 
+export function UploadIcon({ color = '#15803d', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M21 15V19C21 19.5523 20.5523 20 20 20H4C3.44772 20 3 19.5523 3 19V15M17 8L12 3M12 3L7 8M12 3V15"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+
 
