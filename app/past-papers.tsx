@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
+import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import {
   SearchIcon,
   DownloadIcon,
@@ -30,13 +31,15 @@ export interface PastPaperItem {
   school: string;
   examYear: string;
   semester: string;
-  downloads: string;
+  downloadsCount: number;
+  starsCount: number;
+  ratingScore: string;
   thumbnail: string;
   fileUrl: string;
   hasSolutions: boolean;
 }
 
-const PAST_PAPERS_DATA: PastPaperItem[] = [
+const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [
   {
     id: 'pp1',
     title: 'COM 310 Data Structures Main Exam Paper 2024',
@@ -45,7 +48,9 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
     school: 'School of Information Sciences',
     examYear: '2024',
     semester: 'Semester 1',
-    downloads: '2,940',
+    downloadsCount: 2940,
+    starsCount: 2410,
+    ratingScore: '4.9',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_exam2024.pdf',
     hasSolutions: true
@@ -58,7 +63,9 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
     school: 'School of Science',
     examYear: '2024',
     semester: 'Semester 2',
-    downloads: '3,180',
+    downloadsCount: 3180,
+    starsCount: 2890,
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/mat210_exam2024.pdf',
     hasSolutions: true
@@ -71,7 +78,9 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
     school: 'School of Information Sciences',
     examYear: '2023',
     semester: 'Semester 2',
-    downloads: '4,100',
+    downloadsCount: 4100,
+    starsCount: 3520,
+    ratingScore: '5.0',
     thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com211_exam2023.pdf',
     hasSolutions: true
@@ -84,7 +93,9 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
     school: 'School of Science',
     examYear: '2024',
     semester: 'Semester 1',
-    downloads: '2,680',
+    downloadsCount: 2680,
+    starsCount: 1940,
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/sta210_exam2024.pdf',
     hasSolutions: false
@@ -97,7 +108,9 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
     school: 'School of Law',
     examYear: '2023',
     semester: 'Semester 1',
-    downloads: '1,890',
+    downloadsCount: 1890,
+    starsCount: 1410,
+    ratingScore: '4.9',
     thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/law210_exam2023.pdf',
     hasSolutions: true
@@ -110,7 +123,9 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
     school: 'School of Business & Economics',
     examYear: '2024',
     semester: 'Semester 2',
-    downloads: '3,450',
+    downloadsCount: 3450,
+    starsCount: 2980,
+    ratingScore: '4.7',
     thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/eco101_exam2024.pdf',
     hasSolutions: false
@@ -120,9 +135,16 @@ const PAST_PAPERS_DATA: PastPaperItem[] = [
 export default function PastPapersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [papersData, setPapersData] = useState<PastPaperItem[]>(INITIAL_PAST_PAPERS_DATA);
+  const [userStars, setUserStars] = useState<Record<string, boolean>>({});
+
+  // Fast PDF Preview Modal State
+  const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
   const router = useAppNavigation();
 
-  const filteredPapers = PAST_PAPERS_DATA.filter((item) => {
+  const filteredPapers = papersData.filter((item) => {
     const q = searchQuery.toLowerCase();
     return (
       item.title.toLowerCase().includes(q) ||
@@ -132,18 +154,49 @@ export default function PastPapersScreen() {
     );
   });
 
-  const handleDownload = async (item: PastPaperItem) => {
+  const handleToggleStar = (id: string, e?: any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setUserStars((prev) => {
+      const isStarred = !prev[id];
+      setPapersData((list) =>
+        list.map((item) => {
+          if (item.id !== id) return item;
+          return {
+            ...item,
+            starsCount: isStarred ? item.starsCount + 1 : item.starsCount - 1
+          };
+        })
+      );
+      return { ...prev, [id]: isStarred };
+    });
+  };
+
+  const handleOpenPreview = (item: PastPaperItem) => {
+    setPreviewDoc({
+      id: item.id,
+      title: item.title,
+      unitCode: item.unitCode,
+      unitName: item.unitName,
+      school: item.school,
+      fileUrl: item.fileUrl,
+      pages: 'Past Exam Paper PDF',
+      summary: `Official End of Semester Examination Paper for ${item.unitCode} (${item.examYear}, ${item.semester}).`
+    });
+    setShowPreviewModal(true);
+  };
+
+  const handleDownload = async (item: PDFDocumentItem | PastPaperItem) => {
     try {
       await saveDownloadedPaper({
         _id: `pp_${item.id}`,
         title: item.title,
-        school: item.school,
-        department: item.unitName,
+        school: item.school || 'Moi University',
+        department: item.unitName || item.unitCode,
         courseCode: item.unitCode,
         unitCode: item.unitCode,
-        unitName: item.unitName,
+        unitName: item.unitName || item.unitCode,
         type: 'past_paper',
-        examYear: parseInt(item.examYear, 10),
+        examYear: 2024,
         fileUrl: item.fileUrl,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_exams', name: 'Moi University Examination Board' } as any,
@@ -212,39 +265,81 @@ export default function PastPapersScreen() {
             colors={['#15803d']}
           />
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.88}
-            onPress={() => handleDownload(item)}
-          >
-            <View style={styles.cardImageContainer}>
-              <Image source={{ uri: item.thumbnail }} style={styles.cardImage} resizeMode="cover" />
-              <View style={styles.codeTag}>
-                <Text style={styles.codeTagText}>{item.unitCode}</Text>
-              </View>
-              {item.hasSolutions && (
-                <View style={styles.solutionTag}>
-                  <Text style={styles.solutionTagText}>✓ Solved Answers</Text>
+        renderItem={({ item }) => {
+          const isStarred = !!userStars[item.id];
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.88}
+              onPress={() => handleOpenPreview(item)}
+            >
+              <View style={styles.cardImageContainer}>
+                <Image source={{ uri: item.thumbnail }} style={styles.cardImage} resizeMode="cover" />
+                <View style={styles.codeTag}>
+                  <Text style={styles.codeTagText}>{item.unitCode}</Text>
                 </View>
-              )}
-            </View>
+                {item.hasSolutions && (
+                  <View style={styles.solutionTag}>
+                    <Text style={styles.solutionTagText}>✓ Solved Answers</Text>
+                  </View>
+                )}
 
-            <View style={styles.cardBody}>
-              <Text style={styles.cardSchool}>{item.school} • {item.examYear}</Text>
-              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-
-              <View style={styles.cardFooter}>
-                <Text style={styles.cardSem}>{item.semester}</Text>
-
-                <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)}>
-                  <DownloadIcon color="#ffffff" size={13} style={{ marginRight: 4 }} />
-                  <Text style={styles.downloadBtnText}>Save PDF</Text>
-                </TouchableOpacity>
+                {/* Rating Badge Overlay */}
+                <View style={styles.ratingScoreBadge}>
+                  <Text style={styles.ratingScoreText}>⭐ {item.ratingScore}</Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
+
+              <View style={styles.cardBody}>
+                <Text style={styles.cardSchool}>{item.school} • {item.examYear}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+
+                {/* Downloads & Interactive Star Button Row */}
+                <View style={styles.metricsRow}>
+                  <View style={styles.downloadsMeta}>
+                    <DownloadIcon color="#15803d" size={13} style={{ marginRight: 4 }} />
+                    <Text style={styles.downloadsText}>{formatCount(item.downloadsCount)} downloads</Text>
+                  </View>
+
+                  {/* Interactive Star Rating Button */}
+                  <TouchableOpacity
+                    style={[styles.starBtn, isStarred && styles.starBtnActive]}
+                    onPress={(e) => handleToggleStar(item.id, e)}
+                    activeOpacity={0.7}
+                  >
+                    <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={14} style={{ marginRight: 4 }} />
+                    <Text style={[styles.starBtnText, isStarred && styles.starBtnTextActive]}>
+                      {formatCount(item.starsCount)}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.cardFooter}>
+                  <Text style={styles.cardSem}>{item.semester}</Text>
+
+                  <TouchableOpacity
+                    style={styles.downloadBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDownload(item);
+                    }}
+                  >
+                    <DownloadIcon color="#ffffff" size={13} style={{ marginRight: 4 }} />
+                    <Text style={styles.downloadBtnText}>Save PDF</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+
+      {/* Fast In-App PDF Preview Window */}
+      <PDFViewerModal
+        visible={showPreviewModal}
+        document={previewDoc}
+        onClose={() => setShowPreviewModal(false)}
+        onDownload={handleDownload}
       />
     </View>
   );
@@ -363,6 +458,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800'
   },
+  ratingScoreBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8
+  },
+  ratingScoreText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#854d0e'
+  },
   cardBody: {
     padding: 14
   },
@@ -378,7 +487,48 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
     lineHeight: 20,
+    marginBottom: 8
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     marginBottom: 10
+  },
+  downloadsMeta: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  downloadsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803d'
+  },
+  starBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  starBtnActive: {
+    backgroundColor: '#fef9c3',
+    borderColor: '#fde047'
+  },
+  starBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569'
+  },
+  starBtnTextActive: {
+    color: '#854d0e'
   },
   cardFooter: {
     flexDirection: 'row',

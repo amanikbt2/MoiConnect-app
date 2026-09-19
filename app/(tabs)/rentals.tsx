@@ -25,6 +25,125 @@ import { Badge } from '../../src/components/Badge';
 
 import { LocationIcon, PlusIcon } from '../../src/components/Icons';
 
+const LOCATIONS_LIST = ['All Locations', 'Stage', 'Mabs', 'Viewland', 'Kesses', 'Talai', 'Annex'];
+
+const MOCK_RENTAL_HOUSES: IHouse[] = [
+  {
+    _id: 'rental_1',
+    landlordId: 'landlord_1',
+    title: 'Sunrise Haven Bedsitters',
+    description: 'Modern spacious bedsitter with fitted kitchen, high speed fiber Wi-Fi, and 24/7 borehole water supply.',
+    propertyType: 'bedsetter',
+    location: 'Stage',
+    locationName: '📍 Stage (2 min to Main Gate)',
+    monthlyRent: 4500,
+    pricePerMonth: 4500,
+    deposit: 4500,
+    amenities: ['📶 Fiber WiFi', '💧 Water 24/7', '🔒 Security Guard', '⚡ Tokens'],
+    photos: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80'],
+    status: 'available',
+    occupancyStatus: 'available',
+    isVerified: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'rental_2',
+    landlordId: 'landlord_2',
+    title: 'Mabs View Heights Single Rooms',
+    description: 'Affordable single rooms located right at Mabs stage. Quiet study environment for students.',
+    propertyType: 'single_room',
+    location: 'Mabs',
+    locationName: '📍 Mabs (Near Shopping Center)',
+    monthlyRent: 3500,
+    pricePerMonth: 3500,
+    deposit: 3500,
+    amenities: ['💧 Water 24/7', '🔒 Gate Locked 10PM', '⚡ Tokens'],
+    photos: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80'],
+    status: 'available',
+    occupancyStatus: 'available',
+    isVerified: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'rental_3',
+    landlordId: 'landlord_3',
+    title: 'Kesses Executive Bedsitters',
+    description: 'Executive tiled bedsitters with hot instant shower, private balcony, and high security.',
+    propertyType: 'bedsetter',
+    location: 'Kesses',
+    locationName: '📍 Kesses (Opposite Stage)',
+    monthlyRent: 5000,
+    pricePerMonth: 5000,
+    deposit: 5000,
+    amenities: ['📶 High Speed WiFi', '🚿 Instant Shower', '💧 Water 24/7', '🔒 CCTV Camera'],
+    photos: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80'],
+    status: 'available',
+    occupancyStatus: 'available',
+    isVerified: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'rental_4',
+    landlordId: 'landlord_4',
+    title: 'Viewland Park 1-Bedroom Apartments',
+    description: 'Spacious 1 bedroom apartment with sitting room, separate kitchen, and balcony view of campus.',
+    propertyType: 'one_bedroom',
+    location: 'Viewland',
+    locationName: '📍 Viewland (View Stage)',
+    monthlyRent: 7500,
+    pricePerMonth: 7500,
+    deposit: 7500,
+    amenities: ['📶 WiFi Included', '🛋️ Living Room', '💧 Water 24/7', '🔒 Security Guard'],
+    photos: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=80'],
+    status: 'available',
+    occupancyStatus: 'available',
+    isVerified: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'rental_5',
+    landlordId: 'landlord_5',
+    title: 'Stage Oasis Student Bedsitters',
+    description: 'Neat student bedsitters 1 minute walk from Stage. Clean environment and reliable water.',
+    propertyType: 'bedsetter',
+    location: 'Stage',
+    locationName: '📍 Stage (Near Bodaboda Stage)',
+    monthlyRent: 4200,
+    pricePerMonth: 4200,
+    deposit: 4200,
+    amenities: ['📶 Free WiFi', '💧 Water Included', '🔒 Night Guard'],
+    photos: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80'],
+    status: 'available',
+    occupancyStatus: 'available',
+    isVerified: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    _id: 'rental_6',
+    landlordId: 'landlord_6',
+    title: 'Talai Ridge Single Rooms',
+    description: 'Very affordable single rooms in Talai. Perfect for students looking for budget-friendly housing.',
+    propertyType: 'single_room',
+    location: 'Talai',
+    locationName: '📍 Talai (5 min walk to Campus)',
+    monthlyRent: 3000,
+    pricePerMonth: 3000,
+    deposit: 3000,
+    amenities: ['💧 Borehole Water', '⚡ Prepaid Tokens'],
+    photos: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80'],
+    status: 'available',
+    occupancyStatus: 'available',
+    isVerified: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
+
 export default function RentalsScreen() {
   const [activeTab, setActiveTab] = useState<'browse' | 'my_listings'>('browse');
   const [houses, setHouses] = useState<IHouse[]>([]);
@@ -34,7 +153,7 @@ export default function RentalsScreen() {
 
   // Filter States
   const [selectedType, setSelectedType] = useState<string>('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('All Locations');
   const [maxRent, setMaxRent] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -63,25 +182,48 @@ export default function RentalsScreen() {
     }
   }, [activeTab, selectedType, selectedLocation]);
 
+  const filterMockData = () => {
+    return MOCK_RENTAL_HOUSES.filter((h) => {
+      // Filter location
+      if (selectedLocation && selectedLocation !== 'All Locations') {
+        const locLower = selectedLocation.toLowerCase();
+        const houseLoc = (h.location || h.locationName || '').toLowerCase();
+        if (!houseLoc.includes(locLower)) return false;
+      }
+      // Filter room type
+      if (selectedType) {
+        if (h.propertyType !== selectedType) return false;
+      }
+      // Filter search query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const titleMatch = h.title.toLowerCase().includes(q);
+        const locMatch = (h.locationName || h.location || '').toLowerCase().includes(q);
+        const typeMatch = h.propertyType.toLowerCase().includes(q);
+        if (!titleMatch && !locMatch && !typeMatch) return false;
+      }
+      return true;
+    });
+  };
+
   const fetchHouses = async () => {
     setLoading(true);
     let url = `/houses?limit=30`;
     if (selectedType) url += `&propertyType=${selectedType}`;
-    if (selectedLocation) url += `&location=${encodeURIComponent(selectedLocation)}`;
+    if (selectedLocation && selectedLocation !== 'All Locations') url += `&location=${encodeURIComponent(selectedLocation)}`;
     if (maxRent) url += `&maxRent=${maxRent}`;
     if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
 
     const res = await apiRequest<{ data: IHouse[] }>(url);
     setLoading(false);
     setRefreshing(false);
-    if (res.success && res.data) {
+
+    if (res.success && res.data && res.data.length > 0) {
       setHouses(res.data);
       cacheRentals(res.data);
     } else {
-      const cached = await getCachedRentals();
-      if (cached && cached.length > 0) {
-        setHouses(cached);
-      }
+      // Use local mock data filtered by user selection
+      setHouses(filterMockData());
     }
   };
 
@@ -181,11 +323,11 @@ export default function RentalsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHouses(); }} colors={['#15803d']} />
           }
           ListHeaderComponent={
-            <View>
+            <View style={{ marginBottom: 14 }}>
               {/* Search Bar */}
               <View style={styles.searchRow}>
                 <TextInput
-                  placeholder="Search location or title (e.g. Stage)..."
+                  placeholder="Search Stage, Mabs, Kesses, Bedsitter..."
                   placeholderTextColor="#94a3b8"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -193,11 +335,31 @@ export default function RentalsScreen() {
                   style={styles.searchInput}
                 />
                 <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses}>
-                  <Text style={styles.searchBtnText}>Filter</Text>
+                  <Text style={styles.searchBtnText}>Search</Text>
                 </TouchableOpacity>
               </View>
 
+              {/* Location Filter Chips */}
+              <Text style={styles.filterSectionTitle}>📍 Filter by Location</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+                {LOCATIONS_LIST.map((loc) => {
+                  const isActive = selectedLocation === loc;
+                  return (
+                    <TouchableOpacity
+                      key={loc}
+                      style={[styles.locationPill, isActive && styles.locationPillActive]}
+                      onPress={() => setSelectedLocation(loc)}
+                    >
+                      <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
+                        {loc === 'All Locations' ? '🌐 All Locations' : `📍 ${loc}`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               {/* Property Type Pills */}
+              <Text style={styles.filterSectionTitle}>🏠 Room Type</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
                 <TouchableOpacity
                   style={[styles.pill, selectedType === '' && styles.pillActive]}
@@ -205,17 +367,27 @@ export default function RentalsScreen() {
                 >
                   <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
                 </TouchableOpacity>
-                {PROPERTY_TYPES.map((pt) => (
-                  <TouchableOpacity
-                    key={pt}
-                    style={[styles.pill, selectedType === pt && styles.pillActive]}
-                    onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
-                  >
-                    <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
-                      {pt.replace('_', ' ')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {PROPERTY_TYPES.map((pt) => {
+                  const label =
+                    pt === 'bedsetter'
+                      ? 'Bedsitter'
+                      : pt === 'single_room'
+                      ? 'Single Room'
+                      : pt === 'one_bedroom'
+                      ? '1 Bedroom'
+                      : pt.replace('_', ' ');
+                  return (
+                    <TouchableOpacity
+                      key={pt}
+                      style={[styles.pill, selectedType === pt && styles.pillActive]}
+                      onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
+                    >
+                      <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
 
               {/* Landlord Action Banner */}
@@ -397,9 +569,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13
   },
+  filterSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginTop: 4
+  },
+  locationPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginRight: 8,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4
+  },
+  locationPillActive: {
+    backgroundColor: '#15803d',
+    borderColor: '#15803d'
+  },
+  locationPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155'
+  },
+  locationPillTextActive: {
+    color: '#ffffff'
+  },
   pillScroll: {
     flexDirection: 'row',
-    marginBottom: 16
+    marginBottom: 12
   },
   pill: {
     paddingHorizontal: 14,

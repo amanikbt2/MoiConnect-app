@@ -502,7 +502,7 @@ export default function AcademicsScreen({ route }: any) {
   const [fileUrl, setFileUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { user } = useAuth();
+  const { user, addPoints } = useAuth();
   const router = useAppNavigation();
 
   useEffect(() => {
@@ -585,9 +585,10 @@ export default function AcademicsScreen({ route }: any) {
     setSubmitting(false);
 
     if (res.success) {
+      addPoints(10, 'Uploaded revision material');
       Alert.alert(
-        'Submission Received',
-        'Your academic paper has been submitted successfully and is pending administrator review.',
+        'Submission Received! (+10 pts Awarded)',
+        'Your academic paper has been submitted successfully and +10 reward points have been credited to your profile!',
         [{ text: 'OK', onPress: () => {
           setShowUploadModal(false);
           setActiveTab('submissions');

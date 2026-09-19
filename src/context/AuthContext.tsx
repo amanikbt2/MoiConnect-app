@@ -6,6 +6,8 @@ import { disconnectSocket } from '../services/socket';
 interface AuthContextType {
   user: IUser | null;
   loading: boolean;
+  userPoints: number;
+  addPoints: (amount: number, reason?: string) => void;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
   requestLandlordStatus: (input: RequestLandlordInput) => Promise<{ success: boolean; error?: string }>;
@@ -18,6 +20,11 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userPoints, setUserPoints] = useState<number>(5);
+
+  const addPoints = (amount: number, reason?: string) => {
+    setUserPoints((prev) => prev + amount);
+  };
 
   useEffect(() => {
     checkCurrentUser();
@@ -101,6 +108,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         loading,
+        userPoints,
+        addPoints,
         login,
         register,
         requestLandlordStatus,

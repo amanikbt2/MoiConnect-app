@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
   RefreshControl,
   Alert,
   Image,
-  Dimensions
+  Dimensions,
+  Platform
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
+import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import {
   SearchIcon,
   DownloadIcon,
@@ -22,8 +24,6 @@ import {
   FileTextIcon
 } from '../src/components/Icons';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 export interface StudyNote {
   id: string;
   title: string;
@@ -31,15 +31,16 @@ export interface StudyNote {
   unitName: string;
   school: string;
   author: string;
-  downloads: string;
-  rating: string;
+  downloadsCount: number;
+  starsCount: number;
+  ratingScore: string;
   pages: string;
   thumbnail: string;
   fileUrl: string;
   summary: string;
 }
 
-const NOTES_DATA: StudyNote[] = [
+const INITIAL_NOTES_DATA: StudyNote[] = [
   {
     id: 'note1',
     title: 'Data Structures & Algorithms Complete Revision Notes',
@@ -47,8 +48,9 @@ const NOTES_DATA: StudyNote[] = [
     unitName: 'Data Structures & Algorithms',
     school: 'School of Information Sciences',
     author: 'Prof. Omondi & Dev Club',
-    downloads: '1,840',
-    rating: '4.9 ⭐',
+    downloadsCount: 1840,
+    starsCount: 1420,
+    ratingScore: '4.9',
     pages: '48 pages',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_notes.pdf',
@@ -61,8 +63,9 @@ const NOTES_DATA: StudyNote[] = [
     unitName: 'Statistics II',
     school: 'School of Science',
     author: 'Dr. Kiprop',
-    downloads: '2,410',
-    rating: '4.8 ⭐',
+    downloadsCount: 2410,
+    starsCount: 1890,
+    ratingScore: '4.8',
     pages: '64 pages',
     thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/sta210_notes.pdf',
@@ -75,8 +78,9 @@ const NOTES_DATA: StudyNote[] = [
     unitName: 'Operating Systems',
     school: 'School of Information Sciences',
     author: 'Alex Kipkurui (Tech Guild)',
-    downloads: '1,950',
-    rating: '4.9 ⭐',
+    downloadsCount: 1950,
+    starsCount: 1520,
+    ratingScore: '4.9',
     pages: '36 pages',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com220_notes.pdf',
@@ -89,8 +93,9 @@ const NOTES_DATA: StudyNote[] = [
     unitName: 'Software Engineering',
     school: 'School of Information Sciences',
     author: 'Dev Society Moi',
-    downloads: '3,120',
-    rating: '5.0 ⭐',
+    downloadsCount: 3120,
+    starsCount: 2840,
+    ratingScore: '5.0',
     pages: '52 pages',
     thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com410_notes.pdf',
@@ -103,8 +108,9 @@ const NOTES_DATA: StudyNote[] = [
     unitName: 'Constitutional Law',
     school: 'School of Law',
     author: 'Moi Law Association',
-    downloads: '1,560',
-    rating: '4.9 ⭐',
+    downloadsCount: 1560,
+    starsCount: 1210,
+    ratingScore: '4.9',
     pages: '72 pages',
     thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/law210_notes.pdf',
@@ -117,8 +123,9 @@ const NOTES_DATA: StudyNote[] = [
     unitName: 'Microeconomics',
     school: 'School of Business & Economics',
     author: 'Economics Dept',
-    downloads: '2,890',
-    rating: '4.7 ⭐',
+    downloadsCount: 2890,
+    starsCount: 2150,
+    ratingScore: '4.7',
     pages: '40 pages',
     thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/eco101_notes.pdf',
@@ -129,9 +136,16 @@ const NOTES_DATA: StudyNote[] = [
 export default function NotesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [notesData, setNotesData] = useState<StudyNote[]>(INITIAL_NOTES_DATA);
+  const [userStars, setUserStars] = useState<Record<string, boolean>>({});
+
+  // Fast PDF Preview State
+  const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
   const router = useAppNavigation();
 
-  const filteredNotes = NOTES_DATA.filter((item) => {
+  const filteredNotes = notesData.filter((item) => {
     const q = searchQuery.toLowerCase();
     return (
       item.title.toLowerCase().includes(q) ||
@@ -141,21 +155,53 @@ export default function NotesScreen() {
     );
   });
 
-  const handleDownload = async (item: StudyNote) => {
+  const handleToggleStar = (id: string, e?: any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setUserStars((prev) => {
+      const isStarred = !prev[id];
+      setNotesData((list) =>
+        list.map((item) => {
+          if (item.id !== id) return item;
+          return {
+            ...item,
+            starsCount: isStarred ? item.starsCount + 1 : item.starsCount - 1
+          };
+        })
+      );
+      return { ...prev, [id]: isStarred };
+    });
+  };
+
+  const handleOpenPreview = (item: StudyNote) => {
+    setPreviewDoc({
+      id: item.id,
+      title: item.title,
+      unitCode: item.unitCode,
+      unitName: item.unitName,
+      school: item.school,
+      fileUrl: item.fileUrl,
+      pages: item.pages,
+      author: item.author,
+      summary: item.summary
+    });
+    setShowPreviewModal(true);
+  };
+
+  const handleDownload = async (item: PDFDocumentItem | StudyNote) => {
     try {
       await saveDownloadedPaper({
         _id: `note_${item.id}`,
         title: item.title,
-        school: item.school,
-        department: item.unitName,
+        school: item.school || 'Moi University',
+        department: item.unitName || item.unitCode,
         courseCode: item.unitCode,
         unitCode: item.unitCode,
-        unitName: item.unitName,
+        unitName: item.unitName || item.unitCode,
         type: 'lecture_notes',
         examYear: 2025,
         fileUrl: item.fileUrl,
         fileType: 'pdf',
-        uploadedBy: { _id: 'author', name: item.author } as any,
+        uploadedBy: { _id: 'author', name: item.author || 'Moi Lecturer' } as any,
         status: 'approved',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -221,38 +267,80 @@ export default function NotesScreen() {
             colors={['#15803d']}
           />
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.88}
-            onPress={() => handleDownload(item)}
-          >
-            <View style={styles.cardImageContainer}>
-              <Image source={{ uri: item.thumbnail }} style={styles.cardImage} resizeMode="cover" />
-              <View style={styles.codeTag}>
-                <Text style={styles.codeTagText}>{item.unitCode}</Text>
-              </View>
-              <View style={styles.pagesTag}>
-                <Text style={styles.pagesTagText}>{item.pages}</Text>
-              </View>
-            </View>
+        renderItem={({ item }) => {
+          const isStarred = !!userStars[item.id];
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.88}
+              onPress={() => handleOpenPreview(item)}
+            >
+              <View style={styles.cardImageContainer}>
+                <Image source={{ uri: item.thumbnail }} style={styles.cardImage} resizeMode="cover" />
+                <View style={styles.codeTag}>
+                  <Text style={styles.codeTagText}>{item.unitCode}</Text>
+                </View>
+                <View style={styles.pagesTag}>
+                  <Text style={styles.pagesTagText}>{item.pages}</Text>
+                </View>
 
-            <View style={styles.cardBody}>
-              <Text style={styles.cardSchool}>{item.school}</Text>
-              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-              <Text style={styles.cardSummary} numberOfLines={2}>{item.summary}</Text>
-
-              <View style={styles.cardFooter}>
-                <Text style={styles.cardAuthor}>By {item.author}</Text>
-
-                <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)}>
-                  <DownloadIcon color="#ffffff" size={13} style={{ marginRight: 4 }} />
-                  <Text style={styles.downloadBtnText}>Save PDF</Text>
-                </TouchableOpacity>
+                {/* Rating Badge Overlay */}
+                <View style={styles.ratingScoreBadge}>
+                  <Text style={styles.ratingScoreText}>⭐ {item.ratingScore}</Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
+
+              <View style={styles.cardBody}>
+                <Text style={styles.cardSchool}>{item.school}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={styles.cardSummary} numberOfLines={2}>{item.summary}</Text>
+
+                {/* Downloads & Interactive Star Button Row */}
+                <View style={styles.metricsRow}>
+                  <View style={styles.downloadsMeta}>
+                    <DownloadIcon color="#15803d" size={13} style={{ marginRight: 4 }} />
+                    <Text style={styles.downloadsText}>{formatCount(item.downloadsCount)} downloads</Text>
+                  </View>
+
+                  {/* Interactive Star Rating Button */}
+                  <TouchableOpacity
+                    style={[styles.starBtn, isStarred && styles.starBtnActive]}
+                    onPress={(e) => handleToggleStar(item.id, e)}
+                    activeOpacity={0.7}
+                  >
+                    <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={14} style={{ marginRight: 4 }} />
+                    <Text style={[styles.starBtnText, isStarred && styles.starBtnTextActive]}>
+                      {formatCount(item.starsCount)}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.cardFooter}>
+                  <Text style={styles.cardAuthor}>By {item.author}</Text>
+
+                  <TouchableOpacity
+                    style={styles.downloadBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDownload(item);
+                    }}
+                  >
+                    <DownloadIcon color="#ffffff" size={13} style={{ marginRight: 4 }} />
+                    <Text style={styles.downloadBtnText}>Save PDF</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+
+      {/* Fast In-App PDF Preview Window */}
+      <PDFViewerModal
+        visible={showPreviewModal}
+        document={previewDoc}
+        onClose={() => setShowPreviewModal(false)}
+        onDownload={handleDownload}
       />
     </View>
   );
@@ -369,6 +457,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700'
   },
+  ratingScoreBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8
+  },
+  ratingScoreText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#854d0e'
+  },
   cardBody: {
     padding: 14
   },
@@ -390,7 +492,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     lineHeight: 17,
-    marginBottom: 12
+    marginBottom: 10
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10
+  },
+  downloadsMeta: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  downloadsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803d'
+  },
+  starBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  starBtnActive: {
+    backgroundColor: '#fef9c3',
+    borderColor: '#fde047'
+  },
+  starBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569'
+  },
+  starBtnTextActive: {
+    color: '#854d0e'
   },
   cardFooter: {
     flexDirection: 'row',

@@ -40,8 +40,16 @@ const queryClient = new QueryClient();
 
 function HeaderNotificationBell() {
   const [modalVisible, setModalVisible] = React.useState(false);
-  const [unreadCount, setUnreadCount] = React.useState(3);
+  const [unreadCount, setUnreadCount] = React.useState(4);
   const [notifications, setNotifications] = React.useState([
+    {
+      id: 'welcome_reward',
+      title: '🎉 Account Created Reward',
+      message: "You've been awarded pt5 for creating an account.",
+      time: 'Just now',
+      type: 'reward',
+      read: false
+    },
     {
       id: '1',
       title: 'Exam Timetable Released',
@@ -197,6 +205,123 @@ function HeaderNotificationBell() {
   );
 }
 
+function HeaderPointsBadge() {
+  const { user, userPoints } = useAuth();
+  const [modalVisible, setModalVisible] = React.useState(false);
+
+  if (!user) return null;
+
+  return (
+    <View style={{ marginRight: 8 }}>
+      <TouchableOpacity
+        onPress={() => setModalVisible(true)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.18)',
+          borderRadius: 14,
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.35)'
+        }}
+        activeOpacity={0.75}
+      >
+        <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '700', marginRight: 4 }}>pt:</Text>
+        <View
+          style={{
+            backgroundColor: '#22c55e',
+            borderRadius: 10,
+            paddingHorizontal: 6,
+            paddingVertical: 1.5,
+            shadowColor: '#22c55e',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.3,
+            shadowRadius: 2,
+            elevation: 2
+          }}
+        >
+          <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '900' }}>{userPoints}+</Text>
+        </View>
+      </TouchableOpacity>
+
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24
+          }}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              backgroundColor: '#ffffff',
+              borderRadius: 20,
+              padding: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 6
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={{ alignItems: 'center', marginBottom: 14 }}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 24 }}>🌟</Text>
+              </View>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#0f172a' }}>Student Rewards</Text>
+              <Text style={{ fontSize: 12, color: '#15803d', fontWeight: '600', marginTop: 2 }}>MoiConnect Points System</Text>
+            </View>
+
+            <View style={{ backgroundColor: '#f0fdf4', borderRadius: 14, padding: 14, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#bbf7d0' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#166534', textTransform: 'uppercase' }}>Your Balance</Text>
+              <Text style={{ fontSize: 28, fontWeight: '900', color: '#15803d', marginVertical: 2 }}>{userPoints} pts</Text>
+              <Text style={{ fontSize: 11, color: '#15803d' }}>Earn points by contributing study materials!</Text>
+            </View>
+
+            <View style={{ gap: 8, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f8fafc', padding: 10, borderRadius: 12 }}>
+                <Text style={{ fontSize: 16 }}>🎉</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#0f172a' }}>Account Welcome Bonus</Text>
+                  <Text style={{ fontSize: 11, color: '#15803d', fontWeight: '600' }}>+5 pts awarded on registration</Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f8fafc', padding: 10, borderRadius: 12 }}>
+                <Text style={{ fontSize: 16 }}>📚</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#0f172a' }}>Material Contribution</Text>
+                  <Text style={{ fontSize: 11, color: '#15803d', fontWeight: '600' }}>+10 pts per approved upload</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={{ backgroundColor: '#15803d', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>Got It!</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 function HeaderProfileAvatar({ navigation }: any) {
   const { user } = useAuth();
   const initial = user?.name ? user.name[0].toUpperCase() : 'M';
@@ -245,6 +370,7 @@ function MainTabs({ navigation }: any) {
         headerTitleStyle: { fontWeight: '800', fontSize: 18 },
         headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <HeaderPointsBadge />
             <HeaderNotificationBell />
             <HeaderProfileAvatar navigation={navigation} />
           </View>

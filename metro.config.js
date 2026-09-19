@@ -5,6 +5,11 @@ const metroResolver = require('metro-resolver');
 const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
+// Exclude dist and build export directories from Metro watcher to prevent ENOENT warnings
+config.resolver.blockList = [
+  /.*[\/\\]dist[\/\\].*/,
+];
+
 // Fix react-native-svg web resolution bug for extractTransform without recursive resolveRequest call
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (

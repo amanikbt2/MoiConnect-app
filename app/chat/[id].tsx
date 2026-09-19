@@ -10,7 +10,9 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
-  Alert
+  Alert,
+  PanResponder,
+  Animated
 } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
@@ -28,7 +30,8 @@ import {
   SmileIcon,
   FileTextIcon,
   DownloadIcon,
-  CheckIcon
+  CheckIcon,
+  ReplyIcon
 } from '../../src/components/Icons';
 
 export interface FileAttachment {
@@ -55,6 +58,109 @@ const SAMPLE_ATTACHMENTS: FileAttachment[] = [
   }
 ];
 
+function SwipeableMessageItem({
+  children,
+  onReply
+}: {
+  children: React.ReactNode;
+  onReply: () => void;
+}) {
+  const panX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx > 0) {
+          const resistance = 1 + gestureState.dx / 140;
+          const translated = Math.min(gestureState.dx / resistance, 70);
+          panX.setValue(translated);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 45) {
+          onReply();
+        }
+        Animated.spring(panX, {
+          toValue: 0,
+          friction: 7,
+          tension: 90,
+          useNativeDriver: true
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(panX, {
+          toValue: 0,
+          useNativeDriver: true
+        }).start();
+      }
+    })
+  ).current;
+
+  const iconScale = panX.interpolate({
+    inputRange: [0, 30, 60],
+    outputRange: [0.4, 0.9, 1.15],
+    extrapolate: 'clamp'
+  });
+
+  const iconOpacity = panX.interpolate({
+    inputRange: [0, 15, 45],
+    outputRange: [0, 0.6, 1],
+    extrapolate: 'clamp'
+  });
+
+  return (
+    <View style={{ position: 'relative', width: '100%' }}>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          left: 10,
+          top: 0,
+          bottom: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1,
+          opacity: iconOpacity,
+          transform: [{ scale: iconScale }]
+        }}
+      >
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: '#dcfce7',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1.5,
+            borderColor: '#bbf7d0',
+            shadowColor: '#15803d',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            elevation: 3
+          }}
+        >
+          <ReplyIcon color="#15803d" size={16} />
+        </View>
+      </Animated.View>
+
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={{
+          transform: [{ translateX: panX }],
+          width: '100%'
+        }}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function ChatRoomScreen({ route }: any) {
   const conversationId = route?.params?.id;
   const [messages, setMessages] = useState<any[]>([]);
@@ -64,9 +170,17 @@ export default function ChatRoomScreen({ route }: any) {
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
   const [showFileModal, setShowFileModal] = useState(false);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
 
   const { user } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+
+  const scrollToMessage = (msgId: string) => {
+    const index = messages.findIndex((m) => (m._id || m.id) === msgId);
+    if (index !== -1 && flatListRef.current) {
+      flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+    }
+  };
 
   useEffect(() => {
     if (conversationId && user) {
@@ -120,8 +234,21 @@ export default function ChatRoomScreen({ route }: any) {
 
     const messageText = text.trim();
     const fileToAttach = selectedFile;
+    const replyToData = replyingTo
+      ? {
+          id: replyingTo._id || replyingTo.id,
+          senderName:
+            typeof replyingTo.senderId === 'object' && replyingTo.senderId?.name
+              ? replyingTo.senderId.name
+              : replyingTo.senderName || 'User',
+          text: replyingTo.text,
+          fileAttachment: replyingTo.fileAttachment
+        }
+      : undefined;
+
     setText('');
     setSelectedFile(null);
+    setReplyingTo(null);
     setSending(true);
 
     try {
@@ -129,7 +256,8 @@ export default function ChatRoomScreen({ route }: any) {
       socket.emit('send_message', {
         conversationId,
         text: messageText,
-        fileAttachment: fileToAttach
+        fileAttachment: fileToAttach,
+        replyTo: replyToData
       });
 
       const res = await apiRequest(`/conversations/messages`, {
@@ -137,7 +265,8 @@ export default function ChatRoomScreen({ route }: any) {
         body: JSON.stringify({
           conversationId,
           text: messageText,
-          fileAttachment: fileToAttach
+          fileAttachment: fileToAttach,
+          replyTo: replyToData
         })
       });
 
@@ -156,6 +285,7 @@ export default function ChatRoomScreen({ route }: any) {
           senderId: user._id,
           text: messageText,
           fileAttachment: fileToAttach,
+          replyTo: replyToData,
           reactions: {},
           createdAt: new Date().toISOString()
         };
@@ -251,102 +381,152 @@ export default function ChatRoomScreen({ route }: any) {
             const hasReactions = item.reactions && Object.keys(item.reactions).length > 0;
 
             return (
-              <View style={[styles.bubbleWrapper, isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
-                {/* Floating Emoji Picker Bar */}
-                {isPickerOpen && (
-                  <View style={[styles.reactionPickerBar, isMe ? { right: 0 } : { left: 0 }]}>
-                    {EMOJI_OPTIONS.map((emoji) => (
-                      <TouchableOpacity
-                        key={emoji}
-                        style={[
-                          styles.emojiPickBtn,
-                          item.myReaction === emoji && styles.emojiPickBtnActive
-                        ]}
-                        onPress={() => handleToggleReaction(item._id, emoji)}
-                      >
-                        <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onLongPress={() => setActiveReactionMsgId(isPickerOpen ? null : item._id)}
-                  onPress={() => {
-                    if (isPickerOpen) setActiveReactionMsgId(null);
-                  }}
-                  style={[styles.messageBubble, isMe ? styles.myBubble : styles.otherBubble]}
-                >
-                  {!isMe && sender && <Text style={styles.senderName}>{sender.name}</Text>}
-
-                  {/* File Attachment */}
-                  {item.fileAttachment && (
-                    <View style={styles.fileCard}>
-                      <View style={styles.fileIconBox}>
-                        <FileTextIcon color="#15803d" size={22} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.fileName} numberOfLines={1}>
-                          {item.fileAttachment.name}
-                        </Text>
-                        <Text style={styles.fileMeta}>
-                          {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.fileDownloadBtn}
-                        onPress={() => handleDownloadFileAttachment(item.fileAttachment)}
-                      >
-                        <DownloadIcon color="#ffffff" size={12} />
-                      </TouchableOpacity>
+              <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
+                <View style={[styles.bubbleWrapper, isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+                  {/* Floating Emoji Picker Bar */}
+                  {isPickerOpen && (
+                    <View style={[styles.reactionPickerBar, isMe ? { right: 0 } : { left: 0 }]}>
+                      {EMOJI_OPTIONS.map((emoji) => (
+                        <TouchableOpacity
+                          key={emoji}
+                          style={[
+                            styles.emojiPickBtn,
+                            item.myReaction === emoji && styles.emojiPickBtnActive
+                          ]}
+                          onPress={() => handleToggleReaction(item._id, emoji)}
+                        >
+                          <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   )}
 
-                  {/* Text content with clean text wrapping */}
-                  {!!item.text && (
-                    <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
-                      {item.text}
-                    </Text>
-                  )}
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onLongPress={() => setActiveReactionMsgId(isPickerOpen ? null : item._id)}
+                    onPress={() => {
+                      if (isPickerOpen) setActiveReactionMsgId(null);
+                    }}
+                    style={[styles.messageBubble, isMe ? styles.myBubble : styles.otherBubble]}
+                  >
+                    {!isMe && sender && <Text style={styles.senderName}>{sender.name}</Text>}
 
-                  <View style={styles.metaRow}>
-                    <TouchableOpacity
-                      style={{ padding: 2 }}
-                      onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item._id)}
-                    >
-                      <SmileIcon color={isMe ? '#dcfce7' : '#94a3b8'} size={12} />
-                    </TouchableOpacity>
-
-                    <Text style={[styles.timeText, isMe ? styles.myTimeText : styles.otherTimeText]}>
-                      {new Date(item.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-
-                    {isMe && <CheckIcon color="#38bdf8" size={12} />}
-                  </View>
-                </TouchableOpacity>
-
-                {/* Reaction Badges */}
-                {hasReactions && (
-                  <View style={[styles.reactionBadgeContainer, isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
-                    {Object.entries(item.reactions!).map(([emoji, count]) => (
+                    {/* Engulfed Quoted Reply Box */}
+                    {item.replyTo && (
                       <TouchableOpacity
-                        key={emoji}
-                        style={[
-                          styles.reactionBadge,
-                          item.myReaction === emoji && styles.reactionBadgeActive
-                        ]}
-                        onPress={() => handleToggleReaction(item._id, emoji)}
+                        activeOpacity={0.85}
+                        style={[styles.engulfedQuoteBox, isMe ? styles.engulfedQuoteBoxMe : styles.engulfedQuoteBoxOther]}
+                        onPress={() => scrollToMessage(item.replyTo.id || item.replyTo._id)}
                       >
-                        <Text style={styles.reactionBadgeText}>{emoji} {count}</Text>
+                        <View style={[styles.engulfedAccentBar, isMe ? styles.engulfedAccentBarMe : styles.engulfedAccentBarOther]} />
+                        <View style={styles.engulfedContent}>
+                          <Text style={[styles.engulfedSender, isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
+                            {item.replyTo.senderName || 'User'}
+                          </Text>
+                          <Text style={[styles.engulfedText, isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
+                            {item.replyTo.text || (item.replyTo.fileAttachment ? `📎 ${item.replyTo.fileAttachment.name}` : 'Attachment')}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
+                    )}
+
+                    {/* File Attachment */}
+                    {item.fileAttachment && (
+                      <View style={styles.fileCard}>
+                        <View style={styles.fileIconBox}>
+                          <FileTextIcon color="#15803d" size={22} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.fileName} numberOfLines={1}>
+                            {item.fileAttachment.name}
+                          </Text>
+                          <Text style={styles.fileMeta}>
+                            {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.fileDownloadBtn}
+                          onPress={() => handleDownloadFileAttachment(item.fileAttachment)}
+                        >
+                          <DownloadIcon color="#ffffff" size={12} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Text content with clean text wrapping */}
+                    {!!item.text && (
+                      <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
+                        {item.text}
+                      </Text>
+                    )}
+
+                    <View style={styles.metaRow}>
+                      <TouchableOpacity
+                        style={{ padding: 2 }}
+                        onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item._id)}
+                      >
+                        <SmileIcon color={isMe ? '#dcfce7' : '#94a3b8'} size={12} />
+                      </TouchableOpacity>
+
+                      <Text style={[styles.timeText, isMe ? styles.myTimeText : styles.otherTimeText]}>
+                        {new Date(item.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+
+                      {isMe && <CheckIcon color="#38bdf8" size={12} />}
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Reaction Badges */}
+                  {hasReactions && (
+                    <View style={[styles.reactionBadgeContainer, isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+                      {Object.entries(item.reactions!).map(([emoji, count]) => (
+                        <TouchableOpacity
+                          key={emoji}
+                          style={[
+                            styles.reactionBadge,
+                            item.myReaction === emoji && styles.reactionBadgeActive
+                          ]}
+                          onPress={() => handleToggleReaction(item._id, emoji)}
+                        >
+                          <Text style={styles.reactionBadgeText}>{emoji} {count}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </SwipeableMessageItem>
             );
           }}
         />
+      )}
+
+      {/* Replying Preview Banner */}
+      {replyingTo && (
+        <View style={styles.replyPreviewBanner}>
+          <View style={styles.replyPreviewAccentBar} />
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <ReplyIcon color="#15803d" size={13} />
+              <Text style={styles.replyPreviewTitle}>
+                Replying to <Text style={styles.replyPreviewName}>
+                  {typeof replyingTo.senderId === 'object' && replyingTo.senderId?.name
+                    ? replyingTo.senderId.name
+                    : replyingTo.senderName || 'User'}
+                </Text>
+              </Text>
+            </View>
+            <Text style={styles.replyPreviewSnippet} numberOfLines={1}>
+              {replyingTo.text || (replyingTo.fileAttachment ? `📎 ${replyingTo.fileAttachment.name}` : 'Attachment')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.cancelReplyBtn}
+            onPress={() => setReplyingTo(null)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cancelReplyText}>✕</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Attached File Preview Bar */}
@@ -700,5 +880,108 @@ const styles = StyleSheet.create({
   sampleFileMeta: {
     fontSize: 11,
     color: '#64748b'
+  },
+  /* Engulfed Quoted Reply Box Styles */
+  engulfedQuoteBox: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 8,
+    marginBottom: 6,
+    overflow: 'hidden'
+  },
+  engulfedQuoteBoxMe: {
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)'
+  },
+  engulfedQuoteBoxOther: {
+    backgroundColor: 'rgba(21, 128, 61, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(21, 128, 61, 0.15)'
+  },
+  engulfedAccentBar: {
+    width: 4,
+    borderRadius: 2,
+    marginRight: 8
+  },
+  engulfedAccentBarMe: {
+    backgroundColor: '#86efac'
+  },
+  engulfedAccentBarOther: {
+    backgroundColor: '#15803d'
+  },
+  engulfedContent: {
+    flex: 1
+  },
+  engulfedSender: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 2
+  },
+  engulfedSenderMe: {
+    color: '#dcfce7'
+  },
+  engulfedSenderOther: {
+    color: '#15803d'
+  },
+  engulfedText: {
+    fontSize: 12,
+    lineHeight: 16
+  },
+  engulfedTextMe: {
+    color: 'rgba(255, 255, 255, 0.9)'
+  },
+  engulfedTextOther: {
+    color: '#334155'
+  },
+  /* Replying Preview Banner Styles */
+  replyPreviewBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2
+  },
+  replyPreviewAccentBar: {
+    width: 4,
+    height: '100%',
+    minHeight: 30,
+    backgroundColor: '#15803d',
+    borderRadius: 2
+  },
+  replyPreviewTitle: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600'
+  },
+  replyPreviewName: {
+    color: '#15803d',
+    fontWeight: '800'
+  },
+  replyPreviewSnippet: {
+    fontSize: 12,
+    color: '#334155',
+    marginTop: 2
+  },
+  cancelReplyBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8
+  },
+  cancelReplyText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '800'
   }
 });

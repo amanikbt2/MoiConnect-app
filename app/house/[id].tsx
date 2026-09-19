@@ -46,6 +46,123 @@ export default function HouseDetailScreen({ route }: any) {
     if (id) fetchHouse();
   }, [id]);
 
+  const MOCK_HOUSES_MAP: Record<string, IHouse> = {
+    rental_1: {
+      _id: 'rental_1',
+      landlordId: 'landlord_1',
+      title: 'Sunrise Haven Bedsitters',
+      description: 'Modern spacious bedsitter with fitted kitchen, high speed fiber Wi-Fi, and 24/7 borehole water supply.',
+      propertyType: 'bedsetter',
+      location: 'Stage',
+      locationName: '📍 Stage (2 min to Main Gate)',
+      monthlyRent: 4500,
+      pricePerMonth: 4500,
+      deposit: 4500,
+      amenities: ['📶 Fiber WiFi', '💧 Water 24/7', '🔒 Security Guard', '⚡ Tokens'],
+      photos: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80'],
+      status: 'available',
+      occupancyStatus: 'available',
+      isVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    rental_2: {
+      _id: 'rental_2',
+      landlordId: 'landlord_2',
+      title: 'Mabs View Heights Single Rooms',
+      description: 'Affordable single rooms located right at Mabs stage. Quiet study environment for students.',
+      propertyType: 'single_room',
+      location: 'Mabs',
+      locationName: '📍 Mabs (Near Shopping Center)',
+      monthlyRent: 3500,
+      pricePerMonth: 3500,
+      deposit: 3500,
+      amenities: ['💧 Water 24/7', '🔒 Gate Locked 10PM', '⚡ Tokens'],
+      photos: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80'],
+      status: 'available',
+      occupancyStatus: 'available',
+      isVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    rental_3: {
+      _id: 'rental_3',
+      landlordId: 'landlord_3',
+      title: 'Kesses Executive Bedsitters',
+      description: 'Executive tiled bedsitters with hot instant shower, private balcony, and high security.',
+      propertyType: 'bedsetter',
+      location: 'Kesses',
+      locationName: '📍 Kesses (Opposite Stage)',
+      monthlyRent: 5000,
+      pricePerMonth: 5000,
+      deposit: 5000,
+      amenities: ['📶 High Speed WiFi', '🚿 Instant Shower', '💧 Water 24/7', '🔒 CCTV Camera'],
+      photos: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80'],
+      status: 'available',
+      occupancyStatus: 'available',
+      isVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    rental_4: {
+      _id: 'rental_4',
+      landlordId: 'landlord_4',
+      title: 'Viewland Park 1-Bedroom Apartments',
+      description: 'Spacious 1 bedroom apartment with sitting room, separate kitchen, and balcony view of campus.',
+      propertyType: 'one_bedroom',
+      location: 'Viewland',
+      locationName: '📍 Viewland (View Stage)',
+      monthlyRent: 7500,
+      pricePerMonth: 7500,
+      deposit: 7500,
+      amenities: ['📶 WiFi Included', '🛋️ Living Room', '💧 Water 24/7', '🔒 Security Guard'],
+      photos: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=80'],
+      status: 'available',
+      occupancyStatus: 'available',
+      isVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    rental_5: {
+      _id: 'rental_5',
+      landlordId: 'landlord_5',
+      title: 'Stage Oasis Student Bedsitters',
+      description: 'Neat student bedsitters 1 minute walk from Stage. Clean environment and reliable water.',
+      propertyType: 'bedsetter',
+      location: 'Stage',
+      locationName: '📍 Stage (Near Bodaboda Stage)',
+      monthlyRent: 4200,
+      pricePerMonth: 4200,
+      deposit: 4200,
+      amenities: ['📶 Free WiFi', '💧 Water Included', '🔒 Night Guard'],
+      photos: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80'],
+      status: 'available',
+      occupancyStatus: 'available',
+      isVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    rental_6: {
+      _id: 'rental_6',
+      landlordId: 'landlord_6',
+      title: 'Talai Ridge Single Rooms',
+      description: 'Very affordable single rooms in Talai. Perfect for students looking for budget-friendly housing.',
+      propertyType: 'single_room',
+      location: 'Talai',
+      locationName: '📍 Talai (5 min walk to Campus)',
+      monthlyRent: 3000,
+      pricePerMonth: 3000,
+      deposit: 3000,
+      amenities: ['💧 Borehole Water', '⚡ Prepaid Tokens'],
+      photos: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80'],
+      status: 'available',
+      occupancyStatus: 'available',
+      isVerified: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  };
+
   const fetchHouse = async () => {
     setLoading(true);
     const res = await apiRequest<{ data: IHouse }>(`/houses/${id}`);
@@ -57,6 +174,8 @@ export default function HouseDetailScreen({ route }: any) {
       const cached = await getCachedHouseDetail(id);
       if (cached) {
         setHouse(cached);
+      } else if (id && MOCK_HOUSES_MAP[id]) {
+        setHouse(MOCK_HOUSES_MAP[id]);
       }
     }
   };

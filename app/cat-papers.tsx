@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,11 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
+import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import {
   SearchIcon,
   DownloadIcon,
+  StarIcon,
   BookIcon
 } from '../src/components/Icons';
 
@@ -26,13 +28,15 @@ export interface CATPaperItem {
   unitName: string;
   school: string;
   catType: 'CAT 1' | 'CAT 2' | 'Mid-Sem Quiz';
-  downloads: string;
+  downloadsCount: number;
+  starsCount: number;
+  ratingScore: string;
   thumbnail: string;
   fileUrl: string;
   examYear: string;
 }
 
-const CAT_PAPERS_DATA: CATPaperItem[] = [
+const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [
   {
     id: 'cat1',
     title: 'COM 310 Data Structures CAT 1 2025 Revision Pack',
@@ -40,7 +44,9 @@ const CAT_PAPERS_DATA: CATPaperItem[] = [
     unitName: 'Data Structures & Algorithms',
     school: 'School of Information Sciences',
     catType: 'CAT 1',
-    downloads: '1,920',
+    downloadsCount: 1920,
+    starsCount: 1540,
+    ratingScore: '4.9',
     thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_cat1.pdf',
     examYear: '2025'
@@ -52,7 +58,9 @@ const CAT_PAPERS_DATA: CATPaperItem[] = [
     unitName: 'OOP in Java',
     school: 'School of Information Sciences',
     catType: 'CAT 2',
-    downloads: '2,480',
+    downloadsCount: 2480,
+    starsCount: 2110,
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com211_cat2.pdf',
     examYear: '2024'
@@ -64,7 +72,9 @@ const CAT_PAPERS_DATA: CATPaperItem[] = [
     unitName: 'Statistics II',
     school: 'School of Science',
     catType: 'CAT 1',
-    downloads: '1,640',
+    downloadsCount: 1640,
+    starsCount: 1290,
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/sta210_cat1.pdf',
     examYear: '2025'
@@ -76,7 +86,9 @@ const CAT_PAPERS_DATA: CATPaperItem[] = [
     unitName: 'Operating Systems',
     school: 'School of Information Sciences',
     catType: 'CAT 1',
-    downloads: '1,890',
+    downloadsCount: 1890,
+    starsCount: 1450,
+    ratingScore: '4.9',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com220_cat1.pdf',
     examYear: '2024'
@@ -88,7 +100,9 @@ const CAT_PAPERS_DATA: CATPaperItem[] = [
     unitName: 'Microeconomics',
     school: 'School of Business & Economics',
     catType: 'Mid-Sem Quiz',
-    downloads: '2,150',
+    downloadsCount: 2150,
+    starsCount: 1820,
+    ratingScore: '4.7',
     thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/eco101_cat.pdf',
     examYear: '2025'
@@ -98,9 +112,16 @@ const CAT_PAPERS_DATA: CATPaperItem[] = [
 export default function CatPapersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [catsData, setCatsData] = useState<CATPaperItem[]>(INITIAL_CAT_PAPERS_DATA);
+  const [userStars, setUserStars] = useState<Record<string, boolean>>({});
+
+  // Fast PDF Preview Modal State
+  const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
   const router = useAppNavigation();
 
-  const filteredCats = CAT_PAPERS_DATA.filter((item) => {
+  const filteredCats = catsData.filter((item) => {
     const q = searchQuery.toLowerCase();
     return (
       item.title.toLowerCase().includes(q) ||
@@ -110,18 +131,49 @@ export default function CatPapersScreen() {
     );
   });
 
-  const handleDownload = async (item: CATPaperItem) => {
+  const handleToggleStar = (id: string, e?: any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setUserStars((prev) => {
+      const isStarred = !prev[id];
+      setCatsData((list) =>
+        list.map((item) => {
+          if (item.id !== id) return item;
+          return {
+            ...item,
+            starsCount: isStarred ? item.starsCount + 1 : item.starsCount - 1
+          };
+        })
+      );
+      return { ...prev, [id]: isStarred };
+    });
+  };
+
+  const handleOpenPreview = (item: CATPaperItem) => {
+    setPreviewDoc({
+      id: item.id,
+      title: item.title,
+      unitCode: item.unitCode,
+      unitName: item.unitName,
+      school: item.school,
+      fileUrl: item.fileUrl,
+      pages: 'CAT Paper PDF',
+      summary: `Continuous Assessment Test (${item.catType}) Paper for ${item.unitCode} (${item.examYear}).`
+    });
+    setShowPreviewModal(true);
+  };
+
+  const handleDownload = async (item: PDFDocumentItem | CATPaperItem) => {
     try {
       await saveDownloadedPaper({
         _id: `cat_${item.id}`,
         title: item.title,
-        school: item.school,
-        department: item.unitName,
+        school: item.school || 'Moi University',
+        department: item.unitName || item.unitCode,
         courseCode: item.unitCode,
         unitCode: item.unitCode,
-        unitName: item.unitName,
+        unitName: item.unitName || item.unitCode,
         type: 'cat_paper',
-        examYear: parseInt(item.examYear, 10),
+        examYear: 2025,
         fileUrl: item.fileUrl,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_faculty', name: 'Moi Faculty Department' } as any,
@@ -190,37 +242,79 @@ export default function CatPapersScreen() {
             colors={['#15803d']}
           />
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.88}
-            onPress={() => handleDownload(item)}
-          >
-            <View style={styles.cardImageContainer}>
-              <Image source={{ uri: item.thumbnail }} style={styles.cardImage} resizeMode="cover" />
-              <View style={styles.codeTag}>
-                <Text style={styles.codeTagText}>{item.unitCode}</Text>
-              </View>
-              <View style={styles.catTypeTag}>
-                <Text style={styles.catTypeTagText}>{item.catType}</Text>
-              </View>
-            </View>
+        renderItem={({ item }) => {
+          const isStarred = !!userStars[item.id];
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.88}
+              onPress={() => handleOpenPreview(item)}
+            >
+              <View style={styles.cardImageContainer}>
+                <Image source={{ uri: item.thumbnail }} style={styles.cardImage} resizeMode="cover" />
+                <View style={styles.codeTag}>
+                  <Text style={styles.codeTagText}>{item.unitCode}</Text>
+                </View>
+                <View style={styles.catTypeTag}>
+                  <Text style={styles.catTypeTagText}>{item.catType}</Text>
+                </View>
 
-            <View style={styles.cardBody}>
-              <Text style={styles.cardSchool}>{item.school} • {item.examYear}</Text>
-              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-
-              <View style={styles.cardFooter}>
-                <Text style={styles.cardDownloads}>{item.downloads} downloads</Text>
-
-                <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownload(item)}>
-                  <DownloadIcon color="#ffffff" size={13} style={{ marginRight: 4 }} />
-                  <Text style={styles.downloadBtnText}>Save PDF</Text>
-                </TouchableOpacity>
+                {/* Rating Badge Overlay */}
+                <View style={styles.ratingScoreBadge}>
+                  <Text style={styles.ratingScoreText}>⭐ {item.ratingScore}</Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
+
+              <View style={styles.cardBody}>
+                <Text style={styles.cardSchool}>{item.school} • {item.examYear}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+
+                {/* Downloads & Interactive Star Button Row */}
+                <View style={styles.metricsRow}>
+                  <View style={styles.downloadsMeta}>
+                    <DownloadIcon color="#15803d" size={13} style={{ marginRight: 4 }} />
+                    <Text style={styles.downloadsText}>{formatCount(item.downloadsCount)} downloads</Text>
+                  </View>
+
+                  {/* Interactive Star Rating Button */}
+                  <TouchableOpacity
+                    style={[styles.starBtn, isStarred && styles.starBtnActive]}
+                    onPress={(e) => handleToggleStar(item.id, e)}
+                    activeOpacity={0.7}
+                  >
+                    <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={14} style={{ marginRight: 4 }} />
+                    <Text style={[styles.starBtnText, isStarred && styles.starBtnTextActive]}>
+                      {formatCount(item.starsCount)}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.cardFooter}>
+                  <Text style={styles.cardDownloads}>{item.catType}</Text>
+
+                  <TouchableOpacity
+                    style={styles.downloadBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDownload(item);
+                    }}
+                  >
+                    <DownloadIcon color="#ffffff" size={13} style={{ marginRight: 4 }} />
+                    <Text style={styles.downloadBtnText}>Save PDF</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+
+      {/* Fast In-App PDF Preview Window */}
+      <PDFViewerModal
+        visible={showPreviewModal}
+        document={previewDoc}
+        onClose={() => setShowPreviewModal(false)}
+        onDownload={handleDownload}
       />
     </View>
   );
@@ -339,6 +433,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800'
   },
+  ratingScoreBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8
+  },
+  ratingScoreText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#854d0e'
+  },
   cardBody: {
     padding: 14
   },
@@ -354,7 +462,48 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
     lineHeight: 20,
+    marginBottom: 8
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     marginBottom: 10
+  },
+  downloadsMeta: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  downloadsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803d'
+  },
+  starBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  starBtnActive: {
+    backgroundColor: '#fef9c3',
+    borderColor: '#fde047'
+  },
+  starBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569'
+  },
+  starBtnTextActive: {
+    color: '#854d0e'
   },
   cardFooter: {
     flexDirection: 'row',
