@@ -56,9 +56,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          href: null,
           headerTitle: 'Student Profile & Settings',
-          tabBarIcon: ({ color }: { color: string }) => <ProfileIcon color={color} size={22} />
         }}
       />
     </Tabs>

@@ -26,6 +26,8 @@ import PaperDetailScreen from './app/paper/[id]';
 import HouseDetailScreen from './app/house/[id]';
 import ChatRoomScreen from './app/chat/[id]';
 
+import { TouchableOpacity } from 'react-native';
+import { useAuth } from './src/context/AuthContext';
 import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon } from './src/components/Icons';
 
 const Stack = createNativeStackNavigator();
@@ -33,7 +35,37 @@ const Tab = createBottomTabNavigator();
 
 const queryClient = new QueryClient();
 
-function MainTabs() {
+function HeaderProfileAvatar({ navigation }: any) {
+  const { user } = useAuth();
+  const initial = user?.name ? user.name[0].toUpperCase() : 'M';
+
+  return (
+    <TouchableOpacity
+      style={{
+        marginRight: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#ffffff',
+        borderWidth: 2,
+        borderColor: '#22c55e',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+        elevation: 3
+      }}
+      onPress={() => navigation.navigate('Profile')}
+      activeOpacity={0.8}
+    >
+      <Text style={{ color: '#15803d', fontWeight: '800', fontSize: 16 }}>{initial}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function MainTabs({ navigation }: any) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -41,6 +73,7 @@ function MainTabs() {
         headerStyle: { backgroundColor: '#15803d' },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+        headerRight: () => <HeaderProfileAvatar navigation={navigation} />,
         tabBarActiveTintColor: '#15803d',
         tabBarInactiveTintColor: '#64748b',
         tabBarStyle: { height: 60, paddingBottom: 8, paddingTop: 6 }
@@ -91,15 +124,6 @@ function MainTabs() {
           tabBarIcon: ({ color }) => <MessageIcon color={color} size={22} />
         }}
       />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileScreen}
-        options={{
-          title: 'Profile',
-          headerTitle: 'Student Profile & Settings',
-          tabBarIcon: ({ color }) => <ProfileIcon color={color} size={22} />
-        }}
-      />
     </Tab.Navigator>
   );
 }
@@ -120,6 +144,7 @@ export default function App() {
               }}
             >
               <Stack.Screen name="MainTabs" component={MainTabs} />
+              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
               <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
               <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Academic Resources', headerShown: true }} />

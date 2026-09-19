@@ -458,10 +458,18 @@ export default function CommunityScreen() {
               <PaperclipIcon color="#475569" size={22} />
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.botMentionChip}
+              onPress={() => setInputText((prev) => (prev.includes('@bot') ? prev : `@bot ${prev}`))}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.botMentionChipText}>@bot</Text>
+            </TouchableOpacity>
+
             <View style={styles.textInputCard}>
               <TextInput
                 style={styles.input}
-                placeholder="Message campus community..."
+                placeholder="Message community... (@bot to mention campus bot)"
                 placeholderTextColor="#94a3b8"
                 value={inputText}
                 onChangeText={setInputText}
@@ -964,5 +972,17 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 13
+  },
+  botMentionChip: {
+    backgroundColor: '#e0e7ff',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 14,
+    marginRight: 6
+  },
+  botMentionChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#4338ca'
   }
 });
