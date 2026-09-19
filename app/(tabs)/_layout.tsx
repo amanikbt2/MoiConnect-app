@@ -1,6 +1,22 @@
 import React from 'react';
+import { View, Text, Image } from 'react-native';
 import { Tabs } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon } from '../../src/components/Icons';
+
+function HomeHeaderTitle() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Image
+        source={require('../../assets/logo.png')}
+        style={{ width: 30, height: 30, borderRadius: 6, marginRight: 8 }}
+        resizeMode="contain"
+      />
+      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+        Connect
+      </Text>
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -19,7 +35,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          headerTitle: 'MoiConnect',
+          headerTitle: () => <HomeHeaderTitle />,
           tabBarIcon: ({ color }: { color: string }) => <HomeIcon color={color} size={22} />
         }}
       />
