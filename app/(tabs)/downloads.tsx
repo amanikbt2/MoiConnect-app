@@ -4,21 +4,19 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   RefreshControl,
   Alert
 } from 'react-native';
 import { IPaper } from '@moi/shared';
-import { getDownloadedPapers, removeDownloadedPaper } from '../../src/services/offlineStorage';
+import { getDownloadedPapers, removeOfflinePaper } from '../../src/services/offlineStorage';
 import { Badge } from '../../src/components/Badge';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useAppNavigation } from '../../src/utils/navigation';
-import { DownloadIcon, SearchIcon, TrashIcon, FileTextIcon, LockIcon, LocationIcon, BookIcon } from '../../src/components/Icons';
+import { TrashIcon, FileTextIcon, LocationIcon, BookIcon } from '../../src/components/Icons';
 
 export default function DownloadsScreen() {
   const [downloadedPapers, setDownloadedPapers] = useState<IPaper[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,7 +44,7 @@ export default function DownloadsScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            await removeDownloadedPaper(paper._id);
+            await removeOfflinePaper(paper._id);
             await fetchDownloads();
           }
         }
@@ -54,78 +52,21 @@ export default function DownloadsScreen() {
     );
   };
 
-  const filteredPapers = downloadedPapers.filter((paper) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      paper.title.toLowerCase().includes(q) ||
-      paper.unitCode.toLowerCase().includes(q) ||
-      paper.unitName.toLowerCase().includes(q) ||
-      paper.courseCode.toLowerCase().includes(q) ||
-      paper.department.toLowerCase().includes(q)
-    );
-  });
-
   return (
     <View style={styles.container}>
-      {/* Top Banner Information */}
-      <View style={styles.banner}>
-        <View style={styles.bannerIconContainer}>
-          <DownloadIcon color="#15803d" size={22} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.bannerTitle}>Offline Storage Vault</Text>
-          <Text style={styles.bannerSub}>
-            Materials saved here are stored in app sandbox storage and can be accessed without internet connectivity.
-          </Text>
-        </View>
-      </View>
-
-      {/* Main Content */}
       <FlatList
-        data={filteredPapers}
+        data={downloadedPapers}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDownloads(); }} colors={['#15803d']} />
-        }
-        ListHeaderComponent={
-          <View>
-            {/* Search Input */}
-            <View style={styles.searchRow}>
-              <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
-              <TextInput
-                placeholder="Search downloaded materials (e.g. COM 310)..."
-                placeholderTextColor="#94a3b8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={styles.searchInput}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Text style={styles.clearBtn}>Close</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Storage Summary */}
-            <View style={styles.statsRow}>
-              <Text style={styles.statsText}>
-                {downloadedPapers.length} {downloadedPapers.length === 1 ? 'file' : 'files'} saved offline
-              </Text>
-              <View style={styles.secTag}>
-                <LockIcon color="#15803d" size={12} />
-                <Text style={styles.secTagText}>App Protected Storage</Text>
-              </View>
-            </View>
-          </View>
         }
         renderItem={({ item }) => (
           <View style={styles.paperCard}>
             <View style={styles.cardHeader}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <View style={styles.badgeRow}>
-                  <Badge label={item.type.replace('_', ' ')} variant="blue" />
+                  <Badge label={item.type.replace('_', ' ')} variant="success" />
                   <Text style={styles.examYearText}>{item.examYear} Exam</Text>
                 </View>
                 <Text style={styles.paperTitle}>{item.title}</Text>
@@ -167,13 +108,13 @@ export default function DownloadsScreen() {
           <View style={styles.emptyContainer}>
             <EmptyState
               title="No Downloaded Materials"
-              message="Save past papers, CATs, or notes for offline access while browsing in the Academics tab."
+              subtitle="Saved past papers and revision notes will appear here for offline access."
             />
             <TouchableOpacity
               style={styles.browseTabBtn}
               onPress={() => router.push('/(tabs)/academics')}
             >
-              <Text style={styles.browseTabBtnText}>Browse Academics Tab</Text>
+              <Text style={styles.browseTabBtnText}>Browse Past Papers</Text>
             </TouchableOpacity>
           </View>
         }
@@ -187,84 +128,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc'
   },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0fdf4',
-    borderBottomWidth: 1,
-    borderBottomColor: '#bbf7d0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12
-  },
-  bannerIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#dcfce7',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  bannerTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#166534'
-  },
-  bannerSub: {
-    fontSize: 12,
-    color: '#15803d',
-    marginTop: 2
-  },
   listContent: {
     padding: 16
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0f172a'
-  },
-  clearBtn: {
-    color: '#94a3b8',
-    fontWeight: 'bold',
-    fontSize: 16,
-    paddingHorizontal: 4
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 2
-  },
-  statsText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#475569'
-  },
-  secTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#e0f2fe',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  secTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0369a1'
   },
   paperCard: {
     backgroundColor: '#ffffff',
@@ -347,7 +212,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 20
+    marginTop: 40
   },
   browseTabBtn: {
     marginTop: 16,

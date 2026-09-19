@@ -89,30 +89,12 @@ function MainTabs({ navigation }: any) {
         }}
       />
       <Tab.Screen
-        name="AcademicsTab"
-        component={AcademicsScreen}
-        options={{
-          title: 'Academics',
-          headerTitle: 'Academic Resources',
-          tabBarIcon: ({ color }) => <BookIcon color={color} size={22} />
-        }}
-      />
-      <Tab.Screen
         name="DownloadsTab"
         component={DownloadsScreen}
         options={{
           title: 'Downloads',
           headerTitle: 'Offline Downloaded Materials',
           tabBarIcon: ({ color }) => <DownloadIcon color={color} size={22} />
-        }}
-      />
-      <Tab.Screen
-        name="RentalsTab"
-        component={RentalsScreen}
-        options={{
-          title: 'Rentals',
-          headerTitle: 'Student Rental Marketplace',
-          tabBarIcon: ({ color }) => <HouseIcon color={color} size={22} />
         }}
       />
       <Tab.Screen
