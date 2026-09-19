@@ -496,6 +496,20 @@ export function ArrowLeftIcon({ color = '#0f172a', size = 22, style }: IconProps
   );
 }
 
+export function ReplyIcon({ color = '#15803d', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M9 14L4 9M4 9L9 4M4 9H15C18.3137 9 21 11.6863 21 15V19"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 
 
 
