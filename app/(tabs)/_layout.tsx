@@ -49,7 +49,7 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: 'Messages',
-          headerTitle: 'Conversations',
+          headerShown: false,
           tabBarIcon: ({ color }: { color: string }) => <MessageIcon color={color} size={22} />
         }}
       />

@@ -263,10 +263,10 @@ function MainTabs({ navigation }: any) {
       />
       <Tab.Screen
         name="MessagesTab"
-        component={MessagesScreen}
+        component={CommunityScreen}
         options={{
           title: 'Messages',
-          headerTitle: 'Conversations',
+          headerShown: false,
           tabBarIcon: ({ color }) => <MessageIcon color={color} size={22} />
         }}
       />
