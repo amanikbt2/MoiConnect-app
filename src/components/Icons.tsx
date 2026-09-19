@@ -402,3 +402,27 @@ export function AppleIcon({ color = '#ffffff', size = 20, style }: IconProps) {
     </Svg>
   );
 }
+
+export function PaperclipIcon({ color = '#64748b', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59718 21.9983 8.005 21.9983C6.41282 21.9983 4.88584 21.3658 3.76 20.24C2.63416 19.1142 2.00166 17.5872 2.00166 15.995C2.00166 14.4028 2.63416 12.8758 3.76 11.75L12.95 2.56C13.7006 1.80945 14.7186 1.3878 15.78 1.3878C16.8414 1.3878 17.8594 1.80945 18.61 2.56C19.3605 3.31055 19.7822 4.32856 19.7822 5.39C19.7822 6.45144 19.3605 7.46945 18.61 8.22L9.41 17.41C8.96035 17.86 8.34954 18.113 7.7125 18.113C7.07546 18.113 6.46465 17.86 6.015 17.41C5.56535 16.9604 5.31238 16.3495 5.31238 15.7125C5.31238 15.0755 5.56535 14.4646 6.015 14.015L14.5 5.53"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function SmileIcon({ color = '#64748b', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" />
+      <Path d="M8 14S9.5 16 12 16S16 14 16 14M9 9H9.01M15 9H15.01" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
