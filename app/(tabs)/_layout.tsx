@@ -5,16 +5,9 @@ import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon } from '../../src/comp
 
 function HomeHeaderTitle() {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Image
-        source={require('../../assets/mc-logo.png')}
-        style={{ width: 30, height: 30, marginRight: 8 }}
-        resizeMode="contain"
-      />
-      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
-        Connect
-      </Text>
-    </View>
+    <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+      MConnect
+    </Text>
   );
 }
 
@@ -43,7 +36,7 @@ export default function TabLayout() {
         name="academics"
         options={{
           href: null,
-          headerTitle: 'Academic Resources',
+          headerTitle: 'Notes PDF',
         }}
       />
       <Tabs.Screen

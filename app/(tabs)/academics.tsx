@@ -672,57 +672,21 @@ export default function AcademicsScreen({ route }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Top Header Tabs */}
-      <View style={styles.tabHeader}>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'browse' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('browse')}
-        >
-          <Text style={[styles.tabBtnText, activeTab === 'browse' && styles.tabBtnTextActive]}>
-            Notes & Past Papers
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'submissions' && styles.tabBtnActive]}
-          onPress={() => {
-            if (!user) {
-              router.push('/(auth)/login');
-            } else {
-              setActiveTab('submissions');
-              fetchMySubmissions();
-            }
-          }}
-        >
-          <Text style={[styles.tabBtnText, activeTab === 'submissions' && styles.tabBtnTextActive]}>
-            Submissions
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'offline' && styles.tabBtnActive]}
-          onPress={() => {
-            setActiveTab('offline');
-            fetchOfflinePapers();
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <DownloadIcon color={activeTab === 'offline' ? '#15803d' : '#64748b'} size={14} />
-            <Text style={[styles.tabBtnText, activeTab === 'offline' && styles.tabBtnTextActive]}>
-              Offline ({downloadedPapers.length})
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'browse' ? (
-        <ScrollView
-          style={styles.feedScroll}
-          contentContainerStyle={styles.feedContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
+      <ScrollView
+        style={styles.feedScroll}
+        contentContainerStyle={styles.feedContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              setTimeout(() => setRefreshing(false), 1000);
+            }}
+            colors={['#15803d']}
+          />
+        }
+      >
               onRefresh={() => {
                 setRefreshing(true);
                 setTimeout(() => setRefreshing(false), 1000);
@@ -895,59 +859,6 @@ export default function AcademicsScreen({ route }: any) {
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      ) : activeTab === 'offline' ? (
-        <FlatList
-          data={downloadedPapers}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{ padding: 16 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={fetchOfflinePapers} colors={['#15803d']} />
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.submissionCard}
-              onPress={() => router.push(`/paper/${item._id}`)}
-            >
-              <Text style={styles.subTitle}>{item.title}</Text>
-              <Text style={styles.subDetail}>{item.unitCode} • {item.school}</Text>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <EmptyState
-              title="No Offline Notes Downloaded"
-              message="Tap 'Save for Offline Reading' on any notes or past paper to read it offline anytime."
-            />
-          }
-        />
-      ) : (
-        <FlatList
-          data={mySubmissions}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{ padding: 16 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={fetchMySubmissions} colors={['#15803d']} />
-          }
-          renderItem={({ item }) => (
-            <View style={styles.submissionCard}>
-              <View style={styles.subHeader}>
-                <Badge
-                  label={item.status}
-                  variant={item.status === 'approved' ? 'green' : item.status === 'pending' ? 'gold' : 'red'}
-                />
-                <Text style={styles.subDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-              </View>
-              <Text style={styles.subTitle}>{item.title}</Text>
-              <Text style={styles.subDetail}>{item.unitCode} - {item.unitName}</Text>
-            </View>
-          )}
-          ListEmptyComponent={
-            <EmptyState
-              title="No Submissions Yet"
-              message="You haven't uploaded any notes or past papers yet. Click 'Upload +' to contribute!"
-            />
-          }
-        />
-      )}
 
       {/* Upload Paper Modal */}
       <Modal visible={showUploadModal} animationType="slide" onRequestClose={() => setShowUploadModal(false)}>

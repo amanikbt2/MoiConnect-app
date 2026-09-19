@@ -226,16 +226,9 @@ function HeaderProfileAvatar({ navigation }: any) {
 
 function HomeHeaderTitle() {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Image
-        source={require('./assets/mc-logo.png')}
-        style={{ width: 30, height: 30, marginRight: 8 }}
-        resizeMode="contain"
-      />
-      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
-        Connect
-      </Text>
-    </View>
+    <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+      MConnect
+    </Text>
   );
 }
 
@@ -315,7 +308,7 @@ export default function App() {
               <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
               <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
-              <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Academic Resources', headerShown: true }} />
+              <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
               <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
               <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
               <Stack.Screen name="Register" component={RegisterScreen} options={{ presentation: 'modal' }} />

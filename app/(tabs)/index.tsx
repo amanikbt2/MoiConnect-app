@@ -293,7 +293,7 @@ export default function HomeScreen() {
               <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
                 <HouseIcon color="#2563eb" size={28} />
               </View>
-              <Text style={styles.quickTitle}>Hostels & Rooms</Text>
+              <Text style={styles.quickTitle}>Rentals around Stage</Text>
               <Text style={styles.quickSub}>Student housing</Text>
             </TouchableOpacity>
 
