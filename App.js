@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Platform, Modal, ScrollView } from 'react-native';
+import { View, Text, Platform, Modal, ScrollView, Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -265,11 +265,18 @@ function MainTabs({ navigation }: any) {
         name="MessagesTab"
         component={CommunityScreen}
         options={{
-          title: 'Messages',
+          title: 'Community',
           headerShown: false,
-          tabBarIcon: ({ color }) => <MessageIcon color={color} size={22} />
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('./assets/mc-logo.png')}
+              style={{ width: 26, height: 26, opacity: focused ? 1 : 0.5 }}
+              resizeMode="contain"
+            />
+          )
         }}
       />
+
     </Tab.Navigator>
   );
 }

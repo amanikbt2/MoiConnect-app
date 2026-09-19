@@ -56,6 +56,9 @@ export default function AcademicsScreen({ route }: any) {
     if (route?.params?.upload === 'true' || route?.params?.upload === true) {
       setShowUploadModal(true);
     }
+    if (route?.params?.type) {
+      setSelectedType(route.params.type);
+    }
   }, [route?.params]);
 
   useEffect(() => {

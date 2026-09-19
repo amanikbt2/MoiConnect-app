@@ -8,15 +8,15 @@ export function useAppNavigation() {
 
     // Dynamic path parsing
     if (target.startsWith('/paper/')) {
-      const id = target.replace('/paper/', '');
+      const id = target.replace('/paper/', '').split('?')[0];
       return { screen: 'PaperDetail', params: { id, ...params } };
     }
     if (target.startsWith('/house/')) {
-      const id = target.replace('/house/', '');
+      const id = target.replace('/house/', '').split('?')[0];
       return { screen: 'HouseDetail', params: { id, ...params } };
     }
     if (target.startsWith('/chat/')) {
-      const id = target.replace('/chat/', '');
+      const id = target.replace('/chat/', '').split('?')[0];
       return { screen: 'ChatRoom', params: { id, ...params } };
     }
 
@@ -52,7 +52,7 @@ export function useAppNavigation() {
       case '/(tabs)/profile':
       case '/profile':
       case 'Profile':
-        return { screen: 'MainTabs', params: { screen: 'ProfileTab', ...params } };
+        return { screen: 'Profile', params };
       case '/community':
       case 'Community':
         return { screen: 'Community', params };
@@ -69,21 +69,35 @@ export function useAppNavigation() {
     }
   };
 
+  const parseRoute = (target: string, params?: any) => {
+    // Strip query string and parse into params before resolving
+    if (target.includes('?')) {
+      const [basePath, queryString] = target.split('?');
+      const queryParams: Record<string, string> = {};
+      queryString.split('&').forEach((pair) => {
+        const [key, val] = pair.split('=');
+        if (key) queryParams[decodeURIComponent(key)] = decodeURIComponent(val || '');
+      });
+      return resolveTarget(basePath, { ...queryParams, ...params });
+    }
+    return resolveTarget(target, params);
+  };
+
   return {
     push: (target: string, params?: any) => {
-      const resolved = resolveTarget(target, params);
+      const resolved = parseRoute(target, params);
       if (navigation && navigation.navigate) {
         navigation.navigate(resolved.screen, resolved.params);
       }
     },
     navigate: (target: string, params?: any) => {
-      const resolved = resolveTarget(target, params);
+      const resolved = parseRoute(target, params);
       if (navigation && navigation.navigate) {
         navigation.navigate(resolved.screen, resolved.params);
       }
     },
     replace: (target: string, params?: any) => {
-      const resolved = resolveTarget(target, params);
+      const resolved = parseRoute(target, params);
       if (navigation && navigation.replace) {
         navigation.replace(resolved.screen, resolved.params);
       } else if (navigation && navigation.navigate) {

@@ -64,9 +64,19 @@ export default function TabLayout() {
       <Tabs.Screen
         name="messages"
         options={{
-          title: 'Messages',
+          title: 'Community',
           headerShown: false,
-          tabBarIcon: ({ color }: { color: string }) => <MessageIcon color={color} size={22} />
+          tabBarIcon: ({ focused }: { focused: boolean }) => (
+            <Image
+              source={require('../../assets/mc-logo.png')}
+              style={{
+                width: 26,
+                height: 26,
+                opacity: focused ? 1 : 0.5,
+              }}
+              resizeMode="contain"
+            />
+          )
         }}
       />
       <Tabs.Screen

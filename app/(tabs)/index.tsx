@@ -25,7 +25,8 @@ import {
   SparklesIcon,
   DownloadIcon,
   ChevronRightIcon,
-  UploadIcon
+  UploadIcon,
+  NotesIcon
 } from '../../src/components/Icons';
 
 interface SuggestedMaterial {
@@ -241,6 +242,22 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Quick Access</Text>
 
         <View style={styles.gridContainer}>
+          {/* Notes PDF row (full-width feature card) */}
+          <TouchableOpacity
+            style={styles.notesCard}
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/academics?type=notes')}
+          >
+            <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
+              <NotesIcon color="#2563eb" size={28} />
+            </View>
+            <View style={styles.notesCardText}>
+              <Text style={styles.quickTitle}>Notes PDF</Text>
+              <Text style={styles.quickSub}>Lecture notes & study guides</Text>
+            </View>
+            <ChevronRightIcon color="#94a3b8" size={18} />
+          </TouchableOpacity>
+
           <View style={styles.cardRow}>
             <TouchableOpacity
               style={styles.quickCard}
@@ -348,6 +365,24 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+
+      {/* App Footer */}
+      <View style={styles.footer}>
+        <View style={styles.footerLinks}>
+          <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+            <Text style={styles.footerLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerDivider}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+            <Text style={styles.footerLink}>Terms of Use</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerDivider}>·</Text>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Text style={styles.footerLink}>Support</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.footerVersion}>MConnect_V1.0.0 · Moi University</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -359,7 +394,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40
+    paddingBottom: 12
   },
   banner: {
     backgroundColor: '#15803d',
@@ -441,6 +476,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#64748b'
+  },
+  notesCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    gap: 14
+  },
+  notesCardText: {
+    flex: 1
   },
   /* Suggested Materials Section Styles */
   suggestedSection: {
@@ -607,5 +660,32 @@ const styles = StyleSheet.create({
   inactiveDot: {
     width: 6,
     backgroundColor: '#cbd5e1'
+  },
+  footer: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 6,
+    marginTop: 4
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3
+  },
+  footerLink: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#c8d0db'
+  },
+  footerDivider: {
+    fontSize: 9,
+    color: '#dde1e7'
+  },
+  footerVersion: {
+    fontSize: 8,
+    color: '#d1d7e0',
+    fontWeight: '400',
+    letterSpacing: 0.3
   }
 });
