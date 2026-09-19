@@ -22,7 +22,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#14532d"
       },
-      "package": "com.amanikbt1.moiconnect"
+      "package": "com.amanikbt1.moiconnect",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
