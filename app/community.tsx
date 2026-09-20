@@ -28,7 +28,7 @@ import {
   TrashIcon,
   ReplyIcon
 } from '../src/components/Icons';
-import { saveDownloadedPaper } from '../src/services/offlineStorage';
+import { saveDownloadedPaper, getDownloadedPapers } from '../src/services/offlineStorage';
 
 export interface FileAttachment {
   name: string;
@@ -239,10 +239,34 @@ export default function CommunityScreen() {
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (showFileModal) {
+      loadFiles();
+    }
+  }, [showFileModal]);
+
+  const loadFiles = async () => {
+    try {
+      const downloaded = await getDownloadedPapers();
+      const converted: FileAttachment[] = downloaded.map((p) => ({
+        name: `${p.unitCode || 'NOTE'}_${(p.title || 'Material').replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`,
+        url: p.fileUrl || 'https://res.cloudinary.com/mconnect/docs/sample.pdf',
+        size: '1.8 MB',
+        type: 'pdf'
+      }));
+      const combined = [...converted, ...SAMPLE_ATTACHMENTS];
+      const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+      setAvailableFiles(unique);
+    } catch (e) {
+      setAvailableFiles(SAMPLE_ATTACHMENTS);
+    }
+  };
 
   const scrollToMessage = (msgId: string) => {
     const index = messages.findIndex((m) => m.id === msgId);
@@ -679,27 +703,29 @@ export default function CommunityScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.modalSubtitle}>Select revision material or file to attach in chat:</Text>
+              <Text style={styles.modalSubtitle}>Select materials from your downloads or phone's storage:</Text>
 
-              {SAMPLE_ATTACHMENTS.map((file, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.sampleFileOption}
-                  onPress={() => {
-                    setSelectedFile(file);
-                    setShowFileModal(false);
-                  }}
-                >
-                  <View style={styles.sampleFileIcon}>
-                    <FileTextIcon color="#15803d" size={22} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sampleFileName}>{file.name}</Text>
-                    <Text style={styles.sampleFileMeta}>{file.size} • Ready to share</Text>
-                  </View>
-                  <Text style={styles.attachLabel}>+ Attach</Text>
-                </TouchableOpacity>
-              ))}
+              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                {availableFiles.map((file, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.sampleFileOption}
+                    onPress={() => {
+                      setSelectedFile(file);
+                      setShowFileModal(false);
+                    }}
+                  >
+                    <View style={styles.sampleFileIcon}>
+                      <FileTextIcon color="#15803d" size={22} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sampleFileName}>{file.name}</Text>
+                      <Text style={styles.sampleFileMeta}>{file.size} • Ready to share</Text>
+                    </View>
+                    <Text style={styles.attachLabel}>+ Attach</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
               <TouchableOpacity
                 style={styles.customFileBtn}

@@ -392,7 +392,8 @@ export default function CatPapersScreen() {
       school: item.school,
       fileUrl: item.fileUrl,
       pages: 'CAT Quiz Paper PDF',
-      summary: `Continuous Assessment Test (${item.catType}) paper for ${item.unitCode} (${item.examYear}).`
+      summary: `Continuous Assessment Test (${item.catType}) paper for ${item.unitCode} (${item.examYear}).`,
+      sampleText: `Sample test CAT paper preview for ${item.unitCode} (${item.title}): Continuous Assessment Quiz 1. Answer all questions in Section A and B.`
     });
     setShowPreviewModal(true);
   };

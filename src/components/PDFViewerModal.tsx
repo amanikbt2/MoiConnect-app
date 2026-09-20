@@ -79,23 +79,23 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
               {document.unitCode} - {document.title}
             </Text>
-            <Text style={styles.headerSub}>Lightning PDF Reader • {document.pages || 'PDF Document'}</Text>
+            <Text style={styles.headerSub} numberOfLines={1} ellipsizeMode="tail">
+              Lightning PDF Reader • {document.pages || 'PDF Document'}
+            </Text>
           </View>
 
-          <TouchableOpacity style={styles.downloadBtn} onPress={handleSave} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[styles.downloadIconBtn, downloaded && styles.downloadIconBtnSuccess]}
+            onPress={handleSave}
+            activeOpacity={0.85}
+          >
             {downloaded ? (
-              <>
-                <CheckIcon color="#ffffff" size={14} style={{ marginRight: 4 }} />
-                <Text style={styles.downloadBtnText}>Saved!</Text>
-              </>
+              <CheckIcon color="#ffffff" size={18} />
             ) : (
-              <>
-                <DownloadIcon color="#ffffff" size={14} style={{ marginRight: 4 }} />
-                <Text style={styles.downloadBtnText}>Download PDF</Text>
-              </>
+              <DownloadIcon color="#ffffff" size={18} />
             )}
           </TouchableOpacity>
         </View>
@@ -160,16 +160,21 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   </View>
                 </View>
 
-                {/* PDF Paper Sheet */}
+                {/* Read-Only PDF Paper Sheet */}
                 <View style={styles.paperSheet}>
-                  <Text style={styles.paperCodeHeader}>MOI UNIVERSITY • {document.unitCode}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={styles.paperCodeHeader}>MOI UNIVERSITY • {document.unitCode}</Text>
+                    <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748b' }}>🔒 READ-ONLY PREVIEW</Text>
+                    </View>
+                  </View>
                   <Text style={styles.paperTitleHeader}>{document.title}</Text>
                   <View style={styles.paperDivider} />
 
-                  <Text style={styles.paperHeading}>1. TEST PDF PREVIEW CONTENT (Page {activePage})</Text>
-                  <View style={{ backgroundColor: '#f1f5f9', padding: 12, borderRadius: 8, marginVertical: 8, borderLeftWidth: 4, borderLeftColor: '#15803d' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a', marginBottom: 4 }}>
-                      📄 Sample PDF Preview Line (Testing Mode):
+                  <Text style={styles.paperHeading}>1. READ-ONLY PDF PREVIEW CONTENT (Page {activePage})</Text>
+                  <View style={{ backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, marginVertical: 8, borderWidth: 1, borderColor: '#e2e8f0', borderLeftWidth: 4, borderLeftColor: '#15803d' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803d', marginBottom: 4 }}>
+                      📄 Read-Only Document Excerpt (Testing Mode):
                     </Text>
                     <Text style={{ fontSize: 13, color: '#334155', lineHeight: 20 }}>
                       {document.sampleText || `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quick test preview words line for ${document.title} (${document.unitCode}).`}
@@ -183,9 +188,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   </Text>
 
                   <View style={styles.paperNotesBox}>
-                    <Text style={styles.paperNotesTitle}>📌 Important Test Note:</Text>
+                    <Text style={styles.paperNotesTitle}>📌 Read-Only Notice:</Text>
                     <Text style={styles.paperNotesBody}>
-                      This is a working test preview sheet. Tap "Download PDF" below or at the top to save this document for offline reading.
+                      This document is presented in read-only mode for instant preview. Tap the download icon in the header to save offline.
                     </Text>
                   </View>
                 </View>
@@ -214,14 +219,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#15803d',
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10
+    paddingVertical: 10,
+    gap: 12
   },
   backBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8
   },
   backBtnText: {
     color: '#ffffff',
@@ -229,30 +234,33 @@ const styles = StyleSheet.create({
     fontSize: 13
   },
   headerTitleContainer: {
-    flex: 1
+    flex: 1,
+    paddingHorizontal: 2
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#ffffff'
+    color: '#ffffff',
+    lineHeight: 20
   },
   headerSub: {
     fontSize: 11,
     color: '#dcfce7',
-    fontWeight: '500'
+    fontWeight: '500',
+    marginTop: 1
   },
-  downloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  downloadIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: '#22c55e',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#4ade80'
   },
-  downloadBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800'
+  downloadIconBtnSuccess: {
+    backgroundColor: '#16a34a'
   },
   bodyContainer: {
     flex: 1,

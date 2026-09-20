@@ -22,7 +22,8 @@ import {
   cacheMessages,
   getCachedMessages,
   enqueueOfflineMessage,
-  saveDownloadedPaper
+  saveDownloadedPaper,
+  getDownloadedPapers
 } from '../../src/services/offlineStorage';
 import {
   SendIcon,
@@ -161,6 +162,8 @@ function SwipeableMessageItem({
   );
 }
 
+
+
 export default function ChatRoomScreen({ route }: any) {
   const conversationId = route?.params?.id;
   const [messages, setMessages] = useState<any[]>([]);
@@ -169,11 +172,35 @@ export default function ChatRoomScreen({ route }: any) {
   const [sending, setSending] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
 
   const { user } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (showFileModal) {
+      loadFiles();
+    }
+  }, [showFileModal]);
+
+  const loadFiles = async () => {
+    try {
+      const downloaded = await getDownloadedPapers();
+      const converted: FileAttachment[] = downloaded.map((p) => ({
+        name: `${p.unitCode || 'NOTE'}_${(p.title || 'Material').replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`,
+        url: p.fileUrl || 'https://res.cloudinary.com/mconnect/docs/sample.pdf',
+        size: '1.8 MB',
+        type: 'pdf'
+      }));
+      const combined = [...converted, ...SAMPLE_ATTACHMENTS];
+      const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+      setAvailableFiles(unique);
+    } catch (e) {
+      setAvailableFiles(SAMPLE_ATTACHMENTS);
+    }
+  };
 
   const scrollToMessage = (msgId: string) => {
     const index = messages.findIndex((m) => (m._id || m.id) === msgId);
@@ -589,29 +616,60 @@ export default function ChatRoomScreen({ route }: any) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Share Document in Chat</Text>
+              <Text style={styles.modalTitle}>Share Campus File & Document</Text>
               <TouchableOpacity onPress={() => setShowFileModal(false)}>
                 <Text style={{ color: '#ef4444', fontWeight: '700' }}>✕ Close</Text>
               </TouchableOpacity>
             </View>
 
-            {SAMPLE_ATTACHMENTS.map((file, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={styles.sampleFileOption}
-                onPress={() => {
-                  setSelectedFile(file);
-                  setShowFileModal(false);
-                }}
-              >
-                <FileTextIcon color="#15803d" size={22} />
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.sampleFileName}>{file.name}</Text>
-                  <Text style={styles.sampleFileMeta}>{file.size}</Text>
-                </View>
-                <Text style={{ color: '#15803d', fontWeight: '700', fontSize: 12 }}>+ Attach</Text>
-              </TouchableOpacity>
-            ))}
+            <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+              Select materials from your downloads or phone's storage:
+            </Text>
+
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              {availableFiles.map((file, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.sampleFileOption}
+                  onPress={() => {
+                    setSelectedFile(file);
+                    setShowFileModal(false);
+                  }}
+                >
+                  <FileTextIcon color="#15803d" size={22} />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.sampleFileName}>{file.name}</Text>
+                    <Text style={styles.sampleFileMeta}>{file.size} • Ready to share</Text>
+                  </View>
+                  <Text style={{ color: '#15803d', fontWeight: '700', fontSize: 12 }}>+ Attach</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#f1f5f9',
+                padding: 12,
+                borderRadius: 12,
+                alignItems: 'center',
+                marginTop: 12,
+                borderWidth: 1,
+                borderColor: '#cbd5e1'
+              }}
+              onPress={() => {
+                setSelectedFile({
+                  name: `Campus_Notes_${Date.now().toString().slice(-4)}.pdf`,
+                  url: 'https://res.cloudinary.com/mconnect/docs/sample.pdf',
+                  size: '1.2 MB',
+                  type: 'pdf'
+                });
+                setShowFileModal(false);
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803d' }}>
+                📁 Pick Custom File from Phone Storage
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
