@@ -5,12 +5,14 @@ const metroResolver = require('metro-resolver');
 const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
-// Exclude dist and build export directories from Metro watcher to prevent ENOENT warnings
+// Exclude root export dist directory from Metro watcher to prevent watching export build output
 config.resolver.blockList = [
-  /.*[\/\\]dist[\/\\].*/,
+  new RegExp('^' + path.resolve(__dirname, 'dist').replace(/\\/g, '\\\\') + '.*'),
 ];
 
 // Fix react-native-svg web resolution bug for extractTransform without recursive resolveRequest call
+const originalResolveRequest = config.resolver.resolveRequest;
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
     moduleName.includes('extractTransform') ||
@@ -21,6 +23,16 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
+
+  if (originalResolveRequest) {
+    return originalResolveRequest(context, moduleName, platform);
+  }
+
+  // Handle react-native -> react-native-web alias on web platform
+  if (platform === 'web' && moduleName === 'react-native') {
+    return metroResolver.resolve(context, 'react-native-web', platform);
+  }
+
   return metroResolver.resolve(context, moduleName, platform);
 };
 
