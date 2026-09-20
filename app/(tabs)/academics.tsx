@@ -11,7 +11,8 @@ import {
   ScrollView,
   Alert,
   Image,
-  Dimensions
+  Dimensions,
+  Animated
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
@@ -470,6 +471,50 @@ const FILTER_DISCS = [
   { id: 'date', label: '📅 Filter by Date' },
 ];
 
+function ShimmerGridLoader({ title }: { title?: string }) {
+  const fadeAnim = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0.95,
+          duration: 650,
+          useNativeDriver: true
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0.35,
+          duration: 650,
+          useNativeDriver: true
+        })
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [fadeAnim]);
+
+  return (
+    <View style={styles.shimmerContainer}>
+      <View style={styles.shimmerHeaderRow}>
+        <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
+        <Text style={styles.shimmerLoadingLabel}>{title || 'Fetching 2 more lines of notes...'}</Text>
+      </View>
+      <View style={styles.gridContainer}>
+        {[1, 2].map((idx) => (
+          <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
+            <View style={styles.shimmerThumbnail} />
+            <View style={styles.shimmerBody}>
+              <View style={styles.shimmerBadge} />
+              <View style={styles.shimmerTitleLine} />
+              <View style={styles.shimmerSubLine} />
+            </View>
+          </Animated.View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function AcademicsScreen({ route }: any) {
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
@@ -480,6 +525,12 @@ export default function AcademicsScreen({ route }: any) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Facebook-style Lazy Loading State (start with 4 items = 2 lines)
+  const [visibleCountSection1, setVisibleCountSection1] = useState(4);
+  const [visibleCountSection2, setVisibleCountSection2] = useState(4);
+  const [loadingMoreSection1, setLoadingMoreSection1] = useState(false);
+  const [loadingMoreSection2, setLoadingMoreSection2] = useState(false);
+
   // Carousel Active Indexes
   const [forYouIndex, setForYouIndex] = useState(0);
   const [trendingIndex, setTrendingIndex] = useState(0);
@@ -488,6 +539,31 @@ export default function AcademicsScreen({ route }: any) {
   const trendingListRef = useRef<FlatList>(null);
   const isForYouInteracting = useRef(false);
   const isTrendingInteracting = useRef(false);
+
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+
+    if (distanceToBottom < 350) {
+      if (visibleCountSection1 < GRID_SECTION_1.length && !loadingMoreSection1) {
+        setLoadingMoreSection1(true);
+        setTimeout(() => {
+          setVisibleCountSection1((prev) => Math.min(prev + 4, GRID_SECTION_1.length));
+          setLoadingMoreSection1(false);
+        }, 900);
+      } else if (
+        visibleCountSection1 >= GRID_SECTION_1.length &&
+        visibleCountSection2 < GRID_SECTION_2.length &&
+        !loadingMoreSection2
+      ) {
+        setLoadingMoreSection2(true);
+        setTimeout(() => {
+          setVisibleCountSection2((prev) => Math.min(prev + 4, GRID_SECTION_2.length));
+          setLoadingMoreSection2(false);
+        }, 900);
+      }
+    }
+  };
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -677,25 +753,21 @@ export default function AcademicsScreen({ route }: any) {
         style={styles.feedScroll}
         contentContainerStyle={styles.feedContent}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
+              setVisibleCountSection1(4);
+              setVisibleCountSection2(4);
               setTimeout(() => setRefreshing(false), 1000);
             }}
             colors={['#15803d']}
           />
         }
       >
-              onRefresh={() => {
-                setRefreshing(true);
-                setTimeout(() => setRefreshing(false), 1000);
-              }}
-              colors={['#15803d']}
-            />
-          }
-        >
           {/* Top Search Bar */}
           <View style={styles.searchSection}>
             <View style={styles.searchBar}>
@@ -782,7 +854,7 @@ export default function AcademicsScreen({ route }: any) {
             ))}
           </View>
 
-          {/* SECTION 2: GRID SECTION 1 (9 CARDS) */}
+          {/* SECTION 2: GRID SECTION 1 (LAZY LOADED 2 LINES AT A TIME) */}
           <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
             <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
               <BookIcon color="#15803d" size={18} />
@@ -794,8 +866,13 @@ export default function AcademicsScreen({ route }: any) {
           </View>
 
           <View style={styles.gridContainer}>
-            {GRID_SECTION_1.map((item) => renderGridCard(item))}
+            {GRID_SECTION_1.slice(0, visibleCountSection1).map((item) => renderGridCard(item))}
           </View>
+
+          {/* Facebook-style Bottom Shimmer Loading for Section 1 */}
+          {loadingMoreSection1 && (
+            <ShimmerGridLoader title="Fetching 2 more lines of notes & papers..." />
+          )}
 
           {/* SECTION 3: TRENDING NOW CAROUSEL */}
           <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
@@ -843,7 +920,7 @@ export default function AcademicsScreen({ route }: any) {
             ))}
           </View>
 
-          {/* SECTION 4: GRID SECTION 2 (9 CARDS) */}
+          {/* SECTION 4: GRID SECTION 2 (LAZY LOADED 2 LINES AT A TIME) */}
           <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
             <View style={[styles.sectionIconCircle, { backgroundColor: '#dbeafe' }]}>
               <FileTextIcon color="#2563eb" size={18} />
@@ -855,8 +932,20 @@ export default function AcademicsScreen({ route }: any) {
           </View>
 
           <View style={styles.gridContainer}>
-            {GRID_SECTION_2.map((item) => renderGridCard(item))}
+            {GRID_SECTION_2.slice(0, visibleCountSection2).map((item) => renderGridCard(item))}
           </View>
+
+          {/* Facebook-style Bottom Shimmer Loading for Section 2 */}
+          {loadingMoreSection2 && (
+            <ShimmerGridLoader title="Fetching 2 more lines of recently uploaded notes..." />
+          )}
+
+          {/* End of feed indicator when all items are loaded */}
+          {visibleCountSection1 >= GRID_SECTION_1.length && visibleCountSection2 >= GRID_SECTION_2.length && (
+            <View style={styles.endOfFeedContainer}>
+              <Text style={styles.endOfFeedText}>✨ You've caught up with all available notes & papers!</Text>
+            </View>
+          )}
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1333,6 +1422,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#dc2626'
+  },
+
+  /* Facebook-style Shimmer Loading Styles */
+  shimmerContainer: {
+    marginTop: 14,
+    marginBottom: 16
+  },
+  shimmerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12
+  },
+  shimmerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#15803d'
+  },
+  shimmerLoadingLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803d',
+    letterSpacing: 0.2
+  },
+  shimmerCard: {
+    width: GRID_CARD_WIDTH,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  shimmerThumbnail: {
+    height: 105,
+    backgroundColor: '#cbd5e1'
+  },
+  shimmerBody: {
+    padding: 10,
+    gap: 8
+  },
+  shimmerBadge: {
+    width: 55,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#e2e8f0'
+  },
+  shimmerTitleLine: {
+    width: '88%',
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#cbd5e1'
+  },
+  shimmerSubLine: {
+    width: '60%',
+    height: 12,
+    borderRadius: 4,
+    backgroundColor: '#e2e8f0'
+  },
+
+  /* End of Feed Indicator */
+  endOfFeedContainer: {
+    alignItems: 'center',
+    paddingVertical: 18,
+    marginTop: 12,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#bbf7d0'
+  },
+  endOfFeedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#166534'
   }
 });
 

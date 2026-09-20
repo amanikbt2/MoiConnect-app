@@ -113,6 +113,9 @@ export function useAppNavigation() {
         navigation.navigate(resolved.screen, resolved.params);
       }
     },
+    canGoBack: () => {
+      return navigation && navigation.canGoBack ? navigation.canGoBack() : false;
+    },
     back: () => {
       if (navigation && navigation.goBack) {
         navigation.goBack();
