@@ -229,7 +229,6 @@ export default function NotesScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Notes PDF & Study Guides</Text>
-          <Text style={styles.headerSub}>Curated lecture summaries, class notes & revision materials</Text>
         </View>
       </View>
 

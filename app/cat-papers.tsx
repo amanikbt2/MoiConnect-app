@@ -204,7 +204,6 @@ export default function CatPapersScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>CAT Papers & Continuous Tests</Text>
-          <Text style={styles.headerSub}>CAT 1, CAT 2 & continuous assessment test papers with answers</Text>
         </View>
       </View>
 

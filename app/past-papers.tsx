@@ -227,7 +227,6 @@ export default function PastPapersScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Past Exam Papers</Text>
-          <Text style={styles.headerSub}>Official end-of-semester examination papers with solved solutions</Text>
         </View>
       </View>
 
