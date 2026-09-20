@@ -336,7 +336,7 @@ export default function ContributeScreen() {
           ) : (
             <>
               <UploadIcon color="#ffffff" size={20} style={{ marginRight: 8 }} />
-              <Text style={styles.submitBtnText}>Submit Document to MConnect</Text>
+              <Text style={styles.submitBtnText}>Submit for Approval</Text>
             </>
           )}
         </TouchableOpacity>

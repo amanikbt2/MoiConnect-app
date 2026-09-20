@@ -23,7 +23,8 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
-import { getDownloadedPapers } from '../../src/services/offlineStorage';
+import { getDownloadedPapers, saveDownloadedPaper } from '../../src/services/offlineStorage';
+import { PDFViewerModal, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 import {
   DownloadIcon,
@@ -42,6 +43,7 @@ const GRID_CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
 
 export interface NoteItem {
   id: string;
+  mtid?: string;
   title: string;
   unitCode: string;
   unitName: string;
@@ -59,6 +61,7 @@ export interface NoteItem {
 const FOR_YOU_CAROUSEL: NoteItem[] = [
   {
     id: 'fy1',
+    mtid: 'N0001',
     title: 'Data Structures & Algorithms Complete Revision Notes',
     unitCode: 'COM 310',
     unitName: 'Data Structures',
@@ -73,6 +76,7 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
   },
   {
     id: 'fy2',
+    mtid: 'P0001',
     title: 'STA 210 Probability & Statistics Final Exam Prep Pack',
     unitCode: 'STA 210',
     unitName: 'Statistics II',
@@ -87,6 +91,7 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
   },
   {
     id: 'fy3',
+    mtid: 'P0002',
     title: 'Calculus II Integration & Infinite Series Solutions',
     unitCode: 'MAT 210',
     unitName: 'Calculus II',
@@ -101,6 +106,7 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
   },
   {
     id: 'fy4',
+    mtid: 'N0002',
     title: 'Operating Systems Kernel & Concurrency Summary',
     unitCode: 'COM 220',
     unitName: 'Operating Systems',
@@ -115,6 +121,7 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
   },
   {
     id: 'fy5',
+    mtid: 'N0003',
     title: 'Software Engineering Architecture & Design Patterns',
     unitCode: 'COM 410',
     unitName: 'Software Eng',
@@ -132,6 +139,7 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
 const GRID_SECTION_1: NoteItem[] = [
   {
     id: 'g1_1',
+    mtid: 'P0003',
     title: 'Discrete Mathematics Logic & Graph Theory',
     unitCode: 'COM 112',
     unitName: 'Discrete Math',
@@ -146,6 +154,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_2',
+    mtid: 'N0004',
     title: 'Information Storage & Retrieval Systems Guide',
     unitCode: 'INS 320',
     unitName: 'Info Retrieval',
@@ -160,6 +169,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_3',
+    mtid: 'N0005',
     title: 'Constitutional Law I Landmark Case Studies',
     unitCode: 'LAW 210',
     unitName: 'Constitutional Law',
@@ -174,6 +184,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_4',
+    mtid: 'N0006',
     title: 'Principles of Microeconomics Lecture Slides',
     unitCode: 'ECO 101',
     unitName: 'Microeconomics',
@@ -188,6 +199,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_5',
+    mtid: 'N0007',
     title: 'Educational Psychology Learning Theories',
     unitCode: 'EDU 211',
     unitName: 'Edu Psychology',
@@ -202,6 +214,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_6',
+    mtid: 'N0008',
     title: 'General University Physics Mechanics & Optics',
     unitCode: 'PHY 110',
     unitName: 'Physics I',
@@ -216,6 +229,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_7',
+    mtid: 'N0009',
     title: 'Organic Chemistry II Mechanisms & Reaction Paths',
     unitCode: 'CHM 112',
     unitName: 'Organic Chem',
@@ -230,6 +244,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_8',
+    mtid: 'N0010',
     title: 'Human Anatomy & Physiology Clinical Summaries',
     unitCode: 'NUR 202',
     unitName: 'Anatomy',
@@ -244,6 +259,7 @@ const GRID_SECTION_1: NoteItem[] = [
   },
   {
     id: 'g1_9',
+    mtid: 'N0011',
     title: 'Advanced Academic Writing & Essay Structuring',
     unitCode: 'ENG 105',
     unitName: 'Communication',
@@ -535,6 +551,60 @@ export default function AcademicsScreen({ route }: any) {
   const [forYouIndex, setForYouIndex] = useState(0);
   const [trendingIndex, setTrendingIndex] = useState(0);
 
+  // Fast PDF Preview Modal State
+  const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  const handleOpenPreview = (item: NoteItem) => {
+    setPreviewDoc({
+      id: item.id,
+      mtid: item.mtid,
+      title: item.title,
+      unitCode: item.unitCode,
+      unitName: item.unitName,
+      school: item.school,
+      author: item.author,
+      fileUrl: 'https://res.cloudinary.com/mconnect/docs/notes.pdf',
+      pages: '48 pages',
+      summary: `Comprehensive study material for ${item.unitCode} (${item.unitName || item.title}).`,
+      sampleText: `Sample test preview line for ${item.unitCode} (${item.title}): Section 1.1 Fundamentals and Core Notes. Quick test words line for testing preview functionality.`
+    });
+    setShowPreviewModal(true);
+  };
+
+  const handleDownload = async (doc: PDFDocumentItem) => {
+    try {
+      await saveDownloadedPaper({
+        _id: `note_${doc.id}`,
+        title: doc.title,
+        school: doc.school || 'Moi University',
+        department: doc.unitName || doc.unitCode,
+        courseCode: doc.unitCode,
+        unitCode: doc.unitCode,
+        unitName: doc.unitName || doc.unitCode,
+        type: 'notes',
+        examYear: 2025,
+        fileUrl: doc.fileUrl,
+        fileType: 'pdf',
+        uploadedBy: { _id: 'moi_lecturer', name: doc.author || 'Moi Faculty' } as any,
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      Alert.alert(
+        'Downloaded Offline',
+        `"${doc.title}" saved to your offline downloads tab!`,
+        [
+          { text: 'OK' },
+          { text: 'View Downloads', onPress: () => router.push('/(tabs)/downloads') }
+        ]
+      );
+    } catch (e) {
+      Alert.alert('Download Error', 'Could not save note offline.');
+    }
+  };
+
   const forYouListRef = useRef<FlatList>(null);
   const trendingListRef = useRef<FlatList>(null);
   const isForYouInteracting = useRef(false);
@@ -583,7 +653,7 @@ export default function AcademicsScreen({ route }: any) {
 
   useEffect(() => {
     if (route?.params?.upload === 'true' || route?.params?.upload === true) {
-      setShowUploadModal(true);
+      router.push('/contribute');
     }
     if (route?.params?.type) {
       setActiveFilterDisc(route.params.type);
@@ -681,7 +751,7 @@ export default function AcademicsScreen({ route }: any) {
       key={item.id}
       style={styles.carouselCard}
       activeOpacity={0.88}
-      onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(item.unitCode)}`)}
+      onPress={() => handleOpenPreview(item)}
     >
       <View style={styles.carouselThumbnailContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
@@ -697,7 +767,7 @@ export default function AcademicsScreen({ route }: any) {
       </View>
 
       <View style={styles.carouselBody}>
-        <Text style={styles.carouselMeta}>{item.unitCode} • {item.school}</Text>
+        <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
         <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
 
         <View style={styles.carouselFooter}>
@@ -716,7 +786,7 @@ export default function AcademicsScreen({ route }: any) {
       key={item.id}
       style={styles.gridCard}
       activeOpacity={0.88}
-      onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(item.unitCode)}`)}
+      onPress={() => handleOpenPreview(item)}
     >
       <View style={styles.gridImageContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
@@ -730,7 +800,7 @@ export default function AcademicsScreen({ route }: any) {
       </View>
 
       <View style={styles.gridBody}>
-        <Text style={styles.gridPaperType}>{item.paperType}</Text>
+        <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.paperType}</Text>
         <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.gridSub}>{item.school} • {item.examYear}</Text>
 
@@ -976,6 +1046,14 @@ export default function AcademicsScreen({ route }: any) {
           <Button title="Submit for Admin Review" onPress={handleUploadPaper} loading={submitting} style={{ marginTop: 16 }} />
         </ScrollView>
       </Modal>
+
+      {/* Fast In-App PDF Preview Window */}
+      <PDFViewerModal
+        visible={showPreviewModal}
+        document={previewDoc}
+        onClose={() => setShowPreviewModal(false)}
+        onDownload={handleDownload}
+      />
     </View>
   );
 }

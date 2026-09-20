@@ -61,7 +61,7 @@ export function useAppNavigation() {
         return { screen: 'Privacy', params };
       case '/notes':
       case 'Notes':
-        return { screen: 'Notes', params };
+        return { screen: 'Academics', params };
       case '/past-papers':
       case 'PastPapers':
         return { screen: 'PastPapers', params };
@@ -71,6 +71,9 @@ export function useAppNavigation() {
       case '/contribute':
       case 'Contribute':
         return { screen: 'Contribute', params };
+      case '/landlord-portal':
+      case 'LandlordPortal':
+        return { screen: 'LandlordPortal', params };
       case '/':
       case '/(tabs)':
       case '/(tabs)/index':

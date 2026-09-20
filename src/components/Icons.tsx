@@ -510,6 +510,41 @@ export function ReplyIcon({ color = '#15803d', size = 20, style }: IconProps) {
   );
 }
 
+export function ShieldCheckIcon({ color = '#15803d', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M9 12L11 14L15 10"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function KeyIcon({ color = '#15803d', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M21 2L15 8M15 8C16.6569 9.65685 16.6569 12.3431 15 14C13.3431 15.6569 10.6569 15.6569 9 14C7.34315 12.3431 7.34315 9.65685 9 8C10.6569 6.34315 13.3431 6.34315 15 8ZM19 4L22 7M17 6L20 9"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 
 
 

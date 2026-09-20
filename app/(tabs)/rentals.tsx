@@ -23,7 +23,7 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 
-import { LocationIcon, PlusIcon } from '../../src/components/Icons';
+import { LocationIcon, PlusIcon, KeyIcon, ShieldCheckIcon } from '../../src/components/Icons';
 
 const LOCATIONS_LIST = ['All Locations', 'Stage', 'Mabs', 'Viewland', 'Kesses', 'Talai', 'Annex'];
 
@@ -285,187 +285,115 @@ export default function RentalsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top Tabs */}
-      <View style={styles.tabHeader}>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'browse' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('browse')}
-        >
-          <Text style={[styles.tabBtnText, activeTab === 'browse' && styles.tabBtnTextActive]}>
-            Available Houses
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'my_listings' && styles.tabBtnActive]}
-          onPress={() => {
-            if (!user) {
-              router.push('/(auth)/login');
-            } else if (!isLandlord) {
-              router.push('/(auth)/request-landlord');
-            } else {
-              setActiveTab('my_listings');
-            }
-          }}
-        >
-          <Text style={[styles.tabBtnText, activeTab === 'my_listings' && styles.tabBtnTextActive]}>
-            Landlord Portal {isLandlord ? '(Verified)' : ''}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'browse' ? (
-        <FlatList
-          data={houses}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHouses(); }} colors={['#15803d']} />
-          }
-          ListHeaderComponent={
-            <View style={{ marginBottom: 14 }}>
-              {/* Search Bar */}
-              <View style={styles.searchRow}>
-                <TextInput
-                  placeholder="Search Stage, Mabs, Kesses, Bedsitter..."
-                  placeholderTextColor="#94a3b8"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmitEditing={fetchHouses}
-                  style={styles.searchInput}
-                />
-                <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses}>
-                  <Text style={styles.searchBtnText}>Search</Text>
-                </TouchableOpacity>
+      <FlatList
+        data={houses}
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHouses(); }} colors={['#15803d']} />
+        }
+        ListHeaderComponent={
+          <View style={{ marginBottom: 14 }}>
+            {/* Top Header Action Row with Landlord Portal Small Icon */}
+            <View style={styles.topHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.topHeaderTitle}>Available Houses & Hostels</Text>
+                <Text style={styles.topHeaderSub}>Verified student rentals around Moi Campus</Text>
               </View>
-
-              {/* Location Filter Chips */}
-              <Text style={styles.filterSectionTitle}>📍 Filter by Location</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-                {LOCATIONS_LIST.map((loc) => {
-                  const isActive = selectedLocation === loc;
-                  return (
-                    <TouchableOpacity
-                      key={loc}
-                      style={[styles.locationPill, isActive && styles.locationPillActive]}
-                      onPress={() => setSelectedLocation(loc)}
-                    >
-                      <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
-                        {loc === 'All Locations' ? '🌐 All Locations' : `📍 ${loc}`}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Property Type Pills */}
-              <Text style={styles.filterSectionTitle}>🏠 Room Type</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-                <TouchableOpacity
-                  style={[styles.pill, selectedType === '' && styles.pillActive]}
-                  onPress={() => setSelectedType('')}
-                >
-                  <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
-                </TouchableOpacity>
-                {PROPERTY_TYPES.map((pt) => {
-                  const label =
-                    pt === 'bedsetter'
-                      ? 'Bedsitter'
-                      : pt === 'single_room'
-                      ? 'Single Room'
-                      : pt === 'one_bedroom'
-                      ? '1 Bedroom'
-                      : pt.replace('_', ' ');
-                  return (
-                    <TouchableOpacity
-                      key={pt}
-                      style={[styles.pill, selectedType === pt && styles.pillActive]}
-                      onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
-                    >
-                      <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Landlord Action Banner */}
-              {isLandlord && (
-                <TouchableOpacity style={styles.landlordBanner} onPress={() => setShowCreateModal(true)}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#15803d', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                    <PlusIcon color="#ffffff" size={20} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.landlordBannerTitle}>Create New House Listing</Text>
-                    <Text style={styles.landlordBannerSub}>Post single rooms, bedsitters or apartments near campus</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.landlordIconButton}
+                onPress={() => router.push('/landlord-portal')}
+                activeOpacity={0.8}
+              >
+                <KeyIcon color="#15803d" size={16} />
+                <Text style={styles.landlordIconText}>Landlord Portal</Text>
+              </TouchableOpacity>
             </View>
-          }
-          renderItem={({ item }) => (
-            <HouseCard house={item} onPress={() => router.push(`/house/${item._id}`)} />
-          )}
-          ListEmptyComponent={
-            loading ? (
-              <View style={{ gap: 10, marginTop: 12 }}>
-                <Skeleton height={180} />
-                <Skeleton height={180} />
-              </View>
-            ) : (
-              <EmptyState
-                title="No Rental Listings Found"
-                message="Try clearing location or rent filters to explore available houses around Moi University."
+
+            {/* Search Bar */}
+            <View style={styles.searchRow}>
+              <TextInput
+                placeholder="Search Stage, Mabs, Kesses, Bedsitter..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={fetchHouses}
+                style={styles.searchInput}
               />
-            )
-          }
-        />
-      ) : (
-        <FlatList
-          data={myListings}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMyListings(); }} colors={['#15803d']} />
-          }
-          ListHeaderComponent={
-            <TouchableOpacity style={styles.createBtn} onPress={() => setShowCreateModal(true)}>
-              <Text style={styles.createBtnText}>+ Add New House Listing</Text>
-            </TouchableOpacity>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.myListingCard}>
-              <View style={styles.myListingHeader}>
-                <Badge
-                  label={item.status}
-                  variant={item.status === 'approved' ? 'green' : item.status === 'pending' ? 'gold' : 'red'}
-                />
-                <Badge
-                  label={item.occupancyStatus}
-                  variant={item.occupancyStatus === 'available' ? 'blue' : 'gray'}
-                />
-              </View>
-              <Text style={styles.myListingTitle}>{item.title}</Text>
-              <Text style={styles.myListingPrice}>KES {item.monthlyRent.toLocaleString()} / month</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <LocationIcon color="#64748b" size={14} />
-                <Text style={styles.myListingLoc}>{item.location}</Text>
-              </View>
+              <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses}>
+                <Text style={styles.searchBtnText}>Search</Text>
+              </TouchableOpacity>
             </View>
-          )}
-          ListEmptyComponent={
-            loading ? (
-              <Skeleton height={120} />
-            ) : (
-              <EmptyState
-                title="No Property Listings"
-                message="You have not published any rental listings yet. Tap 'Add New House Listing' above to publish."
-              />
-            )
-          }
-        />
-      )}
+
+            {/* Location Filter Chips */}
+            <Text style={styles.filterSectionTitle}>📍 Filter by Location</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+              {LOCATIONS_LIST.map((loc) => {
+                const isActive = selectedLocation === loc;
+                return (
+                  <TouchableOpacity
+                    key={loc}
+                    style={[styles.locationPill, isActive && styles.locationPillActive]}
+                    onPress={() => setSelectedLocation(loc)}
+                  >
+                    <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
+                      {loc === 'All Locations' ? '🌐 All Locations' : `📍 ${loc}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Property Type Pills */}
+            <Text style={styles.filterSectionTitle}>🏠 Room Type</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+              <TouchableOpacity
+                style={[styles.pill, selectedType === '' && styles.pillActive]}
+                onPress={() => setSelectedType('')}
+              >
+                <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
+              </TouchableOpacity>
+              {PROPERTY_TYPES.map((pt) => {
+                const label =
+                  pt === 'bedsetter'
+                    ? 'Bedsitter'
+                    : pt === 'single_room'
+                    ? 'Single Room'
+                    : pt === 'one_bedroom'
+                    ? '1 Bedroom'
+                    : pt.replace('_', ' ');
+                return (
+                  <TouchableOpacity
+                    key={pt}
+                    style={[styles.pill, selectedType === pt && styles.pillActive]}
+                    onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
+                  >
+                    <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <HouseCard house={item} onPress={() => router.push(`/house/${item._id}`)} />
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <View style={{ gap: 10, marginTop: 12 }}>
+              <Skeleton height={180} />
+              <Skeleton height={180} />
+            </View>
+          ) : (
+            <EmptyState
+              title="No Rental Listings Found"
+              message="Try clearing location or rent filters to explore available houses around Moi University."
+            />
+          )
+        }
+      />
 
       {/* Create Listing Modal */}
       <Modal visible={showCreateModal} animationType="slide" onRequestClose={() => setShowCreateModal(false)}>
@@ -539,6 +467,44 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16
+  },
+  topHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    backgroundColor: '#ffffff',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2
+  },
+  topHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a'
+  },
+  topHeaderSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2
+  },
+  landlordIconButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0'
+  },
+  landlordIconText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#15803d'
   },
   searchRow: {
     flexDirection: 'row',

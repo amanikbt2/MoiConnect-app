@@ -548,8 +548,12 @@ export default function ChatRoomScreen({ route }: any) {
       {/* WhatsApp Style Input Bar */}
       <View style={styles.inputContainer}>
         <View style={styles.inputPill}>
-          <TouchableOpacity style={styles.pillIconBtn} activeOpacity={0.7}>
-            <SmileIcon color="#8696a0" size={22} />
+          <TouchableOpacity
+            style={styles.pillIconBtn}
+            onPress={() => setShowFileModal(true)}
+            activeOpacity={0.7}
+          >
+            <PaperclipIcon color="#8696a0" size={22} />
           </TouchableOpacity>
 
           <TextInput
@@ -568,14 +572,6 @@ export default function ChatRoomScreen({ route }: any) {
               }
             }}
           />
-
-          <TouchableOpacity
-            style={styles.pillIconBtn}
-            onPress={() => setShowFileModal(true)}
-            activeOpacity={0.7}
-          >
-            <PaperclipIcon color="#8696a0" size={22} />
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity

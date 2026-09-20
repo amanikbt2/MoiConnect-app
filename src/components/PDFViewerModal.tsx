@@ -14,6 +14,7 @@ import { DownloadIcon, CheckIcon, StarIcon } from './Icons';
 
 export interface PDFDocumentItem {
   id: string;
+  mtid?: string;
   title: string;
   unitCode: string;
   unitName?: string;
@@ -22,6 +23,7 @@ export interface PDFDocumentItem {
   pages?: string;
   author?: string;
   summary?: string;
+  sampleText?: string;
   downloads?: number | string;
   ratingScore?: number;
   starCount?: number;
@@ -100,7 +102,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
         {/* Instant PDF Preview Container */}
         <View style={styles.bodyContainer}>
-          {Platform.OS === 'web' && document.fileUrl ? (
+          {Platform.OS === 'web' && document.fileUrl && !document.fileUrl.includes('cloudinary.com/mconnect') ? (
             <View style={styles.webViewerWrapper}>
               <iframe
                 src={`https://docs.google.com/viewer?url=${encodeURIComponent(document.fileUrl)}&embedded=true`}
@@ -116,6 +118,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   <View style={styles.docCodeBadge}>
                     <Text style={styles.docCodeText}>{document.unitCode}</Text>
                   </View>
+                  {!!document.mtid && (
+                    <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+                    </View>
+                  )}
                   <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                 </View>
 
@@ -159,18 +166,26 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   <Text style={styles.paperTitleHeader}>{document.title}</Text>
                   <View style={styles.paperDivider} />
 
-                  <Text style={styles.paperHeading}>1. KEY TOPICS & REVISION OUTLINE (Page {activePage})</Text>
+                  <Text style={styles.paperHeading}>1. TEST PDF PREVIEW CONTENT (Page {activePage})</Text>
+                  <View style={{ backgroundColor: '#f1f5f9', padding: 12, borderRadius: 8, marginVertical: 8, borderLeftWidth: 4, borderLeftColor: '#15803d' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a', marginBottom: 4 }}>
+                      📄 Sample PDF Preview Line (Testing Mode):
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#334155', lineHeight: 20 }}>
+                      {document.sampleText || `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quick test preview words line for ${document.title} (${document.unitCode}).`}
+                    </Text>
+                  </View>
+
                   <Text style={styles.paperBodyText}>
-                    1.1 Definition and Core Fundamentals of {document.unitName || document.unitCode}.{'\n'}
-                    1.2 Detailed Theorem, Proofs, Formulas & Problem Solving steps.{'\n'}
-                    1.3 Solved sample questions and past examination questions.{'\n'}
-                    1.4 Revision notes compiled for end of semester examination prep.
+                    1.1 Key Concepts: Definition and fundamental principles of {document.unitName || document.unitCode}.{'\n'}
+                    1.2 Solved Examples: Worked problem steps and formula applications for semester exams.{'\n'}
+                    1.3 Quick Revision: High yield notes compiled for test evaluation and quick review.
                   </Text>
 
                   <View style={styles.paperNotesBox}>
-                    <Text style={styles.paperNotesTitle}>📌 Important Exam Note:</Text>
+                    <Text style={styles.paperNotesTitle}>📌 Important Test Note:</Text>
                     <Text style={styles.paperNotesBody}>
-                      Review Section 2 and Section 4 thoroughly before CAT 1 and Final Exams. Ensure all diagrams and formulas are memorized.
+                      This is a working test preview sheet. Tap "Download PDF" below or at the top to save this document for offline reading.
                     </Text>
                   </View>
                 </View>
