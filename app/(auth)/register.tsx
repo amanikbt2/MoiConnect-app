@@ -60,9 +60,13 @@ export default function RegisterScreen() {
   };
 
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
+    try {
+      if (router.canGoBack && router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch (e) {
       router.replace('/(tabs)');
     }
   };
