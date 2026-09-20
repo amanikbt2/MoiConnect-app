@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { IPaper } from '@moi/shared';
 import { Badge } from './Badge';
+import { formatCompactNumber } from '../utils/formatters';
 
 interface PaperCardProps {
   paper: IPaper;
@@ -19,7 +20,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onPress }) => {
       <Text style={styles.sub}>{paper.unitName} • {paper.examYear}</Text>
       <View style={styles.footer}>
         <Text style={styles.school}>{paper.school}</Text>
-        <Text style={styles.downloads}>⬇ {paper.downloadCount || 0}</Text>
+        <Text style={styles.downloads}>⬇ {formatCompactNumber(paper.downloadCount)}</Text>
       </View>
     </TouchableOpacity>
   );

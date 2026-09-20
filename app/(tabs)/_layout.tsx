@@ -11,6 +11,19 @@ function HomeHeaderTitle() {
   );
 }
 
+function DownloadsHeaderTitle() {
+  return (
+    <View style={{ justifyContent: 'center' }}>
+      <Text style={{ color: '#ffffff', fontSize: 18, fontWeight: '800', lineHeight: 22 }}>
+        Downloads
+      </Text>
+      <Text style={{ color: '#dcfce7', fontSize: 11, fontWeight: '500', marginTop: 1 }}>
+        Offline downloaded materials
+      </Text>
+    </View>
+  );
+}
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -43,7 +56,7 @@ export default function TabLayout() {
         name="downloads"
         options={{
           title: 'Downloads',
-          headerTitle: 'Offline Downloaded Materials',
+          headerTitle: () => <DownloadsHeaderTitle />,
           tabBarIcon: ({ color }: { color: string }) => <DownloadIcon color={color} size={22} />
         }}
       />
