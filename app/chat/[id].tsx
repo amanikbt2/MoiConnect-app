@@ -553,13 +553,20 @@ export default function ChatRoomScreen({ route }: any) {
           </TouchableOpacity>
 
           <TextInput
-            placeholder="Type your message..."
+            placeholder="@bot to mention campus bot"
             placeholderTextColor="#8696a0"
             value={text}
             onChangeText={setText}
             style={styles.textInput}
-            multiline
-            maxHeight={100}
+            returnKeyType="send"
+            onSubmitEditing={handleSendMessage}
+            blurOnSubmit={false}
+            onKeyPress={(e: any) => {
+              if (Platform.OS === 'web' && e.nativeEvent?.key === 'Enter' && !e.nativeEvent?.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
           />
 
           <TouchableOpacity
@@ -784,7 +791,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 8,
     backgroundColor: '#efeae2',
@@ -799,9 +806,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 24,
     paddingHorizontal: 8,
-    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
-    minHeight: 44,
-    maxHeight: 120,
+    height: 44,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -817,12 +822,11 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14.5,
     color: '#111b21',
-    maxHeight: 100,
-    paddingVertical: 6,
+    height: 40,
+    paddingVertical: 0,
     paddingHorizontal: 6,
-    lineHeight: 20,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {})
   } as any,
   sendBtn: {

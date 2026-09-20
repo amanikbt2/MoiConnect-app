@@ -246,7 +246,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.notesCard}
             activeOpacity={0.7}
-            onPress={() => router.push('/notes')}
+            onPress={() => router.push('/(tabs)/academics')}
           >
             <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
               <NotesIcon color="#2563eb" size={28} />
@@ -300,7 +300,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.quickCard}
               activeOpacity={0.7}
-              onPress={() => router.push('/(tabs)/academics?upload=true')}
+              onPress={() => router.push('/contribute')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#f3e8ff' }]}>
                 <UploadIcon color="#7c3aed" size={28} />

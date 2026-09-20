@@ -628,20 +628,6 @@ export default function CommunityScreen() {
           {/* WhatsApp Style Bottom Input Bar */}
           <View style={styles.inputContainer}>
             <View style={styles.inputPill}>
-              <TouchableOpacity style={styles.pillIconBtn} activeOpacity={0.7}>
-                <SmileIcon color="#8696a0" size={22} />
-              </TouchableOpacity>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Message campus community..."
-                placeholderTextColor="#8696a0"
-                value={inputText}
-                onChangeText={setInputText}
-                multiline
-                maxHeight={100}
-              />
-
               <TouchableOpacity
                 style={styles.pillIconBtn}
                 onPress={() => setShowFileModal(true)}
@@ -649,6 +635,23 @@ export default function CommunityScreen() {
               >
                 <PaperclipIcon color="#8696a0" size={22} />
               </TouchableOpacity>
+
+              <TextInput
+                style={styles.input}
+                placeholder="@bot to mention campus bot"
+                placeholderTextColor="#8696a0"
+                value={inputText}
+                onChangeText={setInputText}
+                returnKeyType="send"
+                onSubmitEditing={handleSendMessage}
+                blurOnSubmit={false}
+                onKeyPress={(e: any) => {
+                  if (Platform.OS === 'web' && e.nativeEvent?.key === 'Enter' && !e.nativeEvent?.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
             </View>
 
             <TouchableOpacity
@@ -1028,7 +1031,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 8,
     backgroundColor: '#efeae2',
@@ -1043,9 +1046,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 24,
     paddingHorizontal: 8,
-    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
-    minHeight: 44,
-    maxHeight: 120,
+    height: 44,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -1061,12 +1062,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14.5,
     color: '#111b21',
-    maxHeight: 100,
-    paddingVertical: 6,
+    height: 40,
+    paddingVertical: 0,
     paddingHorizontal: 6,
-    lineHeight: 20,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {})
   } as any,
   sendBtn: {

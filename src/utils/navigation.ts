@@ -68,6 +68,9 @@ export function useAppNavigation() {
       case '/cat-papers':
       case 'CatPapers':
         return { screen: 'CatPapers', params };
+      case '/contribute':
+      case 'Contribute':
+        return { screen: 'Contribute', params };
       case '/':
       case '/(tabs)':
       case '/(tabs)/index':
