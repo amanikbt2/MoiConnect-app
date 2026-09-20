@@ -42,6 +42,15 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
 
   const locationText = house.locationName || house.location || 'Near Campus';
 
+  const availRooms = house.availableRooms !== undefined
+    ? house.availableRooms
+    : (house.status === 'available' || house.occupancyStatus === 'available' ? 1 : 0);
+
+  const isFullyBooked = availRooms === 0;
+  const statusLabel = isFullyBooked
+    ? '🔴 Fully Booked'
+    : `🟢 ${availRooms} Vacant Room${availRooms > 1 ? 's' : ''}`;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
       {/* House Image Thumbnail with Badges */}
@@ -54,10 +63,17 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
           <View style={styles.typeBadge}>
             <Text style={styles.typeBadgeText}>{typeLabel}</Text>
           </View>
-          <Badge
-            label={house.status === 'available' || house.occupancyStatus === 'available' ? 'Available' : 'Occupied'}
-            variant={house.status === 'available' || house.occupancyStatus === 'available' ? 'success' : 'gray'}
-          />
+          <View style={[
+            styles.availabilityBadge,
+            isFullyBooked ? styles.badgeFull : styles.badgeVacant
+          ]}>
+            <Text style={[
+              styles.availabilityBadgeText,
+              isFullyBooked ? styles.badgeTextFull : styles.badgeTextVacant
+            ]}>
+              {statusLabel}
+            </Text>
+          </View>
         </View>
 
         {/* Price Tag Overlay at Bottom Left of Image */}
@@ -149,6 +165,31 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.4
+  },
+  availabilityBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10
+  },
+  badgeVacant: {
+    backgroundColor: '#dcfce7',
+    borderWidth: 1,
+    borderColor: '#bbf7d0'
+  },
+  badgeFull: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5'
+  },
+  availabilityBadgeText: {
+    fontSize: 11,
+    fontWeight: '800'
+  },
+  badgeTextVacant: {
+    color: '#15803d'
+  },
+  badgeTextFull: {
+    color: '#ef4444'
   },
   priceTag: {
     position: 'absolute',

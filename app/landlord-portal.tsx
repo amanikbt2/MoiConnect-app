@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  FlatList,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
@@ -23,8 +23,7 @@ import {
   HouseIcon,
   PlusIcon,
   ArrowLeftIcon,
-  CheckIcon,
-  LocationIcon
+  PhoneIcon
 } from '../src/components/Icons';
 
 export default function LandlordPortalScreen() {
@@ -38,7 +37,7 @@ export default function LandlordPortalScreen() {
   const [isVerified, setIsVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  // Portal Listings State
+  // Portal Apartment Listings State
   const [listings, setListings] = useState<IHouse[]>([
     {
       _id: 'landlord_h1',
@@ -51,6 +50,10 @@ export default function LandlordPortalScreen() {
       monthlyRent: 4800,
       pricePerMonth: 4800,
       deposit: 4800,
+      totalRooms: 12,
+      availableRooms: 8,
+      phoneContact: '0712345678',
+      whatsappContact: '254712345678',
       amenities: ['📶 Fiber WiFi', '💧 Water 24/7', '🔒 Security Guard', '⚡ Tokens'],
       photos: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80'],
       status: 'available',
@@ -70,6 +73,10 @@ export default function LandlordPortalScreen() {
       monthlyRent: 3500,
       pricePerMonth: 3500,
       deposit: 3500,
+      totalRooms: 10,
+      availableRooms: 3,
+      phoneContact: '0798765432',
+      whatsappContact: '254798765432',
       amenities: ['💧 Borehole Water', '🔒 Locked Gate 10PM', '⚡ Tokens'],
       photos: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80'],
       status: 'available',
@@ -80,18 +87,22 @@ export default function LandlordPortalScreen() {
     }
   ]);
 
-  // Create New Listing Modal State
+  // Add Apartment Building Modal Form State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newType, setNewType] = useState('bedsetter');
+  const [newType, setNewType] = useState<any>('bedsetter');
   const [newLocation, setNewLocation] = useState(MOI_LOCATIONS[0] || 'Stage');
+  const [totalRooms, setTotalRooms] = useState('10');
+  const [availableRooms, setAvailableRooms] = useState('8');
   const [newRent, setNewRent] = useState('');
   const [newDeposit, setNewDeposit] = useState('');
+  const [phoneContact, setPhoneContact] = useState('0712345678');
+  const [whatsappContact, setWhatsappContact] = useState('254712345678');
   const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80');
   const [submitting, setSubmitting] = useState(false);
 
-  // Check if user is already verified landlord in AuthContext
+  // Check if user is already verified landlord
   useEffect(() => {
     if (user?.roles?.includes('landlord') && user?.landlordStatus === 'approved') {
       setIsVerified(true);
@@ -117,13 +128,12 @@ export default function LandlordPortalScreen() {
     }
 
     setVerifying(true);
-
     setTimeout(() => {
       setVerifying(false);
       setIsVerified(true);
       Alert.alert('Verification Successful! 🛡️', 'Landlord credentials verified against database records. Portal unlocked!');
       fetchLandlordListings();
-    }, 1200);
+    }, 1000);
   };
 
   // Fill Sample Demo Credentials
@@ -133,59 +143,99 @@ export default function LandlordPortalScreen() {
     setSecurityKey('KEY-7714-X');
   };
 
-  // 5-Second Hold-to-Authorize Bypass for Testing
+  // 5-Second Hold-to-Authorize Bypass
   const handleLongPressAuthorize = () => {
     setLandlordMID('LL-8842-MOI');
     setLandlordSerial('SN-9920-KESSES');
     setSecurityKey('KEY-7714-X');
     setVerifying(true);
-
     setTimeout(() => {
       setVerifying(false);
       setIsVerified(true);
       Alert.alert(
         'Demo Landlord Account Unlocked 🔑',
-        'Hold-to-authorize (5s) shortcut activated! You are now logged into the Demo Landlord Test Account.'
+        'Shortcut activated! You are logged into the Demo Landlord Account.'
       );
       fetchLandlordListings();
-    }, 600);
+    }, 500);
   };
 
-  // Toggle House Occupancy Status
-  const handleToggleOccupancy = (houseId: string) => {
+  // Instant Quick Control: Decrement Available Rooms (-)
+  const handleDecrementRooms = (houseId: string) => {
     setListings((prev) =>
       prev.map((h) => {
         if (h._id !== houseId) return h;
-        const nextStatus = h.occupancyStatus === 'available' ? 'occupied' : 'available';
-        return { ...h, occupancyStatus: nextStatus, status: nextStatus };
+        const currentCount = h.availableRooms !== undefined ? h.availableRooms : 1;
+        if (currentCount <= 0) {
+          Alert.alert('Fully Booked', `"${h.title}" already has 0 vacant rooms!`);
+          return h;
+        }
+        const nextCount = currentCount - 1;
+        const isVacant = nextCount > 0;
+        return {
+          ...h,
+          availableRooms: nextCount,
+          occupancyStatus: isVacant ? 'available' : 'occupied',
+          status: isVacant ? 'available' : 'occupied'
+        };
       })
     );
   };
 
-  // Create New House Listing
+  // Instant Quick Control: Increment Available Rooms (+)
+  const handleIncrementRooms = (houseId: string) => {
+    setListings((prev) =>
+      prev.map((h) => {
+        if (h._id !== houseId) return h;
+        const currentCount = h.availableRooms !== undefined ? h.availableRooms : 0;
+        const total = h.totalRooms || 20;
+        if (currentCount >= total) {
+          Alert.alert('Max Capacity', `Available rooms cannot exceed total rooms count (${total}).`);
+          return h;
+        }
+        const nextCount = currentCount + 1;
+        return {
+          ...h,
+          availableRooms: nextCount,
+          occupancyStatus: 'available',
+          status: 'available'
+        };
+      })
+    );
+  };
+
+  // Create New Apartment Building Listing
   const handleCreateListingSubmit = async () => {
     if (!newTitle.trim() || !newRent.trim()) {
-      Alert.alert('Incomplete Details', 'Please provide at least a property title and monthly rent price.');
+      Alert.alert('Incomplete Details', 'Please provide at least the apartment name and room rent price per month.');
       return;
     }
 
     setSubmitting(true);
 
+    const totalRoomsNum = parseInt(totalRooms, 10) || 10;
+    const availableRoomsNum = parseInt(availableRooms, 10) || totalRoomsNum;
+    const isVacant = availableRoomsNum > 0;
+
     const housePayload: IHouse = {
       _id: `house_${Date.now()}`,
       landlordId: user?._id || 'landlord_1',
       title: newTitle.trim(),
-      description: newDesc.trim() || 'Neat student rental house around Moi University campus.',
-      propertyType: newType as any,
+      description: newDesc.trim() || 'Modern student apartment near Moi University campus.',
+      propertyType: newType,
       location: newLocation as any,
-      locationName: `📍 ${newLocation} (Near Campus)`,
+      locationName: `📍 ${newLocation} (Near Stage)`,
       monthlyRent: parseInt(newRent, 10) || 4500,
       pricePerMonth: parseInt(newRent, 10) || 4500,
       deposit: parseInt(newDeposit, 10) || parseInt(newRent, 10) || 4500,
-      amenities: ['📶 Fiber WiFi', '💧 Water 24/7', '🔒 Gate Locked 10PM', '⚡ Tokens'],
+      totalRooms: totalRoomsNum,
+      availableRooms: availableRoomsNum,
+      phoneContact: phoneContact.trim() || '0712345678',
+      whatsappContact: whatsappContact.trim() || '254712345678',
+      amenities: ['📶 Fiber WiFi', '💧 Water 24/7', '🔒 Gate Security', '⚡ Prepaid Tokens'],
       photos: [newPhoto],
-      status: 'available',
-      occupancyStatus: 'available',
+      status: isVacant ? 'available' : 'occupied',
+      occupancyStatus: isVacant ? 'available' : 'occupied',
       isVerified: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -197,7 +247,7 @@ export default function LandlordPortalScreen() {
         body: JSON.stringify(housePayload)
       });
     } catch (e) {
-      console.log('API fallback, adding to local state');
+      console.log('API fallback, saved to local state');
     }
 
     setListings((prev) => [housePayload, ...prev]);
@@ -210,7 +260,7 @@ export default function LandlordPortalScreen() {
     setNewRent('');
     setNewDeposit('');
 
-    Alert.alert('Listing Added! 🏠', `"${housePayload.title}" has been published to the student rental marketplace!`);
+    Alert.alert('Apartment Listed! 🏢', `"${housePayload.title}" with ${housePayload.availableRooms} vacant rooms is now active!`);
   };
 
   return (
@@ -228,7 +278,7 @@ export default function LandlordPortalScreen() {
       </View>
 
       {!isVerified ? (
-        /* STEP 1: ULTIMATE SECURE VERIFICATION FORM */
+        /* STEP 1: VERIFICATION FORM */
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
           <View style={styles.securityBannerCard}>
             <View style={styles.shieldCircle}>
@@ -237,16 +287,15 @@ export default function LandlordPortalScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.securityTitle}>In-Person Admin Account Verification</Text>
               <Text style={styles.securitySub}>
-                To prevent fraud and fake property listings, all landlord accounts are manually created in-person in the database by Moi University Housing Admins.
+                To prevent fraud and fake property listings, landlord accounts are verified by Housing Admin.
               </Text>
             </View>
           </View>
 
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>Enter Assigned Verification Keys</Text>
-            <Text style={styles.formSubtitle}>Please input your official MID, Serial, and Security Key:</Text>
+            <Text style={styles.formSubtitle}>Input your official MID, Serial, and Security Key:</Text>
 
-            {/* MID Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>1. Landlord MID (Merchant ID) <Text style={styles.required}>*</Text></Text>
               <TextInput
@@ -259,7 +308,6 @@ export default function LandlordPortalScreen() {
               />
             </View>
 
-            {/* Serial Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>2. Landlord Hardware Serial <Text style={styles.required}>*</Text></Text>
               <TextInput
@@ -272,9 +320,8 @@ export default function LandlordPortalScreen() {
               />
             </View>
 
-            {/* Security Key Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>3. Landlord Security Key / Passcode <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.inputLabel}>3. Landlord Security Passcode <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. KEY-7714-X"
@@ -286,7 +333,6 @@ export default function LandlordPortalScreen() {
               />
             </View>
 
-            {/* Quick Demo Key Filler Button */}
             <TouchableOpacity
               style={styles.demoKeyBtn}
               onPress={handleFillDemoKeys}
@@ -295,10 +341,9 @@ export default function LandlordPortalScreen() {
               activeOpacity={0.7}
             >
               <KeyIcon color="#15803d" size={14} />
-              <Text style={styles.demoKeyText}>Auto-fill Authorized Admin Verification Credentials</Text>
+              <Text style={styles.demoKeyText}>Auto-fill Authorized Landlord Credentials</Text>
             </TouchableOpacity>
 
-            {/* Verify Button */}
             <TouchableOpacity
               style={[styles.verifyBtn, verifying && styles.verifyBtnDisabled]}
               onPress={handleVerifyCredentials}
@@ -316,16 +361,12 @@ export default function LandlordPortalScreen() {
                 </>
               )}
             </TouchableOpacity>
-
-            <Text style={styles.longPressHintText}>
-              ⚡ Testing Shortcut: Press and hold "Authenticate" for 5 seconds to instantly enter Demo Landlord Account.
-            </Text>
           </View>
         </ScrollView>
       ) : (
         /* STEP 2: VERIFIED LANDLORD MANAGEMENT DASHBOARD */
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          {/* Verified Landlord Card */}
+          {/* Verified Landlord Profile Card */}
           <View style={styles.landlordBadgeCard}>
             <View style={styles.landlordBadgeHeader}>
               <View style={styles.verifiedAvatar}>
@@ -341,72 +382,108 @@ export default function LandlordPortalScreen() {
             </View>
           </View>
 
-          {/* Stats Bar */}
+          {/* Stats Summary Bar */}
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{listings.length}</Text>
-              <Text style={styles.statLabel}>Active Houses</Text>
+              <Text style={styles.statLabel}>Apartments</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{listings.filter(l => l.occupancyStatus === 'available').length}</Text>
+              <Text style={styles.statNumber}>
+                {listings.reduce((acc, h) => acc + (h.availableRooms !== undefined ? h.availableRooms : (h.occupancyStatus === 'available' ? 1 : 0)), 0)}
+              </Text>
               <Text style={styles.statLabel}>Vacant Rooms</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>14</Text>
-              <Text style={styles.statLabel}>Student Views</Text>
+              <Text style={styles.statNumber}>18</Text>
+              <Text style={styles.statLabel}>Student Contacts</Text>
             </View>
           </View>
 
           {/* Section Header */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>My Rental House Listings</Text>
+            <Text style={styles.sectionTitle}>My Apartment Buildings</Text>
             <TouchableOpacity
               style={styles.addHouseBtn}
               onPress={() => setShowAddModal(true)}
               activeOpacity={0.8}
             >
               <PlusIcon color="#ffffff" size={16} style={{ marginRight: 4 }} />
-              <Text style={styles.addHouseBtnText}>Add New House</Text>
+              <Text style={styles.addHouseBtnText}>Add New Apartment</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Listings Cards */}
+          {/* Apartment Building Cards with Smart Quick Controls */}
           {listings.map((house) => {
-            const isVacant = house.occupancyStatus === 'available';
+            const avail = house.availableRooms !== undefined ? house.availableRooms : (house.occupancyStatus === 'available' ? 1 : 0);
+            const total = house.totalRooms || 10;
+            const isFullyBooked = avail === 0;
+
             return (
               <View key={house._id} style={styles.houseCard}>
-                <View style={styles.houseHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.houseTitle}>{house.title}</Text>
-                    <Text style={styles.houseMeta}>{house.locationName} • KES {house.monthlyRent.toLocaleString()}/mo</Text>
+                {/* Thumbnail Image Header */}
+                <View style={styles.cardImageHeader}>
+                  <Image
+                    source={{ uri: house.photos[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80' }}
+                    style={styles.cardThumbnail}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.priceBadgeOverlay}>
+                    <Text style={styles.priceBadgeText}>KES {house.monthlyRent.toLocaleString()}/mo</Text>
                   </View>
-                  <View style={[styles.statusPill, isVacant ? styles.statusPillAvailable : styles.statusPillOccupied]}>
-                    <Text style={[styles.statusPillText, isVacant ? styles.statusPillTextAvailable : styles.statusPillTextOccupied]}>
-                      {isVacant ? '🟢 Vacant' : '🔴 Occupied'}
+                  <View style={[styles.stockBadgeOverlay, isFullyBooked ? styles.stockBadgeFull : styles.stockBadgeVacant]}>
+                    <Text style={styles.stockBadgeText}>
+                      {isFullyBooked ? '🔴 Fully Booked' : `🟢 ${avail} Vacant Rooms`}
                     </Text>
                   </View>
                 </View>
 
-                <Text style={styles.houseDesc}>{house.description}</Text>
+                {/* Card Info Content */}
+                <View style={styles.cardBody}>
+                  <Text style={styles.houseTitle}>{house.title}</Text>
+                  <Text style={styles.houseMeta}>{house.locationName || `📍 ${house.location}`}</Text>
+                  <Text style={styles.houseDesc} numberOfLines={2}>{house.description}</Text>
 
-                <View style={styles.houseActionRow}>
-                  <TouchableOpacity
-                    style={[styles.toggleBtn, isVacant ? styles.toggleBtnOccupied : styles.toggleBtnAvailable]}
-                    onPress={() => handleToggleOccupancy(house._id)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.toggleBtnText}>
-                      Mark as {isVacant ? '🔴 Occupied' : '🟢 Vacant'}
-                    </Text>
-                  </TouchableOpacity>
+                  {/* Contacts Row */}
+                  <View style={styles.contactsRow}>
+                    <View style={styles.contactChip}>
+                      <PhoneIcon color="#15803d" size={12} />
+                      <Text style={styles.contactChipText}>{house.phoneContact || '0712345678'}</Text>
+                    </View>
+                    <View style={styles.whatsappChip}>
+                      <Text style={{ fontSize: 12 }}>💬</Text>
+                      <Text style={styles.whatsappChipText}>WhatsApp: {house.whatsappContact || '254712345678'}</Text>
+                    </View>
+                  </View>
 
-                  <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => Alert.alert('Edit House', 'Listing details updated!')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.editBtnText}>Edit Details</Text>
-                  </TouchableOpacity>
+                  {/* SMART ROOM STOCK STEPPER CONTROL BAR */}
+                  <View style={styles.stepperContainer}>
+                    <Text style={styles.stepperLabel}>Manage Vacant Rooms:</Text>
+                    <View style={styles.stepperRow}>
+                      <TouchableOpacity
+                        style={[styles.stepBtn, styles.stepBtnMinus, avail === 0 && styles.stepBtnDisabled]}
+                        onPress={() => handleDecrementRooms(house._id)}
+                        disabled={avail === 0}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.stepBtnText}>-</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.stepCountBox}>
+                        <Text style={[styles.stepCountText, isFullyBooked ? styles.stepCountFull : styles.stepCountVacant]}>
+                          {avail} / {total} Vacant
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.stepBtn, styles.stepBtnPlus]}
+                        onPress={() => handleIncrementRooms(house._id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.stepBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </View>
             );
@@ -414,22 +491,22 @@ export default function LandlordPortalScreen() {
         </ScrollView>
       )}
 
-      {/* Add New Rental House Modal */}
+      {/* Add New Apartment Building Modal */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Rental Listing</Text>
+              <Text style={styles.modalTitle}>Add New Apartment Building</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <Text style={{ color: '#ef4444', fontWeight: '800', fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>House / Hostel Title <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.inputLabel}>Apartment / Hostel Name <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. Kesses Sunrise Executive Bedsitters"
+                placeholder="e.g. Kesses Sunrise Executive Hostels"
                 placeholderTextColor="#94a3b8"
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -441,7 +518,7 @@ export default function LandlordPortalScreen() {
                 <Text style={styles.inputLabel}>Location Stage</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Stage / Kesses"
+                  placeholder="e.g. Kesses / Stage"
                   placeholderTextColor="#94a3b8"
                   value={newLocation}
                   onChangeText={setNewLocation}
@@ -449,10 +526,10 @@ export default function LandlordPortalScreen() {
               </View>
 
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Monthly Rent (KES) <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>Room Price/mo (KES) <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="4500"
+                  placeholder="4800"
                   placeholderTextColor="#94a3b8"
                   value={newRent}
                   onChangeText={setNewRent}
@@ -461,23 +538,76 @@ export default function LandlordPortalScreen() {
               </View>
             </View>
 
+            {/* Room Stock Numbers Row */}
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Total Rooms in Building</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="12"
+                  placeholderTextColor="#94a3b8"
+                  value={totalRooms}
+                  onChangeText={setTotalRooms}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Rooms Vacant Right Now</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="8"
+                  placeholderTextColor="#94a3b8"
+                  value={availableRooms}
+                  onChangeText={setAvailableRooms}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            {/* Contact Information Row */}
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Direct Phone Contact</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="0712345678"
+                  placeholderTextColor="#94a3b8"
+                  value={phoneContact}
+                  onChangeText={setPhoneContact}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>WhatsApp Contact Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="254712345678"
+                  placeholderTextColor="#94a3b8"
+                  value={whatsappContact}
+                  onChangeText={setWhatsappContact}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Deposit Amount (KES)</Text>
+              <Text style={styles.inputLabel}>Cover Photo Thumbnail Image URL</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="4500"
+                placeholder="https://images.unsplash.com/..."
                 placeholderTextColor="#94a3b8"
-                value={newDeposit}
-                onChangeText={setNewDeposit}
-                keyboardType="numeric"
+                value={newPhoto}
+                onChangeText={setNewPhoto}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>House Description</Text>
+              <Text style={styles.inputLabel}>Apartment Description & Amenities</Text>
               <TextInput
                 style={[styles.textInput, { height: 70 }]}
-                placeholder="Describe water supply, security, tokens, Wi-Fi..."
+                placeholder="Fitted kitchen, 24/7 borehole water, fiber Wi-Fi..."
                 placeholderTextColor="#94a3b8"
                 value={newDesc}
                 onChangeText={setNewDesc}
@@ -496,7 +626,7 @@ export default function LandlordPortalScreen() {
               ) : (
                 <>
                   <PlusIcon color="#ffffff" size={18} style={{ marginRight: 6 }} />
-                  <Text style={styles.submitBtnText}>Publish House Listing</Text>
+                  <Text style={styles.submitBtnText}>Save Apartment Building</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -581,10 +711,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
     elevation: 3
   },
   formTitle: {
@@ -750,88 +876,161 @@ const styles = StyleSheet.create({
   houseCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    elevation: 2
+    overflow: 'hidden',
+    elevation: 3
   },
-  houseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6
+  cardImageHeader: {
+    height: 140,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#0f172a'
+  },
+  cardThumbnail: {
+    width: '100%',
+    height: '100%'
+  },
+  priceBadgeOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: '#15803d',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10
+  },
+  priceBadgeText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900'
+  },
+  stockBadgeOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10
+  },
+  stockBadgeVacant: {
+    backgroundColor: '#dcfce7'
+  },
+  stockBadgeFull: {
+    backgroundColor: '#fee2e2'
+  },
+  stockBadgeText: {
+    fontSize: 11,
+    fontWeight: '800'
+  },
+  cardBody: {
+    padding: 16
   },
   houseTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a'
+    color: '#0f172a',
+    marginBottom: 2
   },
   houseMeta: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#15803d',
-    marginTop: 2
-  },
-  statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10
-  },
-  statusPillAvailable: {
-    backgroundColor: '#dcfce7'
-  },
-  statusPillOccupied: {
-    backgroundColor: '#fee2e2'
-  },
-  statusPillText: {
-    fontSize: 10,
-    fontWeight: '800'
-  },
-  statusPillTextAvailable: {
-    color: '#15803d'
-  },
-  statusPillTextOccupied: {
-    color: '#ef4444'
+    marginBottom: 6
   },
   houseDesc: {
     fontSize: 13,
     color: '#475569',
     lineHeight: 18,
-    marginBottom: 12
+    marginBottom: 10
   },
-  houseActionRow: {
+  contactsRow: {
     flexDirection: 'row',
-    gap: 10
+    gap: 8,
+    marginBottom: 14
   },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center'
+  contactChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
   },
-  toggleBtnOccupied: {
-    backgroundColor: '#fee2e2'
+  contactChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155'
   },
-  toggleBtnAvailable: {
-    backgroundColor: '#dcfce7'
+  whatsappChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
   },
-  toggleBtnText: {
+  whatsappChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803d'
+  },
+  stepperContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  stepperLabel: {
     fontSize: 12,
     fontWeight: '800',
+    color: '#334155',
+    marginBottom: 8
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  stepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2
+  },
+  stepBtnMinus: {
+    backgroundColor: '#fee2e2'
+  },
+  stepBtnPlus: {
+    backgroundColor: '#dcfce7'
+  },
+  stepBtnDisabled: {
+    opacity: 0.4
+  },
+  stepBtnText: {
+    fontSize: 20,
+    fontWeight: '900',
     color: '#0f172a'
   },
-  editBtn: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+  stepCountBox: {
+    flex: 1,
     alignItems: 'center'
   },
-  editBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569'
+  stepCountText: {
+    fontSize: 14,
+    fontWeight: '900'
+  },
+  stepCountVacant: {
+    color: '#15803d'
+  },
+  stepCountFull: {
+    color: '#dc2626'
   },
   modalOverlay: {
     flex: 1,
@@ -878,13 +1077,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800'
-  },
-  longPressHintText: {
-    fontSize: 11,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 12,
-    fontStyle: 'italic',
-    lineHeight: 16
   }
 });

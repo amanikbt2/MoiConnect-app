@@ -11,6 +11,8 @@ import { IPaper } from '@moi/shared';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { Skeleton } from '../../src/components/Skeleton';
+import { formatCompactNumber } from '../../src/utils/formatters';
+
 
 import { DownloadIcon, CheckIcon, StarIcon } from '../../src/components/Icons';
 
@@ -165,7 +167,7 @@ export default function PaperDetailScreen({ route }: any) {
         )}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Downloads:</Text>
-          <Text style={styles.infoVal}>{paper.downloads}</Text>
+          <Text style={styles.infoVal}>{formatCompactNumber(paper.downloads || (paper as any).downloadCount)}</Text>
         </View>
       </View>
 

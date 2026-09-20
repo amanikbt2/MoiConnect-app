@@ -36,16 +36,33 @@ interface PDFViewerModalProps {
   onDownload: (doc: PDFDocumentItem) => void;
 }
 
-export function formatCount(num: number): string {
-  if (!num) return '0';
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+export function formatCount(input: number | string | undefined | null): string {
+  if (input === undefined || input === null) return '0';
+  let num: number;
+  if (typeof input === 'string') {
+    const cleaned = input.replace(/,/g, '').trim();
+    num = parseFloat(cleaned);
+  } else {
+    num = input;
   }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+
+  if (isNaN(num) || !num) return '0';
+  if (num < 1000) return `${num}`;
+
+  if (num < 1_000_000) {
+    const val = num / 1000;
+    return val % 1 === 0 ? `${val.toFixed(0)}k` : `${val.toFixed(1).replace(/\.0$/, '')}k`;
   }
-  return num.toString();
+
+  if (num < 1_000_000_000) {
+    const val = num / 1_000_000;
+    return val % 1 === 0 ? `${val.toFixed(0)}m` : `${val.toFixed(1).replace(/\.0$/, '')}m`;
+  }
+
+  const val = num / 1_000_000_000;
+  return val % 1 === 0 ? `${val.toFixed(0)}b` : `${val.toFixed(1).replace(/\.0$/, '')}b`;
 }
+
 
 export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   visible,
@@ -162,21 +179,21 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
                 {/* Read-Only PDF Paper Sheet */}
                 <View style={styles.paperSheet}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <Text style={styles.paperCodeHeader}>MOI UNIVERSITY • {document.unitCode}</Text>
-                    <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748b' }}>🔒 READ-ONLY PREVIEW</Text>
+                    <View style={styles.readOnlyBadge}>
+                      <Text style={styles.readOnlyBadgeText}>🔒 READ-ONLY PREVIEW</Text>
                     </View>
                   </View>
                   <Text style={styles.paperTitleHeader}>{document.title}</Text>
                   <View style={styles.paperDivider} />
 
                   <Text style={styles.paperHeading}>1. READ-ONLY PDF PREVIEW CONTENT (Page {activePage})</Text>
-                  <View style={{ backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, marginVertical: 8, borderWidth: 1, borderColor: '#e2e8f0', borderLeftWidth: 4, borderLeftColor: '#15803d' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803d', marginBottom: 4 }}>
+                  <View style={styles.excerptBox}>
+                    <Text style={styles.excerptLabel}>
                       📄 Read-Only Document Excerpt (Testing Mode):
                     </Text>
-                    <Text style={{ fontSize: 13, color: '#334155', lineHeight: 20 }}>
+                    <Text style={styles.excerptText}>
                       {document.sampleText || `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quick test preview words line for ${document.title} (${document.unitCode}).`}
                     </Text>
                   </View>
@@ -187,20 +204,12 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     1.3 Quick Revision: High yield notes compiled for test evaluation and quick review.
                   </Text>
 
-                  <View style={styles.paperNotesBox}>
-                    <Text style={styles.paperNotesTitle}>📌 Read-Only Notice:</Text>
-                    <Text style={styles.paperNotesBody}>
-                      This document is presented in read-only mode for instant preview. Tap the download icon in the header to save offline.
-                    </Text>
+                  {/* Decorative Footer Stamp for Paper */}
+                  <View style={styles.paperFooterStamp}>
+                    <Text style={styles.paperFooterStampText}>MConnect Official Academic Archive • Page {activePage} of 12</Text>
                   </View>
                 </View>
               </View>
-
-              {/* Bottom Quick Download CTA */}
-              <TouchableOpacity style={styles.bottomDownloadBanner} onPress={handleSave} activeOpacity={0.88}>
-                <DownloadIcon color="#ffffff" size={18} style={{ marginRight: 8 }} />
-                <Text style={styles.bottomDownloadText}>Download Full PDF Document ({document.pages || 'PDF'})</Text>
-              </TouchableOpacity>
             </ScrollView>
           )}
         </View>
@@ -264,7 +273,7 @@ const styles = StyleSheet.create({
   },
   bodyContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc'
+    backgroundColor: '#0f172a'
   },
   webViewerWrapper: {
     flex: 1,
@@ -275,15 +284,22 @@ const styles = StyleSheet.create({
     flex: 1
   },
   readerContent: {
-    padding: 16,
-    gap: 16
+    padding: 14,
+    gap: 14
   },
   docHeaderCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0'
+    borderColor: '#e2e8f0',
+    borderTopWidth: 4,
+    borderTopColor: '#15803d',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3
   },
   docTagRow: {
     flexDirection: 'row',
@@ -339,51 +355,78 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   pagePreviewContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    overflow: 'hidden'
+    borderColor: '#334155',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5
   },
   pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#0f172a',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0'
+    borderBottomColor: '#334155'
   },
   pageHeaderTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#475569',
-    letterSpacing: 0.5
+    color: '#38bdf8',
+    letterSpacing: 0.8
   },
   pageControls: {
     flexDirection: 'row',
     gap: 8
   },
   pageBtn: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#cbd5e1'
+    borderColor: '#334155'
   },
   pageBtnDisabled: {
-    opacity: 0.4
+    opacity: 0.35
   },
   pageBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0f172a'
+    color: '#f8fafc'
   },
   paperSheet: {
     padding: 20,
-    backgroundColor: '#ffffff'
+    margin: 12,
+    backgroundColor: '#fffdf5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3
+  },
+  readOnlyBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fde68a'
+  },
+  readOnlyBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#92400e'
   },
   paperCodeHeader: {
     fontSize: 11,
@@ -399,9 +442,10 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   paperDivider: {
-    height: 2,
+    height: 3,
     backgroundColor: '#15803d',
     width: 60,
+    borderRadius: 2,
     marginBottom: 16
   },
   paperHeading: {
@@ -410,29 +454,49 @@ const styles = StyleSheet.create({
     color: '#15803d',
     marginBottom: 8
   },
+  excerptBox: {
+    backgroundColor: '#ffffff',
+    padding: 14,
+    borderRadius: 10,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#15803d',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3
+  },
+  excerptLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#15803d',
+    marginBottom: 4
+  },
+  excerptText: {
+    fontSize: 13,
+    color: '#1e293b',
+    lineHeight: 21
+  },
   paperBodyText: {
     fontSize: 13,
     lineHeight: 22,
     color: '#334155',
     marginBottom: 16
   },
-  paperNotesBox: {
-    backgroundColor: '#fffbeb',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#fde68a'
+  paperFooterStamp: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    alignItems: 'center'
   },
-  paperNotesTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#92400e',
-    marginBottom: 4
-  },
-  paperNotesBody: {
-    fontSize: 12,
-    color: '#78350f',
-    lineHeight: 18
+  paperFooterStampText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94a3b8',
+    letterSpacing: 0.5
   },
   bottomDownloadBanner: {
     flexDirection: 'row',

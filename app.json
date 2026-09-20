@@ -24,7 +24,9 @@
         "backgroundColor": "#14532d"
       },
       "package": "com.amanikbt1.moiconnect",
-      "versionCode": 2
+      "versionCode": 2,
+      "targetSdkVersion": 36,
+      "compileSdkVersion": 36
     },
     "web": {
       "favicon": "./assets/mc-logo.png"

@@ -21,7 +21,11 @@ import {
   FileTextIcon,
   CheckIcon,
   ArrowLeftIcon,
-  SparklesIcon
+  SparklesIcon,
+  PastPaperIcon,
+  CatPaperIcon,
+  LectureNotesIcon,
+  LightbulbIcon
 } from '../src/components/Icons';
 
 const SCHOOL_OPTIONS = [
@@ -36,10 +40,10 @@ const SCHOOL_OPTIONS = [
 ];
 
 const MATERIAL_TYPES = [
-  { label: 'Past Paper', value: 'past_paper', icon: '📄' },
-  { label: 'CAT Paper', value: 'cat', icon: '📝' },
-  { label: 'Lecture Notes', value: 'lecture_notes', icon: '📚' },
-  { label: 'Exam Solutions', value: 'solution', icon: '💡' }
+  { label: 'Past Paper', value: 'past_paper', IconComponent: PastPaperIcon },
+  { label: 'CAT Paper', value: 'cat', IconComponent: CatPaperIcon },
+  { label: 'Lecture Notes', value: 'lecture_notes', IconComponent: LectureNotesIcon },
+  { label: 'Exam Solutions', value: 'solution', IconComponent: LightbulbIcon }
 ];
 
 export default function ContributeScreen() {
@@ -230,6 +234,7 @@ export default function ContributeScreen() {
           <View style={styles.typeGrid}>
             {MATERIAL_TYPES.map((item) => {
               const isSelected = type === item.value;
+              const IconComp = item.IconComponent;
               return (
                 <TouchableOpacity
                   key={item.value}
@@ -237,7 +242,7 @@ export default function ContributeScreen() {
                   onPress={() => setType(item.value)}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 16 }}>{item.icon}</Text>
+                  <IconComp color={isSelected ? '#15803d' : '#64748b'} size={18} />
                   <Text style={[styles.typePillText, isSelected && styles.typePillTextActive]}>
                     {item.label}
                   </Text>

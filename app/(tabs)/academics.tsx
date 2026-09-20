@@ -24,7 +24,7 @@ import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper } from '../../src/services/offlineStorage';
-import { PDFViewerModal, PDFDocumentItem } from '../../src/components/PDFViewerModal';
+import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 import {
   DownloadIcon,
@@ -773,7 +773,7 @@ export default function AcademicsScreen({ route }: any) {
         <View style={styles.carouselFooter}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <DownloadIcon color="#15803d" size={13} />
-            <Text style={styles.carouselStats}>{item.downloads} downloads</Text>
+            <Text style={styles.carouselStats}>{formatCount(item.downloads)} downloads</Text>
           </View>
           <Text style={styles.ratingText}>{item.rating}</Text>
         </View>
@@ -807,7 +807,7 @@ export default function AcademicsScreen({ route }: any) {
         <View style={styles.gridFooter}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <DownloadIcon color="#15803d" size={12} />
-            <Text style={styles.gridDownloads}>{item.downloads}</Text>
+            <Text style={styles.gridDownloads}>{formatCount(item.downloads)}</Text>
           </View>
           <View style={styles.miniArrow}>
             <ChevronRightIcon color="#15803d" size={14} />
