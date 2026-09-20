@@ -29,6 +29,10 @@ import {
   NotesIcon
 } from '../../src/components/Icons';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const CARD_GAP = 14;
+
 interface SuggestedMaterial {
   id: string;
   title: string;
@@ -93,8 +97,28 @@ const SUGGESTED_MATERIALS: SuggestedMaterial[] = [
   },
 ];
 
-const CARD_WIDTH = 280;
-const CARD_GAP = 14;
+function getGreetingText(userName?: string): string {
+  const hour = new Date().getHours();
+  let timePrefix = 'Jambo';
+
+  if (hour >= 5 && hour < 12) {
+    timePrefix = 'Good morning';
+  } else if (hour >= 12 && hour < 17) {
+    timePrefix = 'Good afternoon';
+  } else if (hour >= 17 && hour < 22) {
+    timePrefix = 'Good evening';
+  } else {
+    const swahiliGreetings = ['Jambo', 'Habari', 'Hello'];
+    timePrefix = swahiliGreetings[hour % swahiliGreetings.length];
+  }
+
+  if (userName && userName.trim()) {
+    const firstName = userName.trim().split(' ')[0];
+    return `${timePrefix}, ${firstName}`;
+  }
+
+  return `${timePrefix}, Moi University Student`;
+}
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -219,7 +243,7 @@ export default function HomeScreen() {
       {/* Welcome Banner */}
       <View style={styles.banner}>
         <Text style={styles.welcomeText}>
-          Jambo, {user ? user.name : 'Moi University Student'}
+          {getGreetingText(user?.name)}
         </Text>
         <Text style={styles.bannerSub}>Find past papers, revision notes, and verified rental houses.</Text>
 

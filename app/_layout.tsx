@@ -5,10 +5,15 @@ import { AuthProvider } from '../src/context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 
+import { initSocket } from '../src/services/socket';
+
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   useEffect(() => {
+    // Automatically initialize socket connection for online status tracking
+    initSocket().catch(() => {});
+
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const styleId = 'expo-reset-outline';
       if (!document.getElementById(styleId)) {

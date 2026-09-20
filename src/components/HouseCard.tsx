@@ -67,12 +67,20 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
             styles.availabilityBadge,
             isFullyBooked ? styles.badgeFull : styles.badgeVacant
           ]}>
-            <Text style={[
-              styles.availabilityBadgeText,
-              isFullyBooked ? styles.badgeTextFull : styles.badgeTextVacant
-            ]}>
-              {statusLabel}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View style={{
+                width: 7,
+                height: 7,
+                borderRadius: 4,
+                backgroundColor: isFullyBooked ? '#ef4444' : '#22c55e'
+              }} />
+              <Text style={[
+                styles.availabilityBadgeText,
+                isFullyBooked ? styles.badgeTextFull : styles.badgeTextVacant
+              ]}>
+                {isFullyBooked ? 'Fully Booked' : `${availRooms} Vacant Room${availRooms > 1 ? 's' : ''}`}
+              </Text>
+            </View>
           </View>
         </View>
 

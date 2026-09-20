@@ -582,11 +582,12 @@ export function LectureNotesIcon({ color = '#64748b', size = 20, style }: IconPr
   );
 }
 
-export function LightbulbIcon({ color = '#64748b', size = 20, style }: IconProps) {
+export function GlobeIcon({ color = '#15803d', size = 18, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" />
       <Path
-        d="M9 18H15M10 21H14M12 2A7 7 0 0 0 5 9C5 12.38 7.13 15.26 10 16.5V18H14V16.5C16.87 15.26 19 12.38 19 9A7 7 0 0 0 12 2Z"
+        d="M2 12H22M12 2C14.5 4.5 16 8.5 16 12C16 15.5 14.5 19.5 12 22C9.5 19.5 8 15.5 8 12C8 8.5 9.5 4.5 12 2Z"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"

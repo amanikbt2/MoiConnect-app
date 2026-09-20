@@ -12,22 +12,28 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const router = useAppNavigation();
 
   const handleSocialLogin = async (provider: 'Google' | 'Apple') => {
     setError(null);
     setLoading(true);
     try {
-      const demoEmail = provider === 'Google' ? 'student.google@moi.ac.ke' : 'student.apple@moi.ac.ke';
-      const res = await login({ email: demoEmail, password: 'password123' });
-      if (res.success) {
-        router.replace('/(tabs)');
+      if (provider === 'Google') {
+        const res = await googleLogin({
+          email: 'student.google@moi.ac.ke',
+          name: 'Google Student'
+        });
+        if (res.success) {
+          router.replace('/(tabs)');
+        } else {
+          setError(res.error || 'Google sign-in failed.');
+        }
       } else {
         router.replace('/(tabs)');
       }
-    } catch (err) {
-      router.replace('/(tabs)');
+    } catch (err: any) {
+      setError(err.message || 'Social sign-in failed.');
     } finally {
       setLoading(false);
     }

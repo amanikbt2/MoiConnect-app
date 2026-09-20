@@ -323,7 +323,7 @@ function HeaderPointsBadge() {
   );
 }
 
-function HeaderProfileAvatar({ navigation }: any) {
+function HeaderProfileAvatar({ navigation }) {
   const { user } = useAuth();
   const initial = user?.name ? user.name[0].toUpperCase() : 'M';
 
@@ -374,7 +374,7 @@ function DownloadsHeaderTitle() {
   );
 }
 
-function MainTabs({ navigation }: any) {
+function MainTabs({ navigation }) {
   return (
     <Tab.Navigator
       screenOptions={{

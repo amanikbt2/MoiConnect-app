@@ -13,7 +13,8 @@ import {
   ScrollView,
   Alert,
   PanResponder,
-  Animated
+  Animated,
+  Image
 } from 'react-native';
 import { useAuth } from '../src/context/AuthContext';
 import { useAppNavigation } from '../src/utils/navigation';
@@ -441,7 +442,11 @@ export default function CommunityScreen() {
 
           <View style={styles.headerAvatarContainer}>
             <View style={styles.headerAvatar}>
-              <UsersIcon color="#ffffff" size={20} />
+              <Image
+                source={require('../assets/moi-uni-logo.png')}
+                style={styles.headerAvatarImg}
+                resizeMode="contain"
+              />
             </View>
             <View style={styles.onlineDot} />
           </View>
@@ -781,9 +786,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#ffffff',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    overflow: 'hidden',
+    padding: 2
+  },
+  headerAvatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18
   },
   onlineDot: {
     position: 'absolute',

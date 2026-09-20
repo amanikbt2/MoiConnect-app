@@ -23,7 +23,7 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 
-import { LocationIcon, PlusIcon, KeyIcon, ShieldCheckIcon } from '../../src/components/Icons';
+import { LocationIcon, PlusIcon, KeyIcon, ShieldCheckIcon, GlobeIcon, HouseIcon } from '../../src/components/Icons';
 
 const LOCATIONS_LIST = ['All Locations', 'Stage', 'Mabs', 'Viewland', 'Kesses', 'Talai', 'Annex'];
 
@@ -350,7 +350,10 @@ export default function RentalsScreen() {
             </View>
 
             {/* Location Filter Chips */}
-            <Text style={styles.filterSectionTitle}>📍 Filter by Location</Text>
+            <View style={styles.filterSectionHeader}>
+              <LocationIcon color="#475569" size={14} />
+              <Text style={styles.filterSectionTitle}>Filter by Location</Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               {LOCATIONS_LIST.map((loc) => {
                 const isActive = selectedLocation === loc;
@@ -360,16 +363,26 @@ export default function RentalsScreen() {
                     style={[styles.locationPill, isActive && styles.locationPillActive]}
                     onPress={() => setSelectedLocation(loc)}
                   >
-                    <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
-                      {loc === 'All Locations' ? '🌐 All Locations' : `📍 ${loc}`}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {loc === 'All Locations' ? (
+                        <GlobeIcon color={isActive ? '#ffffff' : '#15803d'} size={14} />
+                      ) : (
+                        <LocationIcon color={isActive ? '#ffffff' : '#15803d'} size={14} />
+                      )}
+                      <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
+                        {loc}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
 
             {/* Property Type Pills */}
-            <Text style={styles.filterSectionTitle}>🏠 Room Type</Text>
+            <View style={styles.filterSectionHeader}>
+              <HouseIcon color="#475569" size={14} />
+              <Text style={styles.filterSectionTitle}>Room Type</Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               <TouchableOpacity
                 style={[styles.pill, selectedType === '' && styles.pillActive]}
@@ -559,14 +572,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13
   },
+  filterSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+    marginTop: 6
+  },
   filterSectionTitle: {
     fontSize: 12,
     fontWeight: '800',
     color: '#475569',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-    marginTop: 4
+    letterSpacing: 0.5
   },
   locationPill: {
     paddingHorizontal: 14,
