@@ -133,6 +133,24 @@ export default function LandlordPortalScreen() {
     setSecurityKey('KEY-7714-X');
   };
 
+  // 5-Second Hold-to-Authorize Bypass for Testing
+  const handleLongPressAuthorize = () => {
+    setLandlordMID('LL-8842-MOI');
+    setLandlordSerial('SN-9920-KESSES');
+    setSecurityKey('KEY-7714-X');
+    setVerifying(true);
+
+    setTimeout(() => {
+      setVerifying(false);
+      setIsVerified(true);
+      Alert.alert(
+        'Demo Landlord Account Unlocked 🔑',
+        'Hold-to-authorize (5s) shortcut activated! You are now logged into the Demo Landlord Test Account.'
+      );
+      fetchLandlordListings();
+    }, 600);
+  };
+
   // Toggle House Occupancy Status
   const handleToggleOccupancy = (houseId: string) => {
     setListings((prev) =>
@@ -272,6 +290,8 @@ export default function LandlordPortalScreen() {
             <TouchableOpacity
               style={styles.demoKeyBtn}
               onPress={handleFillDemoKeys}
+              onLongPress={handleLongPressAuthorize}
+              delayLongPress={5000}
               activeOpacity={0.7}
             >
               <KeyIcon color="#15803d" size={14} />
@@ -282,6 +302,8 @@ export default function LandlordPortalScreen() {
             <TouchableOpacity
               style={[styles.verifyBtn, verifying && styles.verifyBtnDisabled]}
               onPress={handleVerifyCredentials}
+              onLongPress={handleLongPressAuthorize}
+              delayLongPress={5000}
               disabled={verifying}
               activeOpacity={0.88}
             >
@@ -294,6 +316,10 @@ export default function LandlordPortalScreen() {
                 </>
               )}
             </TouchableOpacity>
+
+            <Text style={styles.longPressHintText}>
+              ⚡ Testing Shortcut: Press and hold "Authenticate" for 5 seconds to instantly enter Demo Landlord Account.
+            </Text>
           </View>
         </ScrollView>
       ) : (
@@ -852,5 +878,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800'
+  },
+  longPressHintText: {
+    fontSize: 11,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+    lineHeight: 16
   }
 });
