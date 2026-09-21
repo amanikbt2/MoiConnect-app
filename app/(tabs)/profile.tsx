@@ -35,7 +35,8 @@ import {
   CloseIcon,
   PhoneIcon,
   BookIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  TrashIcon
 } from '../../src/components/Icons';
 
 const MOI_SCHOOLS_LIST = [
@@ -55,7 +56,7 @@ const MOI_SCHOOLS_LIST = [
 const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
     admissionNumber: 'IS/0012/21',
     school: 'School of Information Sciences',
@@ -287,15 +288,46 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Tiny Discrete Sign Out Link */}
+  const handleDeleteAccountConfirm = () => {
+    Alert.alert(
+      'Permanently Delete Account?',
+      'Are you sure you want to delete your account? This will permanently wipe your profile, posts, uploaded materials, and personal data completely from our database. This action CANNOT be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Wipe Account & Data',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteAccount();
+            Alert.alert('Account Deleted', 'Your account and personal data have been completely wiped from our database.');
+          }
+        }
+      ]
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Tiny Discrete Sign Out & Delete Account Links */}
       <View style={styles.tinyLogoutContainer}>
-        <TouchableOpacity
-          style={styles.tinyLogoutBtn}
-          onPress={() => logout()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.tinyLogoutText}>Sign Out of Account</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity
+            style={styles.tinyLogoutBtn}
+            onPress={() => logout()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.tinyLogoutText}>Sign Out of Account</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tinyDeleteBtn}
+            onPress={handleDeleteAccountConfirm}
+            activeOpacity={0.75}
+          >
+            <TrashIcon color="#dc2626" size={13} />
+            <Text style={styles.tinyDeleteText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
 
@@ -762,6 +794,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#94a3b8'
+  },
+  tinyDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fca5a5'
+  },
+  tinyDeleteText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#dc2626'
   }
 });
 

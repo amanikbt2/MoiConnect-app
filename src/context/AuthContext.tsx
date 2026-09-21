@@ -13,6 +13,7 @@ interface AuthContextType {
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
   requestLandlordStatus: (input: RequestLandlordInput) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
 }
 
@@ -131,6 +132,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await clearAuthTokens();
     disconnectSocket();
     setUser(null);
+  const deleteAccount = async () => {
+    try {
+      await apiRequest('/auth/delete-account', { method: 'DELETE' });
+    } catch (e) {
+      // Continue cleanup
+    }
+    await clearAuthTokens();
+    disconnectSocket();
+    setUser(null);
+    return { success: true };
   };
 
   const refreshUser = async () => {
@@ -149,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         requestLandlordStatus,
         logout,
+        deleteAccount,
         refreshUser
       }}
     >

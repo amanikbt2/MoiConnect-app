@@ -17,6 +17,7 @@ import ProfileScreen from './app/(tabs)/profile';
 
 import CommunityScreen from './app/community';
 import PrivacyScreen from './app/privacy';
+import FAQScreen from './app/faq';
 import PastPapersScreen from './app/past-papers';
 import CatPapersScreen from './app/cat-papers';
 import ContributeScreen from './app/contribute';
@@ -438,6 +439,7 @@ export default function App() {
               <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
               <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
+              <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'Frequently Asked Questions', headerShown: true }} />
               <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
               <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
               <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />

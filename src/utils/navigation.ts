@@ -59,6 +59,9 @@ export function useAppNavigation() {
       case '/privacy':
       case 'Privacy':
         return { screen: 'Privacy', params };
+      case '/faq':
+      case 'FAQ':
+        return { screen: 'FAQ', params };
       case '/notes':
       case 'Notes':
         return { screen: 'Academics', params };
