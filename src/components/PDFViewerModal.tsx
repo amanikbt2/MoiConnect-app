@@ -129,30 +129,32 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </View>
           ) : (
             <ScrollView style={styles.readerScroll} contentContainerStyle={styles.readerContent}>
-              {/* Document Cover & Header Card */}
-              <View style={styles.docHeaderCard}>
-                <View style={styles.docTagRow}>
-                  <View style={styles.docCodeBadge}>
-                    <Text style={styles.docCodeText}>{document.unitCode}</Text>
+              {/* Document Cover & Header Card (Page 1 Only) */}
+              {activePage === 1 && (
+                <View style={styles.docHeaderCard}>
+                  <View style={styles.docTagRow}>
+                    <View style={styles.docCodeBadge}>
+                      <Text style={styles.docCodeText}>{document.unitCode}</Text>
+                    </View>
+                    {!!document.mtid && (
+                      <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                        <Text style={{ color: '#0369a1', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                   </View>
-                  {!!document.mtid && (
-                    <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                      <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+
+                  <Text style={styles.docMainTitle}>{document.title}</Text>
+                  {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
+
+                  {!!document.summary && (
+                    <View style={styles.summaryBox}>
+                      <Text style={styles.summaryLabel}>Document Summary:</Text>
+                      <Text style={styles.summaryText}>{document.summary}</Text>
                     </View>
                   )}
-                  <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                 </View>
-
-                <Text style={styles.docMainTitle}>{document.title}</Text>
-                {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
-
-                {!!document.summary && (
-                  <View style={styles.summaryBox}>
-                    <Text style={styles.summaryLabel}>Document Summary:</Text>
-                    <Text style={styles.summaryText}>{document.summary}</Text>
-                  </View>
-                )}
-              </View>
+              )}
 
               {/* Fast Simulated PDF Page Preview */}
               <View style={styles.pagePreviewContainer}>
@@ -221,7 +223,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#ffffff'
   },
   header: {
     flexDirection: 'row',
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
   },
   bodyContainer: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#f8fafc'
   },
   webViewerWrapper: {
     flex: 1,
@@ -355,31 +357,31 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   pagePreviewContainer: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155'
+    borderBottomColor: '#e2e8f0'
   },
   pageHeaderTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#38bdf8',
+    color: '#15803d',
     letterSpacing: 0.8
   },
   pageControls: {
@@ -387,20 +389,20 @@ const styles = StyleSheet.create({
     gap: 8
   },
   pageBtn: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#cbd5e1'
   },
   pageBtnDisabled: {
-    opacity: 0.35
+    opacity: 0.4
   },
   pageBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#f8fafc'
+    color: '#0f172a'
   },
   paperSheet: {
     padding: 20,

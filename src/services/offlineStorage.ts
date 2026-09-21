@@ -64,3 +64,25 @@ export const getOfflineMessageQueue = async (): Promise<any[]> => {
 export const clearOfflineMessageQueue = async () => {
   await setItem(OFFLINE_MSG_QUEUE_KEY, JSON.stringify([]));
 };
+
+const STUDENT_PROFILE_KEY = 'moi_student_profile_details';
+
+export interface StudentPersonalDetails {
+  admissionNumber: string;
+  school: string;
+  course: string;
+  yearOfStudy: string;
+  phone: string;
+  fullName: string;
+  avatarUri?: string;
+}
+
+export const saveStudentPersonalDetails = async (details: StudentPersonalDetails) => {
+  await setItem(STUDENT_PROFILE_KEY, JSON.stringify(details));
+};
+
+export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetails | null> => {
+  const existingStr = await getItem(STUDENT_PROFILE_KEY);
+  return existingStr ? JSON.parse(existingStr) : null;
+};
+

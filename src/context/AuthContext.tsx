@@ -9,7 +9,7 @@ interface AuthContextType {
   userPoints: number;
   addPoints: (amount: number, reason?: string) => void;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
-  googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string }) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string }) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
   requestLandlordStatus: (input: RequestLandlordInput) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: res.error || 'Login failed' };
   };
 
-  const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string }) => {
+  const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string }) => {
     try {
       const res = await apiRequest('/auth/google', {
         method: 'POST',
@@ -74,9 +74,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(user);
         return { success: true };
       }
-    } catch (e) {
-      console.log('Google login API fallback for dev/demo environment');
+      return { success: false, error: res.error || 'Google sign-in failed' };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Google sign-in failed' };
     }
+  };
 
     // Fallback for demo / offline environment so Google sign-in works reliably
     const demoUser: IUser = {

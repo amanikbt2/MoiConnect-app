@@ -213,37 +213,24 @@ function HeaderPointsBadge() {
   if (!user) return null;
 
   return (
-    <View style={{ marginRight: 8 }}>
+    <View style={{ marginRight: 6 }}>
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: 'rgba(255, 255, 255, 0.18)',
-          borderRadius: 14,
-          paddingHorizontal: 8,
-          paddingVertical: 3,
+          backgroundColor: 'rgba(0, 0, 0, 0.16)',
+          borderRadius: 10,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.35)'
+          borderColor: 'rgba(255, 255, 255, 0.22)',
+          gap: 2
         }}
         activeOpacity={0.75}
       >
-        <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '700', marginRight: 4 }}>pt:</Text>
-        <View
-          style={{
-            backgroundColor: '#22c55e',
-            borderRadius: 10,
-            paddingHorizontal: 6,
-            paddingVertical: 1.5,
-            shadowColor: '#22c55e',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.3,
-            shadowRadius: 2,
-            elevation: 2
-          }}
-        >
-          <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '900' }}>{userPoints}+</Text>
-        </View>
+        <Text style={{ color: 'rgba(255, 255, 255, 0.75)', fontSize: 9.5, fontWeight: '600' }}>pt</Text>
+        <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '800' }}>{userPoints}+</Text>
       </TouchableOpacity>
 
       <Modal
