@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(user);
         return { success: true };
       }
-      
+
       // Fallback for demo / offline environment so Google sign-in works reliably
       const demoUser: IUser = {
         _id: `google_user_${Date.now()}`,
@@ -83,7 +83,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: payload?.name || 'Google Student',
         avatarUrl: payload?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
         roles: ['student'],
-        isEmailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -132,6 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await clearAuthTokens();
     disconnectSocket();
     setUser(null);
+  };
+
   const deleteAccount = async () => {
     try {
       await apiRequest('/auth/delete-account', { method: 'DELETE' });
