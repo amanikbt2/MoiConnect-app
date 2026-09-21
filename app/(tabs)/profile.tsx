@@ -163,6 +163,24 @@ export default function ProfileScreen() {
     Alert.alert('Profile Updated', 'Your personal student academic details have been updated successfully.');
   };
 
+  const handleDeleteAccountConfirm = () => {
+    Alert.alert(
+      'Permanently Delete Account?',
+      'Are you sure you want to delete your account? This will permanently wipe your profile, posts, uploaded materials, and personal data completely from our database. This action CANNOT be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Wipe Account & Data',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteAccount();
+            Alert.alert('Account Deleted', 'Your account and personal data have been completely wiped from our database.');
+          }
+        }
+      ]
+    );
+  };
+
   if (!user) {
     return (
       <View style={styles.container}>
@@ -288,26 +306,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-  const handleDeleteAccountConfirm = () => {
-    Alert.alert(
-      'Permanently Delete Account?',
-      'Are you sure you want to delete your account? This will permanently wipe your profile, posts, uploaded materials, and personal data completely from our database. This action CANNOT be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Wipe Account & Data',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteAccount();
-            Alert.alert('Account Deleted', 'Your account and personal data have been completely wiped from our database.');
-          }
-        }
-      ]
-    );
-  };
-
-  return (
-    <View style={styles.container}>
       {/* Tiny Discrete Sign Out & Delete Account Links */}
       <View style={styles.tinyLogoutContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
