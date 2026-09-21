@@ -182,6 +182,16 @@ export const removeOfflinePaper = async (paperId: string) => {
   await notifyDownloadListeners();
 };
 
+export const removeDownloadedPaper = removeOfflinePaper;
+
+export const isPaperDownloaded = async (paperId: string): Promise<boolean> => {
+  const existingStr = await getItem(OFFLINE_PAPERS_KEY);
+  if (!existingStr) return false;
+  const papers: OfflinePaper[] = JSON.parse(existingStr);
+  return papers.some((p) => (p._id === paperId || p._id === `note_${paperId}` || p._id === `paper_${paperId}`) && p.status === 'completed');
+};
+
+
 export const enqueueOfflineMessage = async (msg: {
   tempId: string;
   conversationId: string;
