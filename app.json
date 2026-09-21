@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoiConnect",
     "slug": "moiconnect",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "5"
+      "buildNumber": "6"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
         "backgroundColor": "#14532d"
       },
       "package": "com.amanikbt1.moiconnect",
-      "versionCode": 5,
+      "versionCode": 6,
       "targetSdkVersion": 36,
       "compileSdkVersion": 36
     },
