@@ -25,17 +25,17 @@
       },
       "package": "com.amanikbt1.moiconnect",
       "versionCode": 6,
-      "targetSdkVersion": 36,
-      "compileSdkVersion": 36
+      "targetSdkVersion": 35,
+      "compileSdkVersion": 35
     },
     "plugins": [
       [
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0"
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
           }
         }
       ]
@@ -43,6 +43,12 @@
     "web": {
       "favicon": "./assets/mc-logo.png"
     },
-    "scheme": "moiconnect"
+    "scheme": "moiconnect",
+    "extra": {
+      "eas": {
+        "projectId": "66a99ab2-c381-4e94-a6ef-4b976360e9af"
+      }
+    },
+    "owner": "amanikbt1"
   }
 }
