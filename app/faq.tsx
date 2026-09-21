@@ -22,15 +22,15 @@ const FAQ_DATA: FAQItem[] = [
   {
     id: 'delete_account',
     category: 'Account & Data Privacy',
-    question: 'How do I delete my account and personal data?',
-    answer: 'You can delete your account and completely wipe all your personal data at any time through two methods:\n\n1. Direct In-App Deletion: Open the Profile tab (bottom right) -> scroll down next to "Sign Out" -> tap "Delete Account" -> confirm "Wipe Account & Data". Your account, posts, uploads, and data will be immediately and permanently removed from our database.\n\n2. Email Request: You can also email our Data Protection Officer directly at amanikbt1@gmail.com with your registered email and subject "Account Deletion Request".',
+    question: 'How do I request deletion of my account and associated data?',
+    answer: 'MoiConnect provides two simple methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> scroll to the bottom -> tap "Delete Account" next to Sign Out -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. Please include your full name and registered phone number. All email deletion requests are processed within 5 business days.',
     iconTag: '🗑️'
   },
   {
     id: 'what_data_deleted',
     category: 'Account & Data Privacy',
-    question: 'What happens when I delete my account?',
-    answer: 'When you confirm account deletion, your profile record, registered email, phone number, login tokens, saved offline materials, and submitted posts are permanently purged from our servers. This action is irreversible to ensure maximum data privacy compliance.',
+    question: 'What user data is deleted or retained upon request?',
+    answer: 'Upon receiving your account deletion request, the following data is permanently purged from our database:\n\n• Personal Profile: Name, registered email address, phone number, and password hashes.\n• User Content: Profile picture, saved offline bookmarks, and private landlord message history.\n• Verification Records: Landlord application details and identity documents.\n\nNote: Publicly uploaded academic past papers/notes will remain on the platform to maintain community access, but will be completely anonymized to disassociate your identity.',
     iconTag: '🔒'
   },
   {

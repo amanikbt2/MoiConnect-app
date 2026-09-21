@@ -14,5 +14,10 @@ const defaultHost = getDefaultHost();
 
 export const config = {
   apiUrl: process.env.EXPO_PUBLIC_API_URL || `${defaultHost}/api/v1`,
-  socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || defaultHost
+  socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || defaultHost,
+  google: {
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || ''
+  }
 };

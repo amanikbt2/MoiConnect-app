@@ -76,20 +76,10 @@ export default function PrivacyPolicyScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionHeading}>6. Account Deletion & User Data Rights</Text>
+          <Text style={styles.sectionHeading}>6. User Data Rights</Text>
           <Text style={styles.paragraph}>
-            You have the right to request the complete deletion of your MoiConnect account and associated personal data at any time.
+            You have the right to access, update, or request the deletion of your account and personal data at any time. For detailed instructions on account and data deletion, please visit our <Text style={styles.bold}>FAQ & Account Support</Text> page or contact us at <Text style={styles.linkText}>{contactEmail}</Text>.
           </Text>
-          <Text style={styles.bulletPoint}>• <Text style={styles.bold}>How to Request Deletion:</Text> Send an account deletion request email to <Text style={styles.linkText}>{contactEmail}</Text> with the subject line <Text style={styles.bold}>"Account Deletion Request"</Text> from your registered email address.</Text>
-          <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Data That Will Be Deleted:</Text> Account credentials, user profile (Name, Email, Phone), profile pictures, saved house bookmarks, private messages, and landlord verification details.</Text>
-          <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Data Retained:</Text> Publicly submitted academic PDF notes/past papers will be anonymized to protect community access, or removed upon request.</Text>
-          <Text style={styles.bulletPoint}>• <Text style={styles.bold}>Processing Timeframe:</Text> All valid deletion requests are processed and completed within 5 business days.</Text>
-
-          <View style={styles.contactCard}>
-            <Text style={styles.contactLabel}>Direct Account Deletion Email:</Text>
-            <Text style={styles.contactEmail}>{contactEmail}</Text>
-            <Text style={styles.contactSub}>Include your registered Email and Phone Number in your deletion request.</Text>
-          </View>
         </View>
 
         <View style={styles.section}>
