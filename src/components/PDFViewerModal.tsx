@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -8,9 +8,11 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
-  Alert
+  Animated,
+  Easing
 } from 'react-native';
-import { DownloadIcon, CheckIcon, StarIcon } from './Icons';
+import { DownloadIcon, CheckIcon } from './Icons';
+import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
 
 export interface PDFDocumentItem {
   id: string;
@@ -63,7 +65,6 @@ export function formatCount(input: number | string | undefined | null): string {
   return val % 1 === 0 ? `${val.toFixed(0)}b` : `${val.toFixed(1).replace(/\.0$/, '')}b`;
 }
 
-
 export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   visible,
   document,
@@ -73,13 +74,61 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   if (!document) return null;
 
   const [activePage, setActivePage] = useState(1);
-  const [downloaded, setDownloaded] = useState(false);
+  const [downloadInfo, setDownloadInfo] = useState<{
+    status?: 'downloading' | 'completed' | 'failed';
+    progress?: number;
+  }>({});
+
+  const spinValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!document) return;
+    const docId = document.id;
+    const unsubscribe = subscribeToDownloadUpdates((papers) => {
+      const found = papers.find(
+        (p) =>
+          p._id === docId ||
+          p._id === `note_${docId}` ||
+          p._id === `paper_${docId}` ||
+          p.title === document.title
+      );
+      if (found) {
+        setDownloadInfo({ status: found.status, progress: found.progress });
+      } else {
+        setDownloadInfo({});
+      }
+    });
+
+    return () => unsubscribe();
+  }, [document]);
+
+  useEffect(() => {
+    if (downloadInfo.status === 'downloading') {
+      spinValue.setValue(0);
+      const loopAnim = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.linear,
+          useNativeDriver: Platform.OS !== 'web'
+        })
+      );
+      loopAnim.start();
+      return () => loopAnim.stop();
+    }
+  }, [downloadInfo.status]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
 
   const handleSave = () => {
     onDownload(document);
-    setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 3000);
   };
+
+  const isDownloading = downloadInfo.status === 'downloading';
+  const isCompleted = downloadInfo.status === 'completed';
 
   return (
     <Modal
@@ -105,11 +154,21 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           </View>
 
           <TouchableOpacity
-            style={[styles.downloadIconBtn, downloaded && styles.downloadIconBtnSuccess]}
+            style={[
+              styles.downloadIconBtn,
+              isCompleted && styles.downloadIconBtnSuccess,
+              isDownloading && styles.downloadIconBtnActive
+            ]}
             onPress={handleSave}
+            disabled={isDownloading}
             activeOpacity={0.85}
           >
-            {downloaded ? (
+            {isDownloading ? (
+              <View style={styles.spinnerWrapper}>
+                <Animated.View style={[styles.spinRing, { transform: [{ rotate: spin }] }]} />
+                <Text style={styles.progressPercentText}>{downloadInfo.progress || 5}%</Text>
+              </View>
+            ) : isCompleted ? (
               <CheckIcon color="#ffffff" size={18} />
             ) : (
               <DownloadIcon color="#ffffff" size={18} />
@@ -129,32 +188,30 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </View>
           ) : (
             <ScrollView style={styles.readerScroll} contentContainerStyle={styles.readerContent}>
-              {/* Document Cover & Header Card (Page 1 Only) */}
-              {activePage === 1 && (
-                <View style={styles.docHeaderCard}>
-                  <View style={styles.docTagRow}>
-                    <View style={styles.docCodeBadge}>
-                      <Text style={styles.docCodeText}>{document.unitCode}</Text>
-                    </View>
-                    {!!document.mtid && (
-                      <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                        <Text style={{ color: '#0369a1', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
-                      </View>
-                    )}
-                    <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
+              {/* Document Cover & Header Card */}
+              <View style={styles.docHeaderCard}>
+                <View style={styles.docTagRow}>
+                  <View style={styles.docCodeBadge}>
+                    <Text style={styles.docCodeText}>{document.unitCode}</Text>
                   </View>
-
-                  <Text style={styles.docMainTitle}>{document.title}</Text>
-                  {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
-
-                  {!!document.summary && (
-                    <View style={styles.summaryBox}>
-                      <Text style={styles.summaryLabel}>Document Summary:</Text>
-                      <Text style={styles.summaryText}>{document.summary}</Text>
+                  {!!document.mtid && (
+                    <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
                     </View>
                   )}
+                  <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                 </View>
-              )}
+
+                <Text style={styles.docMainTitle}>{document.title}</Text>
+                {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
+
+                {!!document.summary && (
+                  <View style={styles.summaryBox}>
+                    <Text style={styles.summaryLabel}>Document Summary:</Text>
+                    <Text style={styles.summaryText}>{document.summary}</Text>
+                  </View>
+                )}
+              </View>
 
               {/* Fast Simulated PDF Page Preview */}
               <View style={styles.pagePreviewContainer}>
@@ -223,7 +280,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#0f172a'
   },
   header: {
     flexDirection: 'row',
@@ -261,21 +318,47 @@ const styles = StyleSheet.create({
     marginTop: 1
   },
   downloadIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#22c55e',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#4ade80'
   },
   downloadIconBtnSuccess: {
-    backgroundColor: '#16a34a'
+    backgroundColor: '#16a34a',
+    borderColor: '#22c55e'
+  },
+  downloadIconBtnActive: {
+    backgroundColor: '#15803d',
+    borderColor: '#86efac'
+  },
+  spinnerWrapper: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative'
+  },
+  spinRing: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderTopColor: '#ffffff'
+  },
+  progressPercentText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#ffffff'
   },
   bodyContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc'
+    backgroundColor: '#0f172a'
   },
   webViewerWrapper: {
     flex: 1,
@@ -357,31 +440,31 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   pagePreviewContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#334155',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5
   },
   pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#0f172a',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0'
+    borderBottomColor: '#334155'
   },
   pageHeaderTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#15803d',
+    color: '#38bdf8',
     letterSpacing: 0.8
   },
   pageControls: {
@@ -389,20 +472,20 @@ const styles = StyleSheet.create({
     gap: 8
   },
   pageBtn: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#cbd5e1'
+    borderColor: '#334155'
   },
   pageBtnDisabled: {
-    opacity: 0.4
+    opacity: 0.35
   },
   pageBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0f172a'
+    color: '#f8fafc'
   },
   paperSheet: {
     padding: 20,
@@ -499,19 +582,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#94a3b8',
     letterSpacing: 0.5
-  },
-  bottomDownloadBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#15803d',
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginTop: 10
-  },
-  bottomDownloadText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '800'
   }
 });

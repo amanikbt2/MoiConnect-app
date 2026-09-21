@@ -675,6 +675,46 @@ export function ChevronDownIcon({ color = '#64748b', size = 18, style }: IconPro
   );
 }
 
+export function MoreVerticalIcon({ color = '#64748b', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="5" r="2" fill={color} />
+      <Circle cx="12" cy="12" r="2" fill={color} />
+      <Circle cx="12" cy="19" r="2" fill={color} />
+    </Svg>
+  );
+}
+
+export function PinIcon({ color = '#eab308', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 2L15 8L22 9L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9L9 8L12 2Z"
+        fill={color}
+        stroke={color}
+        strokeWidth="1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function RefreshCwIcon({ color = '#2563eb', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M23 4V10H17M1 20V14H7M3.51 9A9 9 0 0118.36 5.64L23 10M1 14L5.64 18.36A9 9 0 0020.49 15"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+
 
 
 
