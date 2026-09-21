@@ -4,7 +4,8 @@ import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
-import { GoogleIcon, AppleIcon, ArrowLeftIcon } from '../../src/components/Icons';
+import { AppleIcon, ArrowLeftIcon } from '../../src/components/Icons';
+import { GoogleAuthButton } from '../../src/components/GoogleAuthButton';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -16,26 +17,8 @@ export default function LoginScreen() {
   const router = useAppNavigation();
 
   const handleSocialLogin = async (provider: 'Google' | 'Apple') => {
-    setError(null);
-    setLoading(true);
-    try {
-      if (provider === 'Google') {
-        const res = await googleLogin({
-          email: 'student.google@moi.ac.ke',
-          name: 'Google Student'
-        });
-        if (res.success) {
-          router.replace('/(tabs)');
-        } else {
-          setError(res.error || 'Google sign-in failed.');
-        }
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Social sign-in failed.');
-    } finally {
-      setLoading(false);
+    if (provider === 'Apple') {
+      router.replace('/(tabs)');
     }
   };
 
@@ -96,14 +79,11 @@ export default function LoginScreen() {
           <View style={styles.recommendedBadge}>
             <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
           </View>
-          <TouchableOpacity
-            style={styles.googleBtn}
-            activeOpacity={0.8}
-            onPress={() => handleSocialLogin('Google')}
-          >
-            <GoogleIcon size={22} style={styles.socialIcon} />
-            <Text style={styles.googleBtnText}>Continue with Google</Text>
-          </TouchableOpacity>
+          <GoogleAuthButton
+            googleLogin={googleLogin}
+            onSuccess={() => router.replace('/(tabs)')}
+            onError={(err) => setError(err)}
+          />
         </View>
 
         <TouchableOpacity

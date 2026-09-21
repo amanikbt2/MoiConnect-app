@@ -9,7 +9,7 @@ interface AuthContextType {
   userPoints: number;
   addPoints: (amount: number, reason?: string) => void;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
-  googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string }) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
   requestLandlordStatus: (input: RequestLandlordInput) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: res.error || 'Login failed' };
   };
 
-  const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string }) => {
+  const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => {
     try {
       const res = await apiRequest('/auth/google', {
         method: 'POST',
