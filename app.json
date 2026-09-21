@@ -43,11 +43,6 @@
     "web": {
       "favicon": "./assets/mc-logo.png"
     },
-    "scheme": "moiconnect",
-    "extra": {
-      "eas": {
-        "projectId": "cd92abb9-b9be-4713-a8d4-807655da8cc6"
-      }
-    }
+    "scheme": "moiconnect"
   }
 }
