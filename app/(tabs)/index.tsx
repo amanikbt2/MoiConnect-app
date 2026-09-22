@@ -432,7 +432,7 @@ export default function HomeScreen() {
           <Text style={styles.footerLink}>Terms of Use</Text>
         </TouchableOpacity>
         <Text style={styles.footerDivider}>·</Text>
-        <TouchableOpacity activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Support</Text>
         </TouchableOpacity>
         <Text style={styles.footerDivider}>·</Text>

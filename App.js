@@ -480,13 +480,51 @@ function AppNavigator() {
   );
 }
 
+const linking = {
+  prefixes: [
+    'https://moiconnect-app.onrender.com',
+    'http://localhost:8082',
+    'http://localhost:3000',
+    'http://localhost:8080',
+    'moiconnect://'
+  ],
+  config: {
+    screens: {
+      MainTabs: {
+        path: '',
+        screens: {
+          HomeTab: '',
+          DownloadsTab: 'downloads',
+          MessagesTab: 'messages'
+        }
+      },
+      Profile: 'profile',
+      Privacy: 'privacy',
+      FAQ: 'faq',
+      PastPapers: 'past-papers',
+      CatPapers: 'cat-papers',
+      Contribute: 'contribute',
+      Community: 'community',
+      LandlordPortal: 'landlord-portal',
+      Academics: 'academics',
+      Rentals: 'rentals',
+      Login: 'login',
+      Register: 'register',
+      RequestLandlord: 'request-landlord',
+      PaperDetail: 'paper/:id',
+      HouseDetail: 'house/:id',
+      ChatRoom: 'chat/:id'
+    }
+  }
+};
+
 export default function App() {
   return (
     <NetworkProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <StatusBar style="light" />
-          <NavigationContainer>
+          <NavigationContainer linking={linking}>
             <AppNavigator />
           </NavigationContainer>
         </AuthProvider>

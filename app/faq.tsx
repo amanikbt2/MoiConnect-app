@@ -8,7 +8,7 @@ import {
   SafeAreaView
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
-import { ChevronDownIcon, TrashIcon, BookIcon, ShieldCheckIcon } from '../src/components/Icons';
+import { ChevronDownIcon, TrashIcon, BookIcon, ShieldCheckIcon, ArrowLeftIcon } from '../src/components/Icons';
 
 export interface FAQItem {
   id: string;
@@ -71,8 +71,24 @@ export default function FAQScreen() {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const handleBack = () => {
+    if (router.canGoBack?.()) {
+      router.back();
+    } else {
+      router.push('/(tabs)');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeContainer}>
+      {/* Top Header Bar */}
+      <View style={styles.topHeaderBar}>
+        <TouchableOpacity style={styles.topBackBtn} onPress={handleBack} activeOpacity={0.7}>
+          <ArrowLeftIcon color="#0f172a" size={20} />
+          <Text style={styles.topBackBtnText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* Header Section */}
         <View style={styles.headerCard}>
@@ -134,10 +150,10 @@ export default function FAQScreen() {
           })}
         </View>
 
-        {/* Back Button */}
+        {/* Bottom Back Button */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBack}
           activeOpacity={0.8}
         >
           <Text style={styles.backButtonText}>← Back to App</Text>
@@ -152,11 +168,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc'
   },
+  topHeaderBar: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc'
+  },
+  topBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  topBackBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a'
+  },
   container: {
     flex: 1
   },
   content: {
     padding: 20,
+    paddingTop: 10,
     paddingBottom: 40
   },
   headerCard: {
