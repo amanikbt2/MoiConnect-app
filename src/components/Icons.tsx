@@ -763,6 +763,22 @@ export function LaptopIcon({ color = '#059669', size = 28, style }: IconProps) {
   );
 }
 
+export function MoiConnectBadgeIcon({ color = '#15803d', size = 22, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Rect x="2" y="2" width="20" height="20" rx="6" stroke={color} strokeWidth="2" />
+      <Path
+        d="M7 16V8L12 13L17 8V16"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+
 
 
 

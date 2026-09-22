@@ -20,13 +20,17 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#14532d"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#14532d",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.amanikbt1.moiconnect",
       "versionCode": 7
     },
-
+    "notification": {
+      "icon": "./assets/android-icon-monochrome.png",
+      "color": "#15803d"
+    },
     "plugins": [
       [
         "expo-build-properties",
@@ -41,7 +45,7 @@
       ]
     ],
     "web": {
-      "favicon": "./assets/mc-logo.png"
+      "favicon": "./assets/favicon.png"
     },
     "scheme": "moiconnect",
     "extra": {

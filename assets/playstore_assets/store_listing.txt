@@ -1,0 +1,54 @@
+================================================================================
+MOICONNECT - GOOGLE PLAY STORE LISTING DETAILS
+================================================================================
+
+--------------------------------------------------------------------------------
+SHORT DESCRIPTION (79 / 80 characters)
+--------------------------------------------------------------------------------
+MoiConnect - Your all-in-one student hub for past papers, notes & campus life.
+
+
+--------------------------------------------------------------------------------
+FULL DESCRIPTION (3,648 / 4000 characters)
+--------------------------------------------------------------------------------
+Welcome to MoiConnect – the ultimate all-in-one mobile app designed specifically for Moi University students and campus community! 
+
+Whether you are looking for academic resources, revision materials, student housing, or staying updated with campus events, MoiConnect brings everything you need directly to your fingertips.
+
+---
+
+KEY FEATURES:
+
+🎓 1. ACADEMIC HUB & REVISION MATERIALS
+• Past Papers & CAT Papers: Access a comprehensive repository of past examination papers and Continuous Assessment Tests across all schools, faculties, and courses.
+• Lecture Notes & Study Guides: Download and view organized course notes, revision guides, and module summaries on the go.
+• Built-in Smart PDF Viewer: View documents smoothly within the app with page navigation, zoom, and instant download capabilities.
+• Smart Download Counters: Easily track popular and high-yield revision materials with real-time download metrics.
+
+🏠 2. LANDLORD PORTAL & OFF-CAMPUS HOUSING
+• Hostel & Apartment Listings: Browse verified off-campus rentals near Main Campus, Annex, Town Campus, and surrounding areas.
+• Room Features & Amenities: View detailed property descriptions, pricing, deposit requirements, distance to campus, and included amenities (water, Wi-Fi, security).
+• Direct Landlord Contact: Connect directly with property owners and managers without broker hassle.
+
+📰 3. CAMPUS NEWS, EVENTS & ANNOUNCEMENTS
+• Official & Student Updates: Stay informed with real-time updates regarding semester schedules, exam timetables, fee deadlines, and campus news.
+• Trending Events: Never miss out on campus events, career fairs, sports tournaments, and student organization activities.
+
+💬 4. COMMUNITY & STUDENT SERVICES
+• Student Marketplace: Buy and sell used textbooks, revision packs, electronic gadgets, and household items safely within the student community.
+• Student Profile & Customization: Keep track of your academic details, course year, school, and saved study materials.
+• Instant Offline Access: Access previously downloaded papers and study notes even when offline or low on data!
+
+---
+
+WHY CHOOSE MOICONNECT?
+⚡ Ultra-fast & Lightweight: Optimized for fast loading with low data consumption.
+📱 Clean, Modern Interface: Intuitive user experience designed for modern Android devices.
+🔒 Safe & Verified: Built by students for students, ensuring reliable and accurate campus information.
+
+Download MoiConnect today and take control of your academic journey and campus life at Moi University!
+
+---
+Support Email: support@moiconnect.app
+Developer: AmaniKBT
+App Version: 1.0.7

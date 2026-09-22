@@ -15,6 +15,7 @@ import {
   AcademicCapIcon,
   HouseIcon,
   AlertTriangleIcon,
+  MoiConnectBadgeIcon,
   CloseIcon
 } from './Icons';
 
@@ -23,7 +24,7 @@ export interface INotificationItem {
   title: string;
   subtitle?: string;
   body: string;
-  icon: 'bell' | 'academic' | 'house' | 'alert';
+  icon: 'bell' | 'academic' | 'house' | 'alert' | 'moiconnect' | 'app';
   isRead: boolean;
   createdAt: string;
 }
@@ -104,6 +105,9 @@ export function NotificationCenterModal() {
         return <HouseIcon color="#15803d" size={20} />;
       case 'alert':
         return <AlertTriangleIcon color="#d97706" size={20} />;
+      case 'moiconnect':
+      case 'app':
+        return <MoiConnectBadgeIcon color="#15803d" size={20} />;
       default:
         return <BellIcon color="#15803d" size={20} />;
     }
