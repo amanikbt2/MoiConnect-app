@@ -689,7 +689,7 @@ export function PinIcon({ color = '#eab308', size = 18, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
       <Path
-        d="M12 2L15 8L22 9L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9L9 8L12 2Z"
+        d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22L12 23L13 22V16H18V14L16 12Z"
         fill={color}
         stroke={color}
         strokeWidth="1"

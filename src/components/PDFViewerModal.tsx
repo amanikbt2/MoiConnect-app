@@ -71,8 +71,6 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   onClose,
   onDownload
 }) => {
-  if (!document) return null;
-
   const [activePage, setActivePage] = useState(1);
   const [downloadInfo, setDownloadInfo] = useState<{
     status?: 'downloading' | 'completed' | 'failed';
@@ -124,11 +122,15 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   });
 
   const handleSave = () => {
-    onDownload(document);
+    if (document) {
+      onDownload(document);
+    }
   };
 
   const isDownloading = downloadInfo.status === 'downloading';
   const isCompleted = downloadInfo.status === 'completed';
+
+  if (!document) return null;
 
   return (
     <Modal

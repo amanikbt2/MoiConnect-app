@@ -19,11 +19,62 @@ export interface OfflinePaper {
   uploadedBy?: { _id: string; name: string };
   createdAt: string;
   updatedAt?: string;
+  // Card visual attributes
+  thumbnail?: string;
+  mtid?: string;
+  semester?: string;
+  ratingScore?: string;
+  downloadsCount?: number;
+  hasSolutions?: boolean;
+  starsCount?: number;
   // Dynamic download state
   status?: 'downloading' | 'completed' | 'failed';
   progress?: number; // 0 to 100
   pinned?: boolean;
 }
+
+const DEFAULT_INITIAL_PAPERS: OfflinePaper[] = [
+  {
+    _id: 'pp_rec1',
+    mtid: 'P0001',
+    title: 'COM 310 Data Structures Main Exam Paper 2024',
+    unitCode: 'COM 310',
+    unitName: 'Data Structures & Algorithms',
+    school: 'School of Information Sciences',
+    examYear: '2024',
+    semester: 'SEMESTER 1',
+    downloadsCount: 2940,
+    starsCount: 2410,
+    ratingScore: '4.9',
+    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+    fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_exam2024.pdf',
+    hasSolutions: true,
+    type: 'past_paper',
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    status: 'completed',
+    pinned: true
+  },
+  {
+    _id: 'pp_rec2',
+    mtid: 'P0002',
+    title: 'MAT 210 Calculus II End of Semester Exam 2024',
+    unitCode: 'MAT 210',
+    unitName: 'Calculus II',
+    school: 'School of Science',
+    examYear: '2024',
+    semester: 'SEMESTER 2',
+    downloadsCount: 3180,
+    starsCount: 2890,
+    ratingScore: '4.8',
+    thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
+    fileUrl: 'https://res.cloudinary.com/mconnect/docs/mat210_exam2024.pdf',
+    hasSolutions: true,
+    type: 'past_paper',
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    status: 'completed',
+    pinned: false
+  }
+];
 
 const getItem = async (key: string): Promise<string | null> => {
   if (Platform.OS === 'web') {
@@ -110,10 +161,16 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     unitCode: paperInput.unitCode || 'GEN 101',
     unitName: paperInput.unitName || paperInput.title || '',
     type: paperInput.type || 'study_notes',
-    examYear: paperInput.examYear || 2025,
+    examYear: paperInput.examYear || 2024,
     fileUrl: paperInput.fileUrl || '',
     fileType: paperInput.fileType || 'pdf',
     uploadedBy: paperInput.uploadedBy || { _id: 'admin', name: 'Moi Faculty' },
+    thumbnail: paperInput.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+    mtid: paperInput.mtid || `P000${Math.floor(Math.random() * 9) + 1}`,
+    semester: paperInput.semester || 'SEMESTER 1',
+    ratingScore: paperInput.ratingScore || '4.9',
+    downloadsCount: paperInput.downloadsCount || 2900,
+    hasSolutions: paperInput.hasSolutions ?? true,
     createdAt: paperInput.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: 'downloading',
@@ -146,8 +203,7 @@ export const retryPaperDownload = async (paperId: string) => {
 
 export const togglePinOfflinePaper = async (paperId: string) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
-  if (!existingStr) return;
-  let papers: OfflinePaper[] = JSON.parse(existingStr);
+  let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : DEFAULT_INITIAL_PAPERS;
   papers = papers.map((p) => {
     if (p._id === paperId) {
       return { ...p, pinned: !p.pinned };
@@ -160,8 +216,11 @@ export const togglePinOfflinePaper = async (paperId: string) => {
 
 export const getDownloadedPapers = async (): Promise<OfflinePaper[]> => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
-  if (!existingStr) return [];
-  const papers: OfflinePaper[] = JSON.parse(existingStr);
+  let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
+  if (!existingStr || papers.length === 0) {
+    papers = DEFAULT_INITIAL_PAPERS;
+    await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers));
+  }
   return papers.sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;

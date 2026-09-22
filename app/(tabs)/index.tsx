@@ -138,6 +138,7 @@ export default function HomeScreen() {
 
   // Smart continuous auto-scroll timer for Suggested Materials
   useEffect(() => {
+    if (!user) return;
     const timer = setInterval(() => {
       if (!isInteracting.current && flatListRef.current) {
         const nextIndex = (activeSuggestedIndex + 1) % SUGGESTED_MATERIALS.length;
@@ -150,7 +151,7 @@ export default function HomeScreen() {
     }, 3800);
 
     return () => clearInterval(timer);
-  }, [activeSuggestedIndex]);
+  }, [activeSuggestedIndex, user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -336,59 +337,61 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Suggested Materials Carousel (Smart Horizontal Scroll) */}
-      <View style={styles.suggestedSection}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.headerTitleGroup}>
-            <View style={styles.sparkleIconCircle}>
-              <SparklesIcon color="#15803d" size={18} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitleNoMargin}>Suggested materials</Text>
-              <Text style={styles.sectionSubtitle}>based on your profile</Text>
+      {/* Suggested Materials Carousel (Smart Horizontal Scroll) - Only shown when user is signed in */}
+      {user && (
+        <View style={styles.suggestedSection}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.headerTitleGroup}>
+              <View style={styles.sparkleIconCircle}>
+                <SparklesIcon color="#15803d" size={18} />
+              </View>
+              <View>
+                <Text style={styles.sectionTitleNoMargin}>Suggested materials</Text>
+                <Text style={styles.sectionSubtitle}>based on your profile</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <FlatList
-          ref={flatListRef}
-          data={SUGGESTED_MATERIALS}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={renderSuggestedCard}
-          contentContainerStyle={styles.suggestedListContent}
-          snapToInterval={CARD_WIDTH + CARD_GAP}
-          decelerationRate="fast"
-          onScrollBeginDrag={handleScrollBegin}
-          onScrollEndDrag={handleScrollEnd}
-          onMomentumScrollEnd={handleScrollEnd}
-          getItemLayout={(_, index) => ({
-            length: CARD_WIDTH + CARD_GAP,
-            offset: (CARD_WIDTH + CARD_GAP) * index,
-            index,
-          })}
-          onScrollToIndexFailed={(info) => {
-            flatListRef.current?.scrollToOffset({
-              offset: info.index * (CARD_WIDTH + CARD_GAP),
-              animated: true,
-            });
-          }}
-        />
+          <FlatList
+            ref={flatListRef}
+            data={SUGGESTED_MATERIALS}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={renderSuggestedCard}
+            contentContainerStyle={styles.suggestedListContent}
+            snapToInterval={CARD_WIDTH + CARD_GAP}
+            decelerationRate="fast"
+            onScrollBeginDrag={handleScrollBegin}
+            onScrollEndDrag={handleScrollEnd}
+            onMomentumScrollEnd={handleScrollEnd}
+            getItemLayout={(_, index) => ({
+              length: CARD_WIDTH + CARD_GAP,
+              offset: (CARD_WIDTH + CARD_GAP) * index,
+              index,
+            })}
+            onScrollToIndexFailed={(info) => {
+              flatListRef.current?.scrollToOffset({
+                offset: info.index * (CARD_WIDTH + CARD_GAP),
+                animated: true,
+              });
+            }}
+          />
 
-        {/* Carousel Pagination Dots */}
-        <View style={styles.paginationDots}>
-          {SUGGESTED_MATERIALS.map((item, index) => (
-            <View
-              key={item.id}
-              style={[
-                styles.dot,
-                index === activeSuggestedIndex ? styles.activeDot : styles.inactiveDot,
-              ]}
-            />
-          ))}
+          {/* Carousel Pagination Dots */}
+          <View style={styles.paginationDots}>
+            {SUGGESTED_MATERIALS.map((item, index) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.dot,
+                  index === activeSuggestedIndex ? styles.activeDot : styles.inactiveDot,
+                ]}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* App Footer */}
       <View style={styles.footer}>

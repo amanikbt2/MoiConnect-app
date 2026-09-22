@@ -23,7 +23,11 @@ import {
   HouseIcon,
   PlusIcon,
   ArrowLeftIcon,
-  PhoneIcon
+  PhoneIcon,
+  SparklesIcon,
+  TrashIcon,
+  DownloadIcon,
+  CloseIcon
 } from '../src/components/Icons';
 
 export default function LandlordPortalScreen() {
@@ -36,6 +40,10 @@ export default function LandlordPortalScreen() {
   const [securityKey, setSecurityKey] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
+
+  // Portal Main Section Tab State ('listings' | 'notify')
+  const [portalTab, setPortalTab] = useState<'listings' | 'notify'>('listings');
+  const [notifySubTab, setNotifySubTab] = useState<'normal' | 'update'>('normal');
 
   // Portal Apartment Listings State
   const [listings, setListings] = useState<IHouse[]>([
@@ -78,7 +86,7 @@ export default function LandlordPortalScreen() {
       phoneContact: '0798765432',
       whatsappContact: '254798765432',
       amenities: ['💧 Borehole Water', '🔒 Locked Gate 10PM', '⚡ Tokens'],
-      photos: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80'],
+      photos: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80'],
       status: 'available',
       occupancyStatus: 'available',
       isVerified: true,
@@ -87,43 +95,68 @@ export default function LandlordPortalScreen() {
     }
   ]);
 
-  // Add Apartment Building Modal Form State
+  // Add Listing Modal State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newType, setNewType] = useState<any>('bedsetter');
-  const [newLocation, setNewLocation] = useState(MOI_LOCATIONS[0] || 'Stage');
-  const [totalRooms, setTotalRooms] = useState('10');
-  const [availableRooms, setAvailableRooms] = useState('8');
   const [newRent, setNewRent] = useState('');
   const [newDeposit, setNewDeposit] = useState('');
+  const [newType, setNewType] = useState<'single_room' | 'bedsetter' | 'one_bedroom' | 'two_bedroom' | 'studio'>('bedsetter');
+  const [newLocation, setNewLocation] = useState('Kesses');
+  const [totalRooms, setTotalRooms] = useState('10');
+  const [availableRooms, setAvailableRooms] = useState('5');
   const [phoneContact, setPhoneContact] = useState('0712345678');
   const [whatsappContact, setWhatsappContact] = useState('254712345678');
-  const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80');
-  const [submitting, setSubmitting] = useState(false);
+  const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80');
 
-  // Check if user is already verified landlord
+  // Notify Tab State (Normal Popup)
+  const [popTitle, setPopTitle] = useState('Welcome {name} to MoiConnect!');
+  const [popSubtitle, setPopSubtitle] = useState('Explore the latest study notes for {course}.');
+  const [popBody, setPopBody] = useState('Get access to past exam papers, lecture notes, and hostel bookings.');
+  const [popImage, setPopImage] = useState('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80');
+  const [popCancel, setPopCancel] = useState(true);
+  const [popActionTarget, setPopActionTarget] = useState('/notes');
+  const [popActionText, setPopActionText] = useState('Explore Notes');
+  const [popAudience, setPopAudience] = useState<'all' | 'unauthenticated' | 'emails'>('all');
+  const [popEmails, setPopEmails] = useState('');
+  const [popExpiryDays, setPopExpiryDays] = useState('7');
+
+  // Notify Tab State (Update Popup)
+  const [upMinVersion, setUpMinVersion] = useState('1.0.7');
+  const [upTitle, setUpTitle] = useState('MoiConnect v{version} Available!');
+  const [upSubtitle, setUpSubtitle] = useState('Upgrade now for faster PDF downloads and new features.');
+  const [upImage, setUpImage] = useState('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80');
+  const [upPlayStoreUrl, setUpPlayStoreUrl] = useState('https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect');
+  const [upForce, setUpForce] = useState(false);
+
+  // Popup History
+  const [popupsHistory, setPopupsHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [creatingPopup, setCreatingPopup] = useState(false);
+
+  const fetchPopupHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await apiRequest<{ success: boolean; data: any[] }>('/notify/popups');
+      if (res.success && Array.isArray(res.data)) {
+        setPopupsHistory(res.data);
+      }
+    } catch (e) {
+      console.log('Error loading popups history:', e);
+    }
+    setLoadingHistory(false);
+  };
+
   useEffect(() => {
-    if (user?.roles?.includes('landlord') && user?.landlordStatus === 'approved') {
-      setIsVerified(true);
-      fetchLandlordListings();
+    if (isVerified && portalTab === 'notify') {
+      fetchPopupHistory();
     }
-  }, [user]);
+  }, [isVerified, portalTab]);
 
-  const fetchLandlordListings = async () => {
-    const res = await apiRequest<{ data: IHouse[] }>('/houses/my-listings');
-    if (res.success && res.data && res.data.length > 0) {
-      setListings(res.data);
-    }
-  };
-
-  // Verification Handler
-  const handleVerifyCredentials = () => {
+  const handleAuthenticate = () => {
     if (!landlordMID.trim() || !landlordSerial.trim() || !securityKey.trim()) {
-      Alert.alert(
-        'Missing Credentials',
-        'Please enter your Landlord MID, Hardware Serial, and Security Key assigned by Housing Admin.'
-      );
+      Alert.alert('Missing Verification Keys', 'Please enter your MID, Serial Number, and Security Key to authenticate.');
       return;
     }
 
@@ -131,136 +164,119 @@ export default function LandlordPortalScreen() {
     setTimeout(() => {
       setVerifying(false);
       setIsVerified(true);
-      Alert.alert('Verification Successful! 🛡️', 'Landlord credentials verified against database records. Portal unlocked!');
-      fetchLandlordListings();
-    }, 1000);
-  };
-
-  // Fill Sample Demo Credentials
-  const handleFillDemoKeys = () => {
-    setLandlordMID('LL-8842-MOI');
-    setLandlordSerial('SN-9920-KESSES');
-    setSecurityKey('KEY-7714-X');
-  };
-
-  // 5-Second Hold-to-Authorize Bypass
-  const handleLongPressAuthorize = () => {
-    setLandlordMID('LL-8842-MOI');
-    setLandlordSerial('SN-9920-KESSES');
-    setSecurityKey('KEY-7714-X');
-    setVerifying(true);
-    setTimeout(() => {
-      setVerifying(false);
-      setIsVerified(true);
       Alert.alert(
-        'Demo Landlord Account Unlocked 🔑',
-        'Shortcut activated! You are logged into the Demo Landlord Account.'
+        'Authentication Successful! 🟢',
+        `Welcome to the Admin Portal! You can manage listings and broadcast Popups.`
       );
-      fetchLandlordListings();
-    }, 500);
+    }, 900);
   };
 
-  // Instant Quick Control: Decrement Available Rooms (-)
-  const handleDecrementRooms = (houseId: string) => {
-    setListings((prev) =>
-      prev.map((h) => {
-        if (h._id !== houseId) return h;
-        const currentCount = h.availableRooms !== undefined ? h.availableRooms : 1;
-        if (currentCount <= 0) {
-          Alert.alert('Fully Booked', `"${h.title}" already has 0 vacant rooms!`);
-          return h;
-        }
-        const nextCount = currentCount - 1;
-        const isVacant = nextCount > 0;
-        return {
-          ...h,
-          availableRooms: nextCount,
-          occupancyStatus: isVacant ? 'available' : 'occupied',
-          status: isVacant ? 'available' : 'occupied'
-        };
-      })
-    );
-  };
-
-  // Instant Quick Control: Increment Available Rooms (+)
-  const handleIncrementRooms = (houseId: string) => {
-    setListings((prev) =>
-      prev.map((h) => {
-        if (h._id !== houseId) return h;
-        const currentCount = h.availableRooms !== undefined ? h.availableRooms : 0;
-        const total = h.totalRooms || 20;
-        if (currentCount >= total) {
-          Alert.alert('Max Capacity', `Available rooms cannot exceed total rooms count (${total}).`);
-          return h;
-        }
-        const nextCount = currentCount + 1;
-        return {
-          ...h,
-          availableRooms: nextCount,
-          occupancyStatus: 'available',
-          status: 'available'
-        };
-      })
-    );
-  };
-
-  // Create New Apartment Building Listing
-  const handleCreateListingSubmit = async () => {
-    if (!newTitle.trim() || !newRent.trim()) {
-      Alert.alert('Incomplete Details', 'Please provide at least the apartment name and room rent price per month.');
+  const handleCreateNormalPopup = async () => {
+    if (!popTitle.trim()) {
+      Alert.alert('Incomplete Form', 'Please enter a title for the popup.');
       return;
     }
 
-    setSubmitting(true);
+    setCreatingPopup(true);
+    const daysNum = parseInt(popExpiryDays, 10) || 7;
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + daysNum);
 
-    const totalRoomsNum = parseInt(totalRooms, 10) || 10;
-    const availableRoomsNum = parseInt(availableRooms, 10) || totalRoomsNum;
-    const isVacant = availableRoomsNum > 0;
-
-    const housePayload: IHouse = {
-      _id: `house_${Date.now()}`,
-      landlordId: user?._id || 'landlord_1',
-      title: newTitle.trim(),
-      description: newDesc.trim() || 'Modern student apartment near Moi University campus.',
-      propertyType: newType,
-      location: newLocation as any,
-      locationName: `📍 ${newLocation} (Near Stage)`,
-      monthlyRent: parseInt(newRent, 10) || 4500,
-      pricePerMonth: parseInt(newRent, 10) || 4500,
-      deposit: parseInt(newDeposit, 10) || parseInt(newRent, 10) || 4500,
-      totalRooms: totalRoomsNum,
-      availableRooms: availableRoomsNum,
-      phoneContact: phoneContact.trim() || '0712345678',
-      whatsappContact: whatsappContact.trim() || '254712345678',
-      amenities: ['📶 Fiber WiFi', '💧 Water 24/7', '🔒 Gate Security', '⚡ Prepaid Tokens'],
-      photos: [newPhoto],
-      status: isVacant ? 'available' : 'occupied',
-      occupancyStatus: isVacant ? 'available' : 'occupied',
-      isVerified: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+    const payload = {
+      type: 'normal',
+      title: popTitle.trim(),
+      subtitle: popSubtitle.trim(),
+      body: popBody.trim(),
+      imageUrl: popImage.trim(),
+      hasCancelButton: popCancel,
+      actionTarget: popActionTarget,
+      actionButtonText: popActionText.trim() || 'Explore',
+      targetAudience: popAudience,
+      targetEmails: popEmails ? popEmails.split(',').map((e) => e.trim()) : [],
+      expiresAt: expiryDate.toISOString()
     };
 
     try {
-      await apiRequest('/houses', {
+      const res = await apiRequest('/notify/popups', {
         method: 'POST',
-        body: JSON.stringify(housePayload)
+        body: JSON.stringify(payload)
       });
+      if (res.success) {
+        Alert.alert('Popup Created! 📢', `Broadcast created successfully with auto-incrementing ID!`);
+        fetchPopupHistory();
+      } else {
+        Alert.alert('Creation Failed', res.error || 'Could not save popup.');
+      }
     } catch (e) {
-      console.log('API fallback, saved to local state');
+      Alert.alert('Error', 'Failed to connect to backend server.');
+    }
+    setCreatingPopup(false);
+  };
+
+  const handleCreateUpdatePopup = async () => {
+    if (!upMinVersion.trim() || !upTitle.trim()) {
+      Alert.alert('Incomplete Form', 'Please enter minimum version and update title.');
+      return;
     }
 
-    setListings((prev) => [housePayload, ...prev]);
-    setSubmitting(false);
-    setShowAddModal(false);
+    setCreatingPopup(true);
+    const payload = {
+      type: 'update',
+      title: upTitle.trim().replace('{version}', upMinVersion.trim()),
+      subtitle: upSubtitle.trim().replace('{version}', upMinVersion.trim()),
+      imageUrl: upImage.trim(),
+      hasCancelButton: !upForce,
+      minAppVersion: upMinVersion.trim(),
+      playStoreUrl: upPlayStoreUrl.trim(),
+      isForceUpdate: upForce,
+      actionButtonText: 'Update via Play Store',
+      targetAudience: 'all'
+    };
 
-    // Reset form
-    setNewTitle('');
-    setNewDesc('');
-    setNewRent('');
-    setNewDeposit('');
+    try {
+      const res = await apiRequest('/notify/popups', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.success) {
+        Alert.alert('Update Broadcast Created! 🚀', `App version update popup for v${upMinVersion} broadcasted successfully!`);
+        fetchPopupHistory();
+      } else {
+        Alert.alert('Creation Failed', res.error || 'Could not save update broadcast.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to connect to backend server.');
+    }
+    setCreatingPopup(false);
+  };
 
-    Alert.alert('Apartment Listed! 🏢', `"${housePayload.title}" with ${housePayload.availableRooms} vacant rooms is now active!`);
+  const handleDeletePopup = async (popupId: string) => {
+    Alert.alert(
+      'Remove Popup',
+      `Are you sure you want to remove popup "${popupId}" from active history?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiRequest(`/notify/popups/${popupId}`, { method: 'DELETE' });
+              fetchPopupHistory();
+            } catch (e) {
+              Alert.alert('Error', 'Could not remove popup.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Quick helper to insert magic variables into inputs
+  const insertMagicVariable = (variableStr: string, field: 'title' | 'sub' | 'body') => {
+    if (field === 'title') setPopTitle((prev) => `${prev} ${variableStr}`.trim());
+    if (field === 'sub') setPopSubtitle((prev) => `${prev} ${variableStr}`.trim());
+    if (field === 'body') setPopBody((prev) => `${prev} ${variableStr}`.trim());
   };
 
   return (
@@ -271,8 +287,8 @@ export default function LandlordPortalScreen() {
           <ArrowLeftIcon color="#ffffff" size={20} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>Landlord Management Portal</Text>
-          <Text style={styles.headerSub}>🔒 Ultimate Secure Verification</Text>
+          <Text style={styles.headerTitle}>MoiConnect Admin & Landlord Portal</Text>
+          <Text style={styles.headerSub}>🔒 Ultimate Secure Management</Text>
         </View>
         <View style={{ width: 36 }} />
       </View>
@@ -287,7 +303,7 @@ export default function LandlordPortalScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.securityTitle}>In-Person Admin Account Verification</Text>
               <Text style={styles.securitySub}>
-                To prevent fraud and fake property listings, landlord accounts are verified by Housing Admin.
+                To prevent fraud, landlord listings and broadcast notifications require authentication.
               </Text>
             </View>
           </View>
@@ -297,7 +313,7 @@ export default function LandlordPortalScreen() {
             <Text style={styles.formSubtitle}>Input your official MID, Serial, and Security Key:</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>1. Landlord MID (Merchant ID) <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.inputLabel}>1. Landlord / Admin MID <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. LL-8842-MOI"
@@ -309,7 +325,7 @@ export default function LandlordPortalScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>2. Landlord Hardware Serial <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.inputLabel}>2. Hardware Serial Number <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. SN-9920-KESSES"
@@ -321,313 +337,498 @@ export default function LandlordPortalScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>3. Landlord Security Passcode <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.inputLabel}>3. Security Master Key <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. KEY-7714-X"
+                placeholder="••••••••••••••••"
                 placeholderTextColor="#94a3b8"
                 value={securityKey}
                 onChangeText={setSecurityKey}
                 secureTextEntry
-                autoCapitalize="characters"
               />
             </View>
 
             <TouchableOpacity
-              style={styles.demoKeyBtn}
-              onPress={handleFillDemoKeys}
-              onLongPress={handleLongPressAuthorize}
-              delayLongPress={5000}
-              activeOpacity={0.7}
-            >
-              <KeyIcon color="#15803d" size={14} />
-              <Text style={styles.demoKeyText}>Auto-fill Authorized Landlord Credentials</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.verifyBtn, verifying && styles.verifyBtnDisabled]}
-              onPress={handleVerifyCredentials}
-              onLongPress={handleLongPressAuthorize}
-              delayLongPress={5000}
+              style={styles.verifyBtn}
+              onPress={handleAuthenticate}
               disabled={verifying}
-              activeOpacity={0.88}
+              activeOpacity={0.85}
             >
               {verifying ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <>
-                  <ShieldCheckIcon color="#ffffff" size={20} style={{ marginRight: 8 }} />
-                  <Text style={styles.verifyBtnText}>Authenticate & Enter Landlord Portal</Text>
+                  <KeyIcon color="#ffffff" size={18} style={{ marginRight: 6 }} />
+                  <Text style={styles.verifyBtnText}>Authenticate & Enter Portal</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
         </ScrollView>
       ) : (
-        /* STEP 2: VERIFIED LANDLORD MANAGEMENT DASHBOARD */
+        /* STEP 2: VERIFIED DASHBOARD WITH NOTIFY TAB */
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          {/* Verified Landlord Profile Card */}
-          <View style={styles.landlordBadgeCard}>
-            <View style={styles.landlordBadgeHeader}>
-              <View style={styles.verifiedAvatar}>
-                <HouseIcon color="#15803d" size={24} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.landlordName}>{user?.name || 'Moi Verified Landlord'}</Text>
-                <Text style={styles.landlordMeta}>MID: {landlordMID || 'LL-8842-MOI'} • Serial: {landlordSerial || 'SN-9920'}</Text>
-              </View>
-              <View style={styles.verifiedTag}>
-                <Text style={styles.verifiedTagText}>🟢 Verified Active</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Stats Summary Bar */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{listings.length}</Text>
-              <Text style={styles.statLabel}>Apartments</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>
-                {listings.reduce((acc, h) => acc + (h.availableRooms !== undefined ? h.availableRooms : (h.occupancyStatus === 'available' ? 1 : 0)), 0)}
-              </Text>
-              <Text style={styles.statLabel}>Vacant Rooms</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>18</Text>
-              <Text style={styles.statLabel}>Student Contacts</Text>
-            </View>
-          </View>
-
-          {/* Section Header */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>My Apartment Buildings</Text>
+          {/* Main Top Navigation Tabs (Listings vs Notify) */}
+          <View style={styles.mainTabSwitchRow}>
             <TouchableOpacity
-              style={styles.addHouseBtn}
-              onPress={() => setShowAddModal(true)}
-              activeOpacity={0.8}
+              style={[styles.mainTabBtn, portalTab === 'listings' && styles.mainTabBtnActive]}
+              onPress={() => setPortalTab('listings')}
             >
-              <PlusIcon color="#ffffff" size={16} style={{ marginRight: 4 }} />
-              <Text style={styles.addHouseBtnText}>Add New Apartment</Text>
+              <HouseIcon color={portalTab === 'listings' ? '#ffffff' : '#64748b'} size={18} />
+              <Text style={[styles.mainTabText, portalTab === 'listings' && styles.mainTabTextActive]}>
+                Apartment Buildings
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.mainTabBtn, portalTab === 'notify' && styles.mainTabBtnActiveNotify]}
+              onPress={() => setPortalTab('notify')}
+            >
+              <SparklesIcon color={portalTab === 'notify' ? '#ffffff' : '#2563eb'} size={18} />
+              <Text style={[styles.mainTabText, portalTab === 'notify' && styles.mainTabTextActive]}>
+                Notify (Popups & Updates)
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Apartment Building Cards with Smart Quick Controls */}
-          {listings.map((house) => {
-            const avail = house.availableRooms !== undefined ? house.availableRooms : (house.occupancyStatus === 'available' ? 1 : 0);
-            const total = house.totalRooms || 10;
-            const isFullyBooked = avail === 0;
-
-            return (
-              <View key={house._id} style={styles.houseCard}>
-                {/* Thumbnail Image Header */}
-                <View style={styles.cardImageHeader}>
-                  <Image
-                    source={{ uri: house.photos[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80' }}
-                    style={styles.cardThumbnail}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.priceBadgeOverlay}>
-                    <Text style={styles.priceBadgeText}>KES {house.monthlyRent.toLocaleString()}/mo</Text>
+          {portalTab === 'listings' ? (
+            /* LISTINGS SECTION */
+            <>
+              {/* Verified Landlord Profile Card */}
+              <View style={styles.landlordBadgeCard}>
+                <View style={styles.landlordBadgeHeader}>
+                  <View style={styles.verifiedAvatar}>
+                    <HouseIcon color="#15803d" size={24} />
                   </View>
-                  <View style={[styles.stockBadgeOverlay, isFullyBooked ? styles.stockBadgeFull : styles.stockBadgeVacant]}>
-                    <Text style={styles.stockBadgeText}>
-                      {isFullyBooked ? '🔴 Fully Booked' : `🟢 ${avail} Vacant Rooms`}
-                    </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.landlordName}>{user?.name || 'Moi Verified Admin'}</Text>
+                    <Text style={styles.landlordMeta}>MID: {landlordMID || 'LL-8842-MOI'} • Serial: {landlordSerial || 'SN-9920'}</Text>
                   </View>
-                </View>
-
-                {/* Card Info Content */}
-                <View style={styles.cardBody}>
-                  <Text style={styles.houseTitle}>{house.title}</Text>
-                  <Text style={styles.houseMeta}>{house.locationName || `📍 ${house.location}`}</Text>
-                  <Text style={styles.houseDesc} numberOfLines={2}>{house.description}</Text>
-
-                  {/* Contacts Row */}
-                  <View style={styles.contactsRow}>
-                    <View style={styles.contactChip}>
-                      <PhoneIcon color="#15803d" size={12} />
-                      <Text style={styles.contactChipText}>{house.phoneContact || '0712345678'}</Text>
-                    </View>
-                    <View style={styles.whatsappChip}>
-                      <Text style={{ fontSize: 12 }}>💬</Text>
-                      <Text style={styles.whatsappChipText}>WhatsApp: {house.whatsappContact || '254712345678'}</Text>
-                    </View>
-                  </View>
-
-                  {/* SMART ROOM STOCK STEPPER CONTROL BAR */}
-                  <View style={styles.stepperContainer}>
-                    <Text style={styles.stepperLabel}>Manage Vacant Rooms:</Text>
-                    <View style={styles.stepperRow}>
-                      <TouchableOpacity
-                        style={[styles.stepBtn, styles.stepBtnMinus, avail === 0 && styles.stepBtnDisabled]}
-                        onPress={() => handleDecrementRooms(house._id)}
-                        disabled={avail === 0}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.stepBtnText}>-</Text>
-                      </TouchableOpacity>
-
-                      <View style={styles.stepCountBox}>
-                        <Text style={[styles.stepCountText, isFullyBooked ? styles.stepCountFull : styles.stepCountVacant]}>
-                          {avail} / {total} Vacant
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.stepBtn, styles.stepBtnPlus]}
-                        onPress={() => handleIncrementRooms(house._id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.stepBtnText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View style={styles.verifiedTag}>
+                    <Text style={styles.verifiedTagText}>🟢 Verified Active</Text>
                   </View>
                 </View>
               </View>
-            );
-          })}
+
+              {/* Stats Summary Bar */}
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>{listings.length}</Text>
+                  <Text style={styles.statLabel}>Apartments</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>
+                    {listings.reduce((acc, h) => acc + (h.availableRooms !== undefined ? h.availableRooms : (h.occupancyStatus === 'available' ? 1 : 0)), 0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Vacant Rooms</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>18</Text>
+                  <Text style={styles.statLabel}>Student Contacts</Text>
+                </View>
+              </View>
+
+              {/* Section Header */}
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>My Apartment Buildings</Text>
+                <TouchableOpacity
+                  style={styles.addHouseBtn}
+                  onPress={() => setShowAddModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <PlusIcon color="#ffffff" size={16} style={{ marginRight: 4 }} />
+                  <Text style={styles.addHouseBtnText}>Add New Apartment</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Apartment Cards */}
+              {listings.map((house) => {
+                const avail = house.availableRooms !== undefined ? house.availableRooms : (house.occupancyStatus === 'available' ? 1 : 0);
+                return (
+                  <View key={house._id} style={styles.houseCard}>
+                    <View style={styles.cardImageHeader}>
+                      <Image source={{ uri: house.photos[0] }} style={styles.cardThumbnail} resizeMode="cover" />
+                      <View style={styles.locationBadge}>
+                        <Text style={styles.locationBadgeText}>{house.locationName || house.location}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.houseCardBody}>
+                      <Text style={styles.houseTitle}>{house.title}</Text>
+                      <Text style={styles.housePrice}>KSh {house.monthlyRent || house.pricePerMonth} / month</Text>
+
+                      <View style={styles.contactRow}>
+                        <View style={styles.contactChip}>
+                          <PhoneIcon color="#334155" size={12} />
+                          <Text style={styles.contactChipText}>{house.phoneContact}</Text>
+                        </View>
+                        <View style={styles.whatsappChip}>
+                          <Text style={styles.whatsappChipText}>💬 {house.whatsappContact}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </>
+          ) : (
+            /* NOTIFY TAB SECTION (POPUP & UPDATE CREATION) */
+            <View style={styles.notifyContainer}>
+              {/* Notify Sub Tabs */}
+              <View style={styles.subTabRow}>
+                <TouchableOpacity
+                  style={[styles.subTabBtn, notifySubTab === 'normal' && styles.subTabBtnActive]}
+                  onPress={() => setNotifySubTab('normal')}
+                >
+                  <Text style={[styles.subTabText, notifySubTab === 'normal' && styles.subTabTextActive]}>
+                    📢 Normal Popup
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.subTabBtn, notifySubTab === 'update' && styles.subTabBtnActiveUpdate]}
+                  onPress={() => setNotifySubTab('update')}
+                >
+                  <Text style={[styles.subTabText, notifySubTab === 'update' && styles.subTabTextActive]}>
+                    🚀 App Update Popup
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {notifySubTab === 'normal' ? (
+                /* NORMAL POPUP FORM */
+                <View style={styles.notifyFormCard}>
+                  <Text style={styles.notifyFormTitle}>Broadcast In-App Normal Popup</Text>
+                  <Text style={styles.notifyFormSubtitle}>
+                    Create a zero-lag announcement popup displayed to users on app launch.
+                  </Text>
+
+                  {/* Magic Line Placeholders Helper */}
+                  <View style={styles.magicLineBox}>
+                    <Text style={styles.magicLineHeader}>✨ Insert Magic Personalization Lines:</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                      <TouchableOpacity
+                        style={styles.magicChip}
+                        onPress={() => insertMagicVariable('{name}', 'title')}
+                      >
+                        <Text style={styles.magicChipText}>+ {"{name}"} (Student Name)</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.magicChip}
+                        onPress={() => insertMagicVariable('{course}', 'sub')}
+                      >
+                        <Text style={styles.magicChipText}>+ {"{course}"} (Student Course)</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Popup Title <Text style={styles.required}>*</Text></Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Welcome {name} to MoiConnect!"
+                      placeholderTextColor="#94a3b8"
+                      value={popTitle}
+                      onChangeText={setPopTitle}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Subtitle</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Access latest study summaries for {course}."
+                      placeholderTextColor="#94a3b8"
+                      value={popSubtitle}
+                      onChangeText={setPopSubtitle}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Body Content Description</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      placeholder="Detailed text description inside the popup..."
+                      placeholderTextColor="#94a3b8"
+                      multiline
+                      value={popBody}
+                      onChangeText={setPopBody}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Header Image Banner URL</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="https://..."
+                      placeholderTextColor="#94a3b8"
+                      value={popImage}
+                      onChangeText={setPopImage}
+                    />
+                  </View>
+
+                  {/* Smart Action Destination Discs/Chips Selector */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Smart Action Destination (Discs / Chips)</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+                      {[
+                        { target: '/notes', label: 'Notes PDF 📄' },
+                        { target: '/past-papers', label: 'Past Papers 📑' },
+                        { target: '/cat-papers', label: 'CAT Papers 📝' },
+                        { target: '/community', label: 'Community Chat 💬' },
+                        { target: '/rentals', label: 'Rentals Marketplace 🏠' },
+                        { target: '/contribute', label: 'Upload Materials 📤' },
+                        { target: '/login', label: 'Sign In Page 🔑' }
+                      ].map((item) => {
+                        const isSel = popActionTarget === item.target;
+                        return (
+                          <TouchableOpacity
+                            key={item.target}
+                            style={[styles.smartChip, isSel && styles.smartChipActive]}
+                            onPress={() => setPopActionTarget(item.target)}
+                          >
+                            <Text style={[styles.smartChipText, isSel && styles.smartChipTextActive]}>
+                              {item.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Action Button Label Text</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Explore Notes"
+                      placeholderTextColor="#94a3b8"
+                      value={popActionText}
+                      onChangeText={setPopActionText}
+                    />
+                  </View>
+
+                  {/* Target Audience Selector */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Target Audience</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {[
+                        { id: 'all', label: 'All Users 🌐' },
+                        { id: 'unauthenticated', label: 'Guests Only 👤' },
+                        { id: 'emails', label: 'Email List 📧' }
+                      ].map((aud) => {
+                        const isSel = popAudience === aud.id;
+                        return (
+                          <TouchableOpacity
+                            key={aud.id}
+                            style={[styles.audChip, isSel && styles.audChipActive]}
+                            onPress={() => setPopAudience(aud.id as any)}
+                          >
+                            <Text style={[styles.audChipText, isSel && styles.audChipTextActive]}>
+                              {aud.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {popAudience === 'emails' && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Recipient Emails (Comma-separated)</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="student1@moi.ac.ke, student2@gmail.com"
+                        placeholderTextColor="#94a3b8"
+                        value={popEmails}
+                        onChangeText={setPopEmails}
+                      />
+                    </View>
+                  )}
+
+                  {/* Cancel Button Checkbox */}
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setPopCancel(!popCancel)}
+                  >
+                    <View style={[styles.checkbox, popCancel && styles.checkboxChecked]}>
+                      {popCancel && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Include Cancel / Dismiss Button</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.createNotifyBtn}
+                    onPress={handleCreateNormalPopup}
+                    disabled={creatingPopup}
+                    activeOpacity={0.88}
+                  >
+                    {creatingPopup ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <>
+                        <SparklesIcon color="#ffffff" size={16} style={{ marginRight: 6 }} />
+                        <Text style={styles.createNotifyBtnText}>Broadcast Normal Popup</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* UPDATE POPUP FORM */
+                <View style={styles.notifyFormCard}>
+                  <Text style={styles.notifyFormTitle}>Broadcast App Update Popup</Text>
+                  <Text style={styles.notifyFormSubtitle}>
+                    Push mandatory or optional version update prompts to users whose app version is outdated.
+                  </Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Minimum Required App Version <Text style={styles.required}>*</Text></Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. 1.0.7"
+                      placeholderTextColor="#94a3b8"
+                      value={upMinVersion}
+                      onChangeText={setUpMinVersion}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Update Title</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. MoiConnect v1.0.7 Available!"
+                      placeholderTextColor="#94a3b8"
+                      value={upTitle}
+                      onChangeText={setUpTitle}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Update Subtitle / Description</Text>
+                    <TextInput
+                      style={[styles.textInput, { height: 60 }]}
+                      placeholder="Update description..."
+                      placeholderTextColor="#94a3b8"
+                      multiline
+                      value={upSubtitle}
+                      onChangeText={setUpSubtitle}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Google Play Store URL</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="https://play.google.com/store/apps/details?id=..."
+                      placeholderTextColor="#94a3b8"
+                      value={upPlayStoreUrl}
+                      onChangeText={setUpPlayStoreUrl}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setUpForce(!upForce)}
+                  >
+                    <View style={[styles.checkbox, upForce && styles.checkboxChecked]}>
+                      {upForce && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Force Update (Mandatory, non-dismissible)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.createNotifyBtn, { backgroundColor: '#2563eb' }]}
+                    onPress={handleCreateUpdatePopup}
+                    disabled={creatingPopup}
+                    activeOpacity={0.88}
+                  >
+                    {creatingPopup ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <>
+                        <DownloadIcon color="#ffffff" size={16} style={{ marginRight: 6 }} />
+                        <Text style={styles.createNotifyBtnText}>Broadcast Version Update</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* POPUP HISTORY LIST */}
+              <View style={styles.historyContainer}>
+                <Text style={styles.historyTitle}>Active Popups & Broadcast History</Text>
+                {loadingHistory ? (
+                  <ActivityIndicator color="#15803d" size="small" style={{ marginVertical: 10 }} />
+                ) : popupsHistory.length === 0 ? (
+                  <Text style={styles.emptyHistoryText}>No active or past popups yet.</Text>
+                ) : (
+                  popupsHistory.map((item) => (
+                    <View key={item._id} style={styles.historyCard}>
+                      <View style={styles.historyHeader}>
+                        <View style={styles.historyIdTag}>
+                          <Text style={styles.historyIdText}>{item.popupId || 'POPUP-0000'}</Text>
+                        </View>
+                        <Text style={styles.historyTypeTag}>{item.type.toUpperCase()}</Text>
+                        <TouchableOpacity onPress={() => handleDeletePopup(item._id)}>
+                          <TrashIcon color="#ef4444" size={16} />
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.historyTitleText}>{item.title}</Text>
+                      {!!item.subtitle && <Text style={styles.historySubText}>{item.subtitle}</Text>}
+                      <View style={styles.historyMetaRow}>
+                        <Text style={styles.historyMetaText}>Target: {item.actionTarget || 'N/A'}</Text>
+                        <Text style={styles.historyMetaText}>Audience: {item.targetAudience}</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+          )}
         </ScrollView>
       )}
 
-      {/* Add New Apartment Building Modal */}
+      {/* Add Apartment Modal */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Apartment Building</Text>
+              <Text style={styles.modalTitle}>List New Apartment</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Text style={{ color: '#ef4444', fontWeight: '800', fontSize: 16 }}>✕</Text>
+                <CloseIcon color="#ef4444" size={20} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Apartment / Hostel Name <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.inputLabel}>Apartment Building Name <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. Kesses Sunrise Executive Hostels"
+                placeholder="e.g. Kesses Sunrise Hostels"
                 placeholderTextColor="#94a3b8"
                 value={newTitle}
                 onChangeText={setNewTitle}
               />
             </View>
 
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Location Stage</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="e.g. Kesses / Stage"
-                  placeholderTextColor="#94a3b8"
-                  value={newLocation}
-                  onChangeText={setNewLocation}
-                />
-              </View>
-
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Room Price/mo (KES) <Text style={styles.required}>*</Text></Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="4800"
-                  placeholderTextColor="#94a3b8"
-                  value={newRent}
-                  onChangeText={setNewRent}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            {/* Room Stock Numbers Row */}
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Total Rooms in Building</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="12"
-                  placeholderTextColor="#94a3b8"
-                  value={totalRooms}
-                  onChangeText={setTotalRooms}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Rooms Vacant Right Now</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="8"
-                  placeholderTextColor="#94a3b8"
-                  value={availableRooms}
-                  onChangeText={setAvailableRooms}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            {/* Contact Information Row */}
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Direct Phone Contact</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="0712345678"
-                  placeholderTextColor="#94a3b8"
-                  value={phoneContact}
-                  onChangeText={setPhoneContact}
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>WhatsApp Contact Number</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="254712345678"
-                  placeholderTextColor="#94a3b8"
-                  value={whatsappContact}
-                  onChangeText={setWhatsappContact}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Cover Photo Thumbnail Image URL</Text>
+              <Text style={styles.inputLabel}>Monthly Rent (KSh) <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="https://images.unsplash.com/..."
+                placeholder="e.g. 4800"
                 placeholderTextColor="#94a3b8"
-                value={newPhoto}
-                onChangeText={setNewPhoto}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Apartment Description & Amenities</Text>
-              <TextInput
-                style={[styles.textInput, { height: 70 }]}
-                placeholder="Fitted kitchen, 24/7 borehole water, fiber Wi-Fi..."
-                placeholderTextColor="#94a3b8"
-                value={newDesc}
-                onChangeText={setNewDesc}
-                multiline
+                keyboardType="numeric"
+                value={newRent}
+                onChangeText={setNewRent}
               />
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, submitting && styles.verifyBtnDisabled]}
+              style={styles.submitBtn}
               onPress={handleCreateListingSubmit}
               disabled={submitting}
-              activeOpacity={0.88}
             >
               {submitting ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
-                <>
-                  <PlusIcon color="#ffffff" size={18} style={{ marginRight: 6 }} />
-                  <Text style={styles.submitBtnText}>Save Apartment Building</Text>
-                </>
+                <Text style={styles.submitBtnText}>Publish Apartment Listing</Text>
               )}
             </TouchableOpacity>
           </ScrollView>
@@ -640,36 +841,35 @@ export default function LandlordPortalScreen() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc'
+    backgroundColor: '#0f172a'
   },
   headerBar: {
-    height: 56,
-    backgroundColor: '#15803d',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16
+    backgroundColor: '#15803d',
+    paddingHorizontal: 16,
+    paddingVertical: 12
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center'
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)'
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#ffffff'
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800'
   },
   headerSub: {
-    fontSize: 11,
     color: '#dcfce7',
-    fontWeight: '600'
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1
   },
   container: {
-    flex: 1
+    flex: 1,
+    backgroundColor: '#f8fafc'
   },
   content: {
     padding: 16,
@@ -678,13 +878,13 @@ const styles = StyleSheet.create({
   securityBannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#dcfce7',
+    gap: 14,
+    backgroundColor: '#f0fdf4',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
-    gap: 12
+    borderColor: '#bbf7d0'
   },
   shieldCircle: {
     width: 52,
@@ -695,14 +895,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   securityTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#14532d',
-    marginBottom: 4
+    color: '#15803d',
+    marginBottom: 2
   },
   securitySub: {
     fontSize: 12,
-    color: '#166534',
+    color: '#334155',
     lineHeight: 17
   },
   formCard: {
@@ -710,14 +910,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    elevation: 3
+    borderColor: '#e2e8f0'
   },
   formTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 4
+    marginBottom: 2
   },
   formSubtitle: {
     fontSize: 12,
@@ -738,47 +937,60 @@ const styles = StyleSheet.create({
   },
   textInput: {
     backgroundColor: '#f8fafc',
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
-  } as any,
-  demoKeyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f0fdf4',
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    marginBottom: 16
-  },
-  demoKeyText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#15803d'
+    fontSize: 14,
+    color: '#0f172a'
   },
   verifyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#15803d',
-    borderRadius: 14,
-    paddingVertical: 15,
-    marginTop: 6
-  },
-  verifyBtnDisabled: {
-    opacity: 0.6
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 10
   },
   verifyBtnText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  mainTabSwitchRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16
+  },
+  mainTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  mainTabBtnActive: {
+    backgroundColor: '#15803d',
+    borderColor: '#15803d'
+  },
+  mainTabBtnActiveNotify: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb'
+  },
+  mainTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569'
+  },
+  mainTabTextActive: {
+    color: '#ffffff',
     fontWeight: '800'
   },
   landlordBadgeCard: {
@@ -787,8 +999,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    elevation: 2
+    borderColor: '#e2e8f0'
   },
   landlordBadgeHeader: {
     flexDirection: 'row',
@@ -809,51 +1020,49 @@ const styles = StyleSheet.create({
     color: '#0f172a'
   },
   landlordMeta: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2
+    fontSize: 12,
+    color: '#64748b'
   },
   verifiedTag: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#f0fdf4',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 10
+    borderRadius: 8
   },
   verifiedTagText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#15803d'
   },
   statsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20
+    marginBottom: 16
   },
   statBox: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e2e8f0'
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#15803d'
   },
   statLabel: {
     fontSize: 11,
-    color: '#64748b',
     fontWeight: '600',
-    marginTop: 2
+    color: '#64748b'
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14
+    marginBottom: 12
   },
   sectionTitle: {
     fontSize: 17,
@@ -876,79 +1085,52 @@ const styles = StyleSheet.create({
   houseCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    marginBottom: 14,
     overflow: 'hidden',
-    elevation: 3
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
   },
   cardImageHeader: {
-    height: 140,
+    height: 120,
     width: '100%',
-    position: 'relative',
-    backgroundColor: '#0f172a'
+    position: 'relative'
   },
   cardThumbnail: {
     width: '100%',
     height: '100%'
   },
-  priceBadgeOverlay: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    backgroundColor: '#15803d',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10
-  },
-  priceBadgeText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900'
-  },
-  stockBadgeOverlay: {
+  locationBadge: {
     position: 'absolute',
     top: 10,
-    right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10
+    left: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6
   },
-  stockBadgeVacant: {
-    backgroundColor: '#dcfce7'
-  },
-  stockBadgeFull: {
-    backgroundColor: '#fee2e2'
-  },
-  stockBadgeText: {
+  locationBadgeText: {
+    color: '#ffffff',
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '700'
   },
-  cardBody: {
-    padding: 16
+  houseCardBody: {
+    padding: 14
   },
   houseTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 2
+    marginBottom: 4
   },
-  houseMeta: {
-    fontSize: 12,
+  housePrice: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#15803d',
-    marginBottom: 6
+    marginBottom: 8
   },
-  houseDesc: {
-    fontSize: 13,
-    color: '#475569',
-    lineHeight: 18,
-    marginBottom: 10
-  },
-  contactsRow: {
+  contactRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14
+    gap: 8
   },
   contactChip: {
     flexDirection: 'row',
@@ -965,9 +1147,6 @@ const styles = StyleSheet.create({
     color: '#334155'
   },
   whatsappChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     backgroundColor: '#dcfce7',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -978,60 +1157,234 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#15803d'
   },
-  stepperContainer: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 12,
+  /* Notify Tab Styles */
+  notifyContainer: {
+    gap: 16
+  },
+  subTabRow: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  subTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0'
   },
-  stepperLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#334155',
-    marginBottom: 8
+  subTabBtnActive: {
+    backgroundColor: '#15803d',
+    borderColor: '#15803d'
   },
-  stepperRow: {
+  subTabBtnActiveUpdate: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb'
+  },
+  subTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569'
+  },
+  subTabTextActive: {
+    color: '#ffffff',
+    fontWeight: '800'
+  },
+  notifyFormCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  notifyFormTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2
+  },
+  notifyFormSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 14
+  },
+  magicLineBox: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#bfdbfe'
+  },
+  magicLineHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1e40af'
+  },
+  magicChip: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#93c5fd'
+  },
+  magicChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563eb'
+  },
+  smartChip: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#cbd5e1'
+  },
+  smartChipActive: {
+    backgroundColor: '#15803d',
+    borderColor: '#15803d'
+  },
+  smartChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155'
+  },
+  smartChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '800'
+  },
+  audChip: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1'
+  },
+  audChipActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb'
+  },
+  audChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155'
+  },
+  audChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '800'
+  },
+  checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12
+    gap: 8,
+    marginVertical: 10
   },
-  stepBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  checkboxChecked: {
+    backgroundColor: '#15803d',
+    borderColor: '#15803d'
+  },
+  checkboxLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155'
+  },
+  createNotifyBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2
+    backgroundColor: '#15803d',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 10
   },
-  stepBtnMinus: {
-    backgroundColor: '#fee2e2'
-  },
-  stepBtnPlus: {
-    backgroundColor: '#dcfce7'
-  },
-  stepBtnDisabled: {
-    opacity: 0.4
-  },
-  stepBtnText: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#0f172a'
-  },
-  stepCountBox: {
-    flex: 1,
-    alignItems: 'center'
-  },
-  stepCountText: {
+  createNotifyBtnText: {
+    color: '#ffffff',
     fontSize: 14,
-    fontWeight: '900'
+    fontWeight: '800'
   },
-  stepCountVacant: {
-    color: '#15803d'
+  historyContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
   },
-  stepCountFull: {
-    color: '#dc2626'
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 12
   },
+  emptyHistoryText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontStyle: 'italic'
+  },
+  historyCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6
+  },
+  historyIdTag: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  historyIdText: {
+    color: '#38bdf8',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  historyTypeTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2563eb'
+  },
+  historyTitleText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2
+  },
+  historySubText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 6
+  },
+  historyMetaRow: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  historyMetaText: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500'
+  },
+  /* Modals */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1059,10 +1412,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     color: '#0f172a'
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 10
   },
   submitBtn: {
     flexDirection: 'row',

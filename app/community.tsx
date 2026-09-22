@@ -89,13 +89,13 @@ function SwipeableMessageItem({
           toValue: 0,
           friction: 7,
           tension: 90,
-          useNativeDriver: true
+          useNativeDriver: Platform.OS !== 'web'
         }).start();
       },
       onPanResponderTerminate: () => {
         Animated.spring(panX, {
           toValue: 0,
-          useNativeDriver: true
+          useNativeDriver: Platform.OS !== 'web'
         }).start();
       }
     })

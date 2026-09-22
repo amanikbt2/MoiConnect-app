@@ -496,12 +496,12 @@ function ShimmerGridLoader({ title }: { title?: string }) {
         Animated.timing(fadeAnim, {
           toValue: 0.95,
           duration: 650,
-          useNativeDriver: true
+          useNativeDriver: Platform.OS !== 'web'
         }),
         Animated.timing(fadeAnim, {
           toValue: 0.35,
           duration: 650,
-          useNativeDriver: true
+          useNativeDriver: Platform.OS !== 'web'
         })
       ])
     );

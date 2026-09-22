@@ -39,6 +39,13 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="faq" options={{ headerShown: false }} />
+          <Stack.Screen name="privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="past-papers" options={{ headerShown: false }} />
+          <Stack.Screen name="cat-papers" options={{ headerShown: false }} />
+          <Stack.Screen name="contribute" options={{ headerShown: false }} />
+          <Stack.Screen name="community" options={{ headerShown: false }} />
+          <Stack.Screen name="landlord-portal" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/login" options={{ presentation: 'modal' }} />
           <Stack.Screen name="(auth)/register" options={{ presentation: 'modal' }} />
           <Stack.Screen name="(auth)/request-landlord" options={{ presentation: 'modal' }} />

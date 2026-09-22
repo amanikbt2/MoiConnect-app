@@ -3,11 +3,8 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
-  Modal,
-  View,
-  TextInput,
-  Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -18,6 +15,7 @@ import { config } from '../config';
 WebBrowser.maybeCompleteAuthSession();
 
 const SAVED_CLIENT_ID_KEY = 'google_oauth_client_id_config';
+const DEFAULT_GOOGLE_CLIENT_ID = '603126830727-v90nkg959l8f6h9t8l8n14i7i1n7o2b3.apps.googleusercontent.com';
 
 interface GoogleAuthButtonProps {
   onSuccess: () => void;
@@ -37,10 +35,8 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   googleLogin
 }) => {
   const [clientId, setClientId] = useState<string>(
-    config.google.webClientId || config.google.androidClientId || ''
+    config.google.webClientId || config.google.androidClientId || DEFAULT_GOOGLE_CLIENT_ID
   );
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [inputClientId, setInputClientId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -52,18 +48,22 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       const saved = await SecureStore.getItemAsync(SAVED_CLIENT_ID_KEY);
       if (saved) {
         setClientId(saved);
-        setInputClientId(saved);
       }
     } catch (e) {
       // ignore
     }
   };
 
+  const activeClientId = clientId || config.google.webClientId || DEFAULT_GOOGLE_CLIENT_ID;
+
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: clientId || config.google.androidClientId || 'PLACEHOLDER_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-    iosClientId: clientId || config.google.iosClientId || 'PLACEHOLDER_IOS_CLIENT_ID.apps.googleusercontent.com',
-    webClientId: clientId || config.google.webClientId || 'PLACEHOLDER_WEB_CLIENT_ID.apps.googleusercontent.com',
-    clientId: clientId || config.google.webClientId || 'PLACEHOLDER_CLIENT_ID.apps.googleusercontent.com'
+    androidClientId: activeClientId,
+    iosClientId: activeClientId,
+    webClientId: activeClientId,
+    clientId: activeClientId,
+    extraParams: {
+      prompt: 'select_account'
+    }
   });
 
   useEffect(() => {
@@ -113,103 +113,87 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         setLoading(false);
       }
     } else if (response.type === 'error') {
+      setLoading(false);
       onError('Google sign-in was cancelled or encountered an error.');
+    } else {
+      setLoading(false);
     }
   };
 
   const handlePress = async () => {
-    if (!clientId && !config.google.webClientId && !config.google.androidClientId) {
-      // Open credentials configuration modal if no Client ID set yet
-      setShowConfigModal(true);
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await promptAsync();
-      if (res?.type !== 'success') {
-        setLoading(false);
+      // Launch standard Google Account Chooser sheet directly
+      if (promptAsync) {
+        const res = await promptAsync();
+        if (res?.type !== 'success') {
+          setLoading(false);
+        }
+      } else {
+        // Fallback WebBrowser OAuth prompt with prompt=select_account
+        const redirectUrl = WebBrowser.makeRedirectUri();
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+          activeClientId
+        )}&response_type=token&scope=profile%20email&redirect_uri=${encodeURIComponent(
+          redirectUrl
+        )}&prompt=select_account`;
+
+        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+        if (result.type === 'success' && result.url) {
+          const hashParams = result.url.split('#')[1] || result.url.split('?')[1] || '';
+          const params = new URLSearchParams(hashParams);
+          const accessToken = params.get('access_token');
+          const idToken = params.get('id_token');
+
+          let googleUser: any = {};
+          if (accessToken) {
+            const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (userInfoRes.ok) {
+              googleUser = await userInfoRes.json();
+            }
+          }
+
+          const res = await googleLogin({
+            idToken: idToken || undefined,
+            accessToken: accessToken || undefined,
+            email: googleUser.email,
+            name: googleUser.name,
+            avatarUrl: googleUser.picture
+          });
+
+          if (res.success) {
+            onSuccess();
+          } else {
+            onError(res.error || 'Google login failed.');
+          }
+        } else {
+          setLoading(false);
+        }
       }
     } catch (err: any) {
       setLoading(false);
-      onError(err.message || 'Could not launch Google Sign-In prompt.');
+      onError(err.message || 'Could not launch Google Sign-In chooser.');
     }
-  };
-
-  const saveClientIdAndContinue = async () => {
-    if (!inputClientId.trim()) {
-      Alert.alert('Missing Client ID', 'Please enter your Google OAuth Client ID.');
-      return;
-    }
-    const cleanId = inputClientId.trim();
-    try {
-      await SecureStore.setItemAsync(SAVED_CLIENT_ID_KEY, cleanId);
-    } catch (e) {
-      // ignore
-    }
-    setClientId(cleanId);
-    setShowConfigModal(false);
-    
-    // Launch Google OAuth
-    setTimeout(() => {
-      promptAsync();
-    }, 300);
   };
 
   return (
-    <>
-      <TouchableOpacity
-        style={styles.googleBtn}
-        onPress={handlePress}
-        disabled={loading}
-        activeOpacity={0.8}
-      >
-        {loading ? (
-          <ActivityIndicator color="#0f172a" size="small" />
-        ) : (
-          <>
-            <GoogleIcon size={20} />
-            <Text style={styles.googleBtnText}>Continue with Google</Text>
-          </>
-        )}
-      </TouchableOpacity>
-
-      {/* Modal to configure ready Google Credentials */}
-      <Modal
-        visible={showConfigModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowConfigModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>🔑 Enter Google Client ID</Text>
-            <Text style={styles.modalSub}>
-              Paste your Google OAuth Client ID (from Google Cloud Console) to activate live Google Sign-In:
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 123456789-xxx.apps.googleusercontent.com"
-              placeholderTextColor="#94a3b8"
-              value={inputClientId}
-              onChangeText={setInputClientId}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowConfigModal(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={saveClientIdAndContinue}>
-                <Text style={styles.saveBtnText}>Save & Sign In</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </>
+    <TouchableOpacity
+      style={styles.googleBtn}
+      onPress={handlePress}
+      disabled={loading}
+      activeOpacity={0.8}
+    >
+      {loading ? (
+        <ActivityIndicator color="#0f172a" size="small" />
+      ) : (
+        <>
+          <GoogleIcon size={20} />
+          <Text style={styles.googleBtnText}>Continue with Google</Text>
+        </>
+      )}
+    </TouchableOpacity>
   );
 };
 
@@ -235,74 +219,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#0f172a'
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 6
-  },
-  modalSub: {
-    fontSize: 13,
-    color: '#475569',
-    lineHeight: 18,
-    marginBottom: 16
-  },
-  input: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 13,
-    color: '#0f172a',
-    marginBottom: 18
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9'
-  },
-  cancelBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748b'
-  },
-  saveBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#15803d'
-  },
-  saveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#ffffff'
   }
 });
