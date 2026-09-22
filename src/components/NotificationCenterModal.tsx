@@ -51,14 +51,16 @@ export function NotificationCenterModal() {
     try {
       setLoading(true);
       const res = await apiRequest<{
-        success: boolean;
         unreadCount: number;
         notifications: INotificationItem[];
-      }>('/notifications', 'GET');
+      }>('/notifications', { method: 'GET' });
 
-      if (res && res.notifications) {
-        setNotifications(res.notifications);
-        setUnreadCount(res.unreadCount || 0);
+      const list = res.data?.notifications || (res as any).notifications;
+      const unread = res.data?.unreadCount ?? (res as any).unreadCount ?? 0;
+
+      if (list) {
+        setNotifications(list);
+        setUnreadCount(unread);
       }
     } catch (err) {
       console.log('Error loading notifications:', err);
@@ -70,21 +72,23 @@ export function NotificationCenterModal() {
   const fetchNotificationsSilently = async () => {
     try {
       const res = await apiRequest<{
-        success: boolean;
         unreadCount: number;
         notifications: INotificationItem[];
-      }>('/notifications', 'GET');
+      }>('/notifications', { method: 'GET' });
 
-      if (res && res.notifications) {
-        setNotifications(res.notifications);
-        setUnreadCount(res.unreadCount || 0);
+      const list = res.data?.notifications || (res as any).notifications;
+      const unread = res.data?.unreadCount ?? (res as any).unreadCount ?? 0;
+
+      if (list) {
+        setNotifications(list);
+        setUnreadCount(unread);
       }
     } catch (err) {}
   };
 
   const handleMarkRead = async (id: string) => {
     try {
-      await apiRequest(`/notifications/${id}/read`, 'POST');
+      await apiRequest(`/notifications/${id}/read`, { method: 'POST' });
       setNotifications(prev =>
         prev.map(n => (n._id === id ? { ...n, isRead: true } : n))
       );

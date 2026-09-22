@@ -675,20 +675,6 @@ export function ChevronDownIcon({ color = '#64748b', size = 18, style }: IconPro
   );
 }
 
-export function BellIcon({ color = '#15803d', size = 20, style }: IconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
-      <Path
-        d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 export function AlertTriangleIcon({ color = '#d97706', size = 20, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
@@ -733,6 +719,41 @@ export function RefreshCwIcon({ color = '#2563eb', size = 18, style }: IconProps
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
       <Path
         d="M23 4V10H17M1 20V14H7M3.51 9A9 9 0 0118.36 5.64L23 10M1 14L5.64 18.36A9 9 0 0020.49 15"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function GraduationCapIcon({ color = '#0284c7', size = 28, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M22 10V16M2 10L12 5L22 10L12 15L2 10Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M6 12.5V17.5C6 17.5 8.5 20 12 20C15.5 20 18 17.5 18 17.5V12.5"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function LaptopIcon({ color = '#059669', size = 28, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M20 16V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V16M2 16H22V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V16Z"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"

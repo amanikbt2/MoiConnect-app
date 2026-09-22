@@ -9,7 +9,8 @@ import {
   RefreshControl,
   FlatList,
   Image,
-  Dimensions
+  Dimensions,
+  Linking
 } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
@@ -26,7 +27,9 @@ import {
   DownloadIcon,
   ChevronRightIcon,
   UploadIcon,
-  NotesIcon
+  NotesIcon,
+  GraduationCapIcon,
+  LaptopIcon
 } from '../../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -332,6 +335,32 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.quickTitle}>Contribute</Text>
               <Text style={styles.quickSub}>Upload study materials</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.cardRow}>
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.7}
+              onPress={() => Linking.openURL('https://portal.mu.ac.ke')}
+            >
+              <View style={[styles.iconWrapper, { backgroundColor: '#e0f2fe' }]}>
+                <GraduationCapIcon color="#0284c7" size={28} />
+              </View>
+              <Text style={styles.quickTitle}>Student Portal</Text>
+              <Text style={styles.quickSub}>Official Moi portal</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.7}
+              onPress={() => Linking.openURL('https://musomi.mu.ac.ke')}
+            >
+              <View style={[styles.iconWrapper, { backgroundColor: '#d1fae5' }]}>
+                <LaptopIcon color="#059669" size={28} />
+              </View>
+              <Text style={styles.quickTitle}>MUSOMI E-Learning</Text>
+              <Text style={styles.quickSub}>Online portal & lectures</Text>
             </TouchableOpacity>
           </View>
         </View>

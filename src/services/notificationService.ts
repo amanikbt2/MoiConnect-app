@@ -32,9 +32,12 @@ export async function registerForPushNotificationsAsync() {
     const token = pushTokenData.data;
 
     if (token) {
-      await apiRequest('/notifications/register-token', 'POST', {
-        token,
-        platform: Platform.OS
+      await apiRequest('/notifications/register-token', {
+        method: 'POST',
+        body: JSON.stringify({
+          token,
+          platform: Platform.OS
+        })
       });
       console.log('[Notifications]: Push token registered successfully:', token);
     }
