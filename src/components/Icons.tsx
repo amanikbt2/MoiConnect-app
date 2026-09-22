@@ -763,19 +763,7 @@ export function LaptopIcon({ color = '#059669', size = 28, style }: IconProps) {
   );
 }
 
-export function ArrowLeftIcon({ color = '#0f172a', size = 20, style }: IconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
-      <Path
-        d="M19 12H5M12 19L5 12L12 5"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
+
 
 
 
