@@ -34,6 +34,8 @@ import ChatRoomScreen from './app/chat/[id]';
 import { TouchableOpacity } from 'react-native';
 import { useAuth } from './src/context/AuthContext';
 import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon } from './src/components/Icons';
+import { InAppPopupModal } from './src/components/InAppPopupModal';
+import { checkAppPopups } from './src/services/popupService';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -420,6 +422,64 @@ function MainTabs({ navigation }) {
   );
 }
 
+function AppNavigator() {
+  const { user } = useAuth();
+  const [activePopup, setActivePopup] = React.useState(null);
+  const [popupVisible, setPopupVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    checkAppPopups('1.0.6', user)
+      .then((res) => {
+        if (isMounted && res.hasPopup && res.popup) {
+          setActivePopup(res.popup);
+          setPopupVisible(true);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  return (
+    <>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: '#15803d' },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: { fontWeight: '800', fontSize: 18 }
+        }}
+      >
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
+        <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
+        <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'Frequently Asked Questions', headerShown: true }} />
+        <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
+        <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
+        <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="LandlordPortal" component={LandlordPortalScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
+        <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
+        <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ presentation: 'modal' }} />
+        <Stack.Screen name="RequestLandlord" component={RequestLandlordScreen} options={{ presentation: 'modal' }} />
+        <Stack.Screen name="PaperDetail" component={PaperDetailScreen} options={{ title: 'Paper Detail', headerShown: true }} />
+        <Stack.Screen name="HouseDetail" component={HouseDetailScreen} options={{ title: 'House Detail', headerShown: true }} />
+        <Stack.Screen name="ChatRoom" component={ChatRoomScreen} options={{ title: 'Chat Conversation', headerShown: true }} />
+      </Stack.Navigator>
+      <InAppPopupModal
+        visible={popupVisible}
+        popup={activePopup}
+        onClose={() => setPopupVisible(false)}
+      />
+    </>
+  );
+}
+
 export default function App() {
   return (
     <NetworkProvider>
@@ -427,32 +487,7 @@ export default function App() {
         <AuthProvider>
           <StatusBar style="light" />
           <NavigationContainer>
-            <Stack.Navigator
-              screenOptions={{
-                headerShown: false,
-                headerStyle: { backgroundColor: '#15803d' },
-                headerTintColor: '#ffffff',
-                headerTitleStyle: { fontWeight: '800', fontSize: 18 }
-              }}
-            >
-              <Stack.Screen name="MainTabs" component={MainTabs} />
-              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
-              <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
-              <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'Frequently Asked Questions', headerShown: true }} />
-              <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
-              <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
-              <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="LandlordPortal" component={LandlordPortalScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
-              <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
-              <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="Register" component={RegisterScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="RequestLandlord" component={RequestLandlordScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="PaperDetail" component={PaperDetailScreen} options={{ title: 'Paper Detail', headerShown: true }} />
-              <Stack.Screen name="HouseDetail" component={HouseDetailScreen} options={{ title: 'House Detail', headerShown: true }} />
-              <Stack.Screen name="ChatRoom" component={ChatRoomScreen} options={{ title: 'Chat Conversation', headerShown: true }} />
-            </Stack.Navigator>
+            <AppNavigator />
           </NavigationContainer>
         </AuthProvider>
       </QueryClientProvider>

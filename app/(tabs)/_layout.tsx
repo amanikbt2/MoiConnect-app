@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Image } from 'react-native';
 import { Tabs } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon } from '../../src/components/Icons';
+import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
 
 function HomeHeaderTitle() {
   return (
@@ -44,6 +45,11 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: '#15803d' },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+        headerRight: () => (
+          <View style={{ marginRight: 14 }}>
+            <NotificationCenterModal />
+          </View>
+        ),
         tabBarActiveTintColor: '#15803d',
         tabBarInactiveTintColor: '#64748b',
         tabBarStyle: { height: 60, paddingBottom: 8, paddingTop: 6 }
