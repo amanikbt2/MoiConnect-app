@@ -493,12 +493,13 @@ const styles = StyleSheet.create({
     color: '#f8fafc'
   },
   paperSheet: {
-    padding: 20,
-    margin: 12,
+    padding: 18,
+    margin: 0,
     backgroundColor: '#fffdf5',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
