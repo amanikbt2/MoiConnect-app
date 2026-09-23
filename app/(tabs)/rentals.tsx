@@ -23,7 +23,7 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 
-import { LocationIcon, PlusIcon, KeyIcon, ShieldCheckIcon, GlobeIcon, HouseIcon } from '../../src/components/Icons';
+import { LocationIcon, PlusIcon, KeyIcon, ShieldCheckIcon, GlobeIcon, HouseIcon, SearchIcon } from '../../src/components/Icons';
 
 const LOCATIONS_LIST = ['All Locations', 'Stage', 'Mabs', 'Viewland', 'Kesses', 'Talai', 'Annex'];
 

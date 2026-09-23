@@ -82,7 +82,7 @@ export default function TabLayout() {
         name="rentals"
         options={{
           href: null,
-          headerTitle: 'Student Rental Marketplace',
+          headerTitle: 'Students Rentals',
         }}
       />
       <Tabs.Screen
