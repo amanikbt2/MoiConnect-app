@@ -81,6 +81,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
   useEffect(() => {
     if (!document) return;
+    setActivePage(1);
     const docId = document.id;
     const unsubscribe = subscribeToDownloadUpdates((papers) => {
       const found = papers.find(
@@ -190,30 +191,32 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </View>
           ) : (
             <ScrollView style={styles.readerScroll} contentContainerStyle={styles.readerContent}>
-              {/* Document Cover & Header Card */}
-              <View style={styles.docHeaderCard}>
-                <View style={styles.docTagRow}>
-                  <View style={styles.docCodeBadge}>
-                    <Text style={styles.docCodeText}>{document.unitCode}</Text>
+              {/* Document Cover & Header Card - Only shown on Page 1 */}
+              {activePage === 1 && (
+                <View style={styles.docHeaderCard}>
+                  <View style={styles.docTagRow}>
+                    <View style={styles.docCodeBadge}>
+                      <Text style={styles.docCodeText}>{document.unitCode}</Text>
+                    </View>
+                    {!!document.mtid && (
+                      <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                        <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                   </View>
-                  {!!document.mtid && (
-                    <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                      <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+
+                  <Text style={styles.docMainTitle}>{document.title}</Text>
+                  {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
+
+                  {!!document.summary && (
+                    <View style={styles.summaryBox}>
+                      <Text style={styles.summaryLabel}>Document Summary:</Text>
+                      <Text style={styles.summaryText}>{document.summary}</Text>
                     </View>
                   )}
-                  <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                 </View>
-
-                <Text style={styles.docMainTitle}>{document.title}</Text>
-                {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
-
-                {!!document.summary && (
-                  <View style={styles.summaryBox}>
-                    <Text style={styles.summaryLabel}>Document Summary:</Text>
-                    <Text style={styles.summaryText}>{document.summary}</Text>
-                  </View>
-                )}
-              </View>
+              )}
 
               {/* Fast Simulated PDF Page Preview */}
               <View style={styles.pagePreviewContainer}>

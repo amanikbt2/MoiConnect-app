@@ -151,10 +151,6 @@ export default function LoginScreen() {
         />
 
         <Button title="Sign In" onPress={handleLogin} loading={loading} style={styles.btn} />
-
-        <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.linkContainer}>
-          <Text style={styles.linkText}>Don't have an account? <Text style={styles.linkBold}>Register here</Text></Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
