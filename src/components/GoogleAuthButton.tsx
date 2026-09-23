@@ -15,7 +15,7 @@ import { config } from '../config';
 WebBrowser.maybeCompleteAuthSession();
 
 const SAVED_CLIENT_ID_KEY = 'google_oauth_client_id_config';
-const DEFAULT_GOOGLE_CLIENT_ID = '603126830727-v90nkg959l8f6h9t8l8n14i7i1n7o2b3.apps.googleusercontent.com';
+const DEFAULT_GOOGLE_CLIENT_ID = '1036847426840-opk53svav057jvhjf3qpt4lbebskb716.apps.googleusercontent.com';
 
 interface GoogleAuthButtonProps {
   onSuccess: () => void;
@@ -39,8 +39,11 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   );
   const [loading, setLoading] = useState(false);
 
+  const activeClientId = clientId || config.google.webClientId || DEFAULT_GOOGLE_CLIENT_ID;
+
   useEffect(() => {
     loadSavedClientId();
+    checkWebOAuthRedirect();
   }, []);
 
   const loadSavedClientId = async () => {
@@ -54,7 +57,57 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     }
   };
 
-  const activeClientId = clientId || config.google.webClientId || DEFAULT_GOOGLE_CLIENT_ID;
+  const checkWebOAuthRedirect = async () => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const fullUrl = window.location.href;
+    if (fullUrl.includes('access_token=') || fullUrl.includes('id_token=')) {
+      setLoading(true);
+      try {
+        const hash = window.location.hash ? window.location.hash.substring(1) : window.location.search.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token') || undefined;
+        const idToken = params.get('id_token') || undefined;
+
+        let googleUser: any = {};
+        if (accessToken) {
+          try {
+            const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (userInfoRes.ok) {
+              googleUser = await userInfoRes.json();
+            }
+          } catch (e) {
+            console.warn('Failed to fetch userinfo from Google:', e);
+          }
+        }
+
+        // Clean URL fragment so reload doesn't re-trigger
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        const res = await googleLogin({
+          idToken,
+          accessToken,
+          email: googleUser.email,
+          name: googleUser.name,
+          avatarUrl: googleUser.picture
+        });
+
+        if (res.success) {
+          onSuccess();
+        } else {
+          onError(res.error || 'Google login failed.');
+        }
+      } catch (err: any) {
+        onError(err.message || 'Google OAuth callback error.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: activeClientId,
@@ -114,7 +167,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       }
     } else if (response.type === 'error') {
       setLoading(false);
-      onError('Google sign-in was cancelled or encountered an error.');
+      onError('Google sign-in encountered an error.');
     } else {
       setLoading(false);
     }
@@ -122,59 +175,36 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 
   const handlePress = async () => {
     setLoading(true);
+
+    // On Web: perform a full-page normal tab redirect (NOT a popup window)
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const redirectUri = window.location.origin + window.location.pathname;
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+        activeClientId
+      )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=profile%20email&prompt=select_account`;
+      
+      window.location.href = authUrl;
+      return;
+    }
+
     try {
-      // Launch standard Google Account Chooser sheet directly
       if (promptAsync) {
         const res = await promptAsync();
         if (res?.type !== 'success') {
           setLoading(false);
         }
       } else {
-        // Fallback WebBrowser OAuth prompt with prompt=select_account
-        const redirectUrl = WebBrowser.makeRedirectUri();
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-          activeClientId
-        )}&response_type=token&scope=profile%20email&redirect_uri=${encodeURIComponent(
-          redirectUrl
-        )}&prompt=select_account`;
-
-        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-        if (result.type === 'success' && result.url) {
-          const hashParams = result.url.split('#')[1] || result.url.split('?')[1] || '';
-          const params = new URLSearchParams(hashParams);
-          const accessToken = params.get('access_token');
-          const idToken = params.get('id_token');
-
-          let googleUser: any = {};
-          if (accessToken) {
-            const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-              headers: { Authorization: `Bearer ${accessToken}` }
-            });
-            if (userInfoRes.ok) {
-              googleUser = await userInfoRes.json();
-            }
-          }
-
-          const res = await googleLogin({
-            idToken: idToken || undefined,
-            accessToken: accessToken || undefined,
-            email: googleUser.email,
-            name: googleUser.name,
-            avatarUrl: googleUser.picture
-          });
-
-          if (res.success) {
-            onSuccess();
-          } else {
-            onError(res.error || 'Google login failed.');
-          }
+        // Fallback for native devices
+        const res = await googleLogin();
+        if (res.success) {
+          onSuccess();
         } else {
-          setLoading(false);
+          onError(res.error || 'Google sign-in failed.');
         }
       }
     } catch (err: any) {
       setLoading(false);
-      onError(err.message || 'Could not launch Google Sign-In chooser.');
+      onError(err.message || 'Could not launch Google Sign-In.');
     }
   };
 
