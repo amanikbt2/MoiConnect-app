@@ -34,7 +34,13 @@ import {
   StarIcon,
   ChevronRightIcon,
   FileTextIcon,
-  BookIcon
+  BookIcon,
+  FlameIcon,
+  ZapIcon,
+  TrendingUpIcon,
+  DocumentIcon,
+  EditIcon,
+  CalendarIcon
 } from '../../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -477,14 +483,14 @@ const GRID_SECTION_2: NoteItem[] = [
 ];
 
 const FILTER_DISCS = [
-  { id: 'all', label: 'All Resources' },
-  { id: 'hot', label: '🔥 Hot Now' },
-  { id: 'profile', label: '✨ For You' },
-  { id: 'new', label: '⚡ New Releases' },
-  { id: 'trending', label: '📈 Trending' },
-  { id: 'past_paper', label: '📄 Past Papers' },
-  { id: 'cat', label: '📝 CAT Papers' },
-  { id: 'date', label: '📅 Filter by Date' },
+  { id: 'all', label: 'All Resources', iconType: 'all' },
+  { id: 'hot', label: 'Hot Now', iconType: 'flame' },
+  { id: 'profile', label: 'For You', iconType: 'sparkles' },
+  { id: 'new', label: 'New Releases', iconType: 'zap' },
+  { id: 'trending', label: 'Trending', iconType: 'trending' },
+  { id: 'past_paper', label: 'Past Papers', iconType: 'document' },
+  { id: 'cat', label: 'CAT Papers', iconType: 'edit' },
+  { id: 'date', label: 'Filter by Date', iconType: 'calendar' },
 ];
 
 function ShimmerGridLoader({ title }: { title?: string }) {
@@ -746,76 +752,109 @@ export default function AcademicsScreen({ route }: any) {
     }
   };
 
-  const renderCarouselCard = (item: NoteItem) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.carouselCard}
-      activeOpacity={0.88}
-      onPress={() => handleOpenPreview(item)}
-    >
-      <View style={styles.carouselThumbnailContainer}>
-        <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
-        <View style={styles.carouselOverlay} />
-        <View style={styles.carouselBadgeRow}>
-          <View style={styles.carouselTypeBadge}>
-            <Text style={styles.carouselTypeText}>{item.paperType}</Text>
-          </View>
-          <View style={styles.carouselTagBadge}>
-            <Text style={styles.carouselTagText}>{item.tag}</Text>
-          </View>
-        </View>
-      </View>
+  const renderDiscIcon = (iconType?: string, isActive?: boolean) => {
+    switch (iconType) {
+      case 'flame':
+        return <FlameIcon color={isActive ? '#ffffff' : '#ea580c'} size={14} />;
+      case 'sparkles':
+        return <SparklesIcon color={isActive ? '#ffffff' : '#d97706'} size={14} />;
+      case 'zap':
+        return <ZapIcon color={isActive ? '#ffffff' : '#2563eb'} size={14} />;
+      case 'trending':
+        return <TrendingUpIcon color={isActive ? '#ffffff' : '#16a34a'} size={14} />;
+      case 'document':
+        return <DocumentIcon color={isActive ? '#ffffff' : '#15803d'} size={14} />;
+      case 'edit':
+        return <EditIcon color={isActive ? '#ffffff' : '#0284c7'} size={14} />;
+      case 'calendar':
+        return <CalendarIcon color={isActive ? '#ffffff' : '#64748b'} size={14} />;
+      default:
+        return null;
+    }
+  };
 
-      <View style={styles.carouselBody}>
-        <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-        <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+  const renderCarouselCard = (item: NoteItem) => {
+    const cleanTag = item.tag.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u, '').replace(/^#\d+\s*/, '').trim();
+    const cleanRating = item.rating.replace(/[^0-9.]/g, '').trim();
 
-        <View style={styles.carouselFooter}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <DownloadIcon color="#15803d" size={13} />
-            <Text style={styles.carouselStats}>{formatCount(item.downloads)} downloads</Text>
-          </View>
-          <Text style={styles.ratingText}>{item.rating}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderGridCard = (item: NoteItem) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.gridCard}
-      activeOpacity={0.88}
-      onPress={() => handleOpenPreview(item)}
-    >
-      <View style={styles.gridImageContainer}>
-        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-        <View style={styles.gridBadge}>
-          <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
-        </View>
-        <View style={styles.gridRatingBadge}>
-          <StarIcon color="#eab308" size={11} />
-          <Text style={styles.gridRatingText}>{item.rating}</Text>
-        </View>
-      </View>
-
-      <View style={styles.gridBody}>
-        <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.paperType}</Text>
-        <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.gridSub}>{item.school} • {item.examYear}</Text>
-
-        <View style={styles.gridFooter}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <DownloadIcon color="#15803d" size={12} />
-            <Text style={styles.gridDownloads}>{formatCount(item.downloads)}</Text>
-          </View>
-          <View style={styles.miniArrow}>
-            <ChevronRightIcon color="#15803d" size={14} />
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={styles.carouselCard}
+        activeOpacity={0.88}
+        onPress={() => handleOpenPreview(item)}
+      >
+        <View style={styles.carouselThumbnailContainer}>
+          <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+          <View style={styles.carouselOverlay} />
+          <View style={styles.carouselBadgeRow}>
+            <View style={styles.carouselTypeBadge}>
+              <Text style={styles.carouselTypeText}>{item.paperType}</Text>
+            </View>
+            <View style={[styles.carouselTagBadge, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+              <SparklesIcon color="#d97706" size={11} />
+              <Text style={styles.carouselTagText}>{cleanTag}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        <View style={styles.carouselBody}>
+          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+          <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+
+          <View style={styles.carouselFooter}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <DownloadIcon color="#15803d" size={13} />
+              <Text style={styles.carouselStats}>{formatCount(item.downloads)} downloads</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <StarIcon color="#f59e0b" size={12} />
+              <Text style={styles.ratingText}>{cleanRating}</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderGridCard = (item: NoteItem) => {
+    const cleanRating = item.rating.replace(/[^0-9.]/g, '').trim();
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={styles.gridCard}
+        activeOpacity={0.88}
+        onPress={() => handleOpenPreview(item)}
+      >
+        <View style={styles.gridImageContainer}>
+          <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+          <View style={styles.gridBadge}>
+            <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+          </View>
+          <View style={[styles.gridRatingBadge, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+            <StarIcon color="#eab308" size={11} />
+            <Text style={styles.gridRatingText}>{cleanRating}</Text>
+          </View>
+        </View>
+
+        <View style={styles.gridBody}>
+          <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.paperType}</Text>
+          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.gridSub}>{item.school} • {item.examYear}</Text>
+
+          <View style={styles.gridFooter}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <DownloadIcon color="#15803d" size={12} />
+              <Text style={styles.gridDownloads}>{formatCount(item.downloads)}</Text>
+            </View>
+            <View style={styles.miniArrow}>
+              <ChevronRightIcon color="#15803d" size={14} />
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -864,18 +903,22 @@ export default function AcademicsScreen({ route }: any) {
             style={styles.discScroll}
             contentContainerStyle={styles.discContent}
           >
-            {FILTER_DISCS.map((disc) => (
-              <TouchableOpacity
-                key={disc.id}
-                style={[styles.discPill, activeFilterDisc === disc.id && styles.discPillActive]}
-                onPress={() => setActiveFilterDisc(disc.id)}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.discText, activeFilterDisc === disc.id && styles.discTextActive]}>
-                  {disc.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {FILTER_DISCS.map((disc) => {
+              const isActive = activeFilterDisc === disc.id;
+              return (
+                <TouchableOpacity
+                  key={disc.id}
+                  style={[styles.discPill, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+                  onPress={() => setActiveFilterDisc(disc.id)}
+                  activeOpacity={0.75}
+                >
+                  {renderDiscIcon(disc.iconType, isActive)}
+                  <Text style={[styles.discText, isActive && styles.discTextActive]}>
+                    {disc.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
@@ -946,8 +989,8 @@ export default function AcademicsScreen({ route }: any) {
 
           {/* SECTION 3: TRENDING NOW CAROUSEL */}
           <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
-              <Text style={{ fontSize: 16 }}>🔥</Text>
+            <View style={[styles.sectionIconCircle, { backgroundColor: '#ffedd5' }]}>
+              <FlameIcon color="#ea580c" size={18} />
             </View>
             <View>
               <Text style={styles.sectionTitle}>Trending on Campus</Text>

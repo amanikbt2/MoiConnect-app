@@ -11,7 +11,7 @@ import {
   Animated,
   Easing
 } from 'react-native';
-import { DownloadIcon, CheckIcon } from './Icons';
+import { DownloadIcon, CheckIcon, ArrowLeftIcon } from './Icons';
 import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
 
 export interface PDFDocumentItem {
@@ -143,8 +143,13 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       <SafeAreaView style={styles.container}>
         {/* Top Header Navigation Bar */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.backBtnText}>← Back</Text>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={onClose}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ArrowLeftIcon color="#ffffff" size={22} />
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
@@ -291,20 +296,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#15803d',
-    paddingHorizontal: 14,
+    paddingLeft: 10,
+    paddingRight: 14,
     paddingVertical: 10,
-    gap: 12
+    gap: 10
   },
   backBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8
-  },
-  backBtnText: {
-    color: '#ffffff',
-    fontWeight: '800',
-    fontSize: 13
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   headerTitleContainer: {
     flex: 1,

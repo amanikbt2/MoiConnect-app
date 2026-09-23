@@ -22,7 +22,13 @@ import {
   StarIcon,
   ChevronRightIcon,
   SparklesIcon,
-  BookIcon
+  BookIcon,
+  FlameIcon,
+  ZapIcon,
+  TrendingUpIcon,
+  DocumentIcon,
+  EditIcon,
+  CalendarIcon
 } from '../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -245,12 +251,12 @@ const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [
 ];
 
 const FILTER_DISCS = [
-  { id: 'all', label: 'All CAT Papers' },
-  { id: 'cat1', label: '🔥 CAT 1 Papers' },
-  { id: 'cat2', label: '📝 CAT 2 Papers' },
-  { id: 'quiz', label: '⚡ Mid-Sem Quizzes' },
-  { id: 'hot', label: '📈 Top Downloaded' },
-  { id: '2025', label: '📅 2025 CATs' }
+  { id: 'all', label: 'All CAT Papers', iconType: 'all' },
+  { id: 'cat1', label: 'CAT 1 Papers', iconType: 'flame' },
+  { id: 'cat2', label: 'CAT 2 Papers', iconType: 'edit' },
+  { id: 'quiz', label: 'Mid-Sem Quizzes', iconType: 'zap' },
+  { id: 'hot', label: 'Top Downloaded', iconType: 'trending' },
+  { id: '2025', label: '2025 CATs', iconType: 'calendar' }
 ];
 
 function ShimmerGridLoader() {
@@ -477,18 +483,39 @@ export default function CatPapersScreen() {
           style={styles.discScroll}
           contentContainerStyle={styles.discContent}
         >
-          {FILTER_DISCS.map((disc) => (
-            <TouchableOpacity
-              key={disc.id}
-              style={[styles.discPill, activeFilterDisc === disc.id && styles.discPillActive]}
-              onPress={() => setActiveFilterDisc(disc.id)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.discText, activeFilterDisc === disc.id && styles.discTextActive]}>
-                {disc.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {FILTER_DISCS.map((disc) => {
+            const isActive = activeFilterDisc === disc.id;
+            const renderDiscIcon = (iconType?: string) => {
+              switch (iconType) {
+                case 'flame':
+                  return <FlameIcon color={isActive ? '#ffffff' : '#ea580c'} size={14} />;
+                case 'edit':
+                  return <EditIcon color={isActive ? '#ffffff' : '#0284c7'} size={14} />;
+                case 'zap':
+                  return <ZapIcon color={isActive ? '#ffffff' : '#2563eb'} size={14} />;
+                case 'trending':
+                  return <TrendingUpIcon color={isActive ? '#ffffff' : '#16a34a'} size={14} />;
+                case 'calendar':
+                  return <CalendarIcon color={isActive ? '#ffffff' : '#64748b'} size={14} />;
+                default:
+                  return null;
+              }
+            };
+
+            return (
+              <TouchableOpacity
+                key={disc.id}
+                style={[styles.discPill, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+                onPress={() => setActiveFilterDisc(disc.id)}
+                activeOpacity={0.75}
+              >
+                {renderDiscIcon(disc.iconType)}
+                <Text style={[styles.discText, isActive && styles.discTextActive]}>
+                  {disc.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* AUTO-SCROLLING SUGGESTIONS CAROUSEL */}

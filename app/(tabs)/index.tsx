@@ -29,7 +29,8 @@ import {
   UploadIcon,
   NotesIcon,
   GraduationCapIcon,
-  LaptopIcon
+  LaptopIcon,
+  SendIcon
 } from '../../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -259,9 +260,22 @@ export default function HomeScreen() {
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onSubmitEditing={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`)}
+            onSubmitEditing={() => {
+              if (searchQuery.trim()) {
+                router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`);
+              }
+            }}
             style={styles.searchInput}
           />
+          {searchQuery.trim().length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`)}
+              style={styles.searchSendBtn}
+            >
+              <SendIcon color="#ffffff" size={14} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -483,6 +497,15 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     outlineStyle: 'none',
   } as any,
+  searchSendBtn: {
+    backgroundColor: '#15803d',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6
+  },
   section: {
     marginBottom: 24
   },

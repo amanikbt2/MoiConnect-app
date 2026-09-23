@@ -4,6 +4,8 @@ import { IPaper } from '@moi/shared';
 import { Badge } from './Badge';
 import { formatCompactNumber } from '../utils/formatters';
 
+import { DownloadIcon } from './Icons';
+
 interface PaperCardProps {
   paper: IPaper;
   onPress: () => void;
@@ -20,7 +22,10 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onPress }) => {
       <Text style={styles.sub}>{paper.unitName} • {paper.examYear}</Text>
       <View style={styles.footer}>
         <Text style={styles.school}>{paper.school}</Text>
-        <Text style={styles.downloads}>⬇ {formatCompactNumber(paper.downloadCount)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <DownloadIcon color="#15803d" size={13} />
+          <Text style={styles.downloads}>{formatCompactNumber((paper as any).downloads || (paper as any).downloadCount)}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );

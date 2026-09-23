@@ -189,12 +189,14 @@ export default function DownloadsScreen() {
                 {/* Bottom Left of Image Header: Solved Badge */}
                 <View style={styles.bottomBarLeft}>
                   {isDownloading ? (
-                    <View style={styles.downloadingPill}>
-                      <Text style={styles.downloadingPillText}>⏳ Saving {progress}%</Text>
+                    <View style={[styles.downloadingPill, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                      <RefreshCwIcon color="#ca8a04" size={12} />
+                      <Text style={styles.downloadingPillText}>Saving {progress}%</Text>
                     </View>
                   ) : isFailed ? (
-                    <View style={styles.failedPill}>
-                      <Text style={styles.failedPillText}>❌ Download Failed</Text>
+                    <View style={[styles.failedPill, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                      <CloseIcon color="#b91c1c" size={12} />
+                      <Text style={styles.failedPillText}>Download Failed</Text>
                     </View>
                   ) : (
                     <View style={styles.solvedBadge}>
