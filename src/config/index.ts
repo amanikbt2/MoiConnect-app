@@ -3,7 +3,18 @@ import { Platform } from 'react-native';
 const getDefaultHost = () => {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-      return `http://${window.location.hostname}:5000`;
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const isLocal =
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.');
+
+      if (isLocal) {
+        return `${protocol}//${hostname}:5000`;
+      }
+      return `${protocol}//${hostname}`;
     }
     return 'http://localhost:5000';
   }
