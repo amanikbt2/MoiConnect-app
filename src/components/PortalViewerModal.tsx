@@ -11,6 +11,7 @@ import {
   Linking
 } from 'react-native';
 import { ArrowLeftIcon, CloseIcon, RefreshCwIcon } from './Icons';
+import { BrandLoader } from './BrandLoader';
 
 export interface PortalConfig {
   title: string;
@@ -104,8 +105,7 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
         <View style={styles.body}>
           {loading && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#15803d" />
-              <Text style={styles.loadingText}>Connecting to {portal.title}...</Text>
+              <BrandLoader message={`Connecting to ${portal.title}...`} size={84} />
             </View>
           )}
 
