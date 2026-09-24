@@ -6,6 +6,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -17,6 +18,7 @@ import {
   Animated,
   Image
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../src/context/AuthContext';
 import { useAppNavigation } from '../src/utils/navigation';
 import {
@@ -29,7 +31,8 @@ import {
   DownloadIcon,
   TrashIcon,
   ReplyIcon,
-  FolderIcon
+  FolderIcon,
+  CloseIcon
 } from '../src/components/Icons';
 import { saveDownloadedPaper, getDownloadedPapers } from '../src/services/offlineStorage';
 
@@ -424,8 +427,38 @@ export default function CommunityScreen() {
           { text: 'View Downloads', onPress: () => router.push('/(tabs)/downloads') }
         ]
       );
-    } catch (e) {
-      Alert.alert('Download Error', 'Could not save file attachment locally.');
+  const handlePickFromPhone = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const mime = asset.mimeType || '';
+        let fileType: 'pdf' | 'doc' | 'image' = 'pdf';
+        if (mime.includes('image')) {
+          fileType = 'image';
+        } else if (mime.includes('word') || asset.name.endsWith('.doc') || asset.name.endsWith('.docx')) {
+          fileType = 'doc';
+        }
+
+        const formattedSize = asset.size
+          ? asset.size > 1024 * 1024
+            ? `${(asset.size / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.round(asset.size / 1024)} KB`
+          : '1.2 MB';
+
+        setSelectedFile({
+          name: asset.name,
+          url: asset.uri,
+          size: formattedSize,
+          type: fileType
+        });
+        setShowFileModal(false);
+      }
+    } catch (err) {
+      console.log('Document picker error:', err);
     }
   };
 
@@ -700,13 +733,21 @@ export default function CommunityScreen() {
         </View>
 
         {/* File Selection Modal */}
-        <Modal visible={showFileModal} transparent animationType="slide" onRequestClose={() => setShowFileModal(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+        <Modal visible={showFileModal} transparent animationType="fade" onRequestClose={() => setShowFileModal(false)}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowFileModal(false)}
+          >
+            <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Share Campus File & Document</Text>
-                <TouchableOpacity onPress={() => setShowFileModal(false)}>
-                  <Text style={styles.closeBtn}>✕ Close</Text>
+                <TouchableOpacity
+                  onPress={() => setShowFileModal(false)}
+                  style={styles.closeIconBtn}
+                  activeOpacity={0.7}
+                >
+                  <CloseIcon color="#0f172a" size={16} />
                 </TouchableOpacity>
               </View>
 
@@ -736,22 +777,14 @@ export default function CommunityScreen() {
 
               <TouchableOpacity
                 style={styles.customFileBtn}
-                onPress={() => {
-                  setSelectedFile({
-                    name: `Campus_Notes_${Date.now().toString().slice(-4)}.pdf`,
-                    url: 'https://res.cloudinary.com/mconnect/docs/sample.pdf',
-                    size: '1.2 MB',
-                    type: 'pdf'
-                  });
-                  setShowFileModal(false);
-                }}
+                onPress={handlePickFromPhone}
                 activeOpacity={0.8}
               >
                 <FolderIcon color="#ffffff" size={18} />
                 <Text style={styles.customFileBtnText}>Pick from phone</Text>
               </TouchableOpacity>
-            </View>
-          </View>
+            </Pressable>
+          </TouchableOpacity>
         </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1155,10 +1188,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a'
   },
-  closeBtn: {
-    color: '#ef4444',
-    fontWeight: '700',
-    fontSize: 14
+  closeIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   modalSubtitle: {
     fontSize: 13,

@@ -411,61 +411,82 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Suggested Materials Carousel (Smart Horizontal Scroll) - Only shown when user is signed in */}
-      {user && (
-        <View style={styles.suggestedSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.headerTitleGroup}>
-              <View style={styles.sparkleIconCircle}>
-                <SparklesIcon color="#15803d" size={18} />
-              </View>
-              <View>
-                <Text style={styles.sectionTitleNoMargin}>Suggested materials</Text>
-                <Text style={styles.sectionSubtitle}>based on your profile</Text>
-              </View>
+      {/* Suggested Materials Section */}
+      <View style={styles.suggestedSection}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.headerTitleGroup}>
+            <View style={styles.sparkleIconCircle}>
+              <SparklesIcon color="#15803d" size={18} />
+            </View>
+            <View>
+              <Text style={styles.sectionTitleNoMargin}>Suggested materials</Text>
+              <Text style={styles.sectionSubtitle}>based on your profile</Text>
             </View>
           </View>
-
-          <FlatList
-            ref={flatListRef}
-            data={SUGGESTED_MATERIALS}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={renderSuggestedCard}
-            contentContainerStyle={styles.suggestedListContent}
-            snapToInterval={CARD_WIDTH + CARD_GAP}
-            decelerationRate="fast"
-            onScrollBeginDrag={handleScrollBegin}
-            onScrollEndDrag={handleScrollEnd}
-            onMomentumScrollEnd={handleScrollEnd}
-            getItemLayout={(_, index) => ({
-              length: CARD_WIDTH + CARD_GAP,
-              offset: (CARD_WIDTH + CARD_GAP) * index,
-              index,
-            })}
-            onScrollToIndexFailed={(info) => {
-              flatListRef.current?.scrollToOffset({
-                offset: info.index * (CARD_WIDTH + CARD_GAP),
-                animated: true,
-              });
-            }}
-          />
-
-          {/* Carousel Pagination Dots */}
-          <View style={styles.paginationDots}>
-            {SUGGESTED_MATERIALS.map((item, index) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.dot,
-                  index === activeSuggestedIndex ? styles.activeDot : styles.inactiveDot,
-                ]}
-              />
-            ))}
-          </View>
         </View>
-      )}
+
+        {user ? (
+          <>
+            <FlatList
+              ref={flatListRef}
+              data={SUGGESTED_MATERIALS}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={renderSuggestedCard}
+              contentContainerStyle={styles.suggestedListContent}
+              snapToInterval={CARD_WIDTH + CARD_GAP}
+              decelerationRate="fast"
+              onScrollBeginDrag={handleScrollBegin}
+              onScrollEndDrag={handleScrollEnd}
+              onMomentumScrollEnd={handleScrollEnd}
+              getItemLayout={(_, index) => ({
+                length: CARD_WIDTH + CARD_GAP,
+                offset: (CARD_WIDTH + CARD_GAP) * index,
+                index,
+              })}
+              onScrollToIndexFailed={(info) => {
+                flatListRef.current?.scrollToOffset({
+                  offset: info.index * (CARD_WIDTH + CARD_GAP),
+                  animated: true,
+                });
+              }}
+            />
+
+            {/* Carousel Pagination Dots */}
+            <View style={styles.paginationDots}>
+              {SUGGESTED_MATERIALS.map((item, index) => (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.dot,
+                    index === activeSuggestedIndex ? styles.activeDot : styles.inactiveDot,
+                  ]}
+                />
+              ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.loginPromptCard}>
+            <View style={styles.loginPromptIconContainer}>
+              <SparklesIcon color="#15803d" size={24} />
+            </View>
+            <View style={styles.loginPromptTextGroup}>
+              <Text style={styles.loginPromptTitle}>Sign in to get suggested materials</Text>
+              <Text style={styles.loginPromptSub}>
+                Get personalized past papers, CATs, and study notes tailored for your course.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.loginPromptBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(auth)/login')}
+            >
+              <Text style={styles.loginPromptBtnText}>Sign In / Register</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
       {/* App Footer */}
       <View style={styles.footer}>
@@ -776,6 +797,64 @@ const styles = StyleSheet.create({
   inactiveDot: {
     width: 6,
     backgroundColor: '#cbd5e1'
+  },
+  loginPromptCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 16,
+    marginTop: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  loginPromptIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12
+  },
+  loginPromptTextGroup: {
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  loginPromptTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 4
+  },
+  loginPromptSub: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingHorizontal: 12
+  },
+  loginPromptBtn: {
+    backgroundColor: '#15803d',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  loginPromptBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800'
   },
   footer: {
     flexDirection: 'row',
