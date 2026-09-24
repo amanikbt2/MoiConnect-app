@@ -657,7 +657,6 @@ export default function AcademicsScreen({ route }: any) {
   const [submitting, setSubmitting] = useState(false);
 
   const { user, addPoints } = useAuth();
-  const router = useAppNavigation();
 
   useEffect(() => {
     if (route?.params?.upload === 'true' || route?.params?.upload === true) {

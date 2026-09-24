@@ -238,25 +238,16 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   };
 
   const handlePress = async () => {
-    // On Web: use AuthSession promptAsync first, or fallback to clean origin redirect
+    // On Web: use direct standard Google OAuth 2.0 redirect
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       setLoading(true);
-      try {
-        if (promptAsync) {
-          const res = await promptAsync();
-          if (res?.type !== 'success') {
-            setLoading(false);
-          }
-          return;
-        }
-      } catch (e) {
-        console.warn('Web promptAsync error:', e);
-      }
-
-      const cleanRedirectUri = window.location.origin;
+      const cleanRedirectUri = window.location.origin + window.location.pathname;
+      const nonce = Math.random().toString(36).substring(2);
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
         activeClientId
-      )}&redirect_uri=${encodeURIComponent(cleanRedirectUri)}&response_type=token&scope=profile%20email&prompt=select_account`;
+      )}&redirect_uri=${encodeURIComponent(
+        cleanRedirectUri
+      )}&response_type=token%20id_token&scope=openid%20profile%20email&prompt=select_account&nonce=${nonce}`;
 
       window.location.href = authUrl;
       return;

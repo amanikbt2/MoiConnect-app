@@ -125,13 +125,21 @@ export default function ContributeScreen() {
         fileSize: pickedFile.size ? `${(pickedFile.size / (1024 * 1024)).toFixed(1)} MB` : '1.2 MB'
       };
 
-      const res = await apiRequest<{ paper: any }>('/papers', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      let serverPaperId = `paper_${Date.now()}`;
+      try {
+        const res = await apiRequest<{ paper: any }>('/papers', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        if (res?.data?.paper?._id) {
+          serverPaperId = res.data.paper._id;
+        }
+      } catch (apiErr) {
+        console.log('Submission saved locally:', apiErr);
+      }
 
       await saveDownloadedPaper({
-        _id: res?.data?.paper?._id || `paper_${Date.now()}`,
+        _id: serverPaperId,
         title: payload.title,
         school: payload.school,
         department: payload.department,
@@ -142,7 +150,7 @@ export default function ContributeScreen() {
         examYear: payload.examYear,
         fileUrl: payload.fileUrl,
         fileType: payload.fileType as any,
-        uploadedBy: { _id: user?._id || 'me', name: user?.name || 'Moi Student' } as any,
+        uploadedBy: { _id: user?._id || 'guest', name: user?.name || 'Guest Student' } as any,
         status: 'approved',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -150,9 +158,13 @@ export default function ContributeScreen() {
 
       setUploading(false);
 
+      const successMsg = user
+        ? `"${payload.title}" (${payload.courseCode}) has been submitted successfully for administrator review!`
+        : `"${payload.title}" (${payload.courseCode}) has been submitted for review!\n\nNote: You submitted as a guest. Sign in anytime to receive points and approval notifications.`;
+
       Alert.alert(
         'Submission Successful! 🎉',
-        `"${payload.title}" (${payload.courseCode}) has been uploaded successfully and added to your collection!`,
+        successMsg,
         [
           { text: 'View Academic Hub', onPress: () => router.push('/(tabs)/academics') },
           { text: 'OK', onPress: () => router.back() }
