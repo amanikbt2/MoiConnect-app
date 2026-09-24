@@ -843,6 +843,20 @@ export function LightbulbIcon({ color = '#15803d', size = 18, style }: IconProps
   );
 }
 
+export function FolderIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M22 19C22 19.5523 21.5523 20 21 20H3C2.44772 20 2 19.5523 2 19V5C2 4.44772 2.44772 4 3 4H9L11 7H21C21.5523 7 22 7.44772 22 8V19Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 
 
 

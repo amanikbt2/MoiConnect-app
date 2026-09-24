@@ -12,7 +12,8 @@ import {
   Alert,
   Image,
   Dimensions,
-  Animated
+  Animated,
+  Platform
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';

@@ -13,6 +13,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",
     "@moi/shared": "file:./packages/shared",
+    "@react-native-google-signin/google-signin": "^12.2.1",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/core": "^6.4.17",
     "@react-navigation/elements": "^1.3.30",

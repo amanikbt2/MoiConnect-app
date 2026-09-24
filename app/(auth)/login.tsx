@@ -22,22 +22,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleQuickAdminLogin = async () => {
-    setEmail('dev@gmail.com');
-    setPassword('spiderman');
-    setError(null);
-    setLoading(true);
-
-    const res = await login({ email: 'dev@gmail.com', password: 'spiderman' });
-    setLoading(false);
-
-    if (res.success) {
-      router.replace('/(tabs)');
-    } else {
-      setError(res.error || 'Admin login failed.');
-    }
-  };
-
   const handleLogin = async () => {
     if (!email || !password) {
       setError('Please fill in both email and password.');
@@ -118,18 +102,6 @@ export default function LoginScreen() {
         <Text style={styles.dividerText}>or continue with email</Text>
         <View style={styles.dividerLine} />
       </View>
-
-      {/* Quick Demo Admin Sign In Banner */}
-      <TouchableOpacity
-        style={styles.demoAdminBtn}
-        activeOpacity={0.85}
-        onPress={handleQuickAdminLogin}
-      >
-        <View style={styles.demoAdminBadge}>
-          <Text style={styles.demoAdminBadgeText}>ADMIN DEMO</Text>
-        </View>
-        <Text style={styles.demoAdminBtnText}>⚡ 1-Tap Sign In as Admin (dev@gmail.com)</Text>
-      </TouchableOpacity>
 
       {/* Email Option */}
       <View style={styles.form}>
@@ -313,36 +285,6 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     textTransform: 'uppercase',
     letterSpacing: 0.5
-  },
-  demoAdminBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-    gap: 8
-  },
-  demoAdminBadge: {
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6
-  },
-  demoAdminBadgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5
-  },
-  demoAdminBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1e293b'
   },
   form: {
     width: '100%'

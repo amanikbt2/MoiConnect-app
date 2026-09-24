@@ -11,7 +11,8 @@ import {
   Image,
   Dimensions,
   Animated,
-  ScrollView
+  ScrollView,
+  Platform
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';

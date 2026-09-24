@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
 import { Tabs } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon } from '../../src/components/Icons';
@@ -6,9 +6,16 @@ import { NotificationCenterModal } from '../../src/components/NotificationCenter
 
 function HomeHeaderTitle() {
   return (
-    <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
-      MConnect
-    </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Image
+        source={require('../../assets/mc-logo-transparent.png')}
+        style={{ width: 28, height: 28, marginRight: 5 }}
+        resizeMode="contain"
+      />
+      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+        Connect
+      </Text>
+    </View>
   );
 }
 
@@ -32,11 +39,16 @@ function formatUnreadBadge(count: number): string {
 }
 
 export default function TabLayout() {
-  // Generate random fake unread message count (e.g. 105 -> 99+, or 45) when app opens
-  const [unreadCount, setUnreadCount] = useState<number>(() => {
-    const fakeCounts = [24, 45, 88, 105, 112, 142, 99, 108];
-    return fakeCounts[Math.floor(Math.random() * fakeCounts.length)];
-  });
+  // Initialize with fake 3 unread messages badge
+  const [unreadCount, setUnreadCount] = useState<number>(3);
+
+  // Smart simulation: If cleared and user stays away from Community tab, simulate new incoming community message badge
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setUnreadCount((prev) => (prev === 0 ? 3 : prev));
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <Tabs

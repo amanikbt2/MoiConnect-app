@@ -27,7 +27,8 @@ import {
   FileTextIcon,
   DownloadIcon,
   TrashIcon,
-  ReplyIcon
+  ReplyIcon,
+  FolderIcon
 } from '../src/components/Icons';
 import { saveDownloadedPaper, getDownloadedPapers } from '../src/services/offlineStorage';
 

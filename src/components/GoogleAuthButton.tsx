@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GoogleIcon } from './Icons';
 import { config } from '../config';
 
@@ -45,6 +47,19 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     loadSavedClientId();
     checkWebOAuthRedirect();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        GoogleSignin.configure({
+          webClientId: activeClientId,
+          offlineAccess: false
+        });
+      } catch (e) {
+        console.warn('GoogleSignin.configure warning:', e);
+      }
+    }
+  }, [activeClientId]);
 
   const loadSavedClientId = async () => {
     try {
@@ -109,11 +124,15 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     }
   };
 
+  // Web / AuthSession Fallback Provider
+  const redirectUri = makeRedirectUri({ preferLocalhost: true });
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: activeClientId,
     iosClientId: activeClientId,
     webClientId: activeClientId,
     clientId: activeClientId,
+    redirectUri,
     extraParams: {
       prompt: 'select_account'
     }
@@ -173,39 +192,76 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     }
   };
 
-  const handlePress = async () => {
-    setLoading(true);
+  const handleNativeGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo: any = await GoogleSignin.signIn();
 
-    // On Web: perform a full-page normal tab redirect (NOT a popup window)
+      const idToken = userInfo?.data?.idToken || userInfo?.idToken;
+      const user = userInfo?.data?.user || userInfo?.user;
+
+      const res = await googleLogin({
+        idToken,
+        email: user?.email,
+        name: user?.name,
+        avatarUrl: user?.photo
+      });
+
+      if (res.success) {
+        onSuccess();
+      } else {
+        onError(res.error || 'Google sign-in failed.');
+      }
+    } catch (error: any) {
+      setLoading(false);
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // User cancelled account selection drawer
+        return;
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // Sign in operation already in progress
+        return;
+      } else {
+        // Fallback to AuthSession if native drawer is unavailable
+        if (promptAsync) {
+          const res = await promptAsync();
+          if (res?.type !== 'success') {
+            setLoading(false);
+          }
+        } else {
+          onError(error.message || 'Could not launch native Google Sign-In.');
+        }
+      }
+    }
+  };
+
+  const handlePress = async () => {
+    // On Web: use AuthSession promptAsync first, or fallback to clean origin redirect
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const redirectUri = window.location.origin + window.location.pathname;
+      setLoading(true);
+      try {
+        if (promptAsync) {
+          const res = await promptAsync();
+          if (res?.type !== 'success') {
+            setLoading(false);
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('Web promptAsync error:', e);
+      }
+
+      const cleanRedirectUri = window.location.origin + '/';
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
         activeClientId
-      )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=profile%20email&prompt=select_account`;
-      
+      )}&redirect_uri=${encodeURIComponent(cleanRedirectUri)}&response_type=token&scope=profile%20email&prompt=select_account`;
+
       window.location.href = authUrl;
       return;
     }
 
-    try {
-      if (promptAsync) {
-        const res = await promptAsync();
-        if (res?.type !== 'success') {
-          setLoading(false);
-        }
-      } else {
-        // Fallback for native devices
-        const res = await googleLogin();
-        if (res.success) {
-          onSuccess();
-        } else {
-          onError(res.error || 'Google sign-in failed.');
-        }
-      }
-    } catch (err: any) {
-      setLoading(false);
-      onError(err.message || 'Could not launch Google Sign-In.');
-    }
+    // On Native Android / iOS: launch official native Android account picker sheet / drawer
+    await handleNativeGoogleSignIn();
   };
 
   return (
