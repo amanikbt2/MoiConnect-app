@@ -122,7 +122,7 @@ export default function ContributeScreen() {
         examYear: parseInt(examYear) || 2025,
         fileUrl: pickedFile.uri,
         fileType: pickedFile.name.endsWith('.pdf') ? 'pdf' : 'doc',
-        fileSize: pickedFile.size ? `${(pickedFile.size / (1024 * 1024)).toFixed(1)} MB` : '1.2 MB'
+        fileSize: pickedFile.size || 1258291
       };
 
       let serverPaperId = `paper_${Date.now()}`;
