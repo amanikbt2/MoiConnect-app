@@ -42,7 +42,7 @@ import {
   getStoredCommunityMessages,
   saveCommunityMessages
 } from '../src/services/offlineStorage';
-import { setupNotificationResponseListener } from '../src/services/notificationService';
+import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 
 export interface FileAttachment {
   name: string;
@@ -308,6 +308,14 @@ export default function CommunityScreen() {
           saveCommunityMessages(updated);
           return updated;
         });
+
+        if (!formattedMsg.isMe && Platform.OS === 'web') {
+          sendWebBrowserNotification(
+            `💬 ${formattedMsg.senderName}`,
+            formattedMsg.text || `📎 Sent a file: ${formattedMsg.fileAttachment?.name || 'Attachment'}`,
+            () => router.push('/(tabs)/messages')
+          );
+        }
 
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });

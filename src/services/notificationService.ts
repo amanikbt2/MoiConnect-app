@@ -50,7 +50,12 @@ export async function registerForPushNotificationsAsync() {
 }
 
 export function setupNotificationResponseListener(onNavigate: (screenPath: string) => void) {
-  if (Platform.OS === 'web') return () => {};
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+    return () => {};
+  }
 
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
@@ -62,4 +67,35 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
   return () => {
     subscription.remove();
   };
+}
+
+export function sendWebBrowserNotification(title: string, body: string, onClick?: () => void) {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !('Notification' in window)) {
+    return;
+  }
+
+  const trigger = () => {
+    try {
+      const notif = new Notification(title, {
+        body,
+        icon: '/favicon.png'
+      });
+      if (onClick) {
+        notif.onclick = () => {
+          window.focus();
+          onClick();
+        };
+      }
+    } catch (e) {}
+  };
+
+  if (Notification.permission === 'granted') {
+    trigger();
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        trigger();
+      }
+    });
+  }
 }
