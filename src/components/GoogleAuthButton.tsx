@@ -126,7 +126,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 
   // Web / AuthSession Fallback Provider
   const redirectUri = Platform.OS === 'web' && typeof window !== 'undefined'
-    ? window.location.origin + '/'
+    ? window.location.origin
     : makeRedirectUri({ preferLocalhost: true });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -253,7 +253,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         console.warn('Web promptAsync error:', e);
       }
 
-      const cleanRedirectUri = window.location.origin + '/';
+      const cleanRedirectUri = window.location.origin;
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
         activeClientId
       )}&redirect_uri=${encodeURIComponent(cleanRedirectUri)}&response_type=token&scope=profile%20email&prompt=select_account`;

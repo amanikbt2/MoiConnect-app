@@ -302,13 +302,13 @@ export default function ContributeScreen() {
             </View>
           </View>
 
-          {/* School Selector - Searchable Autocomplete Input */}
+          {/* School Selector - Smart Searchable Dropdown Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>School / Faculty</Text>
-            <View style={styles.searchableInputWrapper}>
+            <View style={[styles.searchableInputWrapper, showSchoolPicker && styles.dropdownInputFocused]}>
               <TextInput
-                style={[styles.textInput, { paddingRight: 40 }]}
-                placeholder="Type or filter School / Faculty..."
+                style={styles.textInputInWrapper}
+                placeholder="Select or type School / Faculty..."
                 placeholderTextColor="#94a3b8"
                 value={schoolInput}
                 onChangeText={(text) => {
@@ -323,7 +323,7 @@ export default function ContributeScreen() {
                 onPress={() => setShowSchoolPicker(!showSchoolPicker)}
                 activeOpacity={0.7}
               >
-                <Text style={{ color: '#64748b', fontSize: 12 }}>
+                <Text style={{ color: showSchoolPicker ? '#15803d' : '#64748b', fontSize: 12, fontWeight: '700' }}>
                   {showSchoolPicker ? '▲' : '▼'}
                 </Text>
               </TouchableOpacity>
@@ -331,33 +331,36 @@ export default function ContributeScreen() {
 
             {showSchoolPicker && (
               <View style={styles.dropdownMenu}>
-                {filteredSchools.length > 0 ? (
-                  filteredSchools.map((sch) => {
-                    const isSelected = schoolInput.trim().toLowerCase() === sch.toLowerCase();
-                    return (
-                      <TouchableOpacity
-                        key={sch}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSchoolInput(sch);
-                          setSchool(sch);
-                          setShowSchoolPicker(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownItemText, isSelected && { color: '#15803d', fontWeight: '800' }]}>
-                          {sch}
-                        </Text>
-                        {isSelected && <CheckIcon color="#15803d" size={16} />}
-                      </TouchableOpacity>
-                    );
-                  })
-                ) : (
-                  <View style={styles.dropdownItemEmpty}>
-                    <Text style={styles.dropdownItemEmptyText}>
-                      No matching school. Custom entry "{schoolInput}" will be saved.
-                    </Text>
-                  </View>
-                )}
+                <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
+                  {filteredSchools.length > 0 ? (
+                    filteredSchools.map((sch) => {
+                      const isSelected = schoolInput.trim().toLowerCase() === sch.toLowerCase();
+                      return (
+                        <TouchableOpacity
+                          key={sch}
+                          style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                          onPress={() => {
+                            setSchoolInput(sch);
+                            setSchool(sch);
+                            setShowSchoolPicker(false);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
+                            {sch}
+                          </Text>
+                          {isSelected && <CheckIcon color="#15803d" size={16} />}
+                        </TouchableOpacity>
+                      );
+                    })
+                  ) : (
+                    <View style={styles.dropdownItemEmpty}>
+                      <Text style={styles.dropdownItemEmptyText}>
+                        No matching school. Custom entry "{schoolInput}" will be saved.
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
               </View>
             )}
           </View>
@@ -614,8 +617,30 @@ const styles = StyleSheet.create({
   },
   searchableInputWrapper: {
     position: 'relative',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1'
   },
+  dropdownInputFocused: {
+    borderColor: '#15803d',
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  textInputInWrapper: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+    paddingRight: 40,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
+  } as any,
   dropdownChevronBtn: {
     position: 'absolute',
     right: 12,
@@ -628,10 +653,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
     marginTop: 4,
     overflow: 'hidden',
-    elevation: 4
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -642,9 +671,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9'
   },
+  dropdownItemActive: {
+    backgroundColor: '#f0fdf4'
+  },
   dropdownItemText: {
     fontSize: 13,
     color: '#334155'
+  },
+  dropdownItemTextActive: {
+    color: '#15803d',
+    fontWeight: '800'
   },
   dropdownItemEmpty: {
     padding: 14,
