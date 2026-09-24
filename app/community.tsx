@@ -427,6 +427,11 @@ export default function CommunityScreen() {
           { text: 'View Downloads', onPress: () => router.push('/(tabs)/downloads') }
         ]
       );
+    } catch (err) {
+      Alert.alert('Save Error', 'Could not save file offline.');
+    }
+  };
+
   const handlePickFromPhone = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -794,8 +799,7 @@ export default function CommunityScreen() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#15803d',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
+    backgroundColor: '#efeae2'
   },
   container: {
     flex: 1,
@@ -806,7 +810,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#15803d',
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 12 : 12,
+    paddingBottom: 12,
     gap: 10
   },
   backBtn: {

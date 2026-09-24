@@ -382,6 +382,11 @@ export default function ChatRoomScreen({ route }: any) {
       });
 
       Alert.alert('File Saved Offline', `"${file.name}" has been saved to your local Downloads tab!`);
+    } catch (err) {
+      Alert.alert('Save Error', 'Could not save file offline.');
+    }
+  };
+
   const handlePickFromPhone = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({

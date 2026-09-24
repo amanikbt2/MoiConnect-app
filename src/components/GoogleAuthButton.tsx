@@ -17,7 +17,7 @@ import { config } from '../config';
 WebBrowser.maybeCompleteAuthSession();
 
 const SAVED_CLIENT_ID_KEY = 'google_oauth_client_id_config';
-const DEFAULT_GOOGLE_CLIENT_ID = '740750181702-mk2cplueh44l3j7rgbro8ml4maq715k.apps.googleusercontent.com';
+const DEFAULT_GOOGLE_CLIENT_ID = '740750181702-mk2cpiueh44l3j7rgbro8mi4rnaq7l5k.apps.googleusercontent.com';
 
 interface GoogleAuthButtonProps {
   onSuccess: () => void;

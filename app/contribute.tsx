@@ -402,16 +402,16 @@ export default function ContributeScreen() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#15803d',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
+    backgroundColor: '#f8fafc'
   },
   headerBar: {
-    height: 56,
     backgroundColor: '#15803d',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 12 : 12,
+    paddingBottom: 12
   },
   backBtn: {
     width: 36,
@@ -427,7 +427,8 @@ const styles = StyleSheet.create({
     color: '#ffffff'
   },
   container: {
-    flex: 1
+    flex: 1,
+    backgroundColor: '#f8fafc'
   },
   content: {
     padding: 16,
