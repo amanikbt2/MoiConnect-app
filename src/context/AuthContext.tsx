@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { IUser, RegisterInput, LoginInput, RequestLandlordInput } from '@moi/shared';
-import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken } from '../services/api';
+import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken, setStoredToken, removeStoredToken } from '../services/api';
 import { disconnectSocket } from '../services/socket';
 
 interface AuthContextType {
@@ -24,6 +24,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [userPoints, setUserPoints] = useState<number>(5);
 
+  const saveUserProfile = async (userData: IUser) => {
+    setUser(userData);
+    await setStoredToken('moi_user_profile', JSON.stringify(userData));
+  };
+
   const addPoints = (amount: number, reason?: string) => {
     setUserPoints((prev) => prev + amount);
   };
@@ -40,9 +45,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.success && res.data) {
-        const { user, tokens } = res.data;
+        const { user: authedUser, tokens } = res.data;
         await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
-        setUser(user);
+        await saveUserProfile(authedUser);
         return { success: true };
       }
 
@@ -53,11 +58,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: payload?.name || 'Google Student',
         avatarUrl: payload?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
         roles: ['student'],
+        activeRole: 'student',
+        landlordStatus: 'none',
+        accountStatus: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
       await saveAuthTokens('demo_google_access_token', 'demo_google_refresh_token');
-      setUser(demoUser);
+      await saveUserProfile(demoUser);
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message || 'Google sign-in failed' };
@@ -119,15 +127,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkCurrentUser = async () => {
     setLoading(true);
+    const cachedUser = await getStoredToken('moi_user_profile');
+
+    if (cachedUser) {
+      try {
+        const parsed = JSON.parse(cachedUser);
+        if (parsed && parsed._id) {
+          setUser(parsed);
+        }
+      } catch (e) {}
+    }
+
     const token = await getStoredToken('moi_access_token');
     if (token) {
-      const res = await apiRequest<IUser>('/auth/me');
-      if (res.success && res.data) {
-        setUser(res.data);
+      if (token === 'demo_google_access_token' || token.startsWith('demo_')) {
+        if (!cachedUser) {
+          const defaultDemoUser: IUser = {
+            _id: 'google_user_demo',
+            email: 'student.google@moi.ac.ke',
+            name: 'Google Student',
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+            roles: ['student'],
+            activeRole: 'student',
+            landlordStatus: 'none',
+            accountStatus: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          await saveUserProfile(defaultDemoUser);
+        }
       } else {
-        await clearAuthTokens();
-        setUser(null);
+        const res = await apiRequest<IUser>('/auth/me');
+        if (res.success && res.data) {
+          await saveUserProfile(res.data);
+        } else if (!cachedUser) {
+          await clearAuthTokens();
+          setUser(null);
+        }
       }
+    } else {
+      setUser(null);
     }
     setLoading(false);
   };
@@ -139,9 +178,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (res.success && res.data) {
-      const { user, tokens } = res.data;
+      const { user: authedUser, tokens } = res.data;
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
-      setUser(user);
+      await saveUserProfile(authedUser);
       return { success: true };
     }
     return { success: false, error: res.error || 'Login failed' };
@@ -154,9 +193,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (res.success && res.data) {
-      const { user, tokens } = res.data;
+      const { user: authedUser, tokens } = res.data;
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
-      setUser(user);
+      await saveUserProfile(authedUser);
       return { success: true };
     }
     return { success: false, error: res.error || 'Registration failed' };
@@ -169,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (res.success && res.data) {
-      setUser(res.data);
+      await saveUserProfile(res.data);
       return { success: true };
     }
     return { success: false, error: res.error || 'Request failed' };

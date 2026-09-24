@@ -293,3 +293,14 @@ export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetail
   const existingStr = await getItem(STUDENT_PROFILE_KEY);
   return existingStr ? JSON.parse(existingStr) : null;
 };
+
+const COMMUNITY_MESSAGES_KEY = 'moi_community_messages_cache';
+
+export const getStoredCommunityMessages = async (): Promise<any[]> => {
+  const existingStr = await getItem(COMMUNITY_MESSAGES_KEY);
+  return existingStr ? JSON.parse(existingStr) : [];
+};
+
+export const saveCommunityMessages = async (messages: any[]) => {
+  await setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(messages));
+};

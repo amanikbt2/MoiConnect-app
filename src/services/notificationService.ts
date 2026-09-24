@@ -48,3 +48,18 @@ export async function registerForPushNotificationsAsync() {
     return null;
   }
 }
+
+export function setupNotificationResponseListener(onNavigate: (screenPath: string) => void) {
+  if (Platform.OS === 'web') return () => {};
+
+  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    const data = response.notification.request.content.data;
+    if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
+      onNavigate('/(tabs)/messages');
+    }
+  });
+
+  return () => {
+    subscription.remove();
+  };
+}

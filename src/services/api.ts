@@ -37,6 +37,7 @@ export const saveAuthTokens = async (accessToken: string, refreshToken: string) 
 export const clearAuthTokens = async () => {
   await removeStoredToken(ACCESS_TOKEN_KEY);
   await removeStoredToken(REFRESH_TOKEN_KEY);
+  await removeStoredToken('moi_user_profile');
 };
 
 export async function apiRequest<T = any>(
