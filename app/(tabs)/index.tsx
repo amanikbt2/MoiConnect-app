@@ -15,6 +15,7 @@ import {
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
+import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
 
 import {
   SearchIcon,
@@ -129,6 +130,15 @@ export default function HomeScreen() {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSuggestedIndex, setActiveSuggestedIndex] = useState(0);
+
+  // Built-in Portal Viewer Modal State
+  const [activePortal, setActivePortal] = useState<PortalConfig | null>(null);
+  const [showPortalModal, setShowPortalModal] = useState(false);
+
+  const handleOpenPortal = (config: PortalConfig) => {
+    setActivePortal(config);
+    setShowPortalModal(true);
+  };
 
   const flatListRef = useRef<FlatList>(null);
   const isInteracting = useRef(false);
@@ -356,7 +366,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.quickCard}
               activeOpacity={0.7}
-              onPress={() => Linking.openURL('https://portal.mu.ac.ke')}
+              onPress={() =>
+                handleOpenPortal({
+                  title: 'Moi University Student Portal',
+                  url: 'https://portal.mu.ac.ke',
+                  domain: 'portal.mu.ac.ke'
+                })
+              }
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#e0f2fe' }]}>
                 <GraduationCapIcon color="#0284c7" size={28} />
@@ -368,7 +384,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.quickCard}
               activeOpacity={0.7}
-              onPress={() => Linking.openURL('https://musomi.mu.ac.ke')}
+              onPress={() =>
+                handleOpenPortal({
+                  title: 'MuSOMi E-Learning Portal',
+                  url: 'https://musomi.mu.ac.ke',
+                  domain: 'musomi.mu.ac.ke'
+                })
+              }
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#d1fae5' }]}>
                 <LaptopIcon color="#059669" size={28} />
@@ -452,6 +474,13 @@ export default function HomeScreen() {
         <Text style={styles.footerDivider}>·</Text>
         <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
       </View>
+
+      {/* Built-in Portal Viewer Modal with Header & Back Button */}
+      <PortalViewerModal
+        visible={showPortalModal}
+        portal={activePortal}
+        onClose={() => setShowPortalModal(false)}
+      />
     </ScrollView>
   );
 }
