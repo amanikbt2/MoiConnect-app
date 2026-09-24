@@ -29,38 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    checkCurrentUser();
+    initAuth();
   }, []);
-
-  const checkCurrentUser = async () => {
-    setLoading(true);
-    const token = await getStoredToken('moi_access_token');
-    if (token) {
-      const res = await apiRequest<IUser>('/auth/me');
-      if (res.success && res.data) {
-        setUser(res.data);
-      } else {
-        await clearAuthTokens();
-        setUser(null);
-      }
-    }
-    setLoading(false);
-  };
-
-  const login = async (input: LoginInput) => {
-    const res = await apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(input)
-    });
-
-    if (res.success && res.data) {
-      const { user, tokens } = res.data;
-      await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
-      setUser(user);
-      return { success: true };
-    }
-    return { success: false, error: res.error || 'Login failed' };
-  };
 
   const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => {
     try {
@@ -92,6 +62,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e: any) {
       return { success: false, error: e.message || 'Google sign-in failed' };
     }
+  };
+
+  const initAuth = async () => {
+    setLoading(true);
+
+    // Check if returning from web Google OAuth redirect
+    if (typeof window !== 'undefined' && window.location) {
+      const fullUrl = window.location.href;
+      if (fullUrl.includes('access_token=') || fullUrl.includes('id_token=')) {
+        try {
+          const hash = window.location.hash ? window.location.hash.substring(1) : window.location.search.substring(1);
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token') || undefined;
+          const idToken = params.get('id_token') || undefined;
+
+          let googleUser: any = {};
+          if (accessToken) {
+            try {
+              const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              });
+              if (userInfoRes.ok) {
+                googleUser = await userInfoRes.json();
+              }
+            } catch (e) {
+              console.warn('Failed to fetch userinfo from Google:', e);
+            }
+          }
+
+          // Clean URL fragment so reload doesn't re-trigger
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+
+          const res = await googleLogin({
+            idToken,
+            accessToken,
+            email: googleUser.email,
+            name: googleUser.name,
+            avatarUrl: googleUser.picture
+          });
+
+          if (res.success) {
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('OAuth redirect processing error:', e);
+        }
+      }
+    }
+
+    await checkCurrentUser();
+  };
+
+  const checkCurrentUser = async () => {
+    setLoading(true);
+    const token = await getStoredToken('moi_access_token');
+    if (token) {
+      const res = await apiRequest<IUser>('/auth/me');
+      if (res.success && res.data) {
+        setUser(res.data);
+      } else {
+        await clearAuthTokens();
+        setUser(null);
+      }
+    }
+    setLoading(false);
+  };
+
+  const login = async (input: LoginInput) => {
+    const res = await apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(input)
+    });
+
+    if (res.success && res.data) {
+      const { user, tokens } = res.data;
+      await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
+      setUser(user);
+      return { success: true };
+    }
+    return { success: false, error: res.error || 'Login failed' };
   };
 
   const register = async (input: RegisterInput) => {
