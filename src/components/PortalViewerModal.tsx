@@ -41,10 +41,6 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
     setKey((prev) => prev + 1);
   };
 
-  const handleOpenExternal = () => {
-    Linking.openURL(portal.url).catch(() => {});
-  };
-
   return (
     <Modal
       visible={visible}
@@ -53,59 +49,37 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
-        {/* Top Header Bar with Back Button */}
+        {/* Top Header Bar */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backBtn}
             onPress={onClose}
             activeOpacity={0.75}
           >
-            <ArrowLeftIcon color="#ffffff" size={18} />
+            <ArrowLeftIcon color="#ffffff" size={13} />
             <Text style={styles.backBtnText}>Back to App</Text>
           </TouchableOpacity>
 
           <View style={styles.titleContainer}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
               {portal.title}
             </Text>
-            <View style={styles.domainBadge}>
-              <Text style={styles.lockIcon}>🔒</Text>
-              <Text style={styles.domainText}>{portal.domain}</Text>
-            </View>
           </View>
 
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={handleRefresh}
-              activeOpacity={0.7}
-            >
-              <RefreshCwIcon color="#ffffff" size={16} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={handleOpenExternal}
-              activeOpacity={0.7}
-            >
-              <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '800' }}>↗</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <CloseIcon color="#ffffff" size={18} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.refreshIconBtn}
+            onPress={handleRefresh}
+            activeOpacity={0.7}
+          >
+            <RefreshCwIcon color="#ffffff" size={15} />
+          </TouchableOpacity>
         </View>
 
         {/* Portal Webview / Iframe Body */}
         <View style={styles.body}>
           {loading && (
             <View style={styles.loadingOverlay}>
-              <BrandLoader message={`Connecting to ${portal.title}...`} size={84} />
+              <BrandLoader message={`Loading ${portal.title}...`} size={76} />
             </View>
           )}
 
@@ -131,7 +105,7 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
               </Text>
               <TouchableOpacity
                 style={styles.openPortalBtn}
-                onPress={handleOpenExternal}
+                onPress={() => Linking.openURL(portal.url).catch(() => {})}
               >
                 <Text style={styles.openPortalBtnText}>Open {portal.title} ↗</Text>
               </TouchableOpacity>
@@ -153,8 +127,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#064e3b',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#047857',
     gap: 8
@@ -162,67 +136,39 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)'
+    borderColor: 'rgba(255, 255, 255, 0.22)'
   },
   backBtnText: {
     color: '#ffffff',
-    fontWeight: '800',
-    fontSize: 13
+    fontWeight: '700',
+    fontSize: 11
   },
   titleContainer: {
     flex: 1,
-    alignItems: 'center'
+    alignItems: 'center',
+    paddingHorizontal: 4
   },
   headerTitle: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     textAlign: 'center'
   },
-  domainBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#047857',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  refreshIconBtn: {
+    width: 30,
+    height: 30,
     borderRadius: 8,
-    marginTop: 2
-  },
-  lockIcon: {
-    fontSize: 10
-  },
-  domainText: {
-    color: '#a7f3d0',
-    fontSize: 11,
-    fontWeight: '700'
-  },
-  headerActions: {
-    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
-    gap: 6
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: '#dc2626',
-    alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)'
   },
   body: {
     flex: 1,
@@ -240,11 +186,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
     gap: 12
-  },
-  loadingText: {
-    color: '#334155',
-    fontSize: 14,
-    fontWeight: '700'
   },
   nativeFallbackContainer: {
     flex: 1,
