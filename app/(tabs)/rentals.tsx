@@ -406,6 +406,7 @@ export default function RentalsScreen() {
                     key={pt}
                     style={[styles.pill, selectedType === pt && styles.pillActive]}
                     onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
+                    activeOpacity={0.75}
                   >
                     <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
                       {label}

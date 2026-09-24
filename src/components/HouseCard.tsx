@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { IHouse } from '@moi/shared';
-import { Badge } from './Badge';
 import { LocationIcon, ChevronRightIcon } from './Icons';
 
 interface HouseCardProps {
@@ -47,9 +46,6 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
     : (house.status === 'available' || house.occupancyStatus === 'available' ? 1 : 0);
 
   const isFullyBooked = availRooms === 0;
-  const statusLabel = isFullyBooked
-    ? '🔴 Fully Booked'
-    : `🟢 ${availRooms} Vacant Room${availRooms > 1 ? 's' : ''}`;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
@@ -67,12 +63,12 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
             styles.availabilityBadge,
             isFullyBooked ? styles.badgeFull : styles.badgeVacant
           ]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{
-                width: 7,
-                height: 7,
-                borderRadius: 4,
-                backgroundColor: isFullyBooked ? '#ef4444' : '#22c55e'
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: isFullyBooked ? '#ef4444' : '#16a34a'
               }} />
               <Text style={[
                 styles.availabilityBadgeText,
@@ -95,28 +91,17 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
         <Text style={styles.title} numberOfLines={1}>{house.title}</Text>
 
         <View style={styles.locationRow}>
-          <LocationIcon color="#15803d" size={14} />
+          <LocationIcon color="#15803d" size={13} />
           <Text style={styles.locationText} numberOfLines={1}>
             {locationText}
           </Text>
         </View>
 
-        {/* Amenities Pills */}
-        {house.amenities && house.amenities.length > 0 && (
-          <View style={styles.amenitiesRow}>
-            {house.amenities.slice(0, 3).map((amenity, idx) => (
-              <View key={idx} style={styles.amenityChip}>
-                <Text style={styles.amenityText}>{amenity}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
         {/* Footer Link Row */}
         <View style={styles.footerRow}>
           <Text style={styles.viewDetailsText}>View details & contact</Text>
           <View style={styles.arrowCircle}>
-            <ChevronRightIcon color="#15803d" size={14} />
+            <ChevronRightIcon color="#15803d" size={13} />
           </View>
         </View>
       </View>
@@ -139,7 +124,7 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   imageContainer: {
-    height: 160,
+    height: 165,
     width: '100%',
     position: 'relative',
     backgroundColor: '#0f172a'
@@ -150,78 +135,78 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.15)'
+    backgroundColor: 'rgba(15, 23, 42, 0.12)'
   },
   topBadgeRow: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
+    top: 10,
+    left: 10,
+    right: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
   typeBadge: {
-    backgroundColor: 'rgba(15, 23, 42, 0.78)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8
   },
   typeBadgeText: {
     color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.4
+    letterSpacing: 0.5
   },
   availabilityBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8
   },
   badgeVacant: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: 'rgba(240, 253, 244, 0.95)',
     borderWidth: 1,
-    borderColor: '#bbf7d0'
+    borderColor: 'rgba(187, 247, 208, 0.8)'
   },
   badgeFull: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: 'rgba(254, 242, 242, 0.95)',
     borderWidth: 1,
-    borderColor: '#fca5a5'
+    borderColor: 'rgba(254, 202, 202, 0.8)'
   },
   availabilityBadgeText: {
-    fontSize: 11,
-    fontWeight: '800'
+    fontSize: 10,
+    fontWeight: '700'
   },
   badgeTextVacant: {
     color: '#15803d'
   },
   badgeTextFull: {
-    color: '#ef4444'
+    color: '#dc2626'
   },
   priceTag: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
+    bottom: 10,
+    left: 10,
     backgroundColor: '#15803d',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 4
   },
   priceText: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900'
+    fontSize: 12,
+    fontWeight: '800'
   },
   cardContent: {
     padding: 14
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
     marginBottom: 4
@@ -233,26 +218,9 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   locationText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#15803d'
-  },
-  amenitiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12
-  },
-  amenityChip: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  amenityText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#475569'
+    color: '#15803d'
   },
   footerRow: {
     flexDirection: 'row',
@@ -263,14 +231,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9'
   },
   viewDetailsText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#15803d'
   },
   arrowCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#f0fdf4',
     alignItems: 'center',
     justifyContent: 'center'
