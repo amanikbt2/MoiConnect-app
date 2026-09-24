@@ -744,8 +744,10 @@ export default function CommunityScreen() {
                   });
                   setShowFileModal(false);
                 }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.customFileBtnText}>📁 Pick Custom File from Phone Storage</Text>
+                <FolderIcon color="#ffffff" size={18} />
+                <Text style={styles.customFileBtnText}>Pick from phone</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1196,11 +1198,14 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   customFileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginTop: 6,
     backgroundColor: '#15803d',
     paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center'
+    borderRadius: 12
   },
   customFileBtnText: {
     color: '#ffffff',

@@ -10,7 +10,8 @@ import {
   FlatList,
   Image,
   Dimensions,
-  Linking
+  Linking,
+  Platform
 } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';

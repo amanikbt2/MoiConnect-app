@@ -32,7 +32,8 @@ import {
   FileTextIcon,
   DownloadIcon,
   CheckIcon,
-  ReplyIcon
+  ReplyIcon,
+  FolderIcon
 } from '../../src/components/Icons';
 
 export interface FileAttachment {
@@ -648,13 +649,14 @@ export default function ChatRoomScreen({ route }: any) {
 
             <TouchableOpacity
               style={{
-                backgroundColor: '#f1f5f9',
-                padding: 12,
-                borderRadius: 12,
+                flexDirection: 'row',
                 alignItems: 'center',
-                marginTop: 12,
-                borderWidth: 1,
-                borderColor: '#cbd5e1'
+                justifyContent: 'center',
+                gap: 8,
+                backgroundColor: '#15803d',
+                paddingVertical: 12,
+                borderRadius: 12,
+                marginTop: 12
               }}
               onPress={() => {
                 setSelectedFile({
@@ -665,9 +667,11 @@ export default function ChatRoomScreen({ route }: any) {
                 });
                 setShowFileModal(false);
               }}
+              activeOpacity={0.8}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803d' }}>
-                📁 Pick Custom File from Phone Storage
+              <FolderIcon color="#ffffff" size={18} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff' }}>
+                Pick from phone
               </Text>
             </TouchableOpacity>
           </View>
