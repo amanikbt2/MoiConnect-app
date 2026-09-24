@@ -48,7 +48,7 @@ const queryClient = new QueryClient();
 
 function HeaderNotificationBell() {
   const [modalVisible, setModalVisible] = React.useState(false);
-  const [unreadCount, setUnreadCount] = React.useState(4);
+  const [unreadCount, setUnreadCount] = React.useState(3);
   const [notifications, setNotifications] = React.useState([
     {
       id: 'welcome_reward',
@@ -72,14 +72,6 @@ function HeaderNotificationBell() {
       message: 'STA 210 Probability & Statistics 2023 exam paper has been added.',
       time: '1 hr ago',
       type: 'paper',
-      read: false
-    },
-    {
-      id: '3',
-      title: 'Rental Booking Update',
-      message: 'Landlord approved your room viewing request for Kesses Sunrise Hostels.',
-      time: 'Yesterday',
-      type: 'rental',
       read: false
     },
     {
