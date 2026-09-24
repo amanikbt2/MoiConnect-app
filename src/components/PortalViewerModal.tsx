@@ -77,7 +77,6 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={handleRefresh}
-              title="Refresh Page"
               activeOpacity={0.7}
             >
               <RefreshCwIcon color="#ffffff" size={16} />
@@ -86,7 +85,6 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={handleOpenExternal}
-              title="Open in External Browser"
               activeOpacity={0.7}
             >
               <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '800' }}>↗</Text>
