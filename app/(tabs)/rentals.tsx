@@ -321,7 +321,7 @@ export default function RentalsScreen() {
             {/* Top Header Action Row with Landlord Portal Small Icon */}
             <View style={styles.topHeaderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.topHeaderTitle}>Available Houses & Hostels</Text>
+                <Text style={styles.topHeaderTitle}>Available Houses</Text>
                 <Text style={styles.topHeaderSub}>Verified student rentals around Moi Campus</Text>
               </View>
               <TouchableOpacity
@@ -334,7 +334,7 @@ export default function RentalsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Search Bar */}
+            {/* Search Bar - Full Width with Inline Small Blue Search SVG */}
             <View style={styles.searchRow}>
               <TextInput
                 placeholder="Search Stage, Mabs, Kesses, Bedsitter..."
@@ -344,14 +344,14 @@ export default function RentalsScreen() {
                 onSubmitEditing={fetchHouses}
                 style={styles.searchInput}
               />
-              <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses}>
-                <Text style={styles.searchBtnText}>Search</Text>
+              <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses} activeOpacity={0.8}>
+                <SearchIcon color="#2563eb" size={18} />
               </TouchableOpacity>
             </View>
 
             {/* Location Filter Chips */}
             <View style={styles.filterSectionHeader}>
-              <LocationIcon color="#475569" size={14} />
+              <LocationIcon color="#475569" size={12} />
               <Text style={styles.filterSectionTitle}>Filter by Location</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
@@ -362,12 +362,13 @@ export default function RentalsScreen() {
                     key={loc}
                     style={[styles.locationPill, isActive && styles.locationPillActive]}
                     onPress={() => setSelectedLocation(loc)}
+                    activeOpacity={0.75}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       {loc === 'All Locations' ? (
-                        <GlobeIcon color={isActive ? '#ffffff' : '#15803d'} size={14} />
+                        <GlobeIcon color={isActive ? '#ffffff' : '#15803d'} size={12} />
                       ) : (
-                        <LocationIcon color={isActive ? '#ffffff' : '#15803d'} size={14} />
+                        <LocationIcon color={isActive ? '#ffffff' : '#15803d'} size={12} />
                       )}
                       <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
                         {loc}
@@ -380,13 +381,14 @@ export default function RentalsScreen() {
 
             {/* Property Type Pills */}
             <View style={styles.filterSectionHeader}>
-              <HouseIcon color="#475569" size={14} />
+              <HouseIcon color="#475569" size={12} />
               <Text style={styles.filterSectionTitle}>Room Type</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               <TouchableOpacity
                 style={[styles.pill, selectedType === '' && styles.pillActive]}
                 onPress={() => setSelectedType('')}
+                activeOpacity={0.75}
               >
                 <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
               </TouchableOpacity>
@@ -544,67 +546,70 @@ const styles = StyleSheet.create({
     color: '#15803d'
   },
   searchRow: {
-    flexDirection: 'row',
-    gap: 8,
+    position: 'relative',
+    width: '100%',
     marginBottom: 12
   },
   searchInput: {
-    flex: 1,
+    width: '100%',
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingLeft: 14,
+    paddingRight: 48,
+    paddingVertical: 11,
     fontSize: 14,
     color: '#0f172a',
-    outlineStyle: 'none',
+    outlineStyle: 'none'
   } as any,
   searchBtn: {
-    backgroundColor: '#15803d',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    bottom: 6,
+    width: 36,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
     justifyContent: 'center',
     alignItems: 'center'
-  },
-  searchBtnText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 13
   },
   filterSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-    marginTop: 6
+    gap: 5,
+    marginBottom: 5,
+    marginTop: 4
   },
   filterSectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: '#475569',
     textTransform: 'uppercase',
-    letterSpacing: 0.5
+    letterSpacing: 0.4
   },
   locationPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginRight: 8,
+    marginRight: 6,
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 4
+    shadowRadius: 3,
+    elevation: 1
   },
   locationPillActive: {
     backgroundColor: '#15803d',
     borderColor: '#15803d'
   },
   locationPillText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#334155'
   },
@@ -613,26 +618,30 @@ const styles = StyleSheet.create({
   },
   pillScroll: {
     flexDirection: 'row',
-    marginBottom: 12
+    marginBottom: 8
   },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    marginRight: 8
+    borderColor: '#e2e8f0',
+    marginRight: 6,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1
   },
   pillActive: {
     backgroundColor: '#15803d',
     borderColor: '#15803d'
   },
   pillText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#475569',
-    textTransform: 'capitalize'
+    color: '#475569'
   },
   pillTextActive: {
     color: '#ffffff'
