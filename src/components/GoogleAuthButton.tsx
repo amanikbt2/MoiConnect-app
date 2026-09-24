@@ -125,7 +125,9 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   };
 
   // Web / AuthSession Fallback Provider
-  const redirectUri = makeRedirectUri({ preferLocalhost: true });
+  const redirectUri = Platform.OS === 'web' && typeof window !== 'undefined'
+    ? window.location.origin + '/'
+    : makeRedirectUri({ preferLocalhost: true });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: activeClientId,

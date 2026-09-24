@@ -345,9 +345,16 @@ function HeaderProfileAvatar({ navigation }) {
 
 function HomeHeaderTitle() {
   return (
-    <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
-      MConnect
-    </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Image
+        source={require('./assets/mc-logo-transparent.png')}
+        style={{ width: 28, height: 28, borderRadius: 6, marginRight: 6 }}
+        resizeMode="contain"
+      />
+      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+        Connect
+      </Text>
+    </View>
   );
 }
 
