@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  StatusBar,
   Modal,
   ScrollView,
   Alert,
@@ -760,7 +761,8 @@ export default function CommunityScreen() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#15803d'
+    backgroundColor: '#15803d',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
   },
   container: {
     flex: 1,

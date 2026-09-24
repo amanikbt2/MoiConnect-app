@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
 import { Tabs } from 'expo-router';
-import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon } from '../../src/components/Icons';
+import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon } from '../../src/components/Icons';
 import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
 
 function HomeHeaderTitle() {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Image
-        source={require('../../assets/mc-logo-transparent.png')}
-        style={{ width: 28, height: 28, borderRadius: 6, marginRight: 6 }}
+        source={require('../../assets/m-logo-transparent.png')}
+        style={{ width: 34, height: 30, marginRight: 6 }}
         resizeMode="contain"
       />
-      <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: '800', letterSpacing: 0.4 }}>
+      <Text style={{ color: '#ffffff', fontSize: 22, fontWeight: '800', letterSpacing: 0.4 }}>
         Connect
       </Text>
     </View>
@@ -113,11 +113,11 @@ export default function TabLayout() {
           },
           tabBarIcon: ({ focused }: { focused: boolean }) => (
             <Image
-              source={require('../../assets/mc-logo.png')}
+              source={require('../../assets/splash-icon.png')}
               style={{
-                width: 26,
-                height: 26,
-                opacity: focused ? 1 : 0.5,
+                width: 24,
+                height: 24,
+                opacity: focused ? 1 : 0.55
               }}
               resizeMode="contain"
             />

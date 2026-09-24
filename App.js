@@ -33,7 +33,7 @@ import ChatRoomScreen from './app/chat/[id]';
 
 import { TouchableOpacity } from 'react-native';
 import { useAuth } from './src/context/AuthContext';
-import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon } from './src/components/Icons';
+import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon } from './src/components/Icons';
 import { InAppPopupModal } from './src/components/InAppPopupModal';
 import { checkAppPopups } from './src/services/popupService';
 
@@ -417,8 +417,12 @@ function MainTabs({ navigation }) {
           headerShown: false,
           tabBarIcon: ({ focused }) => (
             <Image
-              source={require('./assets/mc-logo.png')}
-              style={{ width: 26, height: 26, opacity: focused ? 1 : 0.5 }}
+              source={require('./assets/splash-icon.png')}
+              style={{
+                width: 24,
+                height: 24,
+                opacity: focused ? 1 : 0.55
+              }}
               resizeMode="contain"
             />
           )

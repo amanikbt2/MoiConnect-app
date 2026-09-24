@@ -917,7 +917,8 @@ export default function LandlordPortalScreen() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#15803d',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
   },
   headerBar: {
     flexDirection: 'row',

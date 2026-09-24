@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   SafeAreaView,
+  StatusBar,
   ActivityIndicator,
   Alert,
   Platform
@@ -52,9 +53,14 @@ export default function ContributeScreen() {
 
   const [title, setTitle] = useState('');
   const [courseCode, setCourseCode] = useState('');
+  const [schoolInput, setSchoolInput] = useState(SCHOOL_OPTIONS[0]);
   const [school, setSchool] = useState(SCHOOL_OPTIONS[0]);
   const [type, setType] = useState('past_paper');
   const [examYear, setExamYear] = useState('2025');
+
+  const filteredSchools = SCHOOL_OPTIONS.filter((sch) =>
+    sch.toLowerCase().includes(schoolInput.toLowerCase().trim())
+  );
 
   // Selected file state from Phone Storage
   const [pickedFile, setPickedFile] = useState<{
@@ -104,10 +110,11 @@ export default function ContributeScreen() {
     setUploading(true);
 
     try {
+      const selectedSchool = schoolInput.trim() || school || SCHOOL_OPTIONS[0];
       const payload = {
         title: title.trim(),
-        school,
-        department: school,
+        school: selectedSchool,
+        department: selectedSchool,
         courseCode: courseCode.trim().toUpperCase(),
         unitCode: courseCode.trim().toUpperCase(),
         unitName: title.trim(),
@@ -295,35 +302,62 @@ export default function ContributeScreen() {
             </View>
           </View>
 
-          {/* School Selector */}
+          {/* School Selector - Searchable Autocomplete Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>School / Faculty</Text>
-            <TouchableOpacity
-              style={styles.selectDropdown}
-              onPress={() => setShowSchoolPicker(!showSchoolPicker)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.selectDropdownText} numberOfLines={1}>{school}</Text>
-              <Text style={{ color: '#64748b', fontSize: 12 }}>▼</Text>
-            </TouchableOpacity>
+            <View style={styles.searchableInputWrapper}>
+              <TextInput
+                style={[styles.textInput, { paddingRight: 40 }]}
+                placeholder="Type or filter School / Faculty..."
+                placeholderTextColor="#94a3b8"
+                value={schoolInput}
+                onChangeText={(text) => {
+                  setSchoolInput(text);
+                  setSchool(text);
+                  setShowSchoolPicker(true);
+                }}
+                onFocus={() => setShowSchoolPicker(true)}
+              />
+              <TouchableOpacity
+                style={styles.dropdownChevronBtn}
+                onPress={() => setShowSchoolPicker(!showSchoolPicker)}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: '#64748b', fontSize: 12 }}>
+                  {showSchoolPicker ? '▲' : '▼'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {showSchoolPicker && (
               <View style={styles.dropdownMenu}>
-                {SCHOOL_OPTIONS.map((sch) => (
-                  <TouchableOpacity
-                    key={sch}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setSchool(sch);
-                      setShowSchoolPicker(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownItemText, school === sch && { color: '#15803d', fontWeight: '800' }]}>
-                      {sch}
+                {filteredSchools.length > 0 ? (
+                  filteredSchools.map((sch) => {
+                    const isSelected = schoolInput.trim().toLowerCase() === sch.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={sch}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setSchoolInput(sch);
+                          setSchool(sch);
+                          setShowSchoolPicker(false);
+                        }}
+                      >
+                        <Text style={[styles.dropdownItemText, isSelected && { color: '#15803d', fontWeight: '800' }]}>
+                          {sch}
+                        </Text>
+                        {isSelected && <CheckIcon color="#15803d" size={16} />}
+                      </TouchableOpacity>
+                    );
+                  })
+                ) : (
+                  <View style={styles.dropdownItemEmpty}>
+                    <Text style={styles.dropdownItemEmptyText}>
+                      No matching school. Custom entry "{schoolInput}" will be saved.
                     </Text>
-                    {school === sch && <CheckIcon color="#15803d" size={16} />}
-                  </TouchableOpacity>
-                ))}
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -353,7 +387,8 @@ export default function ContributeScreen() {
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc'
+    backgroundColor: '#15803d',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
   },
   headerBar: {
     height: 56,
@@ -577,6 +612,18 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8
   },
+  searchableInputWrapper: {
+    position: 'relative',
+    justifyContent: 'center'
+  },
+  dropdownChevronBtn: {
+    position: 'absolute',
+    right: 12,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6
+  },
   dropdownMenu: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -598,6 +645,15 @@ const styles = StyleSheet.create({
   dropdownItemText: {
     fontSize: 13,
     color: '#334155'
+  },
+  dropdownItemEmpty: {
+    padding: 14,
+    backgroundColor: '#f8fafc'
+  },
+  dropdownItemEmptyText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontStyle: 'italic'
   },
   submitBtn: {
     flexDirection: 'row',

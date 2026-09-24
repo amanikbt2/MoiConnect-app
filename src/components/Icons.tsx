@@ -21,6 +21,49 @@ export function HomeIcon({ color = '#15803d', size = 22, style }: IconProps) {
   );
 }
 
+export function CommunityIcon({ color = '#15803d', size = 24, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      {/* M Main Stems */}
+      <Path
+        d="M3.5 6.5V19.5M20.5 9.5V19.5M3.5 6.5L12 14.5L17.2 8.8"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Graduation Cap */}
+      <Path
+        d="M13.5 4.5L17.5 2.5L21.5 4.5L17.5 6.5Z"
+        fill={color}
+        stroke={color}
+        strokeWidth="0.8"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15.5 5.5V7C15.5 7.8 19.5 7.8 19.5 7V5.5"
+        stroke={color}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <Circle cx="21" cy="7" r="0.6" fill={color} />
+      {/* Open Book Wings */}
+      <Path
+        d="M8.5 16.5C10.2 15.3 12 16.5 12 16.5C12 16.5 13.8 15.3 15.5 16.5"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M8.5 19C10.2 17.8 12 19 12 19C12 19 13.8 17.8 15.5 19"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export function BookIcon({ color = '#15803d', size = 22, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>

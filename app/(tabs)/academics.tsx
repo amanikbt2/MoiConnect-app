@@ -539,6 +539,7 @@ function ShimmerGridLoader({ title }: { title?: string }) {
 }
 
 export default function AcademicsScreen({ route }: any) {
+  const router = useAppNavigation();
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1054,12 +1055,22 @@ export default function AcademicsScreen({ route }: any) {
             <ShimmerGridLoader title="Fetching 2 more lines of recently uploaded notes..." />
           )}
 
-          {/* End of feed indicator when all items are loaded */}
-          {visibleCountSection1 >= GRID_SECTION_1.length && visibleCountSection2 >= GRID_SECTION_2.length && (
-            <View style={styles.endOfFeedContainer}>
-              <Text style={styles.endOfFeedText}>✨ You've caught up with all available notes & papers!</Text>
-            </View>
-          )}
+          {/* App Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+              <Text style={styles.footerLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDivider}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+              <Text style={styles.footerLink}>Terms of Use</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDivider}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
+              <Text style={styles.footerLink}>Support</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDivider}>·</Text>
+            <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1609,20 +1620,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0'
   },
 
-  /* End of Feed Indicator */
-  endOfFeedContainer: {
+  /* App Footer Styles */
+  footer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
-    marginTop: 12,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#bbf7d0'
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingTop: 24,
+    paddingBottom: 4,
+    marginTop: 8
   },
-  endOfFeedText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#166534'
+  footerLink: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#94a3b8'
+  },
+  footerDivider: {
+    fontSize: 10,
+    color: '#cbd5e1'
+  },
+  footerVersion: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '500'
   }
 });
 

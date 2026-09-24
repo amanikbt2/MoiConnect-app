@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  StatusBar,
   Platform,
   ActivityIndicator,
   Linking
@@ -120,7 +121,8 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#064e3b'
+    backgroundColor: '#064e3b',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
   },
   header: {
     flexDirection: 'row',

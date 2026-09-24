@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  StatusBar,
   Platform,
   Animated,
   Easing
@@ -290,7 +291,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#15803d',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
   },
   header: {
     flexDirection: 'row',
