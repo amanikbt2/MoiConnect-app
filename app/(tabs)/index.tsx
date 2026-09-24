@@ -136,6 +136,14 @@ export default function HomeScreen() {
   const [showPortalModal, setShowPortalModal] = useState(false);
 
   const handleOpenPortal = (config: PortalConfig) => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.open(config.url, '_blank', 'noopener,noreferrer');
+      } else {
+        Linking.openURL(config.url);
+      }
+      return;
+    }
     setActivePortal(config);
     setShowPortalModal(true);
   };
