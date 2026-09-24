@@ -241,7 +241,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     // On Web: use direct standard Google OAuth 2.0 redirect
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       setLoading(true);
-      const cleanRedirectUri = window.location.origin + window.location.pathname;
+      const cleanRedirectUri = window.location.origin;
       const nonce = Math.random().toString(36).substring(2);
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
         activeClientId

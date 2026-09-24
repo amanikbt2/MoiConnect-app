@@ -1,12 +1,16 @@
 import React from 'react';
 import { View, Text, Platform, Modal, ScrollView, Image } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/context/AuthContext';
 import { NetworkProvider } from './src/context/NetworkContext';
 import { StatusBar } from 'expo-status-bar';
+import { GlobalBottomBar } from './src/components/GlobalBottomBar';
+
+export const navigationRef = createNavigationContainerRef();
 
 import HomeScreen from './app/(tabs)/index';
 import AcademicsScreen from './app/(tabs)/academics';
@@ -386,9 +390,7 @@ function MainTabs({ navigation }) {
             <HeaderProfileAvatar navigation={navigation} />
           </View>
         ),
-        tabBarActiveTintColor: '#15803d',
-        tabBarInactiveTintColor: '#64748b',
-        tabBarStyle: { height: 60, paddingBottom: 8, paddingTop: 6 }
+        tabBarStyle: { display: 'none' }
       }}
     >
       <Tab.Screen
@@ -397,7 +399,6 @@ function MainTabs({ navigation }) {
         options={{
           title: 'Home',
           headerTitle: () => <HomeHeaderTitle />,
-          tabBarIcon: ({ color }) => <HomeIcon color={color} size={22} />
         }}
       />
       <Tab.Screen
@@ -406,7 +407,6 @@ function MainTabs({ navigation }) {
         options={{
           title: 'Downloads',
           headerTitle: () => <DownloadsHeaderTitle />,
-          tabBarIcon: ({ color }) => <DownloadIcon color={color} size={22} />
         }}
       />
       <Tab.Screen
@@ -415,25 +415,13 @@ function MainTabs({ navigation }) {
         options={{
           title: 'Community',
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('./assets/splash-icon.png')}
-              style={{
-                width: 24,
-                height: 24,
-                opacity: focused ? 1 : 0.55
-              }}
-              resizeMode="contain"
-            />
-          )
         }}
       />
-
     </Tab.Navigator>
   );
 }
 
-function AppNavigator() {
+function AppNavigator({ currentRoute }) {
   const { user } = useAuth();
   const [activePopup, setActivePopup] = React.useState(null);
   const [popupVisible, setPopupVisible] = React.useState(false);
@@ -454,40 +442,54 @@ function AppNavigator() {
     };
   }, [user]);
 
+  const handleBottomBarNavigate = (tab) => {
+    if (!navigationRef || !navigationRef.isReady()) return;
+    if (tab === 'Home') {
+      navigationRef.navigate('MainTabs', { screen: 'HomeTab' });
+    } else if (tab === 'Downloads') {
+      navigationRef.navigate('MainTabs', { screen: 'DownloadsTab' });
+    } else if (tab === 'Community') {
+      navigationRef.navigate('MainTabs', { screen: 'MessagesTab' });
+    }
+  };
+
   return (
-    <>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          headerStyle: { backgroundColor: '#15803d' },
-          headerTintColor: '#ffffff',
-          headerTitleStyle: { fontWeight: '800', fontSize: 18 }
-        }}
-      >
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
-        <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
-        <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'Frequently Asked Questions', headerShown: true }} />
-        <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
-        <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
-        <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="LandlordPortal" component={LandlordPortalScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
-        <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
-        <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
-        <Stack.Screen name="Register" component={RegisterScreen} options={{ presentation: 'modal' }} />
-        <Stack.Screen name="RequestLandlord" component={RequestLandlordScreen} options={{ presentation: 'modal' }} />
-        <Stack.Screen name="PaperDetail" component={PaperDetailScreen} options={{ title: 'Paper Detail', headerShown: true }} />
-        <Stack.Screen name="HouseDetail" component={HouseDetailScreen} options={{ title: 'House Detail', headerShown: true }} />
-        <Stack.Screen name="ChatRoom" component={ChatRoomScreen} options={{ title: 'Chat Conversation', headerShown: true }} />
-      </Stack.Navigator>
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+      <View style={{ flex: 1 }}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            headerStyle: { backgroundColor: '#15803d' },
+            headerTintColor: '#ffffff',
+            headerTitleStyle: { fontWeight: '800', fontSize: 18 }
+          }}
+        >
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Student Profile & Settings', headerShown: true }} />
+          <Stack.Screen name="Community" component={CommunityScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy', headerShown: true }} />
+          <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'Frequently Asked Questions', headerShown: true }} />
+          <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
+          <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
+          <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="LandlordPortal" component={LandlordPortalScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
+          <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="Register" component={RegisterScreen} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="RequestLandlord" component={RequestLandlordScreen} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="PaperDetail" component={PaperDetailScreen} options={{ title: 'Paper Detail', headerShown: true }} />
+          <Stack.Screen name="HouseDetail" component={HouseDetailScreen} options={{ title: 'House Detail', headerShown: true }} />
+          <Stack.Screen name="ChatRoom" component={ChatRoomScreen} options={{ title: 'Chat Conversation', headerShown: true }} />
+        </Stack.Navigator>
+      </View>
+      <GlobalBottomBar currentRoute={currentRoute} onNavigate={handleBottomBarNavigate} />
       <InAppPopupModal
         visible={popupVisible}
         popup={activePopup}
         onClose={() => setPopupVisible(false)}
       />
-    </>
+    </View>
   );
 }
 
@@ -530,16 +532,31 @@ const linking = {
 };
 
 export default function App() {
+  const [currentRoute, setCurrentRoute] = React.useState('HomeTab');
+
   return (
-    <NetworkProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <NavigationContainer linking={linking}>
-            <AppNavigator />
-          </NavigationContainer>
-        </AuthProvider>
-      </QueryClientProvider>
-    </NetworkProvider>
+    <SafeAreaProvider>
+      <NetworkProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <StatusBar style="light" />
+            <NavigationContainer
+              ref={navigationRef}
+              linking={linking}
+              onReady={() => {
+                const route = navigationRef.getCurrentRoute();
+                if (route) setCurrentRoute(route.name);
+              }}
+              onStateChange={() => {
+                const route = navigationRef.getCurrentRoute();
+                if (route) setCurrentRoute(route.name);
+              }}
+            >
+              <AppNavigator currentRoute={currentRoute} />
+            </NavigationContainer>
+          </AuthProvider>
+        </QueryClientProvider>
+      </NetworkProvider>
+    </SafeAreaProvider>
   );
 }

@@ -111,6 +111,60 @@ export default function ContributeScreen() {
 
     try {
       const selectedSchool = schoolInput.trim() || school || SCHOOL_OPTIONS[0];
+
+      // 1. Send file to backend server temporary storage (uploads/temp/)
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        try {
+          const fileBlob = await (await fetch(pickedFile.uri)).blob();
+          formData.append('file', fileBlob, pickedFile.name);
+        } catch (blobErr) {
+          console.warn('Web blob conversion fallback:', blobErr);
+          formData.append('file', {
+            uri: pickedFile.uri,
+            name: pickedFile.name,
+            type: pickedFile.mimeType || 'application/pdf',
+          } as any);
+        }
+      } else {
+        formData.append('file', {
+          uri: pickedFile.uri,
+          name: pickedFile.name,
+          type: pickedFile.mimeType || 'application/pdf',
+        } as any);
+      }
+
+      let uploadedTempFilename: string | undefined = undefined;
+      let uploadedFileUrl = pickedFile.uri;
+      let uploadedFileSize = pickedFile.size || 1258291;
+      let uploadedFileType: 'pdf' | 'doc' | 'image' = pickedFile.name.toLowerCase().endsWith('.pdf')
+        ? 'pdf'
+        : (pickedFile.name.toLowerCase().endsWith('.docx') || pickedFile.name.toLowerCase().endsWith('.doc') ? 'doc' : 'image');
+
+      try {
+        const uploadRes = await apiRequest<{
+          tempFilename: string;
+          originalName: string;
+          fileUrl: string;
+          relativeUrl: string;
+          fileSize: number;
+          fileType: 'pdf' | 'doc' | 'image';
+        }>('/papers/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadRes?.success && uploadRes.data) {
+          uploadedTempFilename = uploadRes.data.tempFilename;
+          uploadedFileUrl = uploadRes.data.fileUrl;
+          uploadedFileSize = uploadRes.data.fileSize || uploadedFileSize;
+          uploadedFileType = uploadRes.data.fileType || uploadedFileType;
+        }
+      } catch (uploadErr) {
+        console.warn('Direct server upload note:', uploadErr);
+      }
+
+      // 2. Submit paper record referencing server temp storage
       const payload = {
         title: title.trim(),
         school: selectedSchool,
@@ -120,9 +174,10 @@ export default function ContributeScreen() {
         unitName: title.trim(),
         type,
         examYear: parseInt(examYear) || 2025,
-        fileUrl: pickedFile.uri,
-        fileType: pickedFile.name.endsWith('.pdf') ? 'pdf' : 'doc',
-        fileSize: pickedFile.size || 1258291
+        fileUrl: uploadedFileUrl,
+        tempFilename: uploadedTempFilename,
+        fileType: uploadedFileType,
+        fileSize: uploadedFileSize
       };
 
       let serverPaperId = `paper_${Date.now()}`;
@@ -151,7 +206,7 @@ export default function ContributeScreen() {
         fileUrl: payload.fileUrl,
         fileType: payload.fileType as any,
         uploadedBy: { _id: user?._id || 'guest', name: user?.name || 'Guest Student' } as any,
-        status: 'approved',
+        status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });

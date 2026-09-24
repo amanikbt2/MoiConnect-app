@@ -1,6 +1,9 @@
 import { Platform } from 'react-native';
 
-const getDefaultHost = () => {
+const RENDER_BACKEND_URL = 'https://moiconnect.onrender.com';
+const LOCAL_BACKEND_PORT = '5000';
+
+const getDynamicHost = () => {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       const protocol = window.location.protocol;
@@ -12,20 +15,27 @@ const getDefaultHost = () => {
         hostname.startsWith('10.');
 
       if (isLocal) {
-        return `${protocol}//${hostname}:5000`;
+        return `${protocol}//${hostname}:${LOCAL_BACKEND_PORT}`;
       }
-      return `${protocol}//${hostname}`;
+      return RENDER_BACKEND_URL;
     }
-    return 'http://localhost:5000';
+    return `http://localhost:${LOCAL_BACKEND_PORT}`;
   }
-  return 'http://10.0.2.2:5000';
+
+  // Native Android / iOS
+  if (__DEV__) {
+    return `http://10.0.2.2:${LOCAL_BACKEND_PORT}`;
+  }
+  return RENDER_BACKEND_URL;
 };
 
-const defaultHost = getDefaultHost();
-
 export const config = {
-  apiUrl: process.env.EXPO_PUBLIC_API_URL || `${defaultHost}/api/v1`,
-  socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || defaultHost,
+  get apiUrl() {
+    return process.env.EXPO_PUBLIC_API_URL || `${getDynamicHost()}/api/v1`;
+  },
+  get socketUrl() {
+    return process.env.EXPO_PUBLIC_SOCKET_URL || getDynamicHost();
+  },
   google: {
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',

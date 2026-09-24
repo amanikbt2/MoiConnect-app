@@ -12,7 +12,8 @@ import {
   Alert,
   Modal,
   Platform,
-  Image
+  Image,
+  Linking
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
@@ -28,7 +29,11 @@ import {
   SparklesIcon,
   TrashIcon,
   DownloadIcon,
-  CloseIcon
+  CloseIcon,
+  DocumentIcon,
+  FolderIcon,
+  SearchIcon,
+  CheckIcon
 } from '../src/components/Icons';
 
 export default function LandlordPortalScreen() {
@@ -39,11 +44,11 @@ export default function LandlordPortalScreen() {
   const [landlordMID, setLandlordMID] = useState('');
   const [landlordSerial, setLandlordSerial] = useState('');
   const [securityKey, setSecurityKey] = useState('');
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(Boolean(user?.roles?.includes('admin') || user?.roles?.includes('landlord')));
   const [verifying, setVerifying] = useState(false);
 
-  // Portal Main Section Tab State ('listings' | 'notify')
-  const [portalTab, setPortalTab] = useState<'listings' | 'notify'>('listings');
+  // Portal Main Section Tab State ('listings' | 'notify' | 'materials' | 'temp')
+  const [portalTab, setPortalTab] = useState<'listings' | 'notify' | 'materials' | 'temp'>('listings');
   const [notifySubTab, setNotifySubTab] = useState<'normal' | 'update'>('normal');
 
   // Portal Apartment Listings State
@@ -136,6 +141,28 @@ export default function LandlordPortalScreen() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [creatingPopup, setCreatingPopup] = useState(false);
 
+  // Material Approvals State
+  const [pendingPapers, setPendingPapers] = useState<any[]>([]);
+  const [loadingPapers, setLoadingPapers] = useState(false);
+  const [paperSearch, setPaperSearch] = useState('');
+  const [selectedPaper, setSelectedPaper] = useState<any | null>(null);
+  const [showPaperModal, setShowPaperModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Paper Modal Edit Fields
+  const [editTitle, setEditTitle] = useState('');
+  const [editCourseCode, setEditCourseCode] = useState('');
+  const [editSchool, setEditSchool] = useState('');
+  const [editYear, setEditYear] = useState('2025');
+  const [editType, setEditType] = useState('past_paper');
+
+  // Server Media (Temp) State
+  const [tempFiles, setTempFiles] = useState<any[]>([]);
+  const [tempStats, setTempStats] = useState({ totalFiles: 0, totalSizeBytes: 0, totalSizeFormatted: '0 B' });
+  const [loadingTemp, setLoadingTemp] = useState(false);
+  const [selectedFilenames, setSelectedFilenames] = useState<string[]>([]);
+  const [cleaningTemp, setCleaningTemp] = useState(false);
+
   const fetchPopupHistory = async () => {
     setLoadingHistory(true);
     try {
@@ -149,11 +176,231 @@ export default function LandlordPortalScreen() {
     setLoadingHistory(false);
   };
 
+  const fetchPendingPapers = async () => {
+    setLoadingPapers(true);
+    try {
+      const res: any = await apiRequest('/dashboard/overview');
+      if (res?.success && Array.isArray(res.pendingPapers)) {
+        setPendingPapers(res.pendingPapers);
+      }
+    } catch (e) {
+      console.log('Error fetching pending papers:', e);
+    }
+    setLoadingPapers(false);
+  };
+
+  const fetchTempFiles = async () => {
+    setLoadingTemp(true);
+    try {
+      const res: any = await apiRequest('/dashboard/temp-files');
+      if (res?.success && Array.isArray(res.files)) {
+        setTempFiles(res.files);
+        setTempStats({
+          totalFiles: res.totalFiles || res.files.length,
+          totalSizeBytes: res.totalSizeBytes || 0,
+          totalSizeFormatted: res.totalSizeFormatted || '0 B'
+        });
+      }
+    } catch (e) {
+      console.log('Error loading temp files:', e);
+    }
+    setLoadingTemp(false);
+  };
+
   useEffect(() => {
-    if (isVerified && portalTab === 'notify') {
-      fetchPopupHistory();
+    if (isVerified) {
+      if (portalTab === 'notify') fetchPopupHistory();
+      if (portalTab === 'materials') fetchPendingPapers();
+      if (portalTab === 'temp') fetchTempFiles();
+      // Always pre-populate counts in background
+      fetchPendingPapers();
+      fetchTempFiles();
     }
   }, [isVerified, portalTab]);
+
+  const handleOpenPaperModal = (paper: any) => {
+    setSelectedPaper(paper);
+    setEditTitle(paper.title || '');
+    setEditCourseCode(paper.courseCode || paper.unitCode || '');
+    setEditSchool(paper.school || '');
+    setEditYear(String(paper.examYear || 2025));
+    setEditType(paper.type || 'past_paper');
+    setShowPaperModal(true);
+  };
+
+  const handleSavePaperEdits = async () => {
+    if (!selectedPaper) return;
+    setActionLoading(true);
+    try {
+      const res = await apiRequest(`/dashboard/papers/${selectedPaper._id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          courseCode: editCourseCode.trim().toUpperCase(),
+          unitCode: editCourseCode.trim().toUpperCase(),
+          school: editSchool.trim(),
+          department: editSchool.trim(),
+          examYear: parseInt(editYear) || 2025,
+          type: editType
+        })
+      });
+      if (res?.success) {
+        Alert.alert('Saved! ✅', 'Document metadata updated successfully.');
+        setSelectedPaper((prev: any) => ({
+          ...prev,
+          title: editTitle.trim(),
+          courseCode: editCourseCode.trim().toUpperCase(),
+          school: editSchool.trim(),
+          examYear: parseInt(editYear) || 2025,
+          type: editType
+        }));
+        fetchPendingPapers();
+      } else {
+        Alert.alert('Save Failed', res?.error || 'Could not update document.');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Network error while updating.');
+    }
+    setActionLoading(false);
+  };
+
+  const handleApprovePaper = async () => {
+    if (!selectedPaper) return;
+    setActionLoading(true);
+    try {
+      const res = await apiRequest(`/dashboard/papers/${selectedPaper._id}/approve`, {
+        method: 'POST'
+      });
+      if (res?.success) {
+        Alert.alert(
+          'Approved & Uploaded! ✨',
+          `Document approved with MTID ${res.data?.mtid || ''}!\n\nUploaded to Cloudinary (folder: MoiConnect/pdf). Server temporary file has been safely removed.`
+        );
+        setShowPaperModal(false);
+        fetchPendingPapers();
+        fetchTempFiles();
+      } else {
+        Alert.alert('Approval Failed', res?.error || 'Could not approve paper.');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to approve paper.');
+    }
+    setActionLoading(false);
+  };
+
+  const handleRejectPaper = async () => {
+    if (!selectedPaper) return;
+    Alert.alert(
+      'Confirm Rejection',
+      'Are you sure you want to reject this submission? The temporary file will be deleted from the server disk.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject & Delete Temp',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              const res = await apiRequest(`/dashboard/papers/${selectedPaper._id}/reject`, {
+                method: 'POST',
+                body: JSON.stringify({ reason: 'Document does not meet upload standards.' })
+              });
+              if (res?.success) {
+                Alert.alert('Rejected ❌', 'Material rejected and temporary file removed from server disk.');
+                setShowPaperModal(false);
+                fetchPendingPapers();
+                fetchTempFiles();
+              } else {
+                Alert.alert('Error', res?.error || 'Could not reject paper.');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to reject paper.');
+            }
+            setActionLoading(false);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleToggleSelectFilename = (filename: string) => {
+    setSelectedFilenames((prev) =>
+      prev.includes(filename) ? prev.filter((f) => f !== filename) : [...prev, filename]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedFilenames.length === tempFiles.length) {
+      setSelectedFilenames([]);
+    } else {
+      setSelectedFilenames(tempFiles.map((f) => f.name));
+    }
+  };
+
+  const handleDeleteSingleTempFile = (filename: string) => {
+    Alert.alert(
+      'Delete Temp File?',
+      `Are you sure you want to delete "${filename}" from the server temporary storage?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await apiRequest(`/dashboard/temp-files/${encodeURIComponent(filename)}`, {
+                method: 'DELETE'
+              });
+              if (res?.success) {
+                Alert.alert('Deleted', `File "${filename}" deleted from server.`);
+                fetchTempFiles();
+                fetchPendingPapers();
+              } else {
+                Alert.alert('Error', res?.error || 'Failed to delete file.');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Delete request failed.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBatchDeleteTempFiles = () => {
+    if (selectedFilenames.length === 0) return;
+    Alert.alert(
+      'Clean Server Media?',
+      `Are you sure you want to permanently delete ${selectedFilenames.length} temporary file(s) from the server?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Clean ${selectedFilenames.length} Files`,
+          style: 'destructive',
+          onPress: async () => {
+            setCleaningTemp(true);
+            try {
+              const res: any = await apiRequest('/dashboard/temp-files/delete-batch', {
+                method: 'POST',
+                body: JSON.stringify({ filenames: selectedFilenames })
+              });
+              if (res?.success) {
+                Alert.alert('Server Cleaned! 🧹', `Deleted ${res.deletedCount || selectedFilenames.length} temporary file(s) from server disk.`);
+                setSelectedFilenames([]);
+                fetchTempFiles();
+                fetchPendingPapers();
+              } else {
+                Alert.alert('Error', res?.error || 'Failed to clean files.');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Batch delete failed.');
+            }
+            setCleaningTemp(false);
+          }
+        }
+      ]
+    );
+  };
 
   const handleAuthenticate = () => {
     if (!landlordMID.trim() || !landlordSerial.trim() || !securityKey.trim()) {
@@ -444,15 +691,39 @@ export default function LandlordPortalScreen() {
       ) : (
         /* STEP 2: VERIFIED DASHBOARD WITH NOTIFY TAB */
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          {/* Main Top Navigation Tabs (Listings vs Notify) */}
-          <View style={styles.mainTabSwitchRow}>
+          {/* Main Top Navigation Tabs (Listings, Approvals, Server Temp, Notify) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.mainTabSwitchRow}
+          >
             <TouchableOpacity
               style={[styles.mainTabBtn, portalTab === 'listings' && styles.mainTabBtnActive]}
               onPress={() => setPortalTab('listings')}
             >
-              <HouseIcon color={portalTab === 'listings' ? '#ffffff' : '#64748b'} size={18} />
+              <HouseIcon color={portalTab === 'listings' ? '#ffffff' : '#64748b'} size={16} />
               <Text style={[styles.mainTabText, portalTab === 'listings' && styles.mainTabTextActive]}>
-                Apartment Buildings
+                Apartments
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.mainTabBtn, portalTab === 'materials' && styles.mainTabBtnActiveMaterials]}
+              onPress={() => setPortalTab('materials')}
+            >
+              <DocumentIcon color={portalTab === 'materials' ? '#ffffff' : '#047857'} size={16} />
+              <Text style={[styles.mainTabText, portalTab === 'materials' && styles.mainTabTextActive]}>
+                Approvals {pendingPapers.length > 0 ? `(${pendingPapers.length})` : ''}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.mainTabBtn, portalTab === 'temp' && styles.mainTabBtnActiveTemp]}
+              onPress={() => setPortalTab('temp')}
+            >
+              <FolderIcon color={portalTab === 'temp' ? '#ffffff' : '#b45309'} size={16} />
+              <Text style={[styles.mainTabText, portalTab === 'temp' && styles.mainTabTextActive]}>
+                Server Media (Temp) {tempStats.totalFiles > 0 ? `(${tempStats.totalFiles})` : ''}
               </Text>
             </TouchableOpacity>
 
@@ -460,12 +731,12 @@ export default function LandlordPortalScreen() {
               style={[styles.mainTabBtn, portalTab === 'notify' && styles.mainTabBtnActiveNotify]}
               onPress={() => setPortalTab('notify')}
             >
-              <SparklesIcon color={portalTab === 'notify' ? '#ffffff' : '#2563eb'} size={18} />
+              <SparklesIcon color={portalTab === 'notify' ? '#ffffff' : '#2563eb'} size={16} />
               <Text style={[styles.mainTabText, portalTab === 'notify' && styles.mainTabTextActive]}>
-                Notify (Popups & Updates)
+                Notify (Popups)
               </Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
 
           {portalTab === 'listings' ? (
             /* LISTINGS SECTION */
@@ -546,6 +817,241 @@ export default function LandlordPortalScreen() {
                 );
               })}
             </>
+          ) : portalTab === 'materials' ? (
+            /* MATERIAL APPROVALS SECTION */
+            <View style={styles.materialsSection}>
+              {/* Header with Search and Refresh */}
+              <View style={styles.materialHeaderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Material Approvals</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    {pendingPapers.length} submissions pending review and Cloudinary sync
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.refreshBtn}
+                  onPress={fetchPendingPapers}
+                  disabled={loadingPapers}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.refreshBtnText}>🔄 Refresh</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Search Input */}
+              <View style={styles.searchBar}>
+                <SearchIcon color="#94a3b8" size={16} />
+                <TextInput
+                  style={styles.searchBarInput}
+                  placeholder="Search code, title, school..."
+                  placeholderTextColor="#94a3b8"
+                  value={paperSearch}
+                  onChangeText={setPaperSearch}
+                />
+                {!!paperSearch && (
+                  <TouchableOpacity onPress={() => setPaperSearch('')}>
+                    <CloseIcon color="#94a3b8" size={14} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Tiny Compact List */}
+              {loadingPapers ? (
+                <ActivityIndicator color="#15803d" size="large" style={{ marginVertical: 30 }} />
+              ) : pendingPapers.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyCardEmoji}>🎉</Text>
+                  <Text style={styles.emptyCardTitle}>No Pending Approvals</Text>
+                  <Text style={styles.emptyCardText}>All contributed materials have been reviewed and uploaded.</Text>
+                </View>
+              ) : (
+                <View style={styles.tinyListContainer}>
+                  {pendingPapers
+                    .filter((p) => {
+                      if (!paperSearch.trim()) return true;
+                      const q = paperSearch.toLowerCase();
+                      return (
+                        p.title?.toLowerCase().includes(q) ||
+                        p.courseCode?.toLowerCase().includes(q) ||
+                        p.unitCode?.toLowerCase().includes(q) ||
+                        p.school?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((paper) => (
+                      <TouchableOpacity
+                        key={paper._id}
+                        style={styles.tinyPaperRow}
+                        onPress={() => handleOpenPaperModal(paper)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.codePill}>
+                          <Text style={styles.codePillText}>{paper.courseCode || paper.unitCode || 'UNIT'}</Text>
+                        </View>
+
+                        <View style={{ flex: 1, marginHorizontal: 8 }}>
+                          <Text style={styles.tinyRowTitle} numberOfLines={1}>
+                            {paper.title}
+                          </Text>
+                          <View style={styles.tinyRowMetaRow}>
+                            <Text style={styles.tinyRowSchool} numberOfLines={1}>
+                              {paper.school || 'Moi University'}
+                            </Text>
+                            <Text style={styles.tinyRowDot}>•</Text>
+                            <Text style={styles.tinyRowType}>
+                              {paper.type === 'past_paper' ? 'Past Paper' : paper.type === 'cat' ? 'CAT' : 'Notes'}
+                            </Text>
+                            <Text style={styles.tinyRowDot}>•</Text>
+                            <View style={styles.sizePill}>
+                              <Text style={styles.sizePillText}>
+                                {paper.fileSize ? `${(paper.fileSize / (1024 * 1024)).toFixed(1)} MB` : 'PDF'}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={styles.reviewPill}>
+                          <Text style={styles.reviewPillText}>Review ⚡</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              )}
+            </View>
+          ) : portalTab === 'temp' ? (
+            /* SERVER MEDIA (TEMP) SECTION */
+            <View style={styles.tempSection}>
+              {/* KPI cards */}
+              <View style={styles.kpiRow}>
+                <View style={[styles.kpiCard, { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }]}>
+                  <Text style={styles.kpiNumber}>{tempStats.totalFiles}</Text>
+                  <Text style={styles.kpiLabel}>Temp Files</Text>
+                </View>
+                <View style={[styles.kpiCard, { borderColor: '#fed7aa', backgroundColor: '#fff7ed' }]}>
+                  <Text style={styles.kpiNumber}>{tempStats.totalSizeFormatted}</Text>
+                  <Text style={styles.kpiLabel}>Disk Space</Text>
+                </View>
+                <View style={[styles.kpiCard, { borderColor: '#e2e8f0', backgroundColor: '#ffffff' }]}>
+                  <Text style={styles.kpiNumber}>Folder</Text>
+                  <Text style={styles.kpiLabel}>uploads/temp</Text>
+                </View>
+              </View>
+
+              {/* Batch Operations Bar */}
+              <View style={styles.batchBar}>
+                <TouchableOpacity
+                  style={styles.batchBtnOutline}
+                  onPress={handleToggleSelectAll}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.batchBtnOutlineText}>
+                    {selectedFilenames.length === tempFiles.length && tempFiles.length > 0
+                      ? 'Deselect All'
+                      : `Select All (${tempFiles.length})`}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.batchBtnDelete,
+                    selectedFilenames.length === 0 && styles.batchBtnDeleteDisabled
+                  ]}
+                  onPress={handleBatchDeleteTempFiles}
+                  disabled={selectedFilenames.length === 0 || cleaningTemp}
+                  activeOpacity={0.8}
+                >
+                  {cleaningTemp ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.batchBtnDeleteText}>
+                      🗑️ Clean Selected ({selectedFilenames.length})
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.refreshIconBtn}
+                  onPress={fetchTempFiles}
+                  disabled={loadingTemp}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 16 }}>🔄</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Files List */}
+              {loadingTemp ? (
+                <ActivityIndicator color="#15803d" size="large" style={{ marginVertical: 30 }} />
+              ) : tempFiles.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyCardEmoji}>✨</Text>
+                  <Text style={styles.emptyCardTitle}>Server Temp Folder is Clean!</Text>
+                  <Text style={styles.emptyCardText}>No leftover temporary files stored in uploads/temp/.</Text>
+                </View>
+              ) : (
+                <View style={styles.tempFilesList}>
+                  {tempFiles.map((file) => {
+                    const isSelected = selectedFilenames.includes(file.name);
+                    return (
+                      <View key={file.name} style={[styles.tempFileCard, isSelected && styles.tempFileCardSelected]}>
+                        <TouchableOpacity
+                          style={styles.tempCheckArea}
+                          onPress={() => handleToggleSelectFilename(file.name)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                            {isSelected && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>✓</Text>}
+                          </View>
+                        </TouchableOpacity>
+
+                        <View style={{ flex: 1, marginHorizontal: 8 }}>
+                          <Text style={styles.tempFileName} numberOfLines={1}>
+                            {file.name}
+                          </Text>
+                          <View style={styles.tempFileMetaRow}>
+                            <Text style={styles.tempFileSize}>{file.sizeFormatted}</Text>
+                            <Text style={styles.tinyRowDot}>•</Text>
+                            <Text style={styles.tempFileDate}>
+                              {new Date(file.modifiedAt).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          {file.isPending ? (
+                            <View style={styles.pendingTag}>
+                              <Text style={styles.pendingTagText}>
+                                🟡 Linked: {file.paperCode || ''} {file.paperTitle || ''}
+                              </Text>
+                            </View>
+                          ) : (
+                            <View style={styles.orphanTag}>
+                              <Text style={styles.orphanTagText}>⚪ Unlinked / Orphaned</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View style={styles.tempRowActions}>
+                          <TouchableOpacity
+                            style={styles.tempActionBtn}
+                            onPress={() => {
+                              if (file.url) Linking.openURL(file.url);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <DownloadIcon color="#15803d" size={16} />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.tempActionBtn, { backgroundColor: '#fee2e2' }]}
+                            onPress={() => handleDeleteSingleTempFile(file.name)}
+                            activeOpacity={0.7}
+                          >
+                            <TrashIcon color="#ef4444" size={16} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           ) : (
             /* NOTIFY TAB SECTION (POPUP & UPDATE CREATION) */
             <View style={styles.notifyContainer}>
@@ -907,6 +1413,148 @@ export default function LandlordPortalScreen() {
                 <Text style={styles.submitBtnText}>Publish Apartment Listing</Text>
               )}
             </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Material Review & Approval Modal */}
+      <Modal
+        visible={showPaperModal && !!selectedPaper}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaperModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Material Approval & Review</Text>
+                <Text style={styles.modalSubtitleSmall}>
+                  Inspect media, edit details, or approve to Cloudinary
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowPaperModal(false)}>
+                <CloseIcon color="#ef4444" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Media Download & Verification Box */}
+            <View style={styles.mediaDownloadBox}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mediaBoxTitle}>Uploaded Temporary Media</Text>
+                <Text style={styles.mediaBoxSub} numberOfLines={1}>
+                  {selectedPaper?.tempFilename || selectedPaper?.fileUrl?.split('/').pop() || 'document.pdf'}
+                </Text>
+                <Text style={styles.mediaBoxSize}>
+                  Size: {selectedPaper?.fileSize ? `${(selectedPaper.fileSize / (1024 * 1024)).toFixed(1)} MB` : 'PDF'} • Status: Pending Review
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.downloadMediaBtn}
+                onPress={() => {
+                  if (selectedPaper?.fileUrl) {
+                    Linking.openURL(selectedPaper.fileUrl);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <DownloadIcon color="#ffffff" size={16} style={{ marginRight: 6 }} />
+                <Text style={styles.downloadMediaBtnText}>Download Media</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Metadata Editing Fields */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Unit Title <Text style={styles.required}>*</Text></Text>
+              <TextInput
+                style={styles.textInput}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="e.g. Distributed Operating Systems"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Course / Unit Code <Text style={styles.required}>*</Text></Text>
+              <TextInput
+                style={styles.textInput}
+                value={editCourseCode}
+                onChangeText={setEditCourseCode}
+                placeholder="e.g. COM 310"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>School / Faculty</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editSchool}
+                onChangeText={setEditSchool}
+                placeholder="e.g. School of Information Sciences"
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Exam Year</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editYear}
+                  onChangeText={setEditYear}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Type</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editType}
+                  onChangeText={setEditType}
+                  placeholder="past_paper, cat, notes"
+                />
+              </View>
+            </View>
+
+            {/* Save Edits Button */}
+            <TouchableOpacity
+              style={styles.saveEditsBtn}
+              onPress={handleSavePaperEdits}
+              disabled={actionLoading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.saveEditsBtnText}>💾 Save Metadata Edits</Text>
+            </TouchableOpacity>
+
+            <View style={styles.modalDivider} />
+
+            {/* Decision Buttons */}
+            <View style={styles.modalDecisionCol}>
+              <TouchableOpacity
+                style={[styles.approveBtn, actionLoading && styles.btnDisabled]}
+                onPress={handleApprovePaper}
+                disabled={actionLoading}
+                activeOpacity={0.88}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <>
+                    <CheckIcon color="#ffffff" size={18} style={{ marginRight: 6 }} />
+                    <Text style={styles.approveBtnText}>✨ Approve & Upload to Cloudinary</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.rejectBtn, actionLoading && styles.btnDisabled]}
+                onPress={handleRejectPaper}
+                disabled={actionLoading}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.rejectBtnText}>❌ Reject & Delete Temp File</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </Modal>
@@ -1503,5 +2151,399 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800'
+  },
+  /* Materials Section */
+  materialsSection: {
+    marginTop: 10
+  },
+  materialHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2
+  },
+  refreshBtn: {
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8
+  },
+  refreshBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155'
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 14,
+    gap: 8
+  },
+  searchBarInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+    padding: 0
+  },
+  tinyListContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden'
+  },
+  tinyPaperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  codePill: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bbf7d0'
+  },
+  codePillText: {
+    color: '#15803d',
+    fontSize: 11,
+    fontWeight: '800'
+  },
+  tinyRowTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  tinyRowMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2
+  },
+  tinyRowSchool: {
+    fontSize: 11,
+    color: '#64748b',
+    maxWidth: 120
+  },
+  tinyRowDot: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginHorizontal: 4
+  },
+  tinyRowType: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '600'
+  },
+  sizePill: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  sizePillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#475569'
+  },
+  reviewPill: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8
+  },
+  reviewPillText: {
+    color: '#15803d',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  emptyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginVertical: 10
+  },
+  emptyCardEmoji: {
+    fontSize: 32,
+    marginBottom: 8
+  },
+  emptyCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4
+  },
+  emptyCardText: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center'
+  },
+
+  /* Server Temp Section */
+  tempSection: {
+    marginTop: 10
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12
+  },
+  kpiCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center'
+  },
+  kpiNumber: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a'
+  },
+  kpiLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 2
+  },
+  batchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12
+  },
+  batchBtnOutline: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff'
+  },
+  batchBtnOutlineText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155'
+  },
+  batchBtnDelete: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8
+  },
+  batchBtnDeleteDisabled: {
+    backgroundColor: '#fca5a5',
+    opacity: 0.6
+  },
+  batchBtnDeleteText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  refreshIconBtn: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0',
+    marginLeft: 'auto'
+  },
+  tempFilesList: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden'
+  },
+  tempFileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  tempFileCardSelected: {
+    backgroundColor: '#eff6ff'
+  },
+  tempCheckArea: {
+    paddingRight: 4
+  },
+  tempFileName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  tempFileMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2
+  },
+  tempFileSize: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600'
+  },
+  tempFileDate: {
+    fontSize: 11,
+    color: '#94a3b8'
+  },
+  pendingTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4
+  },
+  pendingTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b45309'
+  },
+  orphanTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4
+  },
+  orphanTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  tempRowActions: {
+    flexDirection: 'row',
+    gap: 6
+  },
+  tempActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  /* Modal Additions */
+  modalSubtitleSmall: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2
+  },
+  mediaDownloadBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    marginBottom: 16,
+    gap: 10
+  },
+  mediaBoxTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a'
+  },
+  mediaBoxSub: {
+    fontSize: 11,
+    color: '#334155',
+    marginTop: 2
+  },
+  mediaBoxSize: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 2
+  },
+  downloadMediaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#15803d',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8
+  },
+  downloadMediaBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  saveEditsBtn: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4
+  },
+  saveEditsBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1e293b'
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 16
+  },
+  modalDecisionCol: {
+    gap: 10,
+    marginBottom: 10
+  },
+  approveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#15803d',
+    borderRadius: 12,
+    paddingVertical: 14
+  },
+  approveBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  rejectBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    backgroundColor: '#fef2f2'
+  },
+  rejectBtnText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  btnDisabled: {
+    opacity: 0.6
+  },
+  mainTabBtnActiveMaterials: {
+    backgroundColor: '#047857'
+  },
+  mainTabBtnActiveTemp: {
+    backgroundColor: '#b45309'
   }
 });
