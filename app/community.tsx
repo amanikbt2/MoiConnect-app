@@ -283,62 +283,65 @@ export default function CommunityScreen() {
     });
 
     // 3. Connect Real-time WebSocket Listeners
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('join_community');
+    let activeSocket: any = null;
+    getSocket().then((socket) => {
+      if (socket) {
+        activeSocket = socket;
+        socket.emit('join_community');
 
-      socket.on('community:receive_message', (serverMsg: any) => {
-        const formattedMsg: CommunityMessage = {
-          id: serverMsg._id || serverMsg.id || Date.now().toString(),
-          senderName: serverMsg.senderName || 'Moi Student',
-          senderFaculty: serverMsg.senderFaculty || 'Main Campus',
-          avatarBg: serverMsg.avatarBg || '#15803d',
-          text: serverMsg.text || '',
-          timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isoDate: serverMsg.createdAt || new Date().toISOString(),
-          isMe: !!(user && serverMsg.senderId === user._id),
-          fileAttachment: serverMsg.fileAttachment,
-          replyTo: serverMsg.replyTo,
-          reactions: serverMsg.reactions || {}
-        };
+        socket.on('community:receive_message', (serverMsg: any) => {
+          const formattedMsg: CommunityMessage = {
+            id: serverMsg._id || serverMsg.id || Date.now().toString(),
+            senderName: serverMsg.senderName || 'Moi Student',
+            senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+            avatarBg: serverMsg.avatarBg || '#15803d',
+            text: serverMsg.text || '',
+            timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isoDate: serverMsg.createdAt || new Date().toISOString(),
+            isMe: !!(user && serverMsg.senderId === user._id),
+            fileAttachment: serverMsg.fileAttachment,
+            replyTo: serverMsg.replyTo,
+            reactions: serverMsg.reactions || {}
+          };
 
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === formattedMsg.id)) return prev;
-          const updated = [...prev, formattedMsg];
-          saveCommunityMessages(updated);
-          return updated;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === formattedMsg.id)) return prev;
+            const updated = [...prev, formattedMsg];
+            saveCommunityMessages(updated);
+            return updated;
+          });
+
+          if (!formattedMsg.isMe && Platform.OS === 'web') {
+            sendWebBrowserNotification(
+              `💬 ${formattedMsg.senderName}`,
+              formattedMsg.text || `📎 Sent a file: ${formattedMsg.fileAttachment?.name || 'Attachment'}`,
+              () => router.push('/(tabs)/messages')
+            );
+          }
+
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
         });
 
-        if (!formattedMsg.isMe && Platform.OS === 'web') {
-          sendWebBrowserNotification(
-            `💬 ${formattedMsg.senderName}`,
-            formattedMsg.text || `📎 Sent a file: ${formattedMsg.fileAttachment?.name || 'Attachment'}`,
-            () => router.push('/(tabs)/messages')
-          );
-        }
-
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      });
-
-      socket.on('community:reaction_updated', (data: { messageId: string; reactions: any }) => {
-        setMessages((prev) => {
-          const updated = prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m));
-          saveCommunityMessages(updated);
-          return updated;
+        socket.on('community:reaction_updated', (data: { messageId: string; reactions: any }) => {
+          setMessages((prev) => {
+            const updated = prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m));
+            saveCommunityMessages(updated);
+            return updated;
+          });
         });
-      });
-    }
+      }
+    });
 
     // 4. Trigger Incremental Delta Sync (Fetch new un-synced messages since timestamp)
     fetchDeltaSync();
 
     return () => {
       cleanupNotif();
-      if (socket) {
-        socket.off('community:receive_message');
-        socket.off('community:reaction_updated');
+      if (activeSocket) {
+        activeSocket.off('community:receive_message');
+        activeSocket.off('community:reaction_updated');
       }
     };
   }, [user]);
@@ -458,10 +461,11 @@ export default function CommunityScreen() {
     }, 100);
 
     // 2. Emit Real-time via WebSocket (Sub-10ms delivery to connected users)
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('community:send_message', payload);
-    }
+    getSocket().then((socket) => {
+      if (socket) {
+        socket.emit('community:send_message', payload);
+      }
+    });
 
     // 3. HTTP Fallback to guarantee MongoDB persistence & trigger Push Notifications
     apiRequest('/community/messages', {
