@@ -129,12 +129,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 5,
-    shadowColor: '#15803d',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0px 2px 6px rgba(21, 128, 61, 0.25)' } as any)
+      : {
+          elevation: 5,
+          shadowColor: '#15803d',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6
+        })
   },
   messageText: {
     fontSize: 14,
