@@ -217,14 +217,27 @@ export default function ContributeScreen() {
         ? `"${payload.title}" (${payload.courseCode}) has been submitted successfully for administrator review!`
         : `"${payload.title}" (${payload.courseCode}) has been submitted for review!\n\nNote: You submitted as a guest. Sign in anytime to receive points and approval notifications.`;
 
-      Alert.alert(
-        'Submission Successful! 🎉',
-        successMsg,
-        [
-          { text: 'View Academic Hub', onPress: () => router.push('/(tabs)/academics') },
-          { text: 'OK', onPress: () => router.back() }
-        ]
-      );
+      const navigateAway = () => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.push('/(tabs)/academics');
+        }
+      };
+
+      if (Platform.OS === 'web') {
+        alert(`Submission Successful! 🎉\n\n${successMsg}`);
+        navigateAway();
+      } else {
+        Alert.alert(
+          'Submission Successful! 🎉',
+          successMsg,
+          [
+            { text: 'View Academic Hub', onPress: () => router.push('/(tabs)/academics') },
+            { text: 'OK', onPress: navigateAway }
+          ]
+        );
+      }
     } catch (e) {
       setUploading(false);
       Alert.alert('Upload Error', 'Failed to upload document. Please check your network connection.');
