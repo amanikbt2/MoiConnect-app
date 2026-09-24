@@ -58,6 +58,7 @@ export interface CommunityMessage {
   avatarBg: string;
   text: string;
   timestamp: string;
+  isoDate?: string;
   isMe: boolean;
   fileAttachment?: FileAttachment;
   reactions?: Record<string, number>;
@@ -204,6 +205,7 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     avatarBg: '#3b82f6',
     text: 'Jambo everyone! 👋 Does anyone have the revised COM 310 CAT 1 timetable for this Friday?',
     timestamp: '09:42 AM',
+    isoDate: new Date(Date.now() - 3600000 * 3).toISOString(),
     isMe: false,
     reactions: { '❤️': 4, '👍': 2 }
   },
@@ -214,6 +216,7 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     avatarBg: '#10b981',
     text: 'Yes Mercy, it was shifted to 2:00 PM at Margaret Thatcher Library hall B. Here is the PDF document details attachment:',
     timestamp: '09:45 AM',
+    isoDate: new Date(Date.now() - 3600000 * 2).toISOString(),
     isMe: false,
     fileAttachment: {
       name: 'COM_310_CAT1_Revision_Notes.pdf',
@@ -230,6 +233,7 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     avatarBg: '#ec4899',
     text: 'Quick notice: The Annex Hostel bus departs main campus at 1:15 PM today 🚌 Please don’t be late!',
     timestamp: '10:02 AM',
+    isoDate: new Date(Date.now() - 3600000 * 1).toISOString(),
     isMe: false,
     reactions: { '❤️': 15, '🙏': 3 }
   },
@@ -240,6 +244,7 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     avatarBg: '#8b5cf6',
     text: 'We are hosting a React Native & Node.js tech workshop at the Innovation Hub tomorrow 4PM. Everyone is welcome! 🚀⚡',
     timestamp: '10:15 AM',
+    isoDate: new Date(Date.now() - 1800000).toISOString(),
     isMe: false,
     reactions: { '🔥': 22, '👍': 11 }
   }
@@ -258,6 +263,114 @@ export default function CommunityScreen() {
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
+  const lastSyncedISO = useRef<string | null>(null);
+
+  useEffect(() => {
+    // 1. Register push notification click tap listener for automatic navigation
+    const cleanupNotif = setupNotificationResponseListener((screenPath) => {
+      router.push(screenPath as any);
+    });
+
+    // 2. Instant Load from Phone Storage (0ms UI latency)
+    getStoredCommunityMessages().then((cachedMsgs) => {
+      if (cachedMsgs && cachedMsgs.length > 0) {
+        setMessages(cachedMsgs);
+        lastSyncedISO.current = cachedMsgs[cachedMsgs.length - 1]?.isoDate || new Date().toISOString();
+      } else {
+        saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
+        lastSyncedISO.current = INITIAL_COMMUNITY_MESSAGES[INITIAL_COMMUNITY_MESSAGES.length - 1].isoDate || new Date().toISOString();
+      }
+    });
+
+    // 3. Connect Real-time WebSocket Listeners
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('join_community');
+
+      socket.on('community:receive_message', (serverMsg: any) => {
+        const formattedMsg: CommunityMessage = {
+          id: serverMsg._id || serverMsg.id || Date.now().toString(),
+          senderName: serverMsg.senderName || 'Moi Student',
+          senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+          avatarBg: serverMsg.avatarBg || '#15803d',
+          text: serverMsg.text || '',
+          timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isoDate: serverMsg.createdAt || new Date().toISOString(),
+          isMe: !!(user && serverMsg.senderId === user._id),
+          fileAttachment: serverMsg.fileAttachment,
+          replyTo: serverMsg.replyTo,
+          reactions: serverMsg.reactions || {}
+        };
+
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === formattedMsg.id)) return prev;
+          const updated = [...prev, formattedMsg];
+          saveCommunityMessages(updated);
+          return updated;
+        });
+
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      });
+
+      socket.on('community:reaction_updated', (data: { messageId: string; reactions: any }) => {
+        setMessages((prev) => {
+          const updated = prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m));
+          saveCommunityMessages(updated);
+          return updated;
+        });
+      });
+    }
+
+    // 4. Trigger Incremental Delta Sync (Fetch new un-synced messages since timestamp)
+    fetchDeltaSync();
+
+    return () => {
+      cleanupNotif();
+      if (socket) {
+        socket.off('community:receive_message');
+        socket.off('community:reaction_updated');
+      }
+    };
+  }, [user]);
+
+  const fetchDeltaSync = async () => {
+    try {
+      const sinceParam = lastSyncedISO.current ? `?since=${encodeURIComponent(lastSyncedISO.current)}` : '';
+      const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
+      if (res && res.success && res.data && res.data.length > 0) {
+        const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg) => ({
+          id: serverMsg._id || serverMsg.id,
+          senderName: serverMsg.senderName || 'Moi Student',
+          senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+          avatarBg: serverMsg.avatarBg || '#15803d',
+          text: serverMsg.text || '',
+          timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isoDate: serverMsg.createdAt,
+          isMe: !!(user && serverMsg.senderId === user._id),
+          fileAttachment: serverMsg.fileAttachment,
+          replyTo: serverMsg.replyTo,
+          reactions: serverMsg.reactions || {}
+        }));
+
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const newOnly = fetchedMsgs.filter((m) => !existingIds.has(m.id));
+          if (newOnly.length === 0) return prev;
+          const merged = [...prev, ...newOnly];
+          saveCommunityMessages(merged);
+          return merged;
+        });
+
+        if (res.syncedAt) {
+          lastSyncedISO.current = res.syncedAt;
+        }
+      }
+    } catch (err) {
+      console.log('Delta sync fallback:', err);
+    }
+  };
 
   useEffect(() => {
     if (showFileModal) {
@@ -282,19 +395,6 @@ export default function CommunityScreen() {
     }
   };
 
-  const scrollToMessage = (msgId: string) => {
-    const index = messages.findIndex((m) => m.id === msgId);
-    if (index !== -1 && flatListRef.current) {
-      flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
-    }
-  };
-
-  useEffect(() => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 200);
-  }, []);
-
   const handleSendMessage = () => {
     if (!inputText.trim() && !selectedFile) return;
 
@@ -310,20 +410,37 @@ export default function CommunityScreen() {
         }
       : undefined;
 
-    const newMessage: CommunityMessage = {
-      id: Date.now().toString(),
+    const payload = {
+      text: sentText,
+      fileAttachment: selectedFile || undefined,
+      replyTo: replyToData,
       senderName: user ? user.name : 'Moi Student',
       senderFaculty: user?.department || 'Main Campus Student',
-      avatarBg: '#15803d',
+      avatarBg: '#15803d'
+    };
+
+    const tempId = Date.now().toString();
+    const newMessage: CommunityMessage = {
+      id: tempId,
+      senderName: payload.senderName,
+      senderFaculty: payload.senderFaculty,
+      avatarBg: payload.avatarBg,
       text: sentText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isoDate: new Date().toISOString(),
       isMe: true,
       fileAttachment: selectedFile || undefined,
       replyTo: replyToData,
       reactions: {}
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    // 1. Instant Optimistic Render & Save to Local Phone Storage
+    setMessages((prev) => {
+      const updated = [...prev, newMessage];
+      saveCommunityMessages(updated);
+      return updated;
+    });
+
     setInputText('');
     setSelectedFile(null);
     setReplyingTo(null);
@@ -331,6 +448,18 @@ export default function CommunityScreen() {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
+
+    // 2. Emit Real-time via WebSocket (Sub-10ms delivery to connected users)
+    const socket = getSocket();
+    if (socket) {
+      socket.emit('community:send_message', payload);
+    }
+
+    // 3. HTTP Fallback to guarantee MongoDB persistence & trigger Push Notifications
+    apiRequest('/community/messages', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }).catch((e) => console.log('HTTP post fallback:', e));
 
     // Auto Bot Response
     if (isBotMentioned) {
@@ -342,41 +471,20 @@ export default function CommunityScreen() {
           avatarBg: '#6366f1',
           text: 'Hello! 🤖 I am Campus Bot. How can I help you today? You can ask me about past papers, rental hostels, or campus announcements!',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isoDate: new Date().toISOString(),
           isMe: false,
           reactions: { '🤖': 1, '❤️': 1 }
         };
 
-        setMessages((prev) => [...prev, botMessage]);
+        setMessages((prev) => {
+          const updated = [...prev, botMessage];
+          saveCommunityMessages(updated);
+          return updated;
+        });
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
       }, 1000);
-    } else {
-      setTimeout(() => {
-        const autoReplies = [
-          'Awesome thoughts! 👏 Thanks for sharing with the campus community.',
-          'Noted! Good luck to everyone studying for upcoming exams! 📚✨',
-          'Great point! Let us catch up at Student Centre later today. 👍',
-          'Thanks for updating us! 🎓🔥'
-        ];
-        const randomReply = autoReplies[Math.floor(Math.random() * autoReplies.length)];
-
-        const botMessage: CommunityMessage = {
-          id: (Date.now() + 1).toString(),
-          senderName: 'Campus Bot 🤖',
-          senderFaculty: 'Moi Uni Community',
-          avatarBg: '#6366f1',
-          text: randomReply,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isMe: false,
-          reactions: { '❤️': 1 }
-        };
-
-        setMessages((prev) => [...prev, botMessage]);
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }, 2500);
     }
   };
 
@@ -389,12 +497,10 @@ export default function CommunityScreen() {
         const myPrev = msg.myReaction;
 
         if (myPrev === emoji) {
-          // Remove reaction
           currentReactions[emoji] = (currentReactions[emoji] || 1) - 1;
           if (currentReactions[emoji] <= 0) delete currentReactions[emoji];
           return { ...msg, reactions: currentReactions, myReaction: undefined };
         } else {
-          // Change or add reaction
           if (myPrev && currentReactions[myPrev]) {
             currentReactions[myPrev] -= 1;
             if (currentReactions[myPrev] <= 0) delete currentReactions[myPrev];
@@ -405,6 +511,12 @@ export default function CommunityScreen() {
       })
     );
     setActiveReactionMsgId(null);
+
+    // Call API reaction update
+    apiRequest(`/community/messages/${msgId}/reaction`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji })
+    }).catch(() => {});
   };
 
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
