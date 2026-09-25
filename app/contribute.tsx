@@ -115,16 +115,22 @@ export default function ContributeScreen() {
       // 1. Send file to backend server temporary storage (uploads/temp/)
       const formData = new FormData();
       if (Platform.OS === 'web') {
-        try {
-          const fileBlob = await (await fetch(pickedFile.uri)).blob();
-          formData.append('file', fileBlob, pickedFile.name);
-        } catch (blobErr) {
-          console.warn('Web blob conversion fallback:', blobErr);
-          formData.append('file', {
-            uri: pickedFile.uri,
-            name: pickedFile.name,
-            type: pickedFile.mimeType || 'application/pdf',
-          } as any);
+        const rawFile = (pickedFile as any).file || (pickedFile as any).output?.[0];
+        if (rawFile && (rawFile instanceof File || rawFile instanceof Blob)) {
+          formData.append('file', rawFile, pickedFile.name);
+        } else {
+          try {
+            const res = await fetch(pickedFile.uri);
+            const fileBlob = await res.blob();
+            formData.append('file', fileBlob, pickedFile.name || 'document.pdf');
+          } catch (blobErr) {
+            console.warn('Web blob conversion fallback:', blobErr);
+            formData.append('file', {
+              uri: pickedFile.uri,
+              name: pickedFile.name,
+              type: pickedFile.mimeType || 'application/pdf',
+            } as any);
+          }
         }
       } else {
         formData.append('file', {
