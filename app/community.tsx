@@ -16,6 +16,7 @@ import {
   Alert,
   PanResponder,
   Animated,
+  Easing,
   Image
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -40,7 +41,9 @@ import {
   saveDownloadedPaper,
   getDownloadedPapers,
   getStoredCommunityMessages,
-  saveCommunityMessages
+  saveCommunityMessages,
+  getLastReadCommunityMsgId,
+  saveLastReadCommunityMsgId
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 
@@ -53,6 +56,8 @@ export interface FileAttachment {
 
 export interface CommunityMessage {
   id: string;
+  clientMsgId?: string;
+  senderId?: string;
   senderName: string;
   senderFaculty: string;
   avatarBg: string;
@@ -60,6 +65,8 @@ export interface CommunityMessage {
   timestamp: string;
   isoDate?: string;
   isMe: boolean;
+  isSystemNotice?: boolean;
+  eventType?: 'user_connected' | 'user_disconnected' | 'security' | string;
   fileAttachment?: FileAttachment;
   reactions?: Record<string, number>;
   myReaction?: string;
@@ -176,6 +183,18 @@ function SwipeableMessageItem({
   );
 }
 
+interface TypingUser {
+  userId: string;
+  userName: string;
+}
+
+function formatTypingText(users: TypingUser[]): string {
+  if (users.length === 0) return '';
+  if (users.length === 1) return `${users[0].userName} is typing...`;
+  if (users.length === 2) return `${users[0].userName} & ${users[1].userName} are typing...`;
+  return 'Several people are typing...';
+}
+
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [
   {
     name: 'COM_310_CAT1_Timetable_2025.pdf',
@@ -261,9 +280,197 @@ export default function CommunityScreen() {
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Smart Mention & Reply Tracking State
+  const [unreadMentionIds, setUnreadMentionIds] = useState<string[]>([]);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const dismissedMentionIds = useRef<Set<string>>(new Set());
+  const tempSentIdsRef = useRef<Set<string>>(new Set());
+
+  // WhatsApp-Style Live Typing Indicator State & Animation
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef<boolean>(false);
+  const typingDotAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (typingUsers.length > 0) {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(typingDotAnim, { toValue: 1, duration: 400, easing: Easing.ease, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(typingDotAnim, { toValue: 0, duration: 400, easing: Easing.ease, useNativeDriver: Platform.OS !== 'web' })
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    } else {
+      typingDotAnim.setValue(0);
+    }
+  }, [typingUsers.length]);
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
+  const isNearBottomRef = useRef<boolean>(true);
+  const initialScrollDoneRef = useRef<boolean>(false);
+
+  const checkIsMentionOrReply = (msg: CommunityMessage, currUser: any, allMsgs: CommunityMessage[]): boolean => {
+    if (!currUser || msg.isMe) return false;
+
+    // 1. Reply check: if someone replied to my text
+    if (msg.replyTo) {
+      if (msg.replyTo.senderName && currUser.name && msg.replyTo.senderName.toLowerCase().trim() === currUser.name.toLowerCase().trim()) {
+        return true;
+      }
+      const parentMsg = allMsgs.find((p) => p.id === msg.replyTo?.id);
+      if (parentMsg && parentMsg.isMe) return true;
+    }
+
+    // 2. Mention check: text contains @MyName or @MyFirstName
+    if (currUser.name && msg.text) {
+      const textLower = msg.text.toLowerCase();
+      const fullNameLower = currUser.name.toLowerCase().trim();
+      const firstNameLower = currUser.name.split(' ')[0]?.toLowerCase().trim();
+
+      if (textLower.includes(`@${fullNameLower}`) || (firstNameLower && firstNameLower.length >= 2 && textLower.includes(`@${firstNameLower}`))) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  useEffect(() => {
+    if (!user || messages.length === 0) return;
+
+    const mentions = messages
+      .filter((m) => checkIsMentionOrReply(m, user, messages) && !dismissedMentionIds.current.has(m.id))
+      .map((m) => m.id);
+
+    setUnreadMentionIds(mentions);
+  }, [messages, user]);
+
+  const scrollToMessage = (targetId: string) => {
+    const targetIndex = messages.findIndex((m) => m.id === targetId);
+    if (targetIndex !== -1 && flatListRef.current) {
+      try {
+        flatListRef.current.scrollToIndex({
+          index: targetIndex,
+          animated: true,
+          viewPosition: 0.5
+        });
+      } catch (e) {
+        try {
+          flatListRef.current.scrollToItem({ item: messages[targetIndex], animated: true });
+        } catch (err) {
+          flatListRef.current.scrollToEnd({ animated: true });
+        }
+      }
+
+      setHighlightedMsgId(targetId);
+      setTimeout(() => {
+        setHighlightedMsgId((curr) => (curr === targetId ? null : curr));
+      }, 2500);
+    }
+  };
+
+  const handleJumpToNextMention = () => {
+    if (unreadMentionIds.length === 0) return;
+
+    const targetId = unreadMentionIds[0];
+    dismissedMentionIds.current.add(targetId);
+    scrollToMessage(targetId);
+
+    setUnreadMentionIds((prev) => prev.filter((id) => id !== targetId));
+  };
+
+  const initReadStateAndScroll = async (currentMsgs: CommunityMessage[]) => {
+    if (currentMsgs.length === 0) return;
+    const lastReadId = await getLastReadCommunityMsgId();
+
+    if (!lastReadId) {
+      const latestId = currentMsgs[currentMsgs.length - 1].id;
+      await saveLastReadCommunityMsgId(latestId);
+      setUnreadCount(0);
+      setFirstUnreadMsgId(null);
+      setShowUnreadBtn(false);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+        initialScrollDoneRef.current = true;
+      }, 150);
+      return;
+    }
+
+    const lastReadIndex = currentMsgs.findIndex((m) => m.id === lastReadId);
+    if (lastReadIndex !== -1 && lastReadIndex < currentMsgs.length - 1) {
+      const firstUnreadIndex = lastReadIndex + 1;
+      const firstUnreadId = currentMsgs[firstUnreadIndex].id;
+      const count = currentMsgs.length - firstUnreadIndex;
+      setFirstUnreadMsgId(firstUnreadId);
+      setUnreadCount(count);
+      setShowUnreadBtn(true);
+
+      if (!initialScrollDoneRef.current) {
+        initialScrollDoneRef.current = true;
+        setTimeout(() => {
+          if (flatListRef.current) {
+            try {
+              flatListRef.current.scrollToIndex({
+                index: firstUnreadIndex,
+                animated: false,
+                viewPosition: 0.1
+              });
+            } catch (e) {
+              flatListRef.current.scrollToEnd({ animated: false });
+            }
+          }
+        }, 200);
+      }
+    } else {
+      setUnreadCount(0);
+      setFirstUnreadMsgId(null);
+      setShowUnreadBtn(false);
+      if (!initialScrollDoneRef.current) {
+        initialScrollDoneRef.current = true;
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: false });
+        }, 150);
+      }
+    }
+  };
+
+  const markAsRead = async (latestId: string) => {
+    await saveLastReadCommunityMsgId(latestId);
+    setUnreadCount(0);
+    setFirstUnreadMsgId(null);
+    setShowUnreadBtn(false);
+  };
+
+  const scrollToBottomAndMarkRead = () => {
+    if (messages.length > 0) {
+      const latestId = messages[messages.length - 1].id;
+      markAsRead(latestId);
+    }
+    flatListRef.current?.scrollToEnd({ animated: true });
+  };
+
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 120;
+    const isBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    isNearBottomRef.current = isBottom;
+
+    if (isBottom && messages.length > 0) {
+      const latestId = messages[messages.length - 1].id;
+      saveLastReadCommunityMsgId(latestId);
+      if (unreadCount > 0 || showUnreadBtn || firstUnreadMsgId) {
+        setUnreadCount(0);
+        setShowUnreadBtn(false);
+        setFirstUnreadMsgId(null);
+      }
+    }
+  };
 
   useEffect(() => {
     // 1. Register push notification click tap listener for automatic navigation
@@ -273,13 +480,13 @@ export default function CommunityScreen() {
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
     getStoredCommunityMessages().then((cachedMsgs) => {
-      if (cachedMsgs && cachedMsgs.length > 0) {
-        setMessages(cachedMsgs);
-        lastSyncedISO.current = cachedMsgs[cachedMsgs.length - 1]?.isoDate || new Date().toISOString();
-      } else {
+      const msgsToLoad = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : INITIAL_COMMUNITY_MESSAGES;
+      setMessages(msgsToLoad);
+      lastSyncedISO.current = msgsToLoad[msgsToLoad.length - 1]?.isoDate || new Date().toISOString();
+      if (!cachedMsgs || cachedMsgs.length === 0) {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
-        lastSyncedISO.current = INITIAL_COMMUNITY_MESSAGES[INITIAL_COMMUNITY_MESSAGES.length - 1].isoDate || new Date().toISOString();
       }
+      initReadStateAndScroll(msgsToLoad);
     });
 
     // 3. Connect Real-time WebSocket Listeners
@@ -290,26 +497,70 @@ export default function CommunityScreen() {
         socket.emit('join_community');
 
         socket.on('community:receive_message', (serverMsg: any) => {
+          const isMyMsg = !!(
+            (serverMsg.clientMsgId && tempSentIdsRef.current.has(serverMsg.clientMsgId)) ||
+            (user && user._id && (serverMsg.senderId === user._id || serverMsg.senderId?._id === user._id || serverMsg.senderId?.toString() === user._id?.toString())) ||
+            (user && user.name && serverMsg.senderName && serverMsg.senderName.toLowerCase().trim() === user.name.toLowerCase().trim())
+          );
+
           const formattedMsg: CommunityMessage = {
-            id: serverMsg._id || serverMsg.id || Date.now().toString(),
+            id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
+            clientMsgId: serverMsg.clientMsgId,
+            senderId: serverMsg.senderId,
             senderName: serverMsg.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: serverMsg.createdAt || new Date().toISOString(),
-            isMe: !!(user && serverMsg.senderId === user._id),
+            isMe: isMyMsg,
             fileAttachment: serverMsg.fileAttachment,
             replyTo: serverMsg.replyTo,
             reactions: serverMsg.reactions || {}
           };
 
           setMessages((prev) => {
-            if (prev.some((m) => m.id === formattedMsg.id)) return prev;
-            const updated = [...prev, formattedMsg];
+            const existingIdx = prev.findIndex((m) =>
+              (serverMsg.clientMsgId && m.clientMsgId === serverMsg.clientMsgId) ||
+              (serverMsg.clientMsgId && m.id === serverMsg.clientMsgId) ||
+              m.id === formattedMsg.id ||
+              m.id === serverMsg._id ||
+              (m.isMe && isMyMsg && m.text.trim() === formattedMsg.text.trim() && Math.abs(new Date(m.isoDate || 0).getTime() - new Date(formattedMsg.isoDate || 0).getTime()) < 40000)
+            );
+
+            let updated: CommunityMessage[];
+            if (existingIdx !== -1) {
+              updated = [...prev];
+              const wasMe = updated[existingIdx].isMe || isMyMsg;
+              updated[existingIdx] = {
+                ...updated[existingIdx],
+                ...formattedMsg,
+                id: serverMsg._id || serverMsg.id || updated[existingIdx].id,
+                isMe: wasMe
+              };
+            } else {
+              updated = [...prev, formattedMsg];
+            }
             saveCommunityMessages(updated);
+
+            if (formattedMsg.isMe || isNearBottomRef.current) {
+              markAsRead(formattedMsg.id);
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 80);
+            } else {
+              setUnreadCount((c) => c + 1);
+              setShowUnreadBtn(true);
+              setFirstUnreadMsgId((prevUnread) => prevUnread || formattedMsg.id);
+            }
+
             return updated;
           });
+
+          if (serverMsg.senderId) {
+            const sId = typeof serverMsg.senderId === 'object' ? serverMsg.senderId._id : serverMsg.senderId;
+            setTypingUsers((prev) => prev.filter((u) => u.userId !== sId));
+          }
 
           if (!formattedMsg.isMe && Platform.OS === 'web') {
             sendWebBrowserNotification(
@@ -318,16 +569,62 @@ export default function CommunityScreen() {
               () => router.push('/(tabs)/messages')
             );
           }
+        });
 
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+        socket.on('community:user_typing', (data: { userId: string; userName: string }) => {
+          if (!data || !data.userId) return;
+          if (user && (user._id === data.userId || (user.name && user.name.toLowerCase().trim() === data.userName?.toLowerCase().trim()))) {
+            return;
+          }
+
+          setTypingUsers((prev) => {
+            if (prev.some((u) => u.userId === data.userId)) return prev;
+            return [...prev, { userId: data.userId, userName: data.userName || 'Moi Student' }];
+          });
+
+          if (typingTimeoutsRef.current[data.userId]) {
+            clearTimeout(typingTimeoutsRef.current[data.userId]);
+          }
+          typingTimeoutsRef.current[data.userId] = setTimeout(() => {
+            setTypingUsers((prev) => prev.filter((u) => u.userId !== data.userId));
+            delete typingTimeoutsRef.current[data.userId];
+          }, 3500);
+        });
+
+        socket.on('community:user_stop_typing', (data: { userId: string }) => {
+          if (!data || !data.userId) return;
+          setTypingUsers((prev) => prev.filter((u) => u.userId !== data.userId));
+          if (typingTimeoutsRef.current[data.userId]) {
+            clearTimeout(typingTimeoutsRef.current[data.userId]);
+            delete typingTimeoutsRef.current[data.userId];
+          }
         });
 
         socket.on('community:reaction_updated', (data: { messageId: string; reactions: any }) => {
           setMessages((prev) => {
             const updated = prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m));
             saveCommunityMessages(updated);
+            return updated;
+          });
+        });
+
+        socket.on('community:system_event', (eventData: any) => {
+          const sysMsg: CommunityMessage = {
+            id: eventData.id || `sys_${Date.now()}`,
+            senderName: 'System',
+            senderFaculty: '',
+            avatarBg: '#64748b',
+            text: eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MoiConnect' : 'went offline'}`,
+            timestamp: new Date(eventData.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isoDate: eventData.timestamp || new Date().toISOString(),
+            isMe: false,
+            isSystemNotice: true,
+            eventType: eventData.event || 'user_connected'
+          };
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === sysMsg.id)) return prev;
+            const updated = [...prev, sysMsg];
             return updated;
           });
         });
@@ -341,7 +638,10 @@ export default function CommunityScreen() {
       cleanupNotif();
       if (activeSocket) {
         activeSocket.off('community:receive_message');
+        activeSocket.off('community:user_typing');
+        activeSocket.off('community:user_stop_typing');
         activeSocket.off('community:reaction_updated');
+        activeSocket.off('community:system_event');
       }
     };
   }, [user]);
@@ -351,27 +651,54 @@ export default function CommunityScreen() {
       const sinceParam = lastSyncedISO.current ? `?since=${encodeURIComponent(lastSyncedISO.current)}` : '';
       const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
       if (res && res.success && res.data && res.data.length > 0) {
-        const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg) => ({
-          id: serverMsg._id || serverMsg.id,
-          senderName: serverMsg.senderName || 'Moi Student',
-          senderFaculty: serverMsg.senderFaculty || 'Main Campus',
-          avatarBg: serverMsg.avatarBg || '#15803d',
-          text: serverMsg.text || '',
-          timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isoDate: serverMsg.createdAt,
-          isMe: !!(user && serverMsg.senderId === user._id),
-          fileAttachment: serverMsg.fileAttachment,
-          replyTo: serverMsg.replyTo,
-          reactions: serverMsg.reactions || {}
-        }));
+        const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg) => {
+          const isMyMsg = !!(
+            (serverMsg.clientMsgId && tempSentIdsRef.current.has(serverMsg.clientMsgId)) ||
+            (user && user._id && (serverMsg.senderId === user._id || serverMsg.senderId?._id === user._id || serverMsg.senderId?.toString() === user._id?.toString())) ||
+            (user && user.name && serverMsg.senderName && serverMsg.senderName.toLowerCase().trim() === user.name.toLowerCase().trim())
+          );
+          return {
+            id: serverMsg._id || serverMsg.id,
+            clientMsgId: serverMsg.clientMsgId,
+            senderId: serverMsg.senderId,
+            senderName: serverMsg.senderName || 'Moi Student',
+            senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+            avatarBg: serverMsg.avatarBg || '#15803d',
+            text: serverMsg.text || '',
+            timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isoDate: serverMsg.createdAt,
+            isMe: isMyMsg,
+            fileAttachment: serverMsg.fileAttachment,
+            replyTo: serverMsg.replyTo,
+            reactions: serverMsg.reactions || {}
+          };
+        });
 
         setMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id));
-          const newOnly = fetchedMsgs.filter((m) => !existingIds.has(m.id));
-          if (newOnly.length === 0) return prev;
-          const merged = [...prev, ...newOnly];
-          saveCommunityMessages(merged);
-          return merged;
+          let updated = [...prev];
+          let changed = false;
+
+          for (const msg of fetchedMsgs) {
+            const existingIdx = updated.findIndex((m) =>
+              (msg.clientMsgId && m.clientMsgId === msg.clientMsgId) ||
+              (msg.clientMsgId && m.id === msg.clientMsgId) ||
+              m.id === msg.id ||
+              (m.isMe && msg.isMe && m.text.trim() === msg.text.trim() && Math.abs(new Date(m.isoDate || 0).getTime() - new Date(msg.isoDate || 0).getTime()) < 40000)
+            );
+
+            if (existingIdx !== -1) {
+              const wasMe = updated[existingIdx].isMe || msg.isMe;
+              updated[existingIdx] = { ...updated[existingIdx], ...msg, isMe: wasMe };
+              changed = true;
+            } else {
+              updated.push(msg);
+              changed = true;
+            }
+          }
+
+          if (!changed) return prev;
+          saveCommunityMessages(updated);
+          return updated;
         });
 
         if (res.syncedAt) {
@@ -404,10 +731,65 @@ export default function CommunityScreen() {
     } catch (e) {
       setAvailableFiles(SAMPLE_ATTACHMENTS);
     }
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+
+    if (text.trim().length > 0) {
+      if (!isTypingRef.current) {
+        isTypingRef.current = true;
+        getSocket().then((s) => {
+          if (s) {
+            s.emit('community:start_typing', {
+              userName: user?.name || 'Moi Student',
+              userId: user?._id
+            });
+          }
+        });
+      }
+
+      if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
+      myTypingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false;
+        getSocket().then((s) => {
+          if (s) {
+            s.emit('community:stop_typing', {
+              userName: user?.name || 'Moi Student',
+              userId: user?._id
+            });
+          }
+        });
+      }, 2500);
+    } else {
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
+        getSocket().then((s) => {
+          if (s) {
+            s.emit('community:stop_typing', {
+              userName: user?.name || 'Moi Student',
+              userId: user?._id
+            });
+          }
+        });
+      }
+    }
   };
 
   const handleSendMessage = () => {
     if (!inputText.trim() && !selectedFile) return;
+
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
+      getSocket().then((s) => {
+        if (s) {
+          s.emit('community:stop_typing', {
+            userName: user?.name || 'Moi Student',
+            userId: user?._id
+          });
+        }
+      });
+    }
 
     const sentText = inputText.trim();
     const isBotMentioned = sentText.toLowerCase().includes('@bot');
@@ -421,7 +803,12 @@ export default function CommunityScreen() {
         }
       : undefined;
 
+    const tempId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    tempSentIdsRef.current.add(tempId);
+
     const payload = {
+      clientMsgId: tempId,
+      senderId: user ? user._id : undefined,
       text: sentText,
       fileAttachment: selectedFile || undefined,
       replyTo: replyToData,
@@ -430,9 +817,10 @@ export default function CommunityScreen() {
       avatarBg: '#15803d'
     };
 
-    const tempId = Date.now().toString();
     const newMessage: CommunityMessage = {
       id: tempId,
+      clientMsgId: tempId,
+      senderId: user ? user._id : undefined,
       senderName: payload.senderName,
       senderFaculty: payload.senderFaculty,
       avatarBg: payload.avatarBg,
@@ -449,6 +837,7 @@ export default function CommunityScreen() {
     setMessages((prev) => {
       const updated = [...prev, newMessage];
       saveCommunityMessages(updated);
+      markAsRead(newMessage.id);
       return updated;
     });
 
@@ -458,7 +847,7 @@ export default function CommunityScreen() {
 
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    }, 80);
 
     // 2. Emit Real-time via WebSocket (Sub-10ms delivery to connected users)
     getSocket().then((socket) => {
@@ -572,30 +961,40 @@ export default function CommunityScreen() {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const mime = asset.mimeType || '';
-        let fileType: 'pdf' | 'doc' | 'image' = 'pdf';
-        if (mime.includes('image')) {
-          fileType = 'image';
-        } else if (mime.includes('word') || asset.name.endsWith('.doc') || asset.name.endsWith('.docx')) {
-          fileType = 'doc';
-        }
+        setIsUploadingMedia(true);
 
-        const formattedSize = asset.size
-          ? asset.size > 1024 * 1024
-            ? `${(asset.size / (1024 * 1024)).toFixed(1)} MB`
-            : `${Math.round(asset.size / 1024)} KB`
-          : '1.2 MB';
+        const formData = new FormData();
+        const fileObj: any = {
+          uri: asset.uri,
+          name: asset.name || 'chat_attachment',
+          type: asset.mimeType || 'application/octet-stream'
+        };
+        formData.append('file', fileObj);
 
-        setSelectedFile({
-          name: asset.name,
-          url: asset.uri,
-          size: formattedSize,
-          type: fileType
+        const res = await apiRequest('/community/upload-media', {
+          method: 'POST',
+          body: formData
         });
-        setShowFileModal(false);
+
+        setIsUploadingMedia(false);
+
+        if (res.success && res.data?.url) {
+          setSelectedFile({
+            name: res.data.name || asset.name,
+            url: res.data.url,
+            size: res.data.size || '1.2 MB',
+            type: res.data.type || 'pdf'
+          });
+          setShowFileModal(false);
+          Alert.alert('Cloudinary Upload Complete ☁️', `"${asset.name}" uploaded to Cloudinary (folder: moiconnect/chat_media). Ready to share!`);
+        } else {
+          Alert.alert('Upload Failed', res.error || 'Failed to upload media to Cloudinary storage.');
+        }
       }
-    } catch (err) {
-      console.log('Document picker error:', err);
+    } catch (err: any) {
+      setIsUploadingMedia(false);
+      console.log('Document picker / Cloudinary upload error:', err);
+      Alert.alert('Upload Error', 'Could not select or upload file.');
     }
   };
 
@@ -636,150 +1035,219 @@ export default function CommunityScreen() {
             data={messages}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messageList}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            onScrollToIndexFailed={(info) => {
+              setTimeout(() => {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+              }, 100);
+            }}
             ListHeaderComponent={
               <View style={styles.dateDivider}>
                 <Text style={styles.dateDividerText}>TODAY • CAMPUS DISCUSSION</Text>
               </View>
             }
             renderItem={({ item }) => {
-              const isPickerOpen = activeReactionMsgId === item.id;
-              const hasReactions = item.reactions && Object.keys(item.reactions).length > 0;
-
-              return (
-                <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
-                  <View style={[styles.messageBubbleWrapper, item.isMe ? styles.myWrapper : styles.otherWrapper]}>
-                    {!item.isMe && (
-                      <View style={[styles.senderAvatar, { backgroundColor: item.avatarBg }]}>
-                        <Text style={styles.avatarLetter}>{item.senderName[0]?.toUpperCase()}</Text>
-                      </View>
-                    )}
-
-                    <View style={styles.bubbleContainer}>
-                      {/* Floating Reaction Bar */}
-                      {isPickerOpen && (
-                        <View style={[styles.reactionPickerBar, item.isMe ? { right: 0 } : { left: 0 }]}>
-                          {EMOJI_OPTIONS.map((emoji) => (
-                            <TouchableOpacity
-                              key={emoji}
-                              style={[
-                                styles.emojiPickBtn,
-                                item.myReaction === emoji && styles.emojiPickBtnActive
-                              ]}
-                              onPress={() => handleToggleReaction(item.id, emoji)}
-                            >
-                              <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      )}
-
-                      <TouchableOpacity
-                        activeOpacity={0.9}
-                        onLongPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
-                        onPress={() => {
-                          if (isPickerOpen) setActiveReactionMsgId(null);
-                        }}
-                        style={[styles.bubble, item.isMe ? styles.myBubble : styles.otherBubble]}
-                      >
-                        {!item.isMe && (
-                          <View style={styles.senderHeader}>
-                            <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
-                            <Text style={styles.senderFaculty}>{item.senderFaculty}</Text>
-                          </View>
-                        )}
-
-                        {/* Engulfed Quoted Reply Box */}
-                        {item.replyTo && (
-                          <TouchableOpacity
-                            activeOpacity={0.85}
-                            style={[styles.engulfedQuoteBox, item.isMe ? styles.engulfedQuoteBoxMe : styles.engulfedQuoteBoxOther]}
-                            onPress={() => scrollToMessage(item.replyTo!.id)}
-                          >
-                            <View style={[styles.engulfedAccentBar, item.isMe ? styles.engulfedAccentBarMe : styles.engulfedAccentBarOther]} />
-                            <View style={styles.engulfedContent}>
-                              <Text style={[styles.engulfedSender, item.isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
-                                {item.replyTo.senderName || 'User'}
-                              </Text>
-                              <Text style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
-                                {item.replyTo.text || (item.replyTo.fileAttachment ? `📎 ${item.replyTo.fileAttachment.name}` : 'Attachment')}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        )}
-
-                        {/* File Attachment Card */}
-                        {item.fileAttachment && (
-                          <View style={styles.fileCard}>
-                            <View style={styles.fileIconBox}>
-                              <FileTextIcon color="#15803d" size={24} />
-                            </View>
-                            <View style={styles.fileInfo}>
-                              <Text style={styles.fileName} numberOfLines={1}>
-                                {item.fileAttachment.name}
-                              </Text>
-                              <Text style={styles.fileMeta}>
-                                {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
-                              </Text>
-                            </View>
-                            <TouchableOpacity
-                              style={styles.fileDownloadBtn}
-                              onPress={() => handleDownloadFileAttachment(item.fileAttachment!)}
-                            >
-                              <DownloadIcon color="#ffffff" size={14} />
-                            </TouchableOpacity>
-                          </View>
-                        )}
-
-                        {/* Text content with clean wrapping */}
-                        {!!item.text && (
-                          <Text style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}>
-                            {item.text}
-                          </Text>
-                        )}
-
-                        {/* Timestamp & Ticks */}
-                        <View style={styles.metaRow}>
-                          <TouchableOpacity
-                            style={styles.reactionTriggerBtn}
-                            onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
-                          >
-                            <SmileIcon color={item.isMe ? '#854d0e' : '#94a3b8'} size={12} />
-                          </TouchableOpacity>
-
-                          <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp]}>
-                            {item.timestamp}
-                          </Text>
-                          {item.isMe && (
-                            <View style={styles.ticksWrapper}>
-                              <CheckIcon color="#38bdf8" size={14} />
-                            </View>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Emoji Reaction Badges at bottom right */}
-                      {hasReactions && (
-                        <View style={[styles.reactionBadgeContainer, item.isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
-                          {Object.entries(item.reactions!).map(([emoji, count]) => (
-                            <TouchableOpacity
-                              key={emoji}
-                              style={[
-                                styles.reactionBadge,
-                                item.myReaction === emoji && styles.reactionBadgeActive
-                              ]}
-                              onPress={() => handleToggleReaction(item.id, emoji)}
-                            >
-                              <Text style={styles.reactionBadgeText}>{emoji} {count}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      )}
+              if (item.isSystemNotice) {
+                const isConn = item.eventType === 'user_connected';
+                const isSec = item.eventType === 'security';
+                return (
+                  <View style={styles.systemNoticeContainer}>
+                    <View style={styles.systemNoticePill}>
+                      <Text style={styles.systemNoticeDot}>{isSec ? '🔒' : isConn ? '🟢' : '⚪'}</Text>
+                      <Text style={styles.systemNoticeText}>{item.text}</Text>
+                      {!!item.timestamp && <Text style={styles.systemNoticeTime}>• {item.timestamp}</Text>}
                     </View>
                   </View>
-                </SwipeableMessageItem>
+                );
+              }
+
+              const isPickerOpen = activeReactionMsgId === item.id;
+              const hasReactions = item.reactions && Object.keys(item.reactions).length > 0;
+              const isFirstUnread = item.id === firstUnreadMsgId;
+
+              return (
+                <View style={{ width: '100%' }}>
+                  {/* WhatsApp-Style Unread Divider Line */}
+                  {isFirstUnread && unreadCount > 0 && (
+                    <View style={styles.unreadDividerContainer}>
+                      <View style={styles.unreadDividerLine} />
+                      <View style={styles.unreadDividerPill}>
+                        <Text style={styles.unreadDividerText}>
+                          {unreadCount} UNREAD {unreadCount === 1 ? 'MESSAGE' : 'MESSAGES'}
+                        </Text>
+                      </View>
+                      <View style={styles.unreadDividerLine} />
+                    </View>
+                  )}
+
+                  <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
+                    <View style={[styles.messageBubbleWrapper, item.isMe ? styles.myWrapper : styles.otherWrapper]}>
+                      {!item.isMe && (
+                        <View style={[styles.senderAvatar, { backgroundColor: item.avatarBg }]}>
+                          <Text style={styles.avatarLetter}>{item.senderName[0]?.toUpperCase()}</Text>
+                        </View>
+                      )}
+
+                      <View style={styles.bubbleContainer}>
+                        {/* Floating Reaction Bar */}
+                        {isPickerOpen && (
+                          <View style={[styles.reactionPickerBar, item.isMe ? { right: 0 } : { left: 0 }]}>
+                            {EMOJI_OPTIONS.map((emoji) => (
+                              <TouchableOpacity
+                                key={emoji}
+                                style={[
+                                  styles.emojiPickBtn,
+                                  item.myReaction === emoji && styles.emojiPickBtnActive
+                                ]}
+                                onPress={() => handleToggleReaction(item.id, emoji)}
+                              >
+                                <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+
+                        <TouchableOpacity
+                          activeOpacity={0.9}
+                          onLongPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
+                          onPress={() => {
+                            if (isPickerOpen) setActiveReactionMsgId(null);
+                          }}
+                          style={[
+                            styles.bubble,
+                            item.isMe ? styles.myBubble : styles.otherBubble,
+                            highlightedMsgId === item.id && styles.highlightedBubble
+                          ]}
+                        >
+                          {!item.isMe && (
+                            <View style={styles.senderHeader}>
+                              <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
+                              <Text style={styles.senderFaculty}>{item.senderFaculty}</Text>
+                            </View>
+                          )}
+
+                          {/* Engulfed Quoted Reply Box */}
+                          {item.replyTo && (
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              style={[styles.engulfedQuoteBox, item.isMe ? styles.engulfedQuoteBoxMe : styles.engulfedQuoteBoxOther]}
+                              onPress={() => scrollToMessage(item.replyTo!.id)}
+                            >
+                              <View style={[styles.engulfedAccentBar, item.isMe ? styles.engulfedAccentBarMe : styles.engulfedAccentBarOther]} />
+                              <View style={styles.engulfedContent}>
+                                <Text style={[styles.engulfedSender, item.isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
+                                  {item.replyTo.senderName || 'User'}
+                                </Text>
+                                <Text style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
+                                  {item.replyTo.text || (item.replyTo.fileAttachment ? `📎 ${item.replyTo.fileAttachment.name}` : 'Attachment')}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* File Attachment Card */}
+                          {item.fileAttachment && (
+                            <View style={styles.fileCard}>
+                              <View style={styles.fileIconBox}>
+                                <FileTextIcon color="#15803d" size={24} />
+                              </View>
+                              <View style={styles.fileInfo}>
+                                <Text style={styles.fileName} numberOfLines={1}>
+                                  {item.fileAttachment.name}
+                                </Text>
+                                <Text style={styles.fileMeta}>
+                                  {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
+                                </Text>
+                              </View>
+                              <TouchableOpacity
+                                style={styles.fileDownloadBtn}
+                                onPress={() => handleDownloadFileAttachment(item.fileAttachment!)}
+                              >
+                                <DownloadIcon color="#ffffff" size={14} />
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* Text content with clean wrapping */}
+                          {!!item.text && (
+                            <Text style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}>
+                              {item.text}
+                            </Text>
+                          )}
+
+                          {/* Timestamp & Ticks */}
+                          <View style={styles.metaRow}>
+                            <TouchableOpacity
+                              style={styles.reactionTriggerBtn}
+                              onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
+                            >
+                              <SmileIcon color={item.isMe ? '#854d0e' : '#94a3b8'} size={12} />
+                            </TouchableOpacity>
+
+                            <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp]}>
+                              {item.timestamp}
+                            </Text>
+                            {item.isMe && (
+                              <View style={styles.ticksWrapper}>
+                                <CheckIcon color="#38bdf8" size={14} />
+                              </View>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* Emoji Reaction Badges at bottom right */}
+                        {hasReactions && (
+                          <View style={[styles.reactionBadgeContainer, item.isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+                            {Object.entries(item.reactions!).map(([emoji, count]) => (
+                              <TouchableOpacity
+                                key={emoji}
+                                style={[
+                                  styles.reactionBadge,
+                                  item.myReaction === emoji && styles.reactionBadgeActive
+                                ]}
+                                onPress={() => handleToggleReaction(item.id, emoji)}
+                              >
+                                <Text style={styles.reactionBadgeText}>{emoji} {count}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </SwipeableMessageItem>
+                </View>
               );
             }}
           />
+
+          {/* WhatsApp Style Floating Unread / Scroll to Bottom Button */}
+          {showUnreadBtn && unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.floatingUnreadBtn}
+              onPress={scrollToBottomAndMarkRead}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.floatingUnreadArrow}>↓</Text>
+              <View style={styles.floatingUnreadBadge}>
+                <Text style={styles.floatingUnreadBadgeText}>{unreadCount}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Smart Mention & Reply Jump Button (Floating Left Side) */}
+          {unreadMentionIds.length > 0 && (
+            <TouchableOpacity
+              style={styles.floatingMentionBtn}
+              onPress={handleJumpToNextMention}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.floatingMentionAtText}>@</Text>
+              <View style={styles.floatingMentionBadge}>
+                <Text style={styles.floatingMentionBadgeText}>{unreadMentionIds.length}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Replying Preview Banner */}
           {replyingTo && (
@@ -826,6 +1294,30 @@ export default function CommunityScreen() {
             </View>
           )}
 
+          {/* WhatsApp Style Live Typing Indicator Banner */}
+          {typingUsers.length > 0 && (
+            <View style={styles.typingIndicatorBanner}>
+              <View style={styles.typingDotsContainer}>
+                <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingDotAnim.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0.3, 1, 0.3]
+                      })
+                    }
+                  ]}
+                />
+                <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
+              </View>
+              <Text style={styles.typingIndicatorText} numberOfLines={1}>
+                💬 {formatTypingText(typingUsers)}
+              </Text>
+            </View>
+          )}
+
           {/* WhatsApp Style Bottom Input Bar */}
           <View style={styles.inputContainer}>
             <View style={styles.inputPill}>
@@ -842,7 +1334,7 @@ export default function CommunityScreen() {
                 placeholder="@bot to mention campus bot"
                 placeholderTextColor="#8696a0"
                 value={inputText}
-                onChangeText={setInputText}
+                onChangeText={handleInputChange}
                 returnKeyType="send"
                 onSubmitEditing={handleSendMessage}
                 blurOnSubmit={false}
@@ -913,12 +1405,15 @@ export default function CommunityScreen() {
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.customFileBtn}
+                style={[styles.customFileBtn, isUploadingMedia && { opacity: 0.6 }]}
                 onPress={handlePickFromPhone}
+                disabled={isUploadingMedia}
                 activeOpacity={0.8}
               >
                 <FolderIcon color="#ffffff" size={18} />
-                <Text style={styles.customFileBtnText}>Pick from phone</Text>
+                <Text style={styles.customFileBtnText}>
+                  {isUploadingMedia ? 'Uploading to Cloudinary...' : 'Pick from phone'}
+                </Text>
               </TouchableOpacity>
             </Pressable>
           </TouchableOpacity>
@@ -1489,5 +1984,198 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 12,
     fontWeight: '800'
+  },
+  /* WhatsApp-style Unread Divider Line */
+  unreadDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    paddingHorizontal: 8,
+    width: '100%'
+  },
+  unreadDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#cbd5e1'
+  },
+  unreadDividerPill: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginHorizontal: 8,
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  unreadDividerText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#15803d',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase'
+  },
+  /* WhatsApp-style Floating Unread Button at Bottom Right */
+  floatingUnreadBtn: {
+    position: 'absolute',
+    bottom: 72,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    zIndex: 99
+  },
+  floatingUnreadArrow: {
+    color: '#15803d',
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  floatingUnreadBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -4,
+    backgroundColor: '#22c55e',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff'
+  },
+  floatingUnreadBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  highlightedBubble: {
+    borderWidth: 2,
+    borderColor: '#f59e0b',
+    backgroundColor: '#fef3c7',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  /* Smart Mention Floating Button (Left Side) */
+  floatingMentionBtn: {
+    position: 'absolute',
+    bottom: 72,
+    left: 16,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0f172a',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 6,
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    zIndex: 99
+  },
+  floatingMentionAtText: {
+    color: '#f59e0b',
+    fontSize: 17,
+    fontWeight: '900',
+    marginRight: 6
+  },
+  floatingMentionBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  floatingMentionBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  /* WhatsApp-style System Notice Pills */
+  systemNoticeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 6,
+    paddingHorizontal: 16
+  },
+  systemNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1
+  },
+  systemNoticeDot: {
+    fontSize: 9
+  },
+  systemNoticeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
+    letterSpacing: 0.2
+  },
+  systemNoticeTime: {
+    fontSize: 9.5,
+    fontWeight: '500',
+    color: '#94a3b8',
+    marginLeft: 2
+  },
+  /* WhatsApp-style Live Typing Indicator Banner */
+  typingIndicatorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    gap: 8
+  },
+  typingDotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#15803d'
+  },
+  typingIndicatorText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803d'
   }
 });
