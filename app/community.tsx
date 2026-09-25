@@ -731,6 +731,7 @@ export default function CommunityScreen() {
     } catch (e) {
       setAvailableFiles(SAMPLE_ATTACHMENTS);
     }
+  };
   const handleInputChange = (text: string) => {
     setInputText(text);
 
