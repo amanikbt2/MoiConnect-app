@@ -317,6 +317,8 @@ export default function CommunityScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
+  const isNearBottomRef = useRef<boolean>(true);
+  const initialScrollDoneRef = useRef<boolean>(false);
   const evalIsMe = (msgSenderId: any, msgSenderName?: string, msgClientMsgId?: string): boolean => {
     if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
       return true;
