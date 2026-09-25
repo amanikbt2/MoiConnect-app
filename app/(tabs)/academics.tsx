@@ -927,6 +927,8 @@ export default function AcademicsScreen({ route }: any) {
         </View>
       </TouchableOpacity>
     );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
