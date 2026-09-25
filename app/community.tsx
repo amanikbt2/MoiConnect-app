@@ -1135,7 +1135,10 @@ export default function CommunityScreen() {
           </View>
 
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>Moi Campus Community</Text>
+            <Text style={styles.headerTitle}>
+              <Text style={{ color: '#ffffff' }}>Moi Campus </Text>
+              <Text style={{ color: '#a7f3d0' }}>Community</Text>
+            </Text>
             <Text style={styles.headerSubtitle}>🟢 1,420 students online • Open Forum</Text>
           </View>
         </View>
@@ -1594,9 +1597,12 @@ const styles = StyleSheet.create({
     flex: 1
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#ffffff'
+    fontSize: 19,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 3,
   },
   headerSubtitle: {
     fontSize: 12,

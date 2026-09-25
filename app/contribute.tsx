@@ -263,7 +263,10 @@ export default function ContributeScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <ArrowLeftIcon color="#ffffff" size={20} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Contribute Study Material</Text>
+        <Text style={styles.headerTitle}>
+          <Text style={{ color: '#ffffff' }}>Contribute </Text>
+          <Text style={{ color: '#a7f3d0' }}>Material</Text>
+        </Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -496,9 +499,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff'
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 3,
   },
   container: {
     flex: 1,

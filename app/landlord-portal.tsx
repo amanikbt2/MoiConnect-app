@@ -610,7 +610,10 @@ export default function LandlordPortalScreen() {
           <ArrowLeftIcon color="#ffffff" size={20} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>MoiConnect Admin & Landlord Portal</Text>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: '#ffffff' }}>Landlord </Text>
+            <Text style={{ color: '#a7f3d0' }}>Portal</Text>
+          </Text>
           <Text style={styles.headerSub}>🔒 Ultimate Secure Management</Text>
         </View>
         <View style={{ width: 36 }} />
@@ -1582,9 +1585,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)'
   },
   headerTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800'
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 3,
   },
   headerSub: {
     color: '#dcfce7',

@@ -379,6 +379,66 @@ function DownloadsHeaderTitle() {
   );
 }
 
+function NotesPdfHeaderTitle() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '900',
+          letterSpacing: -0.2,
+          textShadowColor: 'rgba(0, 0, 0, 0.65)',
+          textShadowOffset: { width: 0, height: 1.5 },
+          textShadowRadius: 3,
+        }}
+      >
+        <Text style={{ color: '#ffffff' }}>Notes </Text>
+        <Text style={{ color: '#a7f3d0' }}>PDF</Text>
+      </Text>
+    </View>
+  );
+}
+
+function RentalsHeaderTitle() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '900',
+          letterSpacing: -0.2,
+          textShadowColor: 'rgba(0, 0, 0, 0.65)',
+          textShadowOffset: { width: 0, height: 1.5 },
+          textShadowRadius: 3,
+        }}
+      >
+        <Text style={{ color: '#ffffff' }}>Students </Text>
+        <Text style={{ color: '#a7f3d0' }}>Rentals</Text>
+      </Text>
+    </View>
+  );
+}
+
+function ProfileHeaderTitle() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '900',
+          letterSpacing: -0.2,
+          textShadowColor: 'rgba(0, 0, 0, 0.65)',
+          textShadowOffset: { width: 0, height: 1.5 },
+          textShadowRadius: 3,
+        }}
+      >
+        <Text style={{ color: '#ffffff' }}>Student </Text>
+        <Text style={{ color: '#a7f3d0' }}>Profile</Text>
+      </Text>
+    </View>
+  );
+}
+
 function MainTabs({ navigation }) {
   return (
     <Tab.Navigator
