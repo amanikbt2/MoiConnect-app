@@ -238,10 +238,10 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   };
 
   const handlePress = async () => {
-    // On Web: use direct standard Google OAuth 2.0 redirect
+    // On Web: use popup OAuth window for seamless login and graceful error handling
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       setLoading(true);
-      const cleanRedirectUri = window.location.origin;
+      const cleanRedirectUri = window.location.origin.replace(/\/$/, '');
       const nonce = Math.random().toString(36).substring(2);
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
         activeClientId
@@ -249,7 +249,92 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         cleanRedirectUri
       )}&response_type=token%20id_token&scope=openid%20profile%20email&prompt=select_account&nonce=${nonce}`;
 
-      window.location.href = authUrl;
+      const width = 500;
+      const height = 620;
+      const left = Math.max(0, (window.screen.width / 2) - (width / 2));
+      const top = Math.max(0, (window.screen.height / 2) - (height / 2));
+
+      let popup: Window | null = null;
+      try {
+        popup = window.open(
+          authUrl,
+          'GoogleSignIn',
+          `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=yes`
+        );
+      } catch (e) {
+        popup = null;
+      }
+
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        // Fallback to full page redirect if popups are blocked by browser settings
+        window.location.href = authUrl;
+        return;
+      }
+
+      const pollTimer = setInterval(async () => {
+        try {
+          if (!popup || popup.closed) {
+            clearInterval(pollTimer);
+            setLoading(false);
+            return;
+          }
+
+          let popupUrl = '';
+          try {
+            popupUrl = popup.location.href;
+          } catch (crossOriginErr) {
+            // Cross-origin restriction until redirected back to our domain, ignore safely
+            return;
+          }
+
+          if (popupUrl && (popupUrl.includes('access_token=') || popupUrl.includes('id_token='))) {
+            clearInterval(pollTimer);
+            popup.close();
+
+            const hash = popupUrl.includes('#') ? popupUrl.substring(popupUrl.indexOf('#') + 1) : popupUrl.substring(popupUrl.indexOf('?') + 1);
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token') || undefined;
+            const idToken = params.get('id_token') || undefined;
+
+            let googleUser: any = {};
+            if (accessToken) {
+              try {
+                const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+                  headers: { Authorization: `Bearer ${accessToken}` }
+                });
+                if (userInfoRes.ok) {
+                  googleUser = await userInfoRes.json();
+                }
+              } catch (e) {
+                console.warn('Failed to fetch Google userinfo:', e);
+              }
+            }
+
+            const res = await googleLogin({
+              idToken,
+              accessToken,
+              email: googleUser.email,
+              name: googleUser.name,
+              avatarUrl: googleUser.picture
+            });
+
+            if (res.success) {
+              onSuccess();
+            } else {
+              onError(res.error || 'Google sign-in failed.');
+            }
+            setLoading(false);
+          } else if (popupUrl && (popupUrl.includes('error=') || popupUrl.includes('error_subtype='))) {
+            clearInterval(pollTimer);
+            popup.close();
+            setLoading(false);
+            onError(`Google OAuth blocked: redirect_uri_mismatch. Please add "${cleanRedirectUri}" to Authorized redirect URIs in Google Cloud Console.`);
+          }
+        } catch (e) {
+          // Ignore transient errors
+        }
+      }, 400);
+
       return;
     }
 
