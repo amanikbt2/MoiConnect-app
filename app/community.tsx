@@ -677,8 +677,8 @@ export default function CommunityScreen() {
     try {
       const sinceParam = lastSyncedISO.current ? `?since=${encodeURIComponent(lastSyncedISO.current)}` : '';
       const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
-      if (res && res.success && res.data && res.data.length > 0) {
-        const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg) => {
+      if (res && res.success && res.data && res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+        const fetchedMsgs: CommunityMessage[] = res.data.data.map((serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderName, serverMsg.clientMsgId);
           return {
             id: serverMsg._id || serverMsg.id,
@@ -724,8 +724,8 @@ export default function CommunityScreen() {
           return updated;
         });
 
-        if (res.syncedAt) {
-          lastSyncedISO.current = res.syncedAt;
+        if (res.data.syncedAt) {
+          lastSyncedISO.current = res.data.syncedAt;
         }
       }
     } catch (err) {
@@ -837,7 +837,7 @@ export default function CommunityScreen() {
       fileAttachment: selectedFile || undefined,
       replyTo: replyToData,
       senderName: user ? user.name : 'Moi Student',
-      senderFaculty: user?.department || 'Main Campus Student',
+      senderFaculty: (user as any)?.department || 'Main Campus Student',
       avatarBg: '#15803d'
     };
 
@@ -1232,7 +1232,7 @@ export default function CommunityScreen() {
                                 ]}
                                 onPress={() => handleToggleReaction(item.id, emoji)}
                               >
-                                <Text style={styles.reactionBadgeText}>{emoji} {count}</Text>
+                                <Text style={styles.reactionBadgeText}>{emoji} {String(count)}</Text>
                               </TouchableOpacity>
                             ))}
                           </View>
