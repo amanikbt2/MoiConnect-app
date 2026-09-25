@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, DownloadIcon } from './Icons';
+import {
+  subscribeToUnreadCountUpdates,
+  getStoredCommunityMessages,
+  saveLastReadCommunityMsgId
+} from '../services/offlineStorage';
 
 export interface GlobalBottomBarProps {
   currentRoute?: string;
@@ -17,10 +22,14 @@ export interface GlobalBottomBarProps {
 }
 
 export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: GlobalBottomBarProps) {
-  const [unreadCount, setUnreadCount] = useState<number>(3);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
+    const unsubscribe = subscribeToUnreadCountUpdates((count) => {
+      setUnreadCount(count);
+    });
+
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => setKeyboardVisible(true)
@@ -31,6 +40,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: Global
     );
 
     return () => {
+      unsubscribe();
       showSub.remove();
       hideSub.remove();
     };
@@ -78,9 +88,15 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: Global
     (typeof currentRoute === 'string' &&
       (currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')));
 
-  const handlePress = (tab: 'Home' | 'Downloads' | 'Community') => {
+  const handlePress = async (tab: 'Home' | 'Downloads' | 'Community') => {
     if (tab === 'Community') {
-      setUnreadCount(0);
+      const msgs = await getStoredCommunityMessages();
+      if (msgs && msgs.length > 0) {
+        const latestId = msgs[msgs.length - 1].id || msgs[msgs.length - 1]._id;
+        if (latestId) {
+          await saveLastReadCommunityMsgId(latestId);
+        }
+      }
     }
     if (onNavigate) {
       onNavigate(tab);

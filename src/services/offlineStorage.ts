@@ -295,6 +295,7 @@ export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetail
 };
 
 const COMMUNITY_MESSAGES_KEY = 'moi_community_messages_cache';
+const LAST_READ_COMMUNITY_KEY = 'moi_community_last_read_id';
 
 export const getStoredCommunityMessages = async (): Promise<any[]> => {
   const existingStr = await getItem(COMMUNITY_MESSAGES_KEY);
@@ -303,4 +304,46 @@ export const getStoredCommunityMessages = async (): Promise<any[]> => {
 
 export const saveCommunityMessages = async (messages: any[]) => {
   await setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(messages));
+  await notifyUnreadCountListeners();
 };
+
+export const getLastReadCommunityMsgId = async (): Promise<string | null> => {
+  return await getItem(LAST_READ_COMMUNITY_KEY);
+};
+
+export const saveLastReadCommunityMsgId = async (msgId: string): Promise<void> => {
+  await setItem(LAST_READ_COMMUNITY_KEY, msgId);
+  await notifyUnreadCountListeners();
+};
+
+export const getCommunityUnreadCount = async (): Promise<number> => {
+  const [messages, lastReadId] = await Promise.all([
+    getStoredCommunityMessages(),
+    getLastReadCommunityMsgId()
+  ]);
+
+  if (!messages || messages.length === 0) return 0;
+  if (!lastReadId) return 0;
+
+  const index = messages.findIndex((m: any) => (m.id || m._id) === lastReadId);
+  if (index === -1) return 0;
+
+  return Math.max(0, messages.length - 1 - index);
+};
+
+type UnreadCountListener = (count: number) => void;
+const unreadCountListeners = new Set<UnreadCountListener>();
+
+export const subscribeToUnreadCountUpdates = (listener: UnreadCountListener) => {
+  unreadCountListeners.add(listener);
+  getCommunityUnreadCount().then((count) => listener(count));
+  return () => {
+    unreadCountListeners.delete(listener);
+  };
+};
+
+export const notifyUnreadCountListeners = async () => {
+  const count = await getCommunityUnreadCount();
+  unreadCountListeners.forEach((fn) => fn(count));
+};
+

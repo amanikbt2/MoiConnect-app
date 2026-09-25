@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Linking
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { ArrowLeftIcon, CloseIcon, RefreshCwIcon } from './Icons';
 import { BrandLoader } from './BrandLoader';
 
@@ -99,18 +100,19 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
               allow="camera; microphone; geolocation"
             />
           ) : (
-            <View style={styles.nativeFallbackContainer}>
-              <Text style={styles.nativeFallbackTitle}>Official Portal Active</Text>
-              <Text style={styles.nativeFallbackSub}>
-                Tap below to open {portal.title} in your secure browser.
-              </Text>
-              <TouchableOpacity
-                style={styles.openPortalBtn}
-                onPress={() => Linking.openURL(portal.url).catch(() => {})}
-              >
-                <Text style={styles.openPortalBtnText}>Open {portal.title} ↗</Text>
-              </TouchableOpacity>
-            </View>
+            <WebView
+              key={key}
+              source={{ uri: portal.url }}
+              style={{ flex: 1 }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              startInLoadingState={true}
+              onLoadEnd={() => setLoading(false)}
+              allowFileAccess={true}
+              showsVerticalScrollIndicator={true}
+              showsHorizontalScrollIndicator={false}
+              originWhitelist={['*']}
+            />
           )}
         </View>
       </SafeAreaView>

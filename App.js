@@ -48,7 +48,6 @@ const queryClient = new QueryClient();
 
 function HeaderNotificationBell() {
   const [modalVisible, setModalVisible] = React.useState(false);
-  const [unreadCount, setUnreadCount] = React.useState(3);
   const [notifications, setNotifications] = React.useState([
     {
       id: 'welcome_reward',
@@ -84,8 +83,9 @@ function HeaderNotificationBell() {
     }
   ]);
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const markAllRead = () => {
-    setUnreadCount(0);
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 

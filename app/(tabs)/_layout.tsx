@@ -3,6 +3,11 @@ import { View, Text, Image } from 'react-native';
 import { Tabs } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon } from '../../src/components/Icons';
 import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
+import {
+  subscribeToUnreadCountUpdates,
+  getStoredCommunityMessages,
+  saveLastReadCommunityMsgId
+} from '../../src/services/offlineStorage';
 
 function HomeHeaderTitle() {
   return (
@@ -33,15 +38,13 @@ function DownloadsHeaderTitle() {
 }
 
 export default function TabLayout() {
-  // Initialize with fake 3 unread messages badge
-  const [unreadCount, setUnreadCount] = useState<number>(3);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
-  // Smart simulation: If cleared and user stays away from Community tab, simulate new incoming community message badge
   useEffect(() => {
-    const timer = setInterval(() => {
-      setUnreadCount((prev) => (prev === 0 ? 3 : prev));
-    }, 30000);
-    return () => clearInterval(timer);
+    const unsubscribe = subscribeToUnreadCountUpdates((count) => {
+      setUnreadCount(count);
+    });
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -95,8 +98,12 @@ export default function TabLayout() {
         name="messages"
         listeners={{
           tabPress: () => {
-            // Clear unread badge when user opens Community tab
-            setUnreadCount(0);
+            getStoredCommunityMessages().then((msgs) => {
+              if (msgs && msgs.length > 0) {
+                const latestId = msgs[msgs.length - 1].id || msgs[msgs.length - 1]._id;
+                if (latestId) saveLastReadCommunityMsgId(latestId);
+              }
+            });
           }
         }}
         options={{

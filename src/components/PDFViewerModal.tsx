@@ -73,6 +73,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   onDownload
 }) => {
   const [activePage, setActivePage] = useState(1);
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
+  const initialPinchDist = useRef<number>(0);
+  const initialPinchScale = useRef<number>(1.0);
+  const lastTapRef = useRef<number>(0);
+
   const [downloadInfo, setDownloadInfo] = useState<{
     status?: 'downloading' | 'completed' | 'failed';
     progress?: number;
@@ -83,6 +88,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   useEffect(() => {
     if (!document) return;
     setActivePage(1);
+    setZoomScale(1.0);
     const docId = document.id;
     const unsubscribe = subscribeToDownloadUpdates((papers) => {
       const found = papers.find(
@@ -127,6 +133,55 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     if (document) {
       onDownload(document);
     }
+  };
+
+  const handleZoomIn = () => {
+    setZoomScale((prev) => Math.min(3.5, Number((prev + 0.25).toFixed(2))));
+  };
+
+  const handleZoomOut = () => {
+    setZoomScale((prev) => Math.max(0.75, Number((prev - 0.25).toFixed(2))));
+  };
+
+  const handleResetZoom = () => {
+    setZoomScale(1.0);
+  };
+
+  const handleMaxZoom = () => {
+    setZoomScale(3.0);
+  };
+
+  const handleTouchStart = (e: any) => {
+    const touches = e.nativeEvent?.touches || [];
+    if (touches.length === 2) {
+      const t1 = touches[0];
+      const t2 = touches[1];
+      const dist = Math.hypot(t2.pageX - t1.pageX, t2.pageY - t1.pageY);
+      initialPinchDist.current = dist;
+      initialPinchScale.current = zoomScale;
+    } else if (touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTapRef.current < 300) {
+        setZoomScale((prev) => (prev > 1.2 ? 1.0 : 1.8));
+      }
+      lastTapRef.current = now;
+    }
+  };
+
+  const handleTouchMove = (e: any) => {
+    const touches = e.nativeEvent?.touches || [];
+    if (touches.length === 2 && initialPinchDist.current > 0) {
+      const t1 = touches[0];
+      const t2 = touches[1];
+      const dist = Math.hypot(t2.pageX - t1.pageX, t2.pageY - t1.pageY);
+      const ratio = dist / initialPinchDist.current;
+      const calculated = Math.min(Math.max(initialPinchScale.current * ratio, 0.75), 3.5);
+      setZoomScale(Number(calculated.toFixed(2)));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    initialPinchDist.current = 0;
   };
 
   const isDownloading = downloadInfo.status === 'downloading';
@@ -187,6 +242,57 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
         {/* Instant PDF Preview Container */}
         <View style={styles.bodyContainer}>
+          {/* Accessible Zoom Toolbar */}
+          <View style={styles.zoomControlBar}>
+            <View style={styles.zoomInfoGroup}>
+              <Text style={styles.zoomIconText}>🔍</Text>
+              <Text style={styles.zoomLabel}>Pinch to Zoom</Text>
+              <TouchableOpacity onPress={handleResetZoom} activeOpacity={0.7}>
+                <View style={styles.zoomBadge}>
+                  <Text style={styles.zoomBadgeText}>{Math.round(zoomScale * 100)}%</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.zoomActionsGroup}>
+              <TouchableOpacity
+                style={styles.zoomBtn}
+                onPress={handleZoomOut}
+                disabled={zoomScale <= 0.75}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.zoomBtnText}>-</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.zoomBtn}
+                onPress={handleZoomIn}
+                disabled={zoomScale >= 3.5}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.zoomBtnText}>+</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.zoomActionPill, zoomScale >= 3.0 && styles.zoomActionPillActive]}
+                onPress={handleMaxZoom}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.zoomActionPillText}>MAX 300%</Text>
+              </TouchableOpacity>
+
+              {zoomScale !== 1.0 && (
+                <TouchableOpacity
+                  style={styles.zoomResetBtn}
+                  onPress={handleResetZoom}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.zoomResetBtnText}>Reset</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
           {Platform.OS === 'web' && document.fileUrl && !document.fileUrl.includes('cloudinary.com/mconnect') ? (
             <View style={styles.webViewerWrapper}>
               <iframe
@@ -196,87 +302,107 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               />
             </View>
           ) : (
-            <ScrollView style={styles.readerScroll} contentContainerStyle={styles.readerContent}>
-              {/* Document Cover & Header Card - Only shown on Page 1 */}
-              {activePage === 1 && (
-                <View style={styles.docHeaderCard}>
-                  <View style={styles.docTagRow}>
-                    <View style={styles.docCodeBadge}>
-                      <Text style={styles.docCodeText}>{document.unitCode}</Text>
+            <ScrollView
+              style={styles.readerScroll}
+              contentContainerStyle={styles.readerContent}
+              maximumZoomScale={3.5}
+              minimumZoomScale={0.75}
+              showsHorizontalScrollIndicator={true}
+              showsVerticalScrollIndicator={true}
+            >
+              <View
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                style={[
+                  styles.zoomWrapper,
+                  {
+                    transform: [{ scale: zoomScale }],
+                    marginVertical: zoomScale > 1.0 ? (zoomScale - 1.0) * 110 : 0
+                  }
+                ]}
+              >
+                {/* Document Cover & Header Card - Only shown on Page 1 */}
+                {activePage === 1 && (
+                  <View style={styles.docHeaderCard}>
+                    <View style={styles.docTagRow}>
+                      <View style={styles.docCodeBadge}>
+                        <Text style={styles.docCodeText}>{document.unitCode}</Text>
+                      </View>
+                      {!!document.mtid && (
+                        <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                          <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                     </View>
-                    {!!document.mtid && (
-                      <View style={{ backgroundColor: '#1e293b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                        <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
+
+                    <Text style={styles.docMainTitle}>{document.title}</Text>
+                    {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
+
+                    {!!document.summary && (
+                      <View style={styles.summaryBox}>
+                        <Text style={styles.summaryLabel}>Document Summary:</Text>
+                        <Text style={styles.summaryText}>{document.summary}</Text>
                       </View>
                     )}
-                    <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
                   </View>
+                )}
 
-                  <Text style={styles.docMainTitle}>{document.title}</Text>
-                  {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
+                {/* Fast Simulated PDF Page Preview */}
+                <View style={styles.pagePreviewContainer}>
+                  <View style={styles.pageHeader}>
+                    <Text style={styles.pageHeaderTitle}>PAGE {activePage} OF 12</Text>
+                    <View style={styles.pageControls}>
+                      <TouchableOpacity
+                        disabled={activePage <= 1}
+                        onPress={() => setActivePage((p) => Math.max(1, p - 1))}
+                        style={[styles.pageBtn, activePage <= 1 && styles.pageBtnDisabled]}
+                      >
+                        <Text style={styles.pageBtnText}>‹ Prev</Text>
+                      </TouchableOpacity>
 
-                  {!!document.summary && (
-                    <View style={styles.summaryBox}>
-                      <Text style={styles.summaryLabel}>Document Summary:</Text>
-                      <Text style={styles.summaryText}>{document.summary}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Fast Simulated PDF Page Preview */}
-              <View style={styles.pagePreviewContainer}>
-                <View style={styles.pageHeader}>
-                  <Text style={styles.pageHeaderTitle}>PAGE {activePage} OF 12</Text>
-                  <View style={styles.pageControls}>
-                    <TouchableOpacity
-                      disabled={activePage <= 1}
-                      onPress={() => setActivePage((p) => Math.max(1, p - 1))}
-                      style={[styles.pageBtn, activePage <= 1 && styles.pageBtnDisabled]}
-                    >
-                      <Text style={styles.pageBtnText}>‹ Prev</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      disabled={activePage >= 12}
-                      onPress={() => setActivePage((p) => Math.min(12, p + 1))}
-                      style={[styles.pageBtn, activePage >= 12 && styles.pageBtnDisabled]}
-                    >
-                      <Text style={styles.pageBtnText}>Next ›</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Read-Only PDF Paper Sheet */}
-                <View style={styles.paperSheet}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={styles.paperCodeHeader}>MOI UNIVERSITY • {document.unitCode}</Text>
-                    <View style={styles.readOnlyBadge}>
-                      <Text style={styles.readOnlyBadgeText}>🔒 READ-ONLY PREVIEW</Text>
+                      <TouchableOpacity
+                        disabled={activePage >= 12}
+                        onPress={() => setActivePage((p) => Math.min(12, p + 1))}
+                        style={[styles.pageBtn, activePage >= 12 && styles.pageBtnDisabled]}
+                      >
+                        <Text style={styles.pageBtnText}>Next ›</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                  <Text style={styles.paperTitleHeader}>{document.title}</Text>
-                  <View style={styles.paperDivider} />
 
-                  <Text style={styles.paperHeading}>1. READ-ONLY PDF PREVIEW CONTENT (Page {activePage})</Text>
-                  <View style={styles.excerptBox}>
-                    <Text style={styles.excerptLabel}>
-                      📄 Read-Only Document Excerpt (Testing Mode):
+                  {/* Read-Only PDF Paper Sheet */}
+                  <View style={styles.paperSheet}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text style={styles.paperCodeHeader}>MOI UNIVERSITY • {document.unitCode}</Text>
+                      <View style={styles.readOnlyBadge}>
+                        <Text style={styles.readOnlyBadgeText}>🔒 READ-ONLY PREVIEW</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.paperTitleHeader}>{document.title}</Text>
+                    <View style={styles.paperDivider} />
+
+                    <Text style={styles.paperHeading}>1. READ-ONLY PDF PREVIEW CONTENT (Page {activePage})</Text>
+                    <View style={styles.excerptBox}>
+                      <Text style={styles.excerptLabel}>
+                        📄 Read-Only Document Excerpt (Testing Mode):
+                      </Text>
+                      <Text style={styles.excerptText}>
+                        {document.sampleText || `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quick test preview words line for ${document.title} (${document.unitCode}).`}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.paperBodyText}>
+                      1.1 Key Concepts: Definition and fundamental principles of {document.unitName || document.unitCode}.{'\n'}
+                      1.2 Solved Examples: Worked problem steps and formula applications for semester exams.{'\n'}
+                      1.3 Quick Revision: High yield notes compiled for test evaluation and quick review.
                     </Text>
-                    <Text style={styles.excerptText}>
-                      {document.sampleText || `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quick test preview words line for ${document.title} (${document.unitCode}).`}
-                    </Text>
-                  </View>
 
-                  <Text style={styles.paperBodyText}>
-                    1.1 Key Concepts: Definition and fundamental principles of {document.unitName || document.unitCode}.{'\n'}
-                    1.2 Solved Examples: Worked problem steps and formula applications for semester exams.{'\n'}
-                    1.3 Quick Revision: High yield notes compiled for test evaluation and quick review.
-                  </Text>
-
-                  {/* Decorative Footer Stamp for Paper */}
-                  <View style={styles.paperFooterStamp}>
-                    <Text style={styles.paperFooterStampText}>MConnect Official Academic Archive • Page {activePage} of 12</Text>
+                    {/* Decorative Footer Stamp for Paper */}
+                    <View style={styles.paperFooterStamp}>
+                      <Text style={styles.paperFooterStampText}>MConnect Official Academic Archive • Page {activePage} of 12</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -370,6 +496,91 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc'
   },
+  zoomControlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b'
+  },
+  zoomInfoGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  zoomIconText: {
+    fontSize: 13
+  },
+  zoomLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94a3b8'
+  },
+  zoomBadge: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  zoomBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#38bdf8'
+  },
+  zoomActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  zoomBtn: {
+    backgroundColor: '#1e293b',
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  zoomBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 18
+  },
+  zoomActionPill: {
+    backgroundColor: '#15803d',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#22c55e'
+  },
+  zoomActionPillActive: {
+    backgroundColor: '#16a34a',
+    borderColor: '#4ade80'
+  },
+  zoomActionPillText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  zoomResetBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6
+  },
+  zoomResetBtnText: {
+    color: '#f8fafc',
+    fontSize: 10,
+    fontWeight: '700'
+  },
   webViewerWrapper: {
     flex: 1,
     width: '100%',
@@ -382,6 +593,10 @@ const styles = StyleSheet.create({
   readerContent: {
     padding: 14,
     gap: 16
+  },
+  zoomWrapper: {
+    gap: 16,
+    width: '100%'
   },
   docHeaderCard: {
     backgroundColor: '#fcfbf9',

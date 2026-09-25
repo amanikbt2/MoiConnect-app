@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js",
-    "web": "expo start --web --port 8082"
+    "web": "expo start --web --offline --port 8082"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",
@@ -43,6 +43,7 @@
     "react-native-screens": "^3.34.0",
     "react-native-svg": "15.2.0",
     "react-native-web": "^0.19.10",
+    "react-native-webview": "^14.0.1",
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
