@@ -377,11 +377,16 @@ export default function CatPapersScreen() {
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
+    if (!RECOMMENDED_CAT_PAPERS || RECOMMENDED_CAT_PAPERS.length <= 1) return;
     const timer = setInterval(() => {
       if (!isCarouselInteracting.current && carouselListRef.current) {
         const nextIdx = (carouselIndex + 1) % RECOMMENDED_CAT_PAPERS.length;
         setCarouselIndex(nextIdx);
-        carouselListRef.current.scrollToIndex({ index: nextIdx, animated: true });
+        try {
+          carouselListRef.current.scrollToIndex({ index: nextIdx, animated: true });
+        } catch (e) {
+          // ignore index out of range
+        }
       }
     }, 3800);
     return () => clearInterval(timer);

@@ -708,27 +708,37 @@ export default function AcademicsScreen({ route }: any) {
 
   // Auto Scroll For You Carousel
   useEffect(() => {
+    if (!combinedForYou || combinedForYou.length <= 1) return;
     const timer = setInterval(() => {
       if (!isForYouInteracting.current && forYouListRef.current) {
-        const nextIndex = (forYouIndex + 1) % FOR_YOU_CAROUSEL.length;
+        const nextIndex = (forYouIndex + 1) % combinedForYou.length;
         setForYouIndex(nextIndex);
-        forYouListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        try {
+          forYouListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        } catch (e) {
+          // ignore layout unmounted index error
+        }
       }
     }, 4000);
     return () => clearInterval(timer);
-  }, [forYouIndex]);
+  }, [forYouIndex, combinedForYou?.length]);
 
   // Auto Scroll Trending Carousel
   useEffect(() => {
+    if (!TRENDING_CAROUSEL || TRENDING_CAROUSEL.length <= 1) return;
     const timer = setInterval(() => {
       if (!isTrendingInteracting.current && trendingListRef.current) {
         const nextIndex = (trendingIndex + 1) % TRENDING_CAROUSEL.length;
         setTrendingIndex(nextIndex);
-        trendingListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        try {
+          trendingListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        } catch (e) {
+          // ignore layout unmounted index error
+        }
       }
     }, 4500);
     return () => clearInterval(timer);
-  }, [trendingIndex]);
+  }, [trendingIndex, TRENDING_CAROUSEL?.length]);
 
   const fetchOfflinePapers = async () => {
     setLoading(true);
