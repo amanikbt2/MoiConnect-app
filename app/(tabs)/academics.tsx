@@ -62,6 +62,7 @@ export interface NoteItem {
   tag: string;
   thumbnail: string;
   author: string;
+  fileUrl?: string;
 }
 
 // Mock Data Sets
@@ -563,6 +564,41 @@ export default function AcademicsScreen({ route }: any) {
   const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
+  const [realUploadedNotes, setRealUploadedNotes] = useState<NoteItem[]>([]);
+
+  const fetchRealAcademicPapers = async () => {
+    try {
+      const res = await apiRequest<{ data: IPaper[] }>('/papers');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: NoteItem[] = res.data.map((p) => ({
+          id: p._id || (p as any).id,
+          mtid: p.mtid || `N${(p._id || '').substring(0, 4)}`,
+          title: p.title,
+          unitCode: p.unitCode || p.courseCode || 'MOI',
+          unitName: p.unitName || p.title,
+          school: p.school || 'Moi University',
+          paperType: p.type === 'notes' ? 'Revision Notes' : (p.type === 'cat' ? 'CAT Paper' : 'Past Paper'),
+          downloads: formatCount(p.downloads || 65),
+          rating: '4.9 ⭐',
+          examYear: String(p.examYear || 2025),
+          tag: '✨ Real Uploaded',
+          thumbnail: p.fileUrl?.match(/\.(jpg|jpeg|png|webp)/i)
+            ? p.fileUrl
+            : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+          author: typeof p.submittedBy === 'object' && p.submittedBy ? (p.submittedBy as any).name || 'Moi Student' : 'Moi Student',
+          fileUrl: p.fileUrl
+        }));
+        setRealUploadedNotes(mapped);
+      }
+    } catch (err) {
+      console.log('Error fetching real academic papers:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRealAcademicPapers();
+  }, []);
+
   const handleOpenPreview = (item: NoteItem) => {
     setPreviewDoc({
       id: item.id,
@@ -572,7 +608,7 @@ export default function AcademicsScreen({ route }: any) {
       unitName: item.unitName,
       school: item.school,
       author: item.author,
-      fileUrl: 'https://res.cloudinary.com/mconnect/docs/notes.pdf',
+      fileUrl: item.fileUrl || 'https://res.cloudinary.com/mconnect/docs/notes.pdf',
       pages: '48 pages',
       summary: `Comprehensive study material for ${item.unitCode} (${item.unitName || item.title}).`,
       sampleText: `Sample test preview line for ${item.unitCode} (${item.title}): Section 1.1 Fundamentals and Core Notes. Quick test words line for testing preview functionality.`
@@ -820,6 +856,13 @@ export default function AcademicsScreen({ route }: any) {
 
   const renderGridCard = (item: NoteItem) => {
     const cleanRating = item.rating.replace(/[^0-9.]/g, '').trim();
+    const mtidText = item.mtid || 'P0001';
+    const paperTag = item.paperType || 'Exam Pack';
+    const shortSchool = (item.school || 'School of Science')
+      .replace('School of ', '')
+      .replace('Information Sciences', 'INFO SCI')
+      .toUpperCase();
+
     return (
       <TouchableOpacity
         key={item.id}
@@ -830,7 +873,7 @@ export default function AcademicsScreen({ route }: any) {
         <View style={styles.gridImageContainer}>
           <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
           <View style={styles.gridBadge}>
-            <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+            <Text style={styles.gridBadgeText}>{paperTag}</Text>
           </View>
           <View style={[styles.gridRatingBadge, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
             <StarIcon color="#eab308" size={11} />
@@ -839,23 +882,42 @@ export default function AcademicsScreen({ route }: any) {
         </View>
 
         <View style={styles.gridBody}>
-          <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.paperType}</Text>
+          <Text style={styles.gridMetaLine} numberOfLines={1}>
+            MTID: {mtidText} • {item.unitCode} • {shortSchool}
+          </Text>
           <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.gridSub}>{item.school} • {item.examYear}</Text>
+
+          <View style={styles.gridDivider} />
 
           <View style={styles.gridFooter}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <DownloadIcon color="#15803d" size={12} />
-              <Text style={styles.gridDownloads}>{formatCount(item.downloads)}</Text>
+              <DownloadIcon color="#15803d" size={11} />
+              <Text style={styles.gridDownloads}>{formatCount(item.downloads)} downloads</Text>
             </View>
-            <View style={styles.miniArrow}>
-              <ChevronRightIcon color="#15803d" size={14} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <StarIcon color="#eab308" size={11} />
+              <Text style={styles.gridRatingText}>{cleanRating}</Text>
             </View>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
+
+  const filterNoteItem = (item: NoteItem) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.unitCode.toLowerCase().includes(q) ||
+      item.unitName.toLowerCase().includes(q) ||
+      item.school.toLowerCase().includes(q)
+    );
+  };
+
+  const combinedForYou = [...realUploadedNotes.slice(0, 3), ...FOR_YOU_CAROUSEL].filter(filterNoteItem);
+  const combinedGrid1 = [...realUploadedNotes, ...GRID_SECTION_1].filter(filterNoteItem);
+  const combinedGrid2 = [...realUploadedNotes.slice(3), ...GRID_SECTION_2].filter(filterNoteItem);
 
   return (
     <View style={styles.container}>
@@ -868,11 +930,12 @@ export default function AcademicsScreen({ route }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
+            onRefresh={async () => {
               setRefreshing(true);
               setVisibleCountSection1(4);
               setVisibleCountSection2(4);
-              setTimeout(() => setRefreshing(false), 1000);
+              await fetchRealAcademicPapers();
+              setRefreshing(false);
             }}
             colors={['#15803d']}
           />
@@ -935,7 +998,7 @@ export default function AcademicsScreen({ route }: any) {
 
           <FlatList
             ref={forYouListRef}
-            data={FOR_YOU_CAROUSEL}
+            data={combinedForYou}
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -960,7 +1023,7 @@ export default function AcademicsScreen({ route }: any) {
 
           {/* Carousel Pagination Dots */}
           <View style={styles.dotsRow}>
-            {FOR_YOU_CAROUSEL.map((_, i) => (
+            {combinedForYou.map((_, i) => (
               <View
                 key={i}
                 style={[styles.dot, i === forYouIndex ? styles.activeDot : styles.inactiveDot]}
@@ -980,7 +1043,7 @@ export default function AcademicsScreen({ route }: any) {
           </View>
 
           <View style={styles.gridContainer}>
-            {GRID_SECTION_1.slice(0, visibleCountSection1).map((item) => renderGridCard(item))}
+            {combinedGrid1.slice(0, visibleCountSection1).map((item) => renderGridCard(item))}
           </View>
 
           {/* Facebook-style Bottom Shimmer Loading for Section 1 */}
@@ -1046,7 +1109,7 @@ export default function AcademicsScreen({ route }: any) {
           </View>
 
           <View style={styles.gridContainer}>
-            {GRID_SECTION_2.slice(0, visibleCountSection2).map((item) => renderGridCard(item))}
+            {combinedGrid2.slice(0, visibleCountSection2).map((item) => renderGridCard(item))}
           </View>
 
           {/* Facebook-style Bottom Shimmer Loading for Section 2 */}
@@ -1460,6 +1523,14 @@ const styles = StyleSheet.create({
   gridBody: {
     padding: 10
   },
+  gridMetaLine: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#15803d',
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
+    marginBottom: 4
+  },
   gridPaperType: {
     fontSize: 10,
     fontWeight: '700',
@@ -1473,7 +1544,12 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     height: 34,
     lineHeight: 16,
-    marginBottom: 6
+    marginBottom: 4
+  },
+  gridDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 4
   },
   gridSub: {
     fontSize: 10,

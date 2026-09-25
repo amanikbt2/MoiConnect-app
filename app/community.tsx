@@ -60,6 +60,7 @@ export interface CommunityMessage {
   id: string;
   clientMsgId?: string;
   senderId?: string;
+  senderEmail?: string;
   senderName: string;
   senderFaculty: string;
   avatarBg: string;
@@ -74,6 +75,7 @@ export interface CommunityMessage {
   myReaction?: string;
   replyTo?: {
     id: string;
+    senderEmail?: string;
     senderName: string;
     text: string;
     fileAttachment?: FileAttachment;
@@ -384,23 +386,23 @@ export default function CommunityScreen() {
   const lastSyncedISO = useRef<string | null>(null);
   const isNearBottomRef = useRef<boolean>(true);
   const initialScrollDoneRef = useRef<boolean>(false);
-  const evalIsMe = (msgSenderId: any, msgSenderName?: string, msgClientMsgId?: string): boolean => {
+  const evalIsMe = (msgSenderId?: any, msgSenderEmail?: string, msgSenderName?: string, msgClientMsgId?: string): boolean => {
     if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
       return true;
     }
 
-    if (user && user._id) {
-      const sId = typeof msgSenderId === 'object' ? msgSenderId?._id?.toString() || msgSenderId?.toString() : msgSenderId?.toString();
-      if (sId && sId === user._id.toString()) {
-        return true;
+    if (user) {
+      if (user._id && msgSenderId) {
+        const sId = typeof msgSenderId === 'object' ? msgSenderId?._id?.toString() || msgSenderId?.toString() : msgSenderId?.toString();
+        if (sId && sId === user._id.toString()) {
+          return true;
+        }
       }
-    }
 
-    if (user && user.name && msgSenderName) {
-      const trimmedUserName = user.name.trim().toLowerCase();
-      const isGeneric = trimmedUserName === 'moi student' || trimmedUserName === 'student' || trimmedUserName === '';
-      if (!isGeneric && msgSenderName.trim().toLowerCase() === trimmedUserName) {
-        return true;
+      if (user.email && msgSenderEmail) {
+        if (user.email.trim().toLowerCase() === msgSenderEmail.trim().toLowerCase()) {
+          return true;
+        }
       }
     }
 
@@ -410,23 +412,32 @@ export default function CommunityScreen() {
   const checkIsMentionOrReply = (msg: CommunityMessage, currUser: any, allMsgs: CommunityMessage[]): boolean => {
     if (!currUser || msg.isMe) return false;
 
-    // 1. Reply check: if someone replied to my text
+    // 1. Reply check: if someone replied to my text or email
     if (msg.replyTo) {
-      if (msg.replyTo.senderName && currUser.name && msg.replyTo.senderName.toLowerCase().trim() === currUser.name.toLowerCase().trim()) {
+      if (msg.replyTo.senderEmail && currUser.email && msg.replyTo.senderEmail.toLowerCase().trim() === currUser.email.toLowerCase().trim()) {
         return true;
       }
       const parentMsg = allMsgs.find((p) => p.id === msg.replyTo?.id);
       if (parentMsg && parentMsg.isMe) return true;
     }
 
-    // 2. Mention check: text contains @MyName or @MyFirstName
-    if (currUser.name && msg.text) {
+    // 2. Mention check: text contains @Email, @MyName, or @MyFirstName
+    if (msg.text) {
       const textLower = msg.text.toLowerCase();
-      const fullNameLower = currUser.name.toLowerCase().trim();
-      const firstNameLower = currUser.name.split(' ')[0]?.toLowerCase().trim();
+      if (currUser.email) {
+        const userEmailLower = currUser.email.toLowerCase().trim();
+        const emailPrefix = userEmailLower.split('@')[0];
+        if (textLower.includes(`@${userEmailLower}`) || (emailPrefix && emailPrefix.length >= 3 && textLower.includes(`@${emailPrefix}`))) {
+          return true;
+        }
+      }
 
-      if (textLower.includes(`@${fullNameLower}`) || (firstNameLower && firstNameLower.length >= 2 && textLower.includes(`@${firstNameLower}`))) {
-        return true;
+      if (currUser.name) {
+        const fullNameLower = currUser.name.toLowerCase().trim();
+        const firstNameLower = currUser.name.split(' ')[0]?.toLowerCase().trim();
+        if (textLower.includes(`@${fullNameLower}`) || (firstNameLower && firstNameLower.length >= 2 && textLower.includes(`@${firstNameLower}`))) {
+          return true;
+        }
       }
     }
 
@@ -575,7 +586,7 @@ export default function CommunityScreen() {
       const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : INITIAL_COMMUNITY_MESSAGES;
       const msgsToLoad = rawMsgs.map((m) => ({
         ...m,
-        isMe: evalIsMe(m.senderId, m.senderName, m.clientMsgId)
+        isMe: evalIsMe(m.senderId, m.senderEmail, m.senderName, m.clientMsgId)
       }));
       setMessages(msgsToLoad);
       lastSyncedISO.current = msgsToLoad[msgsToLoad.length - 1]?.isoDate || new Date().toISOString();
@@ -593,12 +604,13 @@ export default function CommunityScreen() {
         socket.emit('join_community');
 
         socket.on('community:receive_message', (serverMsg: any) => {
-          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderName, serverMsg.clientMsgId);
+          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
 
           const formattedMsg: CommunityMessage = {
             id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
             clientMsgId: serverMsg.clientMsgId,
             senderId: serverMsg.senderId,
+            senderEmail: serverMsg.senderEmail,
             senderName: serverMsg.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             avatarBg: serverMsg.avatarBg || '#15803d',
@@ -744,11 +756,12 @@ export default function CommunityScreen() {
       const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
       if (res && res.success && res.data && res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
         const fetchedMsgs: CommunityMessage[] = res.data.data.map((serverMsg: any) => {
-          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderName, serverMsg.clientMsgId);
+          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
           return {
             id: serverMsg._id || serverMsg.id,
             clientMsgId: serverMsg.clientMsgId,
             senderId: serverMsg.senderId,
+            senderEmail: serverMsg.senderEmail,
             senderName: serverMsg.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             avatarBg: serverMsg.avatarBg || '#15803d',
@@ -886,6 +899,7 @@ export default function CommunityScreen() {
     const replyToData = replyingTo
       ? {
           id: replyingTo.id,
+          senderEmail: replyingTo.senderEmail,
           senderName: replyingTo.senderName,
           text: replyingTo.text,
           fileAttachment: replyingTo.fileAttachment
@@ -905,6 +919,7 @@ export default function CommunityScreen() {
     const payload = {
       clientMsgId: tempId,
       senderId: user ? user._id : undefined,
+      senderEmail: user ? user.email : undefined,
       text: sentText,
       fileAttachment: selectedFile || undefined,
       replyTo: replyToData,
@@ -917,6 +932,7 @@ export default function CommunityScreen() {
       id: tempId,
       clientMsgId: tempId,
       senderId: user ? user._id : undefined,
+      senderEmail: user ? user.email : undefined,
       senderName: payload.senderName,
       senderFaculty: payload.senderFaculty,
       avatarBg: payload.avatarBg,

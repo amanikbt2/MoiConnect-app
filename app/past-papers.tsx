@@ -17,6 +17,8 @@ import {
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
+import { apiRequest } from '../src/services/api';
+import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
   DownloadIcon,
@@ -340,6 +342,54 @@ export default function PastPapersScreen() {
 
   const router = useAppNavigation();
 
+  // Fetch real uploaded past papers from Cloudinary / backend API
+  const fetchRealPastPapers = async () => {
+    try {
+      const res = await apiRequest<{ data: IPaper[] }>('/papers');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const realPastPapers: PastPaperItem[] = res.data
+          .filter(
+            (p) =>
+              p.type === 'past_paper' ||
+              p.type === 'solution' ||
+              p.title.toLowerCase().includes('exam') ||
+              p.title.toLowerCase().includes('paper')
+          )
+          .map((p) => ({
+            id: p._id || (p as any).id,
+            mtid: p.mtid || `P${(p._id || '').substring(0, 4)}`,
+            title: p.title,
+            unitCode: p.unitCode || p.courseCode || 'MOI',
+            unitName: p.unitName || p.title,
+            school: p.school || 'Moi University',
+            examYear: String(p.examYear || 2025),
+            semester: p.semester || 'Semester 1',
+            downloadsCount: p.downloads || 45,
+            starsCount: 28,
+            ratingScore: '4.9',
+            thumbnail: p.fileUrl?.match(/\.(jpg|jpeg|png|webp)/i)
+              ? p.fileUrl
+              : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+            fileUrl: p.fileUrl,
+            hasSolutions: p.type === 'solution' || p.title.toLowerCase().includes('solution'),
+            tag: '✨ Real Uploaded'
+          }));
+
+        setPapersData((prev) => {
+          const combined = [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA];
+          const unique = combined.filter((v, i, a) => a.findIndex((t) => t.id === v.id || t.title === v.title) === i);
+          return unique;
+        });
+      }
+    } catch (err) {
+      console.log('Error fetching real past papers:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRealPastPapers();
+  }, []);
+
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
     const timer = setInterval(() => {
@@ -464,10 +514,11 @@ export default function PastPapersScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
+            onRefresh={async () => {
               setRefreshing(true);
               setVisibleCount(4);
-              setTimeout(() => setRefreshing(false), 900);
+              await fetchRealPastPapers();
+              setRefreshing(false);
             }}
             colors={['#15803d']}
           />

@@ -293,10 +293,14 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </View>
           </View>
 
-          {Platform.OS === 'web' && document.fileUrl && !document.fileUrl.includes('cloudinary.com/mconnect') ? (
+          {Platform.OS === 'web' && document.fileUrl && (document.fileUrl.startsWith('http') || document.fileUrl.startsWith('/uploads')) ? (
             <View style={styles.webViewerWrapper}>
               <iframe
-                src={`https://docs.google.com/viewer?url=${encodeURIComponent(document.fileUrl)}&embedded=true`}
+                src={
+                  document.fileUrl.includes('cloudinary.com') || document.fileUrl.endsWith('.pdf') || document.fileUrl.match(/\.(jpg|jpeg|png|webp)/i)
+                    ? document.fileUrl
+                    : `https://docs.google.com/viewer?url=${encodeURIComponent(document.fileUrl)}&embedded=true`
+                }
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title={document.title}
               />

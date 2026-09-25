@@ -17,6 +17,8 @@ import {
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
+import { apiRequest } from '../src/services/api';
+import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
   DownloadIcon,
@@ -326,6 +328,53 @@ export default function CatPapersScreen() {
 
   const router = useAppNavigation();
 
+  // Fetch real uploaded CAT papers from Cloudinary / backend API
+  const fetchRealCatPapers = async () => {
+    try {
+      const res = await apiRequest<{ data: IPaper[] }>('/papers');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const realCatPapers: CATPaperItem[] = res.data
+          .filter(
+            (p) =>
+              p.type === 'cat' ||
+              p.title.toLowerCase().includes('cat') ||
+              p.title.toLowerCase().includes('quiz') ||
+              p.title.toLowerCase().includes('test')
+          )
+          .map((p) => ({
+            id: p._id || (p as any).id,
+            mtid: p.mtid || `C${(p._id || '').substring(0, 4)}`,
+            title: p.title,
+            unitCode: p.unitCode || p.courseCode || 'MOI',
+            unitName: p.unitName || p.title,
+            school: p.school || 'Moi University',
+            catType: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
+            downloadsCount: p.downloads || 38,
+            starsCount: 22,
+            ratingScore: '4.8',
+            thumbnail: p.fileUrl?.match(/\.(jpg|jpeg|png|webp)/i)
+              ? p.fileUrl
+              : 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
+            fileUrl: p.fileUrl,
+            examYear: String(p.examYear || 2025),
+            tag: '🔥 Real CAT'
+          }));
+
+        setCatsData((prev) => {
+          const combined = [...realCatPapers, ...INITIAL_CAT_PAPERS];
+          const unique = combined.filter((v, i, a) => a.findIndex((t) => t.id === v.id || t.title === v.title) === i);
+          return unique;
+        });
+      }
+    } catch (err) {
+      console.log('Error fetching real CAT papers:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRealCatPapers();
+  }, []);
+
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
     const timer = setInterval(() => {
@@ -449,10 +498,11 @@ export default function CatPapersScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
+            onRefresh={async () => {
               setRefreshing(true);
               setVisibleCount(4);
-              setTimeout(() => setRefreshing(false), 900);
+              await fetchRealCatPapers();
+              setRefreshing(false);
             }}
             colors={['#15803d']}
           />
