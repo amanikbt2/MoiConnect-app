@@ -368,33 +368,35 @@ const styles = StyleSheet.create({
   },
   bodyContainer: {
     flex: 1,
-    backgroundColor: '#0f172a'
+    backgroundColor: '#f8fafc'
   },
   webViewerWrapper: {
     flex: 1,
     width: '100%',
-    height: '100%'
+    height: '100%',
+    backgroundColor: '#ffffff'
   },
   readerScroll: {
     flex: 1
   },
   readerContent: {
     padding: 14,
-    gap: 14
+    gap: 16
   },
   docHeaderCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: '#fcfbf9',
+    borderRadius: 18,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderTopWidth: 4,
+    borderTopWidth: 5,
     borderTopColor: '#15803d',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3
+    transform: [{ rotate: '-0.3deg' }],
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 2, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4
   },
   docTagRow: {
     flexDirection: 'row',
@@ -450,31 +452,32 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   pagePreviewContainer: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
+    backgroundColor: '#fbfbfe',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    transform: [{ rotate: '0.3deg' }],
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: -2, height: 4 },
+    shadowOpacity: 0.08,
     shadowRadius: 10,
-    elevation: 5
+    elevation: 4
   },
   pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155'
+    borderBottomColor: '#cbd5e1'
   },
   pageHeaderTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#38bdf8',
+    color: '#0369a1',
     letterSpacing: 0.8
   },
   pageControls: {
@@ -482,34 +485,40 @@ const styles = StyleSheet.create({
     gap: 8
   },
   pageBtn: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#cbd5e1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1
   },
   pageBtnDisabled: {
-    opacity: 0.35
+    opacity: 0.4,
+    backgroundColor: '#f1f5f9'
   },
   pageBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#f8fafc'
+    fontWeight: '800',
+    color: '#0f172a'
   },
   paperSheet: {
     padding: 18,
     margin: 0,
-    backgroundColor: '#fffdf5',
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
+    backgroundColor: '#ffffff',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: '#f1f5f9',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2
   },
   readOnlyBadge: {
     backgroundColor: '#fef3c7',
@@ -527,7 +536,7 @@ const styles = StyleSheet.create({
   paperCodeHeader: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94a3b8',
+    color: '#64748b',
     letterSpacing: 1
   },
   paperTitleHeader: {
@@ -551,12 +560,12 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   excerptBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f0fdf4',
     padding: 14,
     borderRadius: 10,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#bbf7d0',
     borderLeftWidth: 4,
     borderLeftColor: '#15803d',
     shadowColor: '#000',
@@ -591,7 +600,7 @@ const styles = StyleSheet.create({
   paperFooterStampText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#64748b',
     letterSpacing: 0.5
   }
 });
