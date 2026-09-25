@@ -706,6 +706,21 @@ export default function AcademicsScreen({ route }: any) {
     }
   }, [route?.params]);
 
+  const filterNoteItem = (item: NoteItem) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.unitCode.toLowerCase().includes(q) ||
+      item.unitName.toLowerCase().includes(q) ||
+      item.school.toLowerCase().includes(q)
+    );
+  };
+
+  const combinedForYou = [...realUploadedNotes.slice(0, 3), ...FOR_YOU_CAROUSEL].filter(filterNoteItem);
+  const combinedGrid1 = [...realUploadedNotes, ...GRID_SECTION_1].filter(filterNoteItem);
+  const combinedGrid2 = [...realUploadedNotes.slice(3), ...GRID_SECTION_2].filter(filterNoteItem);
+
   // Auto Scroll For You Carousel
   useEffect(() => {
     if (!combinedForYou || combinedForYou.length <= 1) return;
@@ -912,23 +927,6 @@ export default function AcademicsScreen({ route }: any) {
         </View>
       </TouchableOpacity>
     );
-  };
-
-  const filterNoteItem = (item: NoteItem) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.unitCode.toLowerCase().includes(q) ||
-      item.unitName.toLowerCase().includes(q) ||
-      item.school.toLowerCase().includes(q)
-    );
-  };
-
-  const combinedForYou = [...realUploadedNotes.slice(0, 3), ...FOR_YOU_CAROUSEL].filter(filterNoteItem);
-  const combinedGrid1 = [...realUploadedNotes, ...GRID_SECTION_1].filter(filterNoteItem);
-  const combinedGrid2 = [...realUploadedNotes.slice(3), ...GRID_SECTION_2].filter(filterNoteItem);
-
   return (
     <View style={styles.container}>
       <ScrollView
