@@ -288,6 +288,11 @@ export default function CommunityScreen() {
   const dismissedMentionIds = useRef<Set<string>>(new Set());
   const tempSentIdsRef = useRef<Set<string>>(new Set());
 
+  // WhatsApp-style Unread Tracking & Auto-scroll State
+  const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [showUnreadBtn, setShowUnreadBtn] = useState<boolean>(false);
+
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
