@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-const RENDER_BACKEND_URL = 'https://moiconnect-app.onrender.com';
+const RENDER_BACKEND_URL = 'https://moiconnect.onrender.com';
 const LOCAL_BACKEND_PORT = '5000';
 
 const getDynamicHost = () => {

@@ -20,8 +20,11 @@ export const initSocket = async (): Promise<Socket> => {
       if (!socket) {
         socket = io(config.socketUrl, {
           auth: { token },
-          transports: ['websocket', 'polling'],
-          autoConnect: true
+          transports: ['polling', 'websocket'],
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 1000
         });
 
         socket.on('connect', () => {
