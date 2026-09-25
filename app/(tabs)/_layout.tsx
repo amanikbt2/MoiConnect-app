@@ -12,13 +12,18 @@ import {
 function HomeHeaderTitle() {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Image
-        source={require('../../assets/m-logo-transparent.png')}
-        style={{ width: 34, height: 30, marginRight: 6 }}
-        resizeMode="contain"
-      />
-      <Text style={{ color: '#ffffff', fontSize: 22, fontWeight: '800', letterSpacing: 0.4 }}>
-        Connect
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '900',
+          letterSpacing: -0.2,
+          textShadowColor: 'rgba(0, 0, 0, 0.65)',
+          textShadowOffset: { width: 0, height: 1.5 },
+          textShadowRadius: 3,
+        }}
+      >
+        <Text style={{ color: '#ffffff' }}>Moi</Text>
+        <Text style={{ color: '#a7f3d0' }}>Connect</Text>
       </Text>
     </View>
   );
