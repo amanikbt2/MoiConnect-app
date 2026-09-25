@@ -317,8 +317,28 @@ export default function CommunityScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
-  const isNearBottomRef = useRef<boolean>(true);
-  const initialScrollDoneRef = useRef<boolean>(false);
+  const evalIsMe = (msgSenderId: any, msgSenderName?: string, msgClientMsgId?: string): boolean => {
+    if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
+      return true;
+    }
+
+    if (user && user._id) {
+      const sId = typeof msgSenderId === 'object' ? msgSenderId?._id?.toString() || msgSenderId?.toString() : msgSenderId?.toString();
+      if (sId && sId === user._id.toString()) {
+        return true;
+      }
+    }
+
+    if (user && user.name && msgSenderName) {
+      const trimmedUserName = user.name.trim().toLowerCase();
+      const isGeneric = trimmedUserName === 'moi student' || trimmedUserName === 'student' || trimmedUserName === '';
+      if (!isGeneric && msgSenderName.trim().toLowerCase() === trimmedUserName) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const checkIsMentionOrReply = (msg: CommunityMessage, currUser: any, allMsgs: CommunityMessage[]): boolean => {
     if (!currUser || msg.isMe) return false;
@@ -485,7 +505,11 @@ export default function CommunityScreen() {
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
     getStoredCommunityMessages().then((cachedMsgs) => {
-      const msgsToLoad = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : INITIAL_COMMUNITY_MESSAGES;
+      const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : INITIAL_COMMUNITY_MESSAGES;
+      const msgsToLoad = rawMsgs.map((m) => ({
+        ...m,
+        isMe: evalIsMe(m.senderId, m.senderName, m.clientMsgId)
+      }));
       setMessages(msgsToLoad);
       lastSyncedISO.current = msgsToLoad[msgsToLoad.length - 1]?.isoDate || new Date().toISOString();
       if (!cachedMsgs || cachedMsgs.length === 0) {
@@ -502,11 +526,7 @@ export default function CommunityScreen() {
         socket.emit('join_community');
 
         socket.on('community:receive_message', (serverMsg: any) => {
-          const isMyMsg = !!(
-            (serverMsg.clientMsgId && tempSentIdsRef.current.has(serverMsg.clientMsgId)) ||
-            (user && user._id && (serverMsg.senderId === user._id || serverMsg.senderId?._id === user._id || serverMsg.senderId?.toString() === user._id?.toString())) ||
-            (user && user.name && serverMsg.senderName && serverMsg.senderName.toLowerCase().trim() === user.name.toLowerCase().trim())
-          );
+          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderName, serverMsg.clientMsgId);
 
           const formattedMsg: CommunityMessage = {
             id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
@@ -536,7 +556,7 @@ export default function CommunityScreen() {
             let updated: CommunityMessage[];
             if (existingIdx !== -1) {
               updated = [...prev];
-              const wasMe = updated[existingIdx].isMe || isMyMsg;
+              const wasMe = (serverMsg.clientMsgId && tempSentIdsRef.current.has(serverMsg.clientMsgId)) || isMyMsg;
               updated[existingIdx] = {
                 ...updated[existingIdx],
                 ...formattedMsg,
@@ -657,11 +677,7 @@ export default function CommunityScreen() {
       const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
       if (res && res.success && res.data && res.data.length > 0) {
         const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg) => {
-          const isMyMsg = !!(
-            (serverMsg.clientMsgId && tempSentIdsRef.current.has(serverMsg.clientMsgId)) ||
-            (user && user._id && (serverMsg.senderId === user._id || serverMsg.senderId?._id === user._id || serverMsg.senderId?.toString() === user._id?.toString())) ||
-            (user && user.name && serverMsg.senderName && serverMsg.senderName.toLowerCase().trim() === user.name.toLowerCase().trim())
-          );
+          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderName, serverMsg.clientMsgId);
           return {
             id: serverMsg._id || serverMsg.id,
             clientMsgId: serverMsg.clientMsgId,
@@ -692,7 +708,7 @@ export default function CommunityScreen() {
             );
 
             if (existingIdx !== -1) {
-              const wasMe = updated[existingIdx].isMe || msg.isMe;
+              const wasMe = (msg.clientMsgId && tempSentIdsRef.current.has(msg.clientMsgId)) || msg.isMe;
               updated[existingIdx] = { ...updated[existingIdx], ...msg, isMe: wasMe };
               changed = true;
             } else {
