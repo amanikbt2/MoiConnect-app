@@ -31,12 +31,19 @@ function HomeHeaderTitle() {
 
 function DownloadsHeaderTitle() {
   return (
-    <View style={{ justifyContent: 'center' }}>
-      <Text style={{ color: '#ffffff', fontSize: 18, fontWeight: '800', lineHeight: 22 }}>
-        Downloads
-      </Text>
-      <Text style={{ color: '#dcfce7', fontSize: 11, fontWeight: '500', marginTop: 1 }}>
-        Offline downloaded materials
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '900',
+          letterSpacing: -0.2,
+          textShadowColor: 'rgba(0, 0, 0, 0.65)',
+          textShadowOffset: { width: 0, height: 1.5 },
+          textShadowRadius: 3,
+        }}
+      >
+        <Text style={{ color: '#ffffff' }}>Down</Text>
+        <Text style={{ color: '#a7f3d0' }}>loads</Text>
       </Text>
     </View>
   );
