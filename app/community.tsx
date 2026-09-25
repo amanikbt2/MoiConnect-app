@@ -43,7 +43,9 @@ import {
   getStoredCommunityMessages,
   saveCommunityMessages,
   getLastReadCommunityMsgId,
-  saveLastReadCommunityMsgId
+  saveLastReadCommunityMsgId,
+  getStudentPersonalDetails,
+  StudentPersonalDetails
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 
@@ -195,6 +197,62 @@ function formatTypingText(users: TypingUser[]): string {
   return 'Several people are typing...';
 }
 
+export function formatStudentSubtitle(
+  school?: string,
+  course?: string,
+  yearOfStudy?: string,
+  facultyFallback?: string
+): string {
+  let programStr = course?.trim() || school?.trim() || facultyFallback?.trim() || '';
+
+  let existingYearStr = '';
+  const yearMatchInProg = programStr.match(/\s+Y[1-6]$/i);
+  if (yearMatchInProg) {
+    existingYearStr = yearMatchInProg[0].trim().toUpperCase();
+    programStr = programStr.replace(/\s+Y[1-6]$/i, '').trim();
+  }
+
+  const lower = programStr.toLowerCase();
+  if (
+    !programStr ||
+    lower === 'main campus' ||
+    lower === 'main campus student' ||
+    lower === 'moi student' ||
+    lower === 'moi university student' ||
+    lower === 'school of science & computing' ||
+    lower === 'moi university'
+  ) {
+    programStr = '';
+  }
+
+  let yearStr = existingYearStr;
+  if (!yearStr && yearOfStudy) {
+    const yTrim = yearOfStudy.trim();
+    if (/^Y[1-6]$/i.test(yTrim)) {
+      yearStr = yTrim.toUpperCase();
+    } else if (yTrim.toLowerCase().includes('year')) {
+      const match = yTrim.match(/\d+/);
+      if (match) {
+        yearStr = `Y${match[0]}`;
+      }
+    } else if (/^[1-6]$/.test(yTrim)) {
+      yearStr = `Y${yTrim}`;
+    }
+  }
+
+  if (programStr && yearStr) {
+    return `${programStr} ${yearStr}`;
+  }
+  if (programStr) {
+    return programStr;
+  }
+  if (yearStr) {
+    return `Moi University Student ${yearStr}`;
+  }
+
+  return 'Moi University Student';
+}
+
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [
   {
     name: 'COM_310_CAT1_Timetable_2025.pdf',
@@ -281,6 +339,13 @@ export default function CommunityScreen() {
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
+
+  useEffect(() => {
+    getStudentPersonalDetails().then((details) => {
+      if (details) setMyProfile(details);
+    });
+  }, []);
 
   // Smart Mention & Reply Tracking State
   const [unreadMentionIds, setUnreadMentionIds] = useState<string[]>([]);
@@ -830,6 +895,13 @@ export default function CommunityScreen() {
     const tempId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     tempSentIdsRef.current.add(tempId);
 
+    const facultySubtitle = formatStudentSubtitle(
+      myProfile?.school,
+      myProfile?.course,
+      myProfile?.yearOfStudy,
+      (user as any)?.department
+    );
+
     const payload = {
       clientMsgId: tempId,
       senderId: user ? user._id : undefined,
@@ -837,7 +909,7 @@ export default function CommunityScreen() {
       fileAttachment: selectedFile || undefined,
       replyTo: replyToData,
       senderName: user ? user.name : 'Moi Student',
-      senderFaculty: (user as any)?.department || 'Main Campus Student',
+      senderFaculty: facultySubtitle,
       avatarBg: '#15803d'
     };
 
@@ -1147,7 +1219,7 @@ export default function CommunityScreen() {
                           {!item.isMe && (
                             <View style={styles.senderHeader}>
                               <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
-                              <Text style={styles.senderFaculty}>{item.senderFaculty}</Text>
+                              <Text style={styles.senderFaculty}>{formatStudentSubtitle(undefined, undefined, undefined, item.senderFaculty)}</Text>
                             </View>
                           )}
 
