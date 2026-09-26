@@ -30,7 +30,6 @@
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "../credantials/eas_playstore_service-publisher.json",
         "track": "closed"
       }
     }
