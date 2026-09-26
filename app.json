@@ -51,10 +51,7 @@
     },
     "scheme": "moiconnect",
     "extra": {
-      "eas": {
-        "projectId": "b2e599b0-7be8-4fad-bdaf-330db9d6c1a5"
-      }
-    },
-    "owner": "amanikbt2"
+      "eas": {}
+    }
   }
 }
