@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -99,13 +100,13 @@ export default function DownloadsScreen() {
 
   const handleRemoveCompletely = (paper: OfflinePaper) => {
     setMenuPaper(null);
-    Alert.alert(
-      'Wipe from Device Storage',
+    showIceMessage(
+      'Delete',
       `Are you sure you want to permanently delete "${paper.title}" from your phone? This frees up device storage immediately.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Wipe Completely',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             await removeOfflinePaper(paper._id);
@@ -330,16 +331,16 @@ export default function DownloadsScreen() {
                   <Text style={styles.optionText}>Read Offline Preview</Text>
                 </TouchableOpacity>
 
-                {/* Action 4: Wipe Completely */}
+                {/* Action 4: Delete */}
                 <TouchableOpacity
                   style={[styles.optionRow, styles.optionRowDanger]}
                   onPress={() => handleRemoveCompletely(menuPaper)}
                 >
                   <TrashIcon color="#dc2626" size={20} />
                   <View>
-                    <Text style={styles.optionTextDanger}>Wipe from Device Storage</Text>
+                    <Text style={styles.optionTextDanger}>Delete</Text>
                     <Text style={styles.optionSubDanger}>
-                      Completely deletes file to free up phone space
+                      Remove saved file from this device
                     </Text>
                   </View>
                 </TouchableOpacity>

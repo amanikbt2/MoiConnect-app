@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -272,7 +273,7 @@ export default function RentalsScreen() {
 
   const handleCreateListing = async () => {
     if (!title || !description || !monthlyRent || !photoUrl) {
-      Alert.alert('Incomplete Form', 'Please provide a title, description, monthly rent, and photo URL.');
+      showIceMessage('Incomplete Form', 'Please provide a title, description, monthly rent, and photo URL.');
       return;
     }
 
@@ -293,7 +294,7 @@ export default function RentalsScreen() {
     setSubmitting(false);
 
     if (res.success) {
-      Alert.alert(
+      showIceMessage(
         'Listing Created',
         'Your rental listing has been submitted for administrator review.',
         [{ text: 'OK', onPress: () => {
@@ -303,7 +304,7 @@ export default function RentalsScreen() {
         }}]
       );
     } else {
-      Alert.alert('Submission Failed', res.error || 'Failed to create listing.');
+      showIceMessage('Submission Failed', res.error || 'Failed to create listing.');
     }
   };
 

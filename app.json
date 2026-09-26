@@ -2,9 +2,9 @@
   "expo": {
     "name": "MoiConnect",
     "slug": "moiconnect",
-    "version": "1.1.4",
+    "version": "1.1.5",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/icon.png",
@@ -16,16 +16,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "14"
+      "buildNumber": "15"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#14532d",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
+
       "package": "com.amanikbt1.moiconnect",
-      "versionCode": 14
+      "versionCode": 15
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

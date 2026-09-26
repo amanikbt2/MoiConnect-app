@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { apiRequest } from './api';
 
@@ -17,6 +18,15 @@ export async function registerForPushNotificationsAsync() {
   }
 
   try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'MoiConnect Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#15803d'
+      });
+    }
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
@@ -28,7 +38,8 @@ export async function registerForPushNotificationsAsync() {
       return null;
     }
 
-    const pushTokenData = await Notifications.getExpoPushTokenAsync();
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+    const pushTokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
     const token = pushTokenData.data;
 
     if (token) {
@@ -49,6 +60,42 @@ export async function registerForPushNotificationsAsync() {
   }
 }
 
+export async function notifyLoginSuccess(userName: string) {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      return;
+    }
+
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'MoiConnect Notifications',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#15803d'
+    });
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Login successful 🎉',
+        body: `You've logged in successfully, ${userName}. Explore PDFs and community chat.`,
+        sound: 'default',
+        data: { screen: 'home', channelId: 'login_success' }
+      },
+      trigger: null
+    });
+  } catch (error) {
+    console.warn('[Notifications]: Could not show login success notification:', error);
+  }
+}
 export function setupNotificationResponseListener(onNavigate: (screenPath: string) => void) {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {

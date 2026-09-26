@@ -23,7 +23,7 @@ const FAQ_DATA: FAQItem[] = [
     id: 'delete_account',
     category: 'Account & Data Privacy',
     question: 'How do I request deletion of my account and associated data?',
-    answer: 'MoiConnect provides two simple methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> scroll to the bottom -> tap "Delete Account" next to Sign Out -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. Please include your full name and registered phone number. All email deletion requests are processed within 5 business days.',
+    answer: 'MoiConnect provides two simple methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> tap the three-dot menu in the top-right corner -> choose "Delete account" -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. Please include your full name and registered phone number. All email deletion requests are processed within 5 business days.',
     iconTag: '🗑️'
   },
   {
@@ -44,7 +44,7 @@ const FAQ_DATA: FAQItem[] = [
     id: 'offline_downloads',
     category: 'Downloads & Storage',
     question: 'Where are my downloaded materials saved?',
-    answer: 'All downloaded past papers and lecture summaries appear in the Downloads tab. You can view real-time download progress, pin important papers to the top of your list, or tap the 3-dots menu (⋮) -> "Wipe from Device Storage" to completely clear files and free up phone space.',
+    answer: 'All downloaded past papers and lecture summaries appear in the Downloads tab. You can view real-time download progress, pin important papers to the top of your list, or tap the 3-dots menu (⋮) -> "Delete" to remove saved files from the device.',
     iconTag: '⚡'
   },
   {
@@ -113,7 +113,7 @@ export default function FAQScreen() {
             <Text style={styles.deletionBannerTitle}>Need to Delete Your Account?</Text>
           </View>
           <Text style={styles.deletionBannerText}>
-            Go to Profile → tap "Delete Account" next to Sign Out, or tap here to read step-by-step instructions.
+            Go to Profile -> tap the three-dot menu in the top-right corner -> choose "Delete account", or tap here to read step-by-step instructions.
           </Text>
         </TouchableOpacity>
 

@@ -1,3 +1,4 @@
+import { showIceMessage } from '../src/components/IceMessageCard';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -495,7 +496,7 @@ export default function PastPapersScreen() {
         updatedAt: new Date().toISOString()
       });
 
-      Alert.alert(
+      showIceMessage(
         'Downloaded Offline',
         `"${item.title}" saved to your offline downloads tab!`,
         [
@@ -504,7 +505,7 @@ export default function PastPapersScreen() {
         ]
       );
     } catch (e) {
-      Alert.alert('Download Error', 'Could not save past paper offline.');
+      showIceMessage('Download Error', 'Could not save past paper offline.');
     }
   };
 
@@ -783,8 +784,9 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0f172a'
-  },
+    color: '#0f172a',
+    outlineStyle: 'none'
+  } as any,
   discScroll: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,

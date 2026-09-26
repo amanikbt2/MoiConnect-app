@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Modal, Pressable, Alert, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon } from '../../src/components/Icons';
+import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon, MoreVerticalIcon, TrashIcon } from '../../src/components/Icons';
 import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
+import { useAuth } from '../../src/context/AuthContext';
 import {
   subscribeToUnreadCountUpdates,
   getStoredCommunityMessages,
@@ -109,6 +110,109 @@ function ProfileHeaderTitle() {
   );
 }
 
+function ProfileHeaderActions() {
+  const { logout, deleteAccount } = useAuth();
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  const confirmDeleteAccount = () => {
+    setMenuVisible(false);
+    Alert.alert(
+      'Permanently Delete Account?',
+      'This permanently deletes your profile, posts, uploaded materials, and personal data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete Account', style: 'destructive', onPress: () => deleteAccount() }
+      ]
+    );
+  };
+
+  return (
+    <View style={profileHeaderStyles.container}>
+      <NotificationCenterModal />
+      <TouchableOpacity
+        style={profileHeaderStyles.moreButton}
+        onPress={() => setMenuVisible(true)}
+        accessibilityLabel="Account actions"
+        accessibilityRole="button"
+      >
+        <MoreVerticalIcon color="#ffffff" size={22} />
+      </TouchableOpacity>
+      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+        <Pressable style={profileHeaderStyles.backdrop} onPress={() => setMenuVisible(false)}>
+          <Pressable style={profileHeaderStyles.menu} onPress={(event) => event.stopPropagation()}>
+            <TouchableOpacity style={profileHeaderStyles.menuRow} onPress={() => { setMenuVisible(false); logout(); }}>
+              <Text style={profileHeaderStyles.menuText}>Log out</Text>
+            </TouchableOpacity>
+            <View style={profileHeaderStyles.divider} />
+            <TouchableOpacity style={profileHeaderStyles.menuRow} onPress={confirmDeleteAccount}>
+              <TrashIcon color="#dc2626" size={16} />
+              <Text style={profileHeaderStyles.deleteText}>Delete account</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+const profileHeaderStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginRight: 10
+  },
+  moreButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)'
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.18)'
+  },
+  menu: {
+    position: 'absolute',
+    top: 58,
+    right: 12,
+    width: 190,
+    paddingVertical: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  menuRow: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9
+  },
+  menuText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  deleteText: {
+    color: '#dc2626',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 10
+  }
+});
 export default function TabLayout() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
@@ -208,6 +312,7 @@ export default function TabLayout() {
         options={{
           href: null,
           headerTitle: () => <ProfileHeaderTitle />,
+          headerRight: () => <ProfileHeaderActions />,
         }}
       />
     </Tabs>

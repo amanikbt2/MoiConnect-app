@@ -7,6 +7,15 @@ export interface IconProps {
   style?: any;
 }
 
+export function OnlineStatusIcon({ color = '#22c55e', size = 14, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="8" fill={color} opacity={0.18} />
+      <Circle cx="12" cy="12" r="4.5" fill={color} />
+      <Circle cx="12" cy="12" r="2" fill="#ffffff" opacity={0.9} />
+    </Svg>
+  );
+}
 export function HomeIcon({ color = '#15803d', size = 22, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
@@ -350,6 +359,24 @@ export function FileTextIcon({ color = '#15803d', size = 22, style }: IconProps)
   );
 }
 
+export function ImageIcon({ color = '#2563eb', size = 22, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Rect x="3" y="3" width="18" height="18" rx="3" stroke={color} strokeWidth="2" />
+      <Circle cx="8.5" cy="8.5" r="1.5" fill={color} />
+      <Path d="M3 16L8 11L12 15L15 12L21 18" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  )
+}
+
+export function VideoIcon({ color = '#f97316', size = 22, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Rect x="3" y="6" width="13" height="12" rx="2" stroke={color} strokeWidth="2" />
+      <Path d="M16 10L21 7V17L16 14V10Z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+    </Svg>
+  )
+}
 export function PlusIcon({ color = '#ffffff', size = 20, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>

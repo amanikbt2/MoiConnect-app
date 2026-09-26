@@ -6,15 +6,11 @@ import {
   ActivityIndicator,
   Platform
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GoogleIcon } from './Icons';
 import { config } from '../config';
 
-WebBrowser.maybeCompleteAuthSession();
 
 const SAVED_CLIENT_ID_KEY = 'google_oauth_client_id_config';
 const DEFAULT_GOOGLE_CLIENT_ID = '740750181702-mk2cpiueh44l3j7rgbro8mi4rnaq7l5k.apps.googleusercontent.com';
@@ -124,76 +120,6 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     }
   };
 
-  // Web / AuthSession Fallback Provider
-  const redirectUri = Platform.OS === 'web' && typeof window !== 'undefined'
-    ? window.location.origin
-    : makeRedirectUri({ preferLocalhost: true });
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: activeClientId,
-    iosClientId: activeClientId,
-    webClientId: activeClientId,
-    clientId: activeClientId,
-    redirectUri,
-    extraParams: {
-      prompt: 'select_account'
-    }
-  });
-
-  useEffect(() => {
-    handleGoogleResponse();
-  }, [response]);
-
-  const handleGoogleResponse = async () => {
-    if (!response) return;
-
-    if (response.type === 'success') {
-      setLoading(true);
-      try {
-        const { authentication, params } = response;
-        const idToken = authentication?.idToken || params?.id_token;
-        const accessToken = authentication?.accessToken || params?.access_token;
-
-        let googleUser: any = {};
-        if (accessToken) {
-          try {
-            const userInfoRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-              headers: { Authorization: `Bearer ${accessToken}` }
-            });
-            if (userInfoRes.ok) {
-              googleUser = await userInfoRes.json();
-            }
-          } catch (e) {
-            console.warn('Failed to fetch userinfo from Google:', e);
-          }
-        }
-
-        const res = await googleLogin({
-          idToken,
-          accessToken,
-          email: googleUser.email,
-          name: googleUser.name,
-          avatarUrl: googleUser.picture
-        });
-
-        if (res.success) {
-          onSuccess();
-        } else {
-          onError(res.error || 'Google authentication failed on server.');
-        }
-      } catch (err: any) {
-        onError(err.message || 'Google login error.');
-      } finally {
-        setLoading(false);
-      }
-    } else if (response.type === 'error') {
-      setLoading(false);
-      onError('Google sign-in encountered an error.');
-    } else {
-      setLoading(false);
-    }
-  };
-
   const handleNativeGoogleSignIn = async () => {
     try {
       setLoading(true);
@@ -224,15 +150,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         // Sign in operation already in progress
         return;
       } else {
-        // Fallback to AuthSession if native drawer is unavailable
-        if (promptAsync) {
-          const res = await promptAsync();
-          if (res?.type !== 'success') {
-            setLoading(false);
-          }
-        } else {
-          onError(error.message || 'Could not launch native Google Sign-In.');
-        }
+        onError(error.message || 'Could not launch native Google Sign-In.');
       }
     }
   };

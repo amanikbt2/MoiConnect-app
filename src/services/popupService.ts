@@ -55,6 +55,12 @@ export function parseMagicVariables(
     .replace(/\{course\}/gi, course);
 }
 
+export interface PopupAction {
+  label: string;
+  target: string;
+  type: 'in_app' | 'external';
+}
+
 export interface ClientPopupResponse {
   hasPopup: boolean;
   type?: 'normal' | 'update';
@@ -69,6 +75,7 @@ export interface ClientPopupResponse {
     hasCancelButton?: boolean;
     actionTarget?: string;
     actionButtonText?: string;
+    actions?: PopupAction[];
     minAppVersion?: string;
     playStoreUrl?: string;
     isForceUpdate?: boolean;

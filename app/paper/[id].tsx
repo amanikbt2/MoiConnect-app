@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
@@ -63,11 +64,11 @@ export default function PaperDetailScreen({ route }: any) {
     if (savedOffline) {
       await removeDownloadedPaper(paper._id);
       setSavedOffline(false);
-      Alert.alert('Removed Offline Paper', 'This paper has been removed from your offline storage.');
+      showIceMessage('Removed Offline Paper', 'This paper has been removed from your offline storage.');
     } else {
       await saveDownloadedPaper(paper);
       setSavedOffline(true);
-      Alert.alert(
+      showIceMessage(
         'Paper Saved Offline',
         'This past paper is now stored locally! You can read it anytime even without internet connection.'
       );
@@ -87,7 +88,7 @@ export default function PaperDetailScreen({ route }: any) {
 
     // Open file URL
     Linking.openURL(paper.fileUrl).catch(() => {
-      Alert.alert('Download Link', `Copy and paste this link in your browser:\n${paper.fileUrl}`);
+      showIceMessage('Download Link', `Copy and paste this link in your browser:\n${paper.fileUrl}`);
     });
   };
 
@@ -99,9 +100,9 @@ export default function PaperDetailScreen({ route }: any) {
     });
 
     if (res.success) {
-      Alert.alert('Saved', 'Paper added to your saved bookmarks.');
+      showIceMessage('Saved', 'Paper added to your saved bookmarks.');
     } else {
-      Alert.alert('Error', res.error || 'Failed to save paper.');
+      showIceMessage('Error', res.error || 'Failed to save paper.');
     }
   };
 

@@ -1,3 +1,4 @@
+import { showIceMessage } from '../src/components/IceMessageCard';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -479,7 +480,7 @@ export default function CatPapersScreen() {
         updatedAt: new Date().toISOString()
       });
 
-      Alert.alert(
+      showIceMessage(
         'Downloaded Offline',
         `"${item.title}" saved to your offline downloads tab!`,
         [
@@ -488,7 +489,7 @@ export default function CatPapersScreen() {
         ]
       );
     } catch (e) {
-      Alert.alert('Download Error', 'Could not save CAT paper offline.');
+      showIceMessage('Download Error', 'Could not save CAT paper offline.');
     }
   };
 

@@ -10,10 +10,13 @@ import {
   StatusBar,
   Platform,
   Animated,
-  Easing
+  Easing,
+  ActivityIndicator
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon } from './Icons';
 import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
+import { config } from '../config';
 
 export interface PDFDocumentItem {
   id: string;
@@ -184,10 +187,20 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     initialPinchDist.current = 0;
   };
 
+  if (!document) return null;
+
   const isDownloading = downloadInfo.status === 'downloading';
   const isCompleted = downloadInfo.status === 'completed';
-
-  if (!document) return null;
+  const fileUrl = document.fileUrl?.startsWith('/')
+    ? config.apiUrl.replace(/\/api\/v1\/?$/, '') + document.fileUrl
+    : document.fileUrl;
+  const hasRealDocument = /^https?:\/\//i.test(fileUrl || '') || /^\/\/[^/]/.test(fileUrl || '');
+  const embeddedFileUrl = fileUrl
+    ? fileUrl + (fileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
+    : fileUrl;
+  const nativeReaderUrl = hasRealDocument && Platform.OS !== 'web'
+    ? 'https://docs.google.com/gview?embedded=true&chrome=false&url=' + encodeURIComponent(fileUrl)
+    : fileUrl;
 
   return (
     <Modal
@@ -217,27 +230,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.downloadIconBtn,
-              isCompleted && styles.downloadIconBtnSuccess,
-              isDownloading && styles.downloadIconBtnActive
-            ]}
-            onPress={handleSave}
-            disabled={isDownloading}
-            activeOpacity={0.85}
-          >
-            {isDownloading ? (
-              <View style={styles.spinnerWrapper}>
-                <Animated.View style={[styles.spinRing, { transform: [{ rotate: spin }] }]} />
-                <Text style={styles.progressPercentText}>{downloadInfo.progress || 5}%</Text>
-              </View>
-            ) : isCompleted ? (
-              <CheckIcon color="#ffffff" size={18} />
-            ) : (
-              <DownloadIcon color="#ffffff" size={18} />
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerActionSpacer} />
         </View>
 
         {/* Instant PDF Preview Container */}
@@ -293,16 +286,29 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </View>
           </View>
 
-          {Platform.OS === 'web' && document.fileUrl && (document.fileUrl.startsWith('http') || document.fileUrl.startsWith('/uploads')) ? (
+          {Platform.OS === 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>
               <iframe
-                src={
-                  document.fileUrl.includes('cloudinary.com') || document.fileUrl.endsWith('.pdf') || document.fileUrl.match(/\.(jpg|jpeg|png|webp)/i)
-                    ? document.fileUrl
-                    : `https://docs.google.com/viewer?url=${encodeURIComponent(document.fileUrl)}&embedded=true`
-                }
+                src={embeddedFileUrl}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title={document.title}
+              />
+            </View>
+          ) : Platform.OS !== 'web' && hasRealDocument ? (
+            <View style={styles.webViewerWrapper}>
+              <WebView
+                source={{ uri: nativeReaderUrl }}
+                style={styles.nativeViewer}
+                originWhitelist={['*']}
+                javaScriptEnabled
+                domStorageEnabled
+                startInLoadingState
+                renderLoading={() => (
+                  <View style={styles.viewerLoading}>
+                    <ActivityIndicator color='#15803d' size='large' />
+                    <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
+                  </View>
+                )}
               />
             </View>
           ) : (
@@ -585,11 +591,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700'
   },
+  headerActionSpacer: {
+    width: 42,
+    height: 42
+  },
   webViewerWrapper: {
     flex: 1,
     width: '100%',
     height: '100%',
     backgroundColor: '#ffffff'
+  },
+  nativeViewer: {
+    flex: 1,
+    backgroundColor: '#ffffff'
+  },
+  viewerLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#ffffff'
+  },
+  viewerLoadingText: {
+    color: '#475569',
+    fontSize: 13,
+    fontWeight: '700'
   },
   readerScroll: {
     flex: 1

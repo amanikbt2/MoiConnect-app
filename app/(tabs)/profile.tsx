@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -5,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Alert,
   FlatList,
   Modal,
@@ -36,7 +38,9 @@ import {
   PhoneIcon,
   BookIcon,
   ChevronDownIcon,
-  TrashIcon
+  MoreVerticalIcon,
+  TrashIcon,
+
 } from '../../src/components/Icons';
 
 const MOI_SCHOOLS_LIST = [
@@ -75,7 +79,9 @@ export default function ProfileScreen() {
   const [editYear, setEditYear] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editName, setEditName] = useState('');
+  const [editAvatarUri, setEditAvatarUri] = useState<string | undefined>(undefined);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [accountMenuVisible, setAccountMenuVisible] = useState(false);
 
   const router = useAppNavigation();
 
@@ -105,7 +111,7 @@ export default function ProfileScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Needed', 'Permission to access your photo library is required to choose a profile picture.');
+        showIceMessage('Permission Needed', 'Permission to access your photo library is required to choose a profile picture.');
         return;
       }
 
@@ -118,13 +124,11 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
         const imageUri = result.assets[0].uri;
-        const updated = { ...studentDetails, avatarUri: imageUri };
-        setStudentDetails(updated);
-        await saveStudentPersonalDetails(updated);
+        setEditAvatarUri(imageUri);
       }
     } catch (err) {
       console.error('Error picking avatar image:', err);
-      Alert.alert('Selection Error', 'Failed to pick image from storage.');
+      showIceMessage('Selection Error', 'Failed to pick image from storage.');
     }
   };
 
@@ -135,13 +139,14 @@ export default function ProfileScreen() {
     setEditYear(studentDetails.yearOfStudy);
     setEditPhone(studentDetails.phone);
     setEditName(studentDetails.fullName || user?.name || '');
+    setEditAvatarUri(studentDetails.avatarUri);
     setShowSchoolDropdown(false);
     setShowEditModal(true);
   };
 
   const handleSaveProfileSubmit = async () => {
     if (!editAdmNo.trim() || !editCourse.trim()) {
-      Alert.alert('Incomplete Details', 'Please provide at least your Admission Number and Course of Study.');
+      showIceMessage('Incomplete Details', 'Please provide at least your Admission Number and Course of Study.');
       return;
     }
 
@@ -153,30 +158,24 @@ export default function ProfileScreen() {
       yearOfStudy: editYear || YEARS_LIST[2],
       phone: editPhone.trim(),
       fullName: editName.trim() || user?.name || 'Moi Student',
-      avatarUri: studentDetails.avatarUri
+      avatarUri: editAvatarUri
     };
 
     await saveStudentPersonalDetails(updated);
     setStudentDetails(updated);
     setSavingProfile(false);
     setShowEditModal(false);
-    Alert.alert('Profile Updated', 'Your personal student academic details have been updated successfully.');
+    showIceMessage('Profile Updated', 'Your personal student academic details have been updated successfully.');
   };
 
-  const handleDeleteAccountConfirm = () => {
+  const confirmDeleteAccount = () => {
+    setAccountMenuVisible(false);
     Alert.alert(
       'Permanently Delete Account?',
-      'Are you sure you want to delete your account? This will permanently wipe your profile, posts, uploaded materials, and personal data completely from our database. This action CANNOT be undone.',
+      'This permanently deletes your profile, posts, uploaded materials, and personal data. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Wipe Account & Data',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteAccount();
-            Alert.alert('Account Deleted', 'Your account and personal data have been completely wiped from our database.');
-          }
-        }
+        { text: 'Delete Account', style: 'destructive', onPress: () => deleteAccount() }
       ]
     );
   };
@@ -196,7 +195,7 @@ export default function ProfileScreen() {
       <View style={styles.userCard}>
         <TouchableOpacity
           style={styles.avatarTouchContainer}
-          onPress={handlePickProfileImage}
+          onPress={handleOpenEditModal}
           activeOpacity={0.8}
         >
           {studentDetails.avatarUri ? (
@@ -222,12 +221,31 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.editBtnTop} onPress={handleOpenEditModal} activeOpacity={0.8}>
-          <EditIcon color="#15803d" size={13} />
-          <Text style={styles.editBtnTopText}>Edit Profile</Text>
-        </TouchableOpacity>
+        <View style={styles.profileHeaderActions}>
+          <TouchableOpacity style={styles.editBtnTop} onPress={handleOpenEditModal} activeOpacity={0.8}>
+            <EditIcon color="#15803d" size={13} />
+            <Text style={styles.editBtnTopText}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.profileMoreBtn} onPress={() => setAccountMenuVisible(true)} accessibilityLabel="Account actions" accessibilityRole="button">
+            <MoreVerticalIcon color="#15803d" size={20} />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      <Modal visible={accountMenuVisible} transparent animationType="fade" onRequestClose={() => setAccountMenuVisible(false)}>
+        <Pressable style={styles.accountMenuBackdrop} onPress={() => setAccountMenuVisible(false)}>
+          <Pressable style={styles.accountMenu} onPress={(event) => event.stopPropagation()}>
+            <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); logout(); }}>
+              <Text style={styles.accountMenuText}>Log out</Text>
+            </TouchableOpacity>
+            <View style={styles.accountMenuDivider} />
+            <TouchableOpacity style={styles.accountMenuRow} onPress={confirmDeleteAccount}>
+              <TrashIcon color="#dc2626" size={16} />
+              <Text style={styles.accountMenuDeleteText}>Delete account</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
       {/* Student Personal Details Card (Admission No, School, Year, Course) */}
       <View style={styles.studentProfileCard}>
         <View style={styles.cardHeaderRow}>
@@ -306,29 +324,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Tiny Discrete Sign Out & Delete Account Links */}
-      <View style={styles.tinyLogoutContainer}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity
-            style={styles.tinyLogoutBtn}
-            onPress={() => logout()}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.tinyLogoutText}>Sign Out of Account</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tinyDeleteBtn}
-            onPress={handleDeleteAccountConfirm}
-            activeOpacity={0.75}
-          >
-            <TrashIcon color="#dc2626" size={13} />
-            <Text style={styles.tinyDeleteText}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-
       {/* Edit Student Personal Details Modal */}
       <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
         <View style={styles.modalOverlay}>
@@ -338,6 +333,27 @@ export default function ProfileScreen() {
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
                 <CloseIcon color="#ef4444" size={20} />
               </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Profile Picture</Text>
+              <View style={styles.editPhotoRow}>
+                {editAvatarUri ? (
+                  <Image source={{ uri: editAvatarUri }} style={styles.editAvatarImage} />
+                ) : (
+                  <View style={styles.editAvatarFallback}>
+                    <Text style={styles.editAvatarFallbackText}>{(editName || user?.name || 'M')[0]?.toUpperCase()}</Text>
+                  </View>
+                )}
+                <View style={styles.editPhotoInfo}>
+                  <Text style={styles.editPhotoTitle}>Add a clear profile photo</Text>
+                  <Text style={styles.editPhotoHint}>Use a square image for the best result.</Text>
+                  <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickProfileImage} activeOpacity={0.8}>
+                    <CameraIcon color="#ffffff" size={14} />
+                    <Text style={styles.changePhotoText}>Choose image</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
 
             <View style={styles.formGroup}>
@@ -538,6 +554,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#15803d'
   },
+  profileHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  profileMoreBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0'
+  },
   editBtnTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -554,6 +585,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#15803d'
+  },
+  accountMenuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.18)'
+  },
+  accountMenu: {
+    position: 'absolute',
+    top: 82,
+    right: 16,
+    width: 190,
+    paddingVertical: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  accountMenuRow: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9
+  },
+  accountMenuText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  accountMenuDeleteText: {
+    color: '#dc2626',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  accountMenuDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 10
   },
   studentProfileCard: {
     backgroundColor: '#ffffff',
@@ -682,6 +755,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a'
   },
+  editPhotoRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', padding: 12, gap: 12 },
+  editAvatarImage: { width: 64, height: 64, borderRadius: 32 },
+  editAvatarFallback: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#15803d', alignItems: 'center', justifyContent: 'center' },
+  editAvatarFallbackText: { color: '#ffffff', fontSize: 24, fontWeight: '900' },
+  editPhotoInfo: { flex: 1 },
+  editPhotoTitle: { color: '#0f172a', fontSize: 13, fontWeight: '800' },
+  editPhotoHint: { color: '#64748b', fontSize: 11, marginTop: 2, marginBottom: 7 },
+  changePhotoBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#15803d', borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7 },
+  changePhotoText: { color: '#ffffff', fontSize: 11, fontWeight: '800' },
   formGroup: {
     marginBottom: 14
   },

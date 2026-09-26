@@ -1,3 +1,4 @@
+import { showIceMessage } from '../src/components/IceMessageCard';
 import React, { useState } from 'react';
 import {
   View,
@@ -71,6 +72,7 @@ export default function ContributeScreen() {
   } | null>(null);
 
   const [uploading, setUploading] = useState(false);
+  const [formError, setFormError] = useState('');
   const [showSchoolPicker, setShowSchoolPicker] = useState(false);
 
   // File Picker handler
@@ -92,21 +94,22 @@ export default function ContributeScreen() {
       }
     } catch (err) {
       console.warn('Document picker error:', err);
-      Alert.alert('File Selection Error', 'Could not open phone storage to select document.');
+      showIceMessage('File Selection Error', 'Could not open phone storage to select document.');
     }
   };
 
   const handleUploadSubmit = async () => {
     if (!pickedFile) {
-      Alert.alert('Missing File', 'Please select a document from your phone storage to upload.');
+      showIceMessage('Missing File', 'Please select a document from your phone storage to upload.');
       return;
     }
 
-    if (!title.trim() || !courseCode.trim()) {
-      Alert.alert('Missing Fields', 'Please enter the unit title and course code (e.g. COM 310).');
+    if (!title.trim() || courseCode.trim().length < 2) {
+      setFormError('Enter a title and a course code with at least 2 characters.');
       return;
     }
 
+    setFormError('');
     setUploading(true);
 
     try {
@@ -232,10 +235,10 @@ export default function ContributeScreen() {
       };
 
       if (Platform.OS === 'web') {
-        alert(`Submission Successful! 🎉\n\n${successMsg}`);
+        showIceMessage(`Submission Successful! 🎉\n\n${successMsg}`);
         navigateAway();
       } else {
-        Alert.alert(
+        showIceMessage(
           'Submission Successful! 🎉',
           successMsg,
           [
@@ -246,7 +249,7 @@ export default function ContributeScreen() {
       }
     } catch (e) {
       setUploading(false);
-      Alert.alert('Upload Error', 'Failed to upload document. Please check your network connection.');
+      showIceMessage('Upload Error', 'Failed to upload document. Please check your network connection.');
     }
   };
 
@@ -454,6 +457,8 @@ export default function ContributeScreen() {
             )}
           </View>
         </View>
+
+        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
         {/* Submit Button */}
         <TouchableOpacity
@@ -784,7 +789,17 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontStyle: 'italic'
   },
-  submitBtn: {
+  formError: {
+    color: '#b91c1c',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: '600'
+  },  submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

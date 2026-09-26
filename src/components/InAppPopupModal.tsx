@@ -25,6 +25,7 @@ export interface PopupItem {
   hasCancelButton?: boolean;
   actionTarget?: string;
   actionButtonText?: string;
+  actions?: { label: string; target: string; type: 'in_app' | 'external' }[];
   minAppVersion?: string;
   playStoreUrl?: string;
   isForceUpdate?: boolean;
@@ -49,7 +50,24 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
   const router = useAppNavigation();
   const isUpdateType = popup.type === 'update';
 
-  const handleAction = async () => {
+  const legacyAction = popup.actionTarget
+    ? [{
+        label: popup.actionButtonText || (isUpdateType ? 'Update via Google Play' : 'Explore Now'),
+        target: popup.actionTarget,
+        type: popup.actionTarget.startsWith('http://') || popup.actionTarget.startsWith('https://') ? 'external' as const : 'in_app' as const
+      }]
+    : [];
+  const popupActions = isUpdateType
+    ? [{
+        label: 'Update via Google Play',
+        target: popup.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect',
+        type: 'external' as const
+      }]
+    : popup.actions?.length
+      ? popup.actions
+      : legacyAction;
+
+  const handleAction = async (action: { target: string }) => {
     if (popup.popupId) {
       await saveDismissedPopupId(popup.popupId);
     }
@@ -61,15 +79,12 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
       return;
     }
 
-    if (popup.actionTarget) {
-      if (popup.actionTarget.startsWith('http://') || popup.actionTarget.startsWith('https://')) {
-        Linking.openURL(popup.actionTarget).catch(() => {});
-      } else {
-        router.push(popup.actionTarget);
-      }
+    if (action.target.startsWith('http://') || action.target.startsWith('https://')) {
+      Linking.openURL(action.target).catch(() => {});
+    } else {
+      router.push(action.target);
     }
   };
-
   const handleDismiss = async () => {
     if (popup.popupId) {
       await saveDismissedPopupId(popup.popupId);
@@ -130,22 +145,23 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
               </View>
             )}
 
-            {/* Main Smart Action Button */}
-            <TouchableOpacity
-              style={[styles.mainActionBtn, isUpdateType && styles.updateActionBtn]}
-              onPress={handleAction}
-              activeOpacity={0.88}
-            >
-              {isUpdateType ? (
-                <DownloadIcon color="#ffffff" size={18} />
-              ) : (
-                <SparklesIcon color="#ffffff" size={16} />
-              )}
-              <Text style={styles.mainActionText}>
-                {popup.actionButtonText || (isUpdateType ? 'Update via Google Play' : 'Explore Now')}
-              </Text>
-              <ChevronRightIcon color="#ffffff" size={16} />
-            </TouchableOpacity>
+            {/* Smart Action Buttons */}
+            {popupActions.map((action, index) => (
+              <TouchableOpacity
+                key={`${action.target}-${index}`}
+                style={[styles.mainActionBtn, isUpdateType && styles.updateActionBtn]}
+                onPress={() => handleAction(action)}
+                activeOpacity={0.88}
+              >
+                {isUpdateType ? (
+                  <DownloadIcon color="#ffffff" size={18} />
+                ) : (
+                  <SparklesIcon color="#ffffff" size={16} />
+                )}
+                <Text style={styles.mainActionText}>{action.label}</Text>
+                <ChevronRightIcon color="#ffffff" size={16} />
+              </TouchableOpacity>
+            ))}
 
             {/* Optional Dismiss button at bottom */}
             {popup.hasCancelButton && !popup.isForceUpdate && (
@@ -284,7 +300,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
-    elevation: 3
+    elevation: 3,
+    marginBottom: 8
   },
   updateActionBtn: {
     backgroundColor: '#2563eb',

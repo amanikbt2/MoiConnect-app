@@ -1,3 +1,4 @@
+import { showIceMessage } from '../src/components/IceMessageCard';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -20,11 +21,13 @@ import {
   Image
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../src/context/AuthContext';
 import { useAppNavigation } from '../src/utils/navigation';
 import {
   SendIcon,
   UsersIcon,
+  OnlineStatusIcon,
   CheckIcon,
   PaperclipIcon,
   SmileIcon,
@@ -32,8 +35,10 @@ import {
   DownloadIcon,
   TrashIcon,
   ReplyIcon,
-  FolderIcon,
-  CloseIcon
+  CameraIcon,
+  CloseIcon,
+  ImageIcon,
+  VideoIcon
 } from '../src/components/Icons';
 import { getSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
@@ -53,7 +58,7 @@ export interface FileAttachment {
   name: string;
   url: string;
   size: string;
-  type: 'pdf' | 'doc' | 'image';
+  type: 'pdf' | 'doc' | 'image' | 'video';
 }
 
 export interface CommunityMessage {
@@ -362,6 +367,7 @@ export default function CommunityScreen() {
 
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
@@ -601,6 +607,10 @@ export default function CommunityScreen() {
     getSocket().then((socket) => {
       if (socket) {
         activeSocket = socket;
+        socket.on('community:online_count', (stats: { totalOnline?: number }) => {
+          setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
+        });
+        socket.emit('community:request_online_count');
         socket.emit('join_community');
 
         socket.on('community:receive_message', (serverMsg: any) => {
@@ -746,6 +756,7 @@ export default function CommunityScreen() {
         activeSocket.off('community:user_stop_typing');
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:system_event');
+        activeSocket.off('community:online_count');
       }
     };
   }, [user]);
@@ -1052,7 +1063,7 @@ export default function CommunityScreen() {
         updatedAt: new Date().toISOString()
       });
 
-      Alert.alert(
+      showIceMessage(
         'File Saved Offline',
         `"${file.name}" has been saved to your local offline Downloads tab!`,
         [
@@ -1061,10 +1072,67 @@ export default function CommunityScreen() {
         ]
       );
     } catch (err) {
-      Alert.alert('Save Error', 'Could not save file offline.');
+      showIceMessage('Save Error', 'Could not save file offline.');
     }
   };
 
+  const handlePickMedia = async (kind: 'image' | 'video') => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: false,
+        quality: 0.9
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        setIsUploadingMedia(true);
+        const formData = new FormData();
+        formData.append('file', { uri: asset.uri, name: asset.fileName || `${kind}_${Date.now()}`, type: asset.mimeType || (kind === 'image' ? 'image/jpeg' : 'video/mp4') } as any);
+        const res = await apiRequest('/community/upload-media', { method: 'POST', body: formData });
+        setIsUploadingMedia(false);
+        if (res.success && res.data?.url) {
+          setSelectedFile({ name: res.data.name || `${kind} attachment`, url: res.data.url, size: res.data.size || 'Media file', type: kind });
+          setShowFileModal(false);
+        } else {
+          showIceMessage('Upload Failed', res.error || 'Failed to upload media.');
+        }
+      }
+    } catch (err) {
+      setIsUploadingMedia(false);
+      showIceMessage('Upload Error', 'Could not select or upload media.');
+    }
+  };
+  const handleTakeMedia = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) return;
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        videoMaxDuration: 120,
+        quality: 0.9
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        const type = asset.type === 'video' ? 'video' : 'image';
+        setIsUploadingMedia(true);
+        const formData = new FormData();
+        formData.append('file', { uri: asset.uri, name: asset.fileName || `camera_${Date.now()}`, type: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg') } as any);
+        const res = await apiRequest('/community/upload-media', { method: 'POST', body: formData });
+        setIsUploadingMedia(false);
+        if (res.success && res.data?.url) {
+          setSelectedFile({ name: res.data.name || `camera ${type}`, url: res.data.url, size: res.data.size || 'Media file', type });
+          setShowFileModal(false);
+        } else {
+          showIceMessage('Upload Failed', res.error || 'Failed to upload camera media.');
+        }
+      }
+    } catch (err) {
+      setIsUploadingMedia(false);
+      showIceMessage('Camera Error', 'Could not capture or upload media.');
+    }
+  };
   const handlePickFromPhone = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -1098,15 +1166,15 @@ export default function CommunityScreen() {
             type: res.data.type || 'pdf'
           });
           setShowFileModal(false);
-          Alert.alert('Cloudinary Upload Complete ☁️', `"${asset.name}" uploaded to Cloudinary (folder: moiconnect/chat_media). Ready to share!`);
+          showIceMessage('Cloudinary Upload Complete ☁️', `"${asset.name}" uploaded to Cloudinary (folder: moiconnect/chat_media). Ready to share!`);
         } else {
-          Alert.alert('Upload Failed', res.error || 'Failed to upload media to Cloudinary storage.');
+          showIceMessage('Upload Failed', res.error || 'Failed to upload media to Cloudinary storage.');
         }
       }
     } catch (err: any) {
       setIsUploadingMedia(false);
       console.log('Document picker / Cloudinary upload error:', err);
-      Alert.alert('Upload Error', 'Could not select or upload file.');
+      showIceMessage('Upload Error', 'Could not select or upload file.');
     }
   };
 
@@ -1139,7 +1207,7 @@ export default function CommunityScreen() {
               <Text style={{ color: '#ffffff' }}>Moi Campus </Text>
               <Text style={{ color: '#a7f3d0' }}>Community</Text>
             </Text>
-            <Text style={styles.headerSubtitle}>🟢 1,420 students online • Open Forum</Text>
+            <View style={styles.onlineSubtitle}><OnlineStatusIcon color="#86efac" size={13} /><Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text></View>
           </View>
         </View>
 
@@ -1497,6 +1565,25 @@ export default function CommunityScreen() {
 
               <Text style={styles.modalSubtitle}>Select materials from your downloads or phone's storage:</Text>
 
+              <View style={styles.mediaOptionsRow}>
+                <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('image')}>
+                  <View style={[styles.mediaOptionIcon, { backgroundColor: '#eff6ff' }]}><ImageIcon color="#2563eb" size={21} /></View>
+                  <Text style={styles.mediaOptionLabel}>Image</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('video')}>
+                  <View style={[styles.mediaOptionIcon, { backgroundColor: '#fff7ed' }]}><VideoIcon color="#f97316" size={21} /></View>
+                  <Text style={styles.mediaOptionLabel}>Video</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mediaOption} onPress={handlePickFromPhone}>
+                  <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><FileTextIcon color="#15803d" size={21} /></View>
+                  <Text style={styles.mediaOptionLabel}>Document</Text>
+                </TouchableOpacity>
+              <TouchableOpacity style={styles.mediaOption} onPress={handleTakeMedia}>
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}><CameraIcon color="#db2777" size={21} /></View>
+                <Text style={styles.mediaOptionLabel}>Camera</Text>
+              </TouchableOpacity>
+            </View>
+              <Text style={styles.downloadedSectionTitle}>Downloaded materials</Text>
               <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
                 {availableFiles.map((file, idx) => (
                   <TouchableOpacity
@@ -1519,17 +1606,7 @@ export default function CommunityScreen() {
                 ))}
               </ScrollView>
 
-              <TouchableOpacity
-                style={[styles.customFileBtn, isUploadingMedia && { opacity: 0.6 }]}
-                onPress={handlePickFromPhone}
-                disabled={isUploadingMedia}
-                activeOpacity={0.8}
-              >
-                <FolderIcon color="#ffffff" size={18} />
-                <Text style={styles.customFileBtnText}>
-                  {isUploadingMedia ? 'Uploading to Cloudinary...' : 'Pick from phone'}
-                </Text>
-              </TouchableOpacity>
+              
             </Pressable>
           </TouchableOpacity>
         </Modal>
@@ -1603,6 +1680,11 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.65)',
     textShadowOffset: { width: 0, height: 1.5 },
     textShadowRadius: 3,
+  },
+  onlineSubtitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5
   },
   headerSubtitle: {
     fontSize: 12,
@@ -1951,7 +2033,11 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 14
   },
-  sampleFileOption: {
+  mediaOptionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  mediaOption: { alignItems: 'center', width: '23%' },
+  mediaOptionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  mediaOptionLabel: { fontSize: 12, color: '#334155', fontWeight: '700' },
+  downloadedSectionTitle: { fontSize: 12, color: '#64748b', fontWeight: '800', marginBottom: 8 },  sampleFileOption: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8fafc',

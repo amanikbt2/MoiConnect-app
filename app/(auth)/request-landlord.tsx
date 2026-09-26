@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
@@ -32,7 +33,7 @@ export default function RequestLandlordScreen() {
     setLoading(false);
 
     if (res.success) {
-      Alert.alert(
+      showIceMessage(
         'Request Submitted',
         'Your landlord verification request has been submitted. An administrator will review your application.',
         [{ text: 'OK', onPress: () => router.back() }]

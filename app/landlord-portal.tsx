@@ -1,3 +1,5 @@
+import { showIceMessage } from '../src/components/IceMessageCard';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -155,6 +157,8 @@ export default function LandlordPortalScreen() {
   const [editSchool, setEditSchool] = useState('');
   const [editYear, setEditYear] = useState('2025');
   const [editType, setEditType] = useState('past_paper');
+  const [editThumbnail, setEditThumbnail] = useState('');
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
   // Server Media (Temp) State
   const [tempFiles, setTempFiles] = useState<any[]>([]);
@@ -228,6 +232,54 @@ export default function LandlordPortalScreen() {
     setShowPaperModal(true);
   };
 
+  const handlePickThumbnail = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showIceMessage('Permission Needed', 'Allow photo access to choose a material thumbnail.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.85
+      });
+      if (result.canceled || !result.assets?.[0] || !selectedPaper) return;
+
+      const asset = result.assets[0];
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        formData.append('file', blob, asset.fileName || 'material-thumbnail.jpg');
+      } else {
+        formData.append('file', {
+          uri: asset.uri,
+          name: asset.fileName || 'material-thumbnail.jpg',
+          type: asset.mimeType || 'image/jpeg'
+        } as any);
+      }
+
+      setUploadingThumbnail(true);
+      const response: any = await apiRequest(`/dashboard/papers/${selectedPaper._id}/upload-thumbnail`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response?.success || !response.data?.thumbnail) {
+        throw new Error(response?.error || 'Thumbnail upload failed.');
+      }
+
+      setEditThumbnail(response.data.thumbnail);
+      setSelectedPaper((prev: any) => ({ ...prev, thumbnail: response.data.thumbnail }));
+      showIceMessage('Thumbnail Ready', 'The selected image will be used when this material is approved.');
+    } catch (error: any) {
+      showIceMessage('Thumbnail Upload Failed', error?.message || 'Could not upload the thumbnail.');
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
   const handleSavePaperEdits = async () => {
     if (!selectedPaper) return;
     setActionLoading(true);
@@ -245,7 +297,7 @@ export default function LandlordPortalScreen() {
         })
       });
       if (res?.success) {
-        Alert.alert('Saved! ✅', 'Document metadata updated successfully.');
+        showIceMessage('Saved! ✅', 'Document metadata updated successfully.');
         setSelectedPaper((prev: any) => ({
           ...prev,
           title: editTitle.trim(),
@@ -256,10 +308,10 @@ export default function LandlordPortalScreen() {
         }));
         fetchPendingPapers();
       } else {
-        Alert.alert('Save Failed', res?.error || 'Could not update document.');
+        showIceMessage('Save Failed', res?.error || 'Could not update document.');
       }
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Network error while updating.');
+      showIceMessage('Error', e?.message || 'Network error while updating.');
     }
     setActionLoading(false);
   };
@@ -272,7 +324,7 @@ export default function LandlordPortalScreen() {
         method: 'POST'
       });
       if (res?.success) {
-        Alert.alert(
+        showIceMessage(
           'Approved & Uploaded! ✨',
           `Document approved with MTID ${res.data?.mtid || ''}!\n\nUploaded to Cloudinary (folder: MoiConnect/pdf). Server temporary file has been safely removed.`
         );
@@ -280,17 +332,17 @@ export default function LandlordPortalScreen() {
         fetchPendingPapers();
         fetchTempFiles();
       } else {
-        Alert.alert('Approval Failed', res?.error || 'Could not approve paper.');
+        showIceMessage('Approval Failed', res?.error || 'Could not approve paper.');
       }
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to approve paper.');
+      showIceMessage('Error', e?.message || 'Failed to approve paper.');
     }
     setActionLoading(false);
   };
 
   const handleRejectPaper = async () => {
     if (!selectedPaper) return;
-    Alert.alert(
+    showIceMessage(
       'Confirm Rejection',
       'Are you sure you want to reject this submission? The temporary file will be deleted from the server disk.',
       [
@@ -306,15 +358,15 @@ export default function LandlordPortalScreen() {
                 body: JSON.stringify({ reason: 'Document does not meet upload standards.' })
               });
               if (res?.success) {
-                Alert.alert('Rejected ❌', 'Material rejected and temporary file removed from server disk.');
+                showIceMessage('Rejected ❌', 'Material rejected and temporary file removed from server disk.');
                 setShowPaperModal(false);
                 fetchPendingPapers();
                 fetchTempFiles();
               } else {
-                Alert.alert('Error', res?.error || 'Could not reject paper.');
+                showIceMessage('Error', res?.error || 'Could not reject paper.');
               }
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Failed to reject paper.');
+              showIceMessage('Error', e?.message || 'Failed to reject paper.');
             }
             setActionLoading(false);
           }
@@ -338,7 +390,7 @@ export default function LandlordPortalScreen() {
   };
 
   const handleDeleteSingleTempFile = (filename: string) => {
-    Alert.alert(
+    showIceMessage(
       'Delete Temp File?',
       `Are you sure you want to delete "${filename}" from the server temporary storage?`,
       [
@@ -352,14 +404,14 @@ export default function LandlordPortalScreen() {
                 method: 'DELETE'
               });
               if (res?.success) {
-                Alert.alert('Deleted', `File "${filename}" deleted from server.`);
+                showIceMessage('Deleted', `File "${filename}" deleted from server.`);
                 fetchTempFiles();
                 fetchPendingPapers();
               } else {
-                Alert.alert('Error', res?.error || 'Failed to delete file.');
+                showIceMessage('Error', res?.error || 'Failed to delete file.');
               }
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Delete request failed.');
+              showIceMessage('Error', e?.message || 'Delete request failed.');
             }
           }
         }
@@ -369,7 +421,7 @@ export default function LandlordPortalScreen() {
 
   const handleBatchDeleteTempFiles = () => {
     if (selectedFilenames.length === 0) return;
-    Alert.alert(
+    showIceMessage(
       'Clean Server Media?',
       `Are you sure you want to permanently delete ${selectedFilenames.length} temporary file(s) from the server?`,
       [
@@ -385,15 +437,15 @@ export default function LandlordPortalScreen() {
                 body: JSON.stringify({ filenames: selectedFilenames })
               });
               if (res?.success) {
-                Alert.alert('Server Cleaned! 🧹', `Deleted ${res.deletedCount || selectedFilenames.length} temporary file(s) from server disk.`);
+                showIceMessage('Server Cleaned! 🧹', `Deleted ${res.deletedCount || selectedFilenames.length} temporary file(s) from server disk.`);
                 setSelectedFilenames([]);
                 fetchTempFiles();
                 fetchPendingPapers();
               } else {
-                Alert.alert('Error', res?.error || 'Failed to clean files.');
+                showIceMessage('Error', res?.error || 'Failed to clean files.');
               }
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Batch delete failed.');
+              showIceMessage('Error', e?.message || 'Batch delete failed.');
             }
             setCleaningTemp(false);
           }
@@ -404,7 +456,7 @@ export default function LandlordPortalScreen() {
 
   const handleAuthenticate = () => {
     if (!landlordMID.trim() || !landlordSerial.trim() || !securityKey.trim()) {
-      Alert.alert('Missing Verification Keys', 'Please enter your MID, Serial Number, and Security Key to authenticate.');
+      showIceMessage('Missing Verification Keys', 'Please enter your MID, Serial Number, and Security Key to authenticate.');
       return;
     }
 
@@ -412,7 +464,7 @@ export default function LandlordPortalScreen() {
     setTimeout(() => {
       setVerifying(false);
       setIsVerified(true);
-      Alert.alert(
+      showIceMessage(
         'Authentication Successful! 🟢',
         `Welcome to the Admin Portal! You can manage listings and broadcast Popups.`
       );
@@ -421,7 +473,7 @@ export default function LandlordPortalScreen() {
 
   const handleCreateNormalPopup = async () => {
     if (!popTitle.trim()) {
-      Alert.alert('Incomplete Form', 'Please enter a title for the popup.');
+      showIceMessage('Incomplete Form', 'Please enter a title for the popup.');
       return;
     }
 
@@ -450,20 +502,20 @@ export default function LandlordPortalScreen() {
         body: JSON.stringify(payload)
       });
       if (res.success) {
-        Alert.alert('Popup Created! 📢', `Broadcast created successfully with auto-incrementing ID!`);
+        showIceMessage('Popup Created! 📢', `Broadcast created successfully with auto-incrementing ID!`);
         fetchPopupHistory();
       } else {
-        Alert.alert('Creation Failed', res.error || 'Could not save popup.');
+        showIceMessage('Creation Failed', res.error || 'Could not save popup.');
       }
     } catch (e) {
-      Alert.alert('Error', 'Failed to connect to backend server.');
+      showIceMessage('Error', 'Failed to connect to backend server.');
     }
     setCreatingPopup(false);
   };
 
   const handleCreateUpdatePopup = async () => {
     if (!upMinVersion.trim() || !upTitle.trim()) {
-      Alert.alert('Incomplete Form', 'Please enter minimum version and update title.');
+      showIceMessage('Incomplete Form', 'Please enter minimum version and update title.');
       return;
     }
 
@@ -487,19 +539,19 @@ export default function LandlordPortalScreen() {
         body: JSON.stringify(payload)
       });
       if (res.success) {
-        Alert.alert('Update Broadcast Created! 🚀', `App version update popup for v${upMinVersion} broadcasted successfully!`);
+        showIceMessage('Update Broadcast Created! 🚀', `App version update popup for v${upMinVersion} broadcasted successfully!`);
         fetchPopupHistory();
       } else {
-        Alert.alert('Creation Failed', res.error || 'Could not save update broadcast.');
+        showIceMessage('Creation Failed', res.error || 'Could not save update broadcast.');
       }
     } catch (e) {
-      Alert.alert('Error', 'Failed to connect to backend server.');
+      showIceMessage('Error', 'Failed to connect to backend server.');
     }
     setCreatingPopup(false);
   };
 
   const handleDeletePopup = async (popupId: string) => {
-    Alert.alert(
+    showIceMessage(
       'Remove Popup',
       `Are you sure you want to remove popup "${popupId}" from active history?`,
       [
@@ -512,7 +564,7 @@ export default function LandlordPortalScreen() {
               await apiRequest(`/notify/popups/${popupId}`, { method: 'DELETE' });
               fetchPopupHistory();
             } catch (e) {
-              Alert.alert('Error', 'Could not remove popup.');
+              showIceMessage('Error', 'Could not remove popup.');
             }
           }
         }
@@ -522,7 +574,7 @@ export default function LandlordPortalScreen() {
 
   const handleCreateListingSubmit = async () => {
     if (!newTitle.trim() || !newDesc.trim() || !newRent.trim()) {
-      Alert.alert('Incomplete Form', 'Please fill in the title, description, and monthly rent.');
+      showIceMessage('Incomplete Form', 'Please fill in the title, description, and monthly rent.');
       return;
     }
 
@@ -554,7 +606,7 @@ export default function LandlordPortalScreen() {
         setNewDesc('');
         setNewRent('');
         setNewDeposit('');
-        Alert.alert('Success 🎉', 'Apartment listing published successfully!');
+        showIceMessage('Success 🎉', 'Apartment listing published successfully!');
       } else {
         // Fallback local addition if server offline / demo mode
         const newListing: IHouse = {
@@ -586,10 +638,10 @@ export default function LandlordPortalScreen() {
         setNewDesc('');
         setNewRent('');
         setNewDeposit('');
-        Alert.alert('Listing Added 🎉', 'Apartment listing created successfully!');
+        showIceMessage('Listing Added 🎉', 'Apartment listing created successfully!');
       }
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to create listing.');
+      showIceMessage('Error', e?.message || 'Failed to create listing.');
     } finally {
       setSubmitting(false);
     }
@@ -1345,25 +1397,31 @@ export default function LandlordPortalScreen() {
                 ) : popupsHistory.length === 0 ? (
                   <Text style={styles.emptyHistoryText}>No active or past popups yet.</Text>
                 ) : (
-                  popupsHistory.map((item) => (
-                    <View key={item._id} style={styles.historyCard}>
-                      <View style={styles.historyHeader}>
-                        <View style={styles.historyIdTag}>
-                          <Text style={styles.historyIdText}>{item.popupId || 'POPUP-0000'}</Text>
+                  <ScrollView
+                    style={styles.historyList}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator
+                  >
+                    {popupsHistory.map((item) => (
+                      <View key={item._id} style={styles.historyCard}>
+                        <View style={styles.historyHeader}>
+                          <View style={styles.historyIdTag}>
+                            <Text style={styles.historyIdText}>{item.popupId || 'POPUP-0000'}</Text>
+                          </View>
+                          <Text style={styles.historyTypeTag}>{item.type.toUpperCase()}</Text>
+                          <TouchableOpacity onPress={() => handleDeletePopup(item._id)}>
+                            <TrashIcon color="#ef4444" size={16} />
+                          </TouchableOpacity>
                         </View>
-                        <Text style={styles.historyTypeTag}>{item.type.toUpperCase()}</Text>
-                        <TouchableOpacity onPress={() => handleDeletePopup(item._id)}>
-                          <TrashIcon color="#ef4444" size={16} />
-                        </TouchableOpacity>
+                        <Text style={styles.historyTitleText}>{item.title}</Text>
+                        {!!item.subtitle && <Text style={styles.historySubText}>{item.subtitle}</Text>}
+                        <View style={styles.historyMetaRow}>
+                          <Text style={styles.historyMetaText}>Target: {item.actionTarget || 'N/A'}</Text>
+                          <Text style={styles.historyMetaText}>Audience: {item.targetAudience}</Text>
+                        </View>
                       </View>
-                      <Text style={styles.historyTitleText}>{item.title}</Text>
-                      {!!item.subtitle && <Text style={styles.historySubText}>{item.subtitle}</Text>}
-                      <View style={styles.historyMetaRow}>
-                        <Text style={styles.historyMetaText}>Target: {item.actionTarget || 'N/A'}</Text>
-                        <Text style={styles.historyMetaText}>Audience: {item.targetAudience}</Text>
-                      </View>
-                    </View>
-                  ))
+                    ))}
+                  </ScrollView>
                 )}
               </View>
             </View>
@@ -1466,6 +1524,21 @@ export default function LandlordPortalScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Material Thumbnail */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Material Thumbnail</Text>
+              <Text style={styles.mediaBoxSub}>Optional — a default image is used if you do not upload one.</Text>
+              {editThumbnail ? (
+                <Image source={{ uri: editThumbnail }} style={{ width: '100%', height: 150, borderRadius: 12, marginTop: 8 }} resizeMode="cover" />
+              ) : (
+                <View style={{ height: 110, borderRadius: 12, marginTop: 8, backgroundColor: '#ecfdf5', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#047857', fontWeight: '700' }}>Default thumbnail will be applied</Text>
+                </View>
+              )}
+              <TouchableOpacity style={[styles.saveEditsBtn, uploadingThumbnail && styles.btnDisabled, { marginTop: 10 }]} onPress={handlePickThumbnail} disabled={uploadingThumbnail || actionLoading}>
+                {uploadingThumbnail ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.saveEditsBtnText}>{editThumbnail ? 'Replace Thumbnail' : 'Upload Thumbnail'}</Text>}
+              </TouchableOpacity>
+            </View>
             {/* Metadata Editing Fields */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Unit Title <Text style={styles.required}>*</Text></Text>
@@ -2053,6 +2126,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0'
+  },
+  historyList: {
+    maxHeight: 420
   },
   historyTitle: {
     fontSize: 16,

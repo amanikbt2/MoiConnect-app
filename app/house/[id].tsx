@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -191,7 +192,7 @@ export default function HouseDetailScreen({ route }: any) {
     const landlordId = landlord ? landlord._id : house.landlordId;
 
     if (landlordId === user._id) {
-      Alert.alert('Notice', 'This is your own rental listing.');
+      showIceMessage('Notice', 'This is your own rental listing.');
       return;
     }
 
@@ -209,7 +210,7 @@ export default function HouseDetailScreen({ route }: any) {
     if (res.success && res.data?.conversationId) {
       router.push(`/chat/${res.data.conversationId}`);
     } else {
-      Alert.alert('Notice', 'You are currently offline. Visit when online to start a chat.');
+      showIceMessage('Notice', 'You are currently offline. Visit when online to start a chat.');
     }
   };
 
@@ -220,7 +221,7 @@ export default function HouseDetailScreen({ route }: any) {
     }
 
     if (!requestedMoveIn) {
-      Alert.alert('Form Error', 'Please select or enter a requested move-in date.');
+      showIceMessage('Form Error', 'Please select or enter a requested move-in date.');
       return;
     }
 
@@ -239,7 +240,7 @@ export default function HouseDetailScreen({ route }: any) {
 
     if (res.success) {
       setShowBookingModal(false);
-      Alert.alert(
+      showIceMessage(
         'Booking Request Submitted',
         'Your booking request has been sent to the landlord.\n\nDisclaimer: A booking request is not a guaranteed tenancy or proof of payment.',
         [{ text: 'OK', onPress: () => router.push('/(tabs)/profile') }]
@@ -255,7 +256,7 @@ export default function HouseDetailScreen({ route }: any) {
         createdAt: new Date().toISOString()
       });
       setShowBookingModal(false);
-      Alert.alert(
+      showIceMessage(
         'Booking Request Saved (Waiting for Internet)',
         'Booking request saved — waiting for internet connection. It will be sent automatically when connectivity returns.',
         [{ text: 'OK', onPress: () => router.push('/(tabs)/profile') }]

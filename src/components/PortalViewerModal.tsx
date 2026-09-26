@@ -34,12 +34,14 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
   onClose
 }) => {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
 
   if (!portal || !visible) return null;
 
   const handleRefresh = () => {
     setLoading(true);
+    setLoadError(null);
     setKey((prev) => prev + 1);
   };
 
@@ -99,6 +101,17 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
               onLoad={() => setLoading(false)}
               allow="camera; microphone; geolocation"
             />
+          ) : loadError ? (
+            <View style={styles.errorState}>
+              <Text style={styles.errorTitle}>Portal could not be loaded securely</Text>
+              <Text style={styles.errorText}>The certificate for {portal.domain} is not trusted by this device's in-app browser.</Text>
+              <TouchableOpacity style={styles.browserButton} onPress={() => Linking.openURL(portal.url)} activeOpacity={0.8}>
+                <Text style={styles.browserButtonText}>Open in Phone Browser</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.retryButton} onPress={handleRefresh} activeOpacity={0.8}>
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <WebView
               key={key}
@@ -107,7 +120,8 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
               javaScriptEnabled={true}
               domStorageEnabled={true}
               startInLoadingState={true}
-              onLoadEnd={() => setLoading(false)}
+              onLoadEnd={() => { setLoading(false); setLoadError(null); }}
+              onError={() => { setLoading(false); setLoadError('Portal certificate error'); }}
               allowFileAccess={true}
               showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}
@@ -173,6 +187,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)'
+  },
+  errorState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    backgroundColor: '#ffffff'
+  },
+  errorTitle: {
+    color: '#0f172a',
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 10
+  },
+  errorText: {
+    color: '#475569',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 20
+  },
+  browserButton: {
+    backgroundColor: '#15803d',
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    marginBottom: 10
+  },
+  browserButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  retryButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 9
+  },
+  retryButtonText: {
+    color: '#15803d',
+    fontSize: 13,
+    fontWeight: '800'
   },
   body: {
     flex: 1,

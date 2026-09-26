@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -608,7 +609,7 @@ export default function AcademicsScreen({ route }: any) {
       unitName: item.unitName,
       school: item.school,
       author: item.author,
-      fileUrl: item.fileUrl || 'https://res.cloudinary.com/mconnect/docs/notes.pdf',
+      fileUrl: item.fileUrl || '',
       pages: '48 pages',
       summary: `Comprehensive study material for ${item.unitCode} (${item.unitName || item.title}).`,
       sampleText: `Sample test preview line for ${item.unitCode} (${item.title}): Section 1.1 Fundamentals and Core Notes. Quick test words line for testing preview functionality.`
@@ -636,7 +637,7 @@ export default function AcademicsScreen({ route }: any) {
         updatedAt: new Date().toISOString()
       });
 
-      Alert.alert(
+      showIceMessage(
         'Downloaded Offline',
         `"${doc.title}" saved to your offline downloads tab!`,
         [
@@ -645,7 +646,7 @@ export default function AcademicsScreen({ route }: any) {
         ]
       );
     } catch (e) {
-      Alert.alert('Download Error', 'Could not save note offline.');
+      showIceMessage('Download Error', 'Could not save note offline.');
     }
   };
 
@@ -691,6 +692,8 @@ export default function AcademicsScreen({ route }: any) {
   const [examYear, setExamYear] = useState('2025');
   const [fileUrl, setFileUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState('');
 
   const { user, addPoints } = useAuth();
 
@@ -775,11 +778,22 @@ export default function AcademicsScreen({ route }: any) {
   };
 
   const handleUploadPaper = async () => {
-    if (!title || !department || !courseCode || !unitCode || !unitName || !fileUrl) {
-      Alert.alert('Incomplete Form', 'Please fill in all required fields including document file URL.');
+    const errors: Record<string, string> = {};
+    if (!title.trim()) errors.title = 'Document title is required.';
+    if (!department.trim()) errors.department = 'Department is required.';
+    if (courseCode.trim().length < 2) errors.courseCode = 'Course code must be at least 2 characters.';
+    if (unitCode.trim().length < 2) errors.unitCode = 'Unit code must be at least 2 characters.';
+    if (!unitName.trim()) errors.unitName = 'Unit name is required.';
+    if (!fileUrl.trim()) errors.fileUrl = 'A document file URL is required.';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFormError('Please correct the highlighted fields before submitting.');
       return;
     }
 
+    setFieldErrors({});
+    setFormError('');
     setSubmitting(true);
     const res = await apiRequest('/papers', {
       method: 'POST',
@@ -800,7 +814,7 @@ export default function AcademicsScreen({ route }: any) {
 
     if (res.success) {
       addPoints(10, 'Uploaded revision material');
-      Alert.alert(
+      showIceMessage(
         'Submission Received! (+10 pts Awarded)',
         'Your academic paper has been submitted successfully and +10 reward points have been credited to your profile!',
         [{ text: 'OK', onPress: () => {
@@ -810,7 +824,7 @@ export default function AcademicsScreen({ route }: any) {
         }}]
       );
     } else {
-      Alert.alert('Error', res.error || 'Paper submission failed.');
+      showIceMessage('Error', res.error || 'Paper submission failed.');
     }
   };
 
@@ -1157,18 +1171,21 @@ export default function AcademicsScreen({ route }: any) {
             </TouchableOpacity>
           </View>
 
-          <Input label="Document Title *" placeholder="COM 310 Final Exam 2025" value={title} onChangeText={setTitle} />
-          <Input label="Department *" placeholder="Computer Science" value={department} onChangeText={setDepartment} />
-          <Input label="Course Code *" placeholder="COM 310" value={courseCode} onChangeText={setCourseCode} />
-          <Input label="Unit Code *" placeholder="COM 310" value={unitCode} onChangeText={setUnitCode} />
-          <Input label="Unit Name *" placeholder="Data Structures & Algorithms" value={unitName} onChangeText={setUnitName} />
+          <Input label="Document Title *" placeholder="COM 310 Final Exam 2025" value={title} onChangeText={setTitle} error={fieldErrors.title} />
+          <Input label="Department *" placeholder="Computer Science" value={department} onChangeText={setDepartment} error={fieldErrors.department} />
+          <Input label="Course Code *" placeholder="COM 310" value={courseCode} onChangeText={setCourseCode} error={fieldErrors.courseCode} />
+          <Input label="Unit Code *" placeholder="COM 310" value={unitCode} onChangeText={setUnitCode} error={fieldErrors.unitCode} />
+          <Input label="Unit Name *" placeholder="Data Structures & Algorithms" value={unitName} onChangeText={setUnitName} error={fieldErrors.unitName} />
           <Input label="Exam / Academic Year" placeholder="2025" value={examYear} onChangeText={setExamYear} keyboardType="numeric" />
           <Input
             label="PDF File Document Link / Cloudinary URL *"
             placeholder="https://res.cloudinary.com/.../document.pdf"
             value={fileUrl}
             onChangeText={setFileUrl}
+            error={fieldErrors.fileUrl}
           />
+
+          {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
           <Button title="Submit for Admin Review" onPress={handleUploadPaper} loading={submitting} style={{ marginTop: 16 }} />
         </ScrollView>
@@ -1616,6 +1633,17 @@ const styles = StyleSheet.create({
   subDetail: {
     fontSize: 12,
     color: '#64748b'
+  },
+  formError: {
+    color: '#b91c1c',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600'
   },
   modalContent: {
     padding: 24,

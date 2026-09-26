@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { IUser, RegisterInput, LoginInput, RequestLandlordInput } from '@moi/shared';
 import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken, setStoredToken, removeStoredToken } from '../services/api';
 import { disconnectSocket } from '../services/socket';
+import { notifyLoginSuccess } from '../services/notificationService';
 
 interface AuthContextType {
   user: IUser | null;
@@ -48,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { user: authedUser, tokens } = res.data;
         await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
         await saveUserProfile(authedUser);
+        void notifyLoginSuccess(authedUser.name);
         return { success: true };
       }
 
@@ -66,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       await saveAuthTokens('demo_google_access_token', 'demo_google_refresh_token');
       await saveUserProfile(demoUser);
+      void notifyLoginSuccess(demoUser.name);
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message || 'Google sign-in failed' };
@@ -181,6 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { user: authedUser, tokens } = res.data;
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
       await saveUserProfile(authedUser);
+      void notifyLoginSuccess(authedUser.name);
       return { success: true };
     }
     return { success: false, error: res.error || 'Login failed' };

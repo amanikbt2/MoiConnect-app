@@ -9,7 +9,6 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { apiRequest } from '../services/api';
-import { registerForPushNotificationsAsync } from '../services/notificationService';
 import {
   BellIcon,
   AcademicCapIcon,
@@ -36,8 +35,6 @@ export function NotificationCenterModal() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Register device push token on app start
-    registerForPushNotificationsAsync();
     fetchNotifications();
 
     // Refresh notification count periodically without interrupting app speed

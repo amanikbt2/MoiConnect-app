@@ -1,3 +1,4 @@
+import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -13,9 +14,11 @@ import {
   Modal,
   Alert,
   PanResponder,
-  Animated
+  Animated,
+  ScrollView
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
@@ -35,15 +38,17 @@ import {
   DownloadIcon,
   CheckIcon,
   ReplyIcon,
-  FolderIcon,
-  CloseIcon
+  CameraIcon,
+  CloseIcon,
+  ImageIcon,
+  VideoIcon
 } from '../../src/components/Icons';
 
 export interface FileAttachment {
   name: string;
   url: string;
   size: string;
-  type: 'pdf' | 'doc' | 'image';
+  type: 'pdf' | 'doc' | 'image' | 'video';
 }
 
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
@@ -381,12 +386,51 @@ export default function ChatRoomScreen({ route }: any) {
         updatedAt: new Date().toISOString()
       });
 
-      Alert.alert('File Saved Offline', `"${file.name}" has been saved to your local Downloads tab!`);
+      showIceMessage('File Saved Offline', `"${file.name}" has been saved to your local Downloads tab!`);
     } catch (err) {
-      Alert.alert('Save Error', 'Could not save file offline.');
+      showIceMessage('Save Error', 'Could not save file offline.');
     }
   };
 
+  const handlePickMedia = async (kind: 'image' | 'video') => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: false,
+        quality: 0.9
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        const size = asset.fileSize ? (asset.fileSize / (1024 * 1024)).toFixed(1) + ' MB' : 'Media file';
+        setSelectedFile({ name: asset.fileName || (kind === 'image' ? 'image.jpg' : 'video.mp4'), url: asset.uri, size, type: kind });
+        setShowFileModal(false);
+      }
+    } catch (err) {
+      console.log('Media picker error:', err);
+    }
+  };
+  const handleTakeMedia = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) return;
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        videoMaxDuration: 120,
+        quality: 0.9
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+        const size = asset.fileSize ? (asset.fileSize / (1024 * 1024)).toFixed(1) + ' MB' : 'Media file';
+        setSelectedFile({ name: asset.fileName || (type === 'video' ? 'camera_video.mp4' : 'camera_photo.jpg'), url: asset.uri, size, type });
+        setShowFileModal(false);
+      }
+    } catch (err) {
+      console.log('Camera error:', err);
+    }
+  };
   const handlePickFromPhone = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -673,6 +717,25 @@ export default function ChatRoomScreen({ route }: any) {
               Select materials from your downloads or phone's storage:
             </Text>
 
+            <View style={styles.mediaOptionsRow}>
+              <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('image')}>
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#eff6ff' }]}><ImageIcon color="#2563eb" size={21} /></View>
+                <Text style={styles.mediaOptionLabel}>Image</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('video')}>
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fff7ed' }]}><VideoIcon color="#f97316" size={21} /></View>
+                <Text style={styles.mediaOptionLabel}>Video</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mediaOption} onPress={handlePickFromPhone}>
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><FileTextIcon color="#15803d" size={21} /></View>
+                <Text style={styles.mediaOptionLabel}>Document</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mediaOption} onPress={handleTakeMedia}>
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}><CameraIcon color="#db2777" size={21} /></View>
+                <Text style={styles.mediaOptionLabel}>Camera</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.downloadedSectionTitle}>Downloaded materials</Text>
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
               {availableFiles.map((file, idx) => (
                 <TouchableOpacity
@@ -693,25 +756,7 @@ export default function ChatRoomScreen({ route }: any) {
               ))}
             </ScrollView>
 
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                backgroundColor: '#15803d',
-                paddingVertical: 12,
-                borderRadius: 12,
-                marginTop: 12
-              }}
-              onPress={handlePickFromPhone}
-              activeOpacity={0.8}
-            >
-              <FolderIcon color="#ffffff" size={18} />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff' }}>
-                Pick from phone
-              </Text>
-            </TouchableOpacity>
+            
           </Pressable>
         </TouchableOpacity>
       </Modal>
@@ -971,6 +1016,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  mediaOptionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  mediaOption: { alignItems: 'center', width: '23%' },
+  mediaOptionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  mediaOptionLabel: { fontSize: 12, color: '#334155', fontWeight: '700' },
+  downloadedSectionTitle: { fontSize: 12, color: '#64748b', fontWeight: '800', marginBottom: 8 },
   sampleFileOption: {
     flexDirection: 'row',
     alignItems: 'center',
