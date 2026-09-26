@@ -18,6 +18,7 @@
       }
     },
     "production": {
+      "appVersionSource": "local",
       "developmentClient": false,
       "android": {
         "buildType": "app-bundle"
