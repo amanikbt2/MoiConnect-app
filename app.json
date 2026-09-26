@@ -16,12 +16,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "15"
+      "buildNumber": "16"
     },
     "android": {
 
       "package": "com.amanikbt1.moiconnect",
-      "versionCode": 15
+      "versionCode": 16
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
