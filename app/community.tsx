@@ -43,16 +43,22 @@ import {
 import { getSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
 import {
-  saveDownloadedPaper,
-  getDownloadedPapers,
+
   getStoredCommunityMessages,
+  getDownloadedPapers,
+  saveDownloadedPaper,
   saveCommunityMessages,
+  getCommunityReactorId,
   getLastReadCommunityMsgId,
   saveLastReadCommunityMsgId,
+  getReadCommunityMentionIds,
+
+  saveReadCommunityMentionIds,
   getStudentPersonalDetails,
   StudentPersonalDetails
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
+import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 
 export interface FileAttachment {
   name: string;
@@ -72,12 +78,14 @@ export interface CommunityMessage {
   text: string;
   timestamp: string;
   isoDate?: string;
+  updatedAt?: string;
   isMe: boolean;
   isSystemNotice?: boolean;
   eventType?: 'user_connected' | 'user_disconnected' | 'security' | string;
   fileAttachment?: FileAttachment;
   reactions?: Record<string, number>;
   myReaction?: string;
+  isDemo?: boolean;
   replyTo?: {
     id: string;
     senderEmail?: string;
@@ -291,7 +299,8 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     timestamp: '09:42 AM',
     isoDate: new Date(Date.now() - 3600000 * 3).toISOString(),
     isMe: false,
-    reactions: { '❤️': 4, '👍': 2 }
+    reactions: { '❤️': 4, '👍': 2 },
+    isDemo: true
   },
   {
     id: '2',
@@ -308,7 +317,8 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
       size: '1.8 MB',
       type: 'pdf'
     },
-    reactions: { '👍': 9, '🔥': 5 }
+    reactions: { '👍': 9, '🔥': 5 },
+    isDemo: true
   },
   {
     id: '3',
@@ -319,7 +329,8 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     timestamp: '10:02 AM',
     isoDate: new Date(Date.now() - 3600000 * 1).toISOString(),
     isMe: false,
-    reactions: { '❤️': 15, '🙏': 3 }
+    reactions: { '❤️': 15, '🙏': 3 },
+    isDemo: true
   },
   {
     id: '4',
@@ -330,23 +341,32 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
     timestamp: '10:15 AM',
     isoDate: new Date(Date.now() - 1800000).toISOString(),
     isMe: false,
-    reactions: { '🔥': 22, '👍': 11 }
+    reactions: { '🔥': 22, '👍': 11 },
+    isDemo: true
   }
 ];
+
+const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(message.isDemo) || INITIAL_COMMUNITY_MESSAGES.some((seed) => seed.id === message.id && seed.senderName === message.senderName);
 
 export default function CommunityScreen() {
   const { user } = useAuth();
   const router = useAppNavigation();
 
-  const [messages, setMessages] = useState<CommunityMessage[]>(INITIAL_COMMUNITY_MESSAGES);
+  const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const reactorIdRef = useRef('');
+  const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
   const [showFileModal, setShowFileModal] = useState(false);
-  const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
+  const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>([]);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
+
+  useEffect(() => {
+    getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
+  }, []);
 
   useEffect(() => {
     getStudentPersonalDetails().then((details) => {
@@ -356,8 +376,17 @@ export default function CommunityScreen() {
 
   // Smart Mention & Reply Tracking State
   const [unreadMentionIds, setUnreadMentionIds] = useState<string[]>([]);
+  const readMentionIdsRef = useRef<Set<string>>(new Set());
+  const [readMentionVersion, setReadMentionVersion] = useState(0);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const dismissedMentionIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    getReadCommunityMentionIds().then((ids) => {
+      readMentionIdsRef.current = new Set(ids);
+      setReadMentionVersion((version) => version + 1);
+    });
+  }, []);
   const tempSentIdsRef = useRef<Set<string>>(new Set());
 
   // WhatsApp-style Unread Tracking & Auto-scroll State
@@ -454,11 +483,11 @@ export default function CommunityScreen() {
     if (!user || messages.length === 0) return;
 
     const mentions = messages
-      .filter((m) => checkIsMentionOrReply(m, user, messages) && !dismissedMentionIds.current.has(m.id))
+      .filter((m) => checkIsMentionOrReply(m, user, messages) && !dismissedMentionIds.current.has(m.id) && !readMentionIdsRef.current.has(m.id))
       .map((m) => m.id);
 
     setUnreadMentionIds(mentions);
-  }, [messages, user]);
+  }, [messages, user, readMentionVersion]);
 
   const scrollToMessage = (targetId: string) => {
     const targetIndex = messages.findIndex((m) => m.id === targetId);
@@ -489,6 +518,8 @@ export default function CommunityScreen() {
 
     const targetId = unreadMentionIds[0];
     dismissedMentionIds.current.add(targetId);
+    readMentionIdsRef.current.add(targetId);
+    void saveReadCommunityMentionIds(Array.from(readMentionIdsRef.current));
     scrollToMessage(targetId);
 
     setUnreadMentionIds((prev) => prev.filter((id) => id !== targetId));
@@ -588,15 +619,22 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    getStoredCommunityMessages().then((cachedMsgs) => {
-      const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : INITIAL_COMMUNITY_MESSAGES;
-      const msgsToLoad = rawMsgs.map((m) => ({
-        ...m,
-        isMe: evalIsMe(m.senderId, m.senderEmail, m.senderName, m.clientMsgId)
-      }));
+    Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting()]).then(([cachedMsgs, demoSetting]) => {
+      setShowDemoMaterials(demoSetting);
+      const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
+      const msgsToLoad = rawMsgs
+        .filter((m) => demoSetting || !isHardcodedCommunityMessage(m))
+        .map((m) => ({
+          ...m,
+          isMe: evalIsMe(m.senderId, m.senderEmail, m.senderName, m.clientMsgId)
+        }));
       setMessages(msgsToLoad);
-      lastSyncedISO.current = msgsToLoad[msgsToLoad.length - 1]?.isoDate || new Date().toISOString();
-      if (!cachedMsgs || cachedMsgs.length === 0) {
+      const latestCachedTimestamp = msgsToLoad.reduce((latest, message) => {
+        const timestamp = message.updatedAt || message.isoDate;
+        return timestamp && timestamp > latest ? timestamp : latest;
+      }, '');
+      lastSyncedISO.current = latestCachedTimestamp || '';
+      if ((!cachedMsgs || cachedMsgs.length === 0) && demoSetting) {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
       }
       initReadStateAndScroll(msgsToLoad);
@@ -714,9 +752,12 @@ export default function CommunityScreen() {
           }
         });
 
-        socket.on('community:reaction_updated', (data: { messageId: string; reactions: any }) => {
+        socket.on('community:reaction_updated', (data: { messageId: string; reactions: any; actorId?: string; myReaction?: string }) => {
+          const isMine = !!data.actorId && (data.actorId === user?._id || data.actorId === reactorIdRef.current);
           setMessages((prev) => {
-            const updated = prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m));
+            const updated = prev.map((m) => m.id === data.messageId
+              ? { ...m, reactions: data.reactions || {}, myReaction: isMine ? data.myReaction : m.myReaction, updatedAt: new Date().toISOString() }
+              : m);
             saveCommunityMessages(updated);
             return updated;
           });
@@ -765,8 +806,8 @@ export default function CommunityScreen() {
     try {
       const sinceParam = lastSyncedISO.current ? `?since=${encodeURIComponent(lastSyncedISO.current)}` : '';
       const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
-      if (res && res.success && res.data && res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
-        const fetchedMsgs: CommunityMessage[] = res.data.data.map((serverMsg: any) => {
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
           return {
             id: serverMsg._id || serverMsg.id,
@@ -779,6 +820,7 @@ export default function CommunityScreen() {
             text: serverMsg.text || '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: serverMsg.createdAt,
+            updatedAt: serverMsg.updatedAt,
             isMe: isMyMsg,
             fileAttachment: serverMsg.fileAttachment,
             replyTo: serverMsg.replyTo,
@@ -813,9 +855,9 @@ export default function CommunityScreen() {
           return updated;
         });
 
-        if (res.data.syncedAt) {
-          lastSyncedISO.current = res.data.syncedAt;
-        }
+      }
+      if ((res as any).syncedAt) {
+        lastSyncedISO.current = (res as any).syncedAt;
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
@@ -826,7 +868,7 @@ export default function CommunityScreen() {
     if (showFileModal) {
       loadFiles();
     }
-  }, [showFileModal]);
+  }, [showFileModal, showDemoMaterials]);
 
   const loadFiles = async () => {
     try {
@@ -837,11 +879,11 @@ export default function CommunityScreen() {
         size: '1.8 MB',
         type: 'pdf'
       }));
-      const combined = [...converted, ...SAMPLE_ATTACHMENTS];
+      const combined = showDemoMaterials ? [...converted, ...SAMPLE_ATTACHMENTS] : converted;
       const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
       setAvailableFiles(unique);
     } catch (e) {
-      setAvailableFiles(SAMPLE_ATTACHMENTS);
+      setAvailableFiles(showDemoMaterials ? SAMPLE_ATTACHMENTS : []);
     }
   };
   const handleInputChange = (text: string) => {
@@ -1012,37 +1054,45 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleToggleReaction = (msgId: string, emoji: string) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
+  const handleToggleReaction = async (msgId: string, emoji: string) => {
+    const reactorId = reactorIdRef.current || await getCommunityReactorId();
+    reactorIdRef.current = reactorId;
+    setMessages((prev) => {
+      const updated = prev.map((msg) => {
         if (msg.id !== msgId) return msg;
-
         const currentReactions = { ...(msg.reactions || {}) };
         const myPrev = msg.myReaction;
-
         if (myPrev === emoji) {
-          currentReactions[emoji] = (currentReactions[emoji] || 1) - 1;
-          if (currentReactions[emoji] <= 0) delete currentReactions[emoji];
-          return { ...msg, reactions: currentReactions, myReaction: undefined };
-        } else {
-          if (myPrev && currentReactions[myPrev]) {
-            currentReactions[myPrev] -= 1;
-            if (currentReactions[myPrev] <= 0) delete currentReactions[myPrev];
-          }
-          currentReactions[emoji] = (currentReactions[emoji] || 0) + 1;
-          return { ...msg, reactions: currentReactions, myReaction: emoji };
+          currentReactions[emoji] = Math.max(0, (currentReactions[emoji] || 1) - 1);
+          if (!currentReactions[emoji]) delete currentReactions[emoji];
+          return { ...msg, reactions: currentReactions, myReaction: undefined, updatedAt: new Date().toISOString() };
         }
-      })
-    );
+        if (myPrev && currentReactions[myPrev]) {
+          currentReactions[myPrev] -= 1;
+          if (currentReactions[myPrev] <= 0) delete currentReactions[myPrev];
+        }
+        currentReactions[emoji] = (currentReactions[emoji] || 0) + 1;
+        return { ...msg, reactions: currentReactions, myReaction: emoji, updatedAt: new Date().toISOString() };
+      });
+      saveCommunityMessages(updated);
+      return updated;
+    });
     setActiveReactionMsgId(null);
 
-    // Call API reaction update
-    apiRequest(`/community/messages/${msgId}/reaction`, {
+    const res = await apiRequest<{ messageId: string; reactions: Record<string, number>; myReaction?: string }>(`/community/messages/${msgId}/reaction`, {
       method: 'POST',
-      body: JSON.stringify({ emoji })
-    }).catch(() => {});
+      body: JSON.stringify({ emoji, reactorId })
+    });
+    if (res.success && res.data) {
+      setMessages((prev) => {
+        const updated = prev.map((msg) => msg.id === msgId
+          ? { ...msg, reactions: res.data!.reactions || {}, myReaction: res.data!.myReaction, updatedAt: new Date().toISOString() }
+          : msg);
+        saveCommunityMessages(updated);
+        return updated;
+      });
+    }
   };
-
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
     try {
       await saveDownloadedPaper({
@@ -1237,9 +1287,9 @@ export default function CommunityScreen() {
                 return (
                   <View style={styles.systemNoticeContainer}>
                     <View style={styles.systemNoticePill}>
-                      <Text style={styles.systemNoticeDot}>{isSec ? '🔒' : isConn ? '🟢' : '⚪'}</Text>
-                      <Text style={styles.systemNoticeText}>{item.text}</Text>
-                      {!!item.timestamp && <Text style={styles.systemNoticeTime}>• {item.timestamp}</Text>}
+                      <View style={[styles.systemNoticeDot, isSec ? styles.systemNoticeSecurity : (isConn ? styles.systemNoticeConnected : styles.systemNoticeDisconnected)]} />
+                      <Text style={styles.systemNoticeText} numberOfLines={2}>{item.text}</Text>
+                      {!!item.timestamp && <Text style={styles.systemNoticeTime}>{item.timestamp}</Text>}
                     </View>
                   </View>
                 );
@@ -1677,9 +1727,14 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: '900',
     letterSpacing: -0.2,
-    textShadowColor: 'rgba(0, 0, 0, 0.65)',
-    textShadowOffset: { width: 0, height: 1.5 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.65)',
+        textShadowOffset: { width: 0, height: 1.5 },
+        textShadowRadius: 3
+      }
+    }),
   },
   onlineSubtitle: {
     flexDirection: 'row',
@@ -2321,41 +2376,47 @@ const styles = StyleSheet.create({
   systemNoticeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 6,
-    paddingHorizontal: 16
+    marginVertical: 3,
+    paddingHorizontal: 10
   },
   systemNoticePill: {
+    maxWidth: '94%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    gap: 6,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    gap: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 1,
     elevation: 1
   },
   systemNoticeDot: {
-    fontSize: 9
+    width: 7,
+    height: 7,
+    borderRadius: 4
   },
+  systemNoticeConnected: { backgroundColor: '#22c55e' },
+  systemNoticeDisconnected: { backgroundColor: '#c4b5fd' },
+  systemNoticeSecurity: { backgroundColor: '#f59e0b' },
   systemNoticeText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#475569',
-    letterSpacing: 0.2
+    flexShrink: 1,
+    fontSize: 10.5,
+    lineHeight: 13,
+    fontWeight: '600',
+    color: '#475569'
   },
   systemNoticeTime: {
-    fontSize: 9.5,
+    flexShrink: 0,
+    fontSize: 9,
     fontWeight: '500',
-    color: '#94a3b8',
-    marginLeft: 2
-  },
-  /* WhatsApp-style Live Typing Indicator Banner */
+    color: '#94a3b8'
+  },  /* WhatsApp-style Live Typing Indicator Banner */
   typingIndicatorBanner: {
     flexDirection: 'row',
     alignItems: 'center',

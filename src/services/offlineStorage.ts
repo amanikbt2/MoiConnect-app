@@ -387,6 +387,15 @@ export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetail
 
 const COMMUNITY_MESSAGES_KEY = 'moi_community_messages_cache';
 const LAST_READ_COMMUNITY_KEY = 'moi_community_last_read_id';
+const COMMUNITY_REACTOR_ID_KEY = 'moi_community_reactor_id';
+
+export const getCommunityReactorId = async (): Promise<string> => {
+  const existing = await getItem(COMMUNITY_REACTOR_ID_KEY);
+  if (existing) return existing;
+  const generated = `device_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+  await setItem(COMMUNITY_REACTOR_ID_KEY, generated);
+  return generated;
+};
 
 export const getStoredCommunityMessages = async (): Promise<any[]> => {
   const existingStr = await getItem(COMMUNITY_MESSAGES_KEY);
@@ -396,6 +405,22 @@ export const getStoredCommunityMessages = async (): Promise<any[]> => {
 export const saveCommunityMessages = async (messages: any[]) => {
   await setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(messages));
   await notifyUnreadCountListeners();
+};
+const READ_COMMUNITY_MENTIONS_KEY = 'moi_community_read_mention_ids';
+
+export const getReadCommunityMentionIds = async (): Promise<string[]> => {
+  const stored = await getItem(READ_COMMUNITY_MENTIONS_KEY);
+  if (!stored) return [];
+  try {
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveReadCommunityMentionIds = async (ids: string[]): Promise<void> => {
+  await setItem(READ_COMMUNITY_MENTIONS_KEY, JSON.stringify(Array.from(new Set(ids))));
 };
 
 export const getLastReadCommunityMsgId = async (): Promise<string | null> => {

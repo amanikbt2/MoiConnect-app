@@ -40,6 +40,7 @@ import { useAuth } from './src/context/AuthContext';
 import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon } from './src/components/Icons';
 import { InAppPopupModal } from './src/components/InAppPopupModal';
 import { checkAppPopups } from './src/services/popupService';
+import { registerForPushNotificationsAsync, setupNotificationResponseListener } from './src/services/notificationService';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -491,8 +492,19 @@ function AppNavigator({ currentRoute }) {
   const [popupVisible, setPopupVisible] = React.useState(false);
 
   React.useEffect(() => {
+    void registerForPushNotificationsAsync();
+    const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
+      if (screenPath === '/(tabs)/messages' && navigationRef.isReady()) {
+        navigationRef.navigate('MainTabs', { screen: 'MessagesTab' });
+      }
+    });
+    return removeNotificationListener;
+  }, [user]);
+
+
+  React.useEffect(() => {
     let isMounted = true;
-    checkAppPopups('1.0.6', user)
+    checkAppPopups('1.1.5', user)
       .then((res) => {
         if (isMounted && res.hasPopup && res.popup) {
           setActivePopup(res.popup);

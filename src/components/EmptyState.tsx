@@ -4,15 +4,17 @@ import { View, Text, StyleSheet } from 'react-native';
 interface EmptyStateProps {
   title: string;
   subtitle?: string;
+  message?: string;
   icon?: string;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ title, subtitle, icon = '📂' }) => {
+export const EmptyState: React.FC<EmptyStateProps> = ({ title, subtitle, message, icon = '📂' }) => {
+  const displaySubtitle = subtitle || message;
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>{icon}</Text>
       <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      {displaySubtitle && <Text style={styles.subtitle}>{displaySubtitle}</Text>}
     </View>
   );
 };

@@ -15,6 +15,7 @@ import {
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
+import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { cacheRentals, getCachedRentals } from '../../src/services/offlineStorage';
 import { IHouse, PROPERTY_TYPES, MOI_LOCATIONS, RENTAL_AMENITIES } from '@moi/shared';
 import { HouseCard } from '../../src/components/HouseCard';
@@ -138,7 +139,7 @@ const MOCK_RENTAL_HOUSES: IHouse[] = [
     whatsappContact: '254733445566',
     amenities: ['📶 Free WiFi', '💧 Water Included', '🔒 Night Guard'],
     photos: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80'],
-    status: 'occupied',
+    status: 'approved',
     occupancyStatus: 'occupied',
     isVerified: true,
     createdAt: new Date().toISOString(),
@@ -161,7 +162,7 @@ const MOCK_RENTAL_HOUSES: IHouse[] = [
     whatsappContact: '254744556677',
     amenities: ['💧 Borehole Water', '⚡ Prepaid Tokens'],
     photos: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80'],
-    status: 'available',
+    status: 'approved',
     occupancyStatus: 'available',
     isVerified: true,
     createdAt: new Date().toISOString(),
@@ -233,33 +234,37 @@ export default function RentalsScreen() {
 
   const fetchHouses = async () => {
     setLoading(true);
+    const showDemo = await getShowDemoMaterialsSetting();
     let url = `/houses?limit=30`;
     if (selectedType) url += `&propertyType=${selectedType}`;
     if (selectedLocation && selectedLocation !== 'All Locations') url += `&location=${encodeURIComponent(selectedLocation)}`;
     if (maxRent) url += `&maxRent=${maxRent}`;
     if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
 
-    const res = await apiRequest<{ data: IHouse[] }>(url);
+    const res: any = await apiRequest<any>(url);
     setLoading(false);
     setRefreshing(false);
 
-    if (res.success && res.data && res.data.length > 0) {
-      setHouses(res.data);
+    if (res.success && res.data && Array.isArray(res.data) && res.data.length > 0) {
+      setHouses(res.data as IHouse[]);
       cacheRentals(res.data);
     } else {
-      // Use local mock data filtered by user selection
-      setHouses(filterMockData());
+      if (showDemo) {
+        setHouses(filterMockData());
+      } else {
+        setHouses([]);
+      }
     }
   };
 
   const fetchMyListings = async () => {
     if (!user) return;
     setLoading(true);
-    const res = await apiRequest<{ data: IHouse[] }>('/houses/my-listings');
+    const res: any = await apiRequest<any>('/houses/my-listings');
     setLoading(false);
     setRefreshing(false);
-    if (res.success && res.data) {
-      setMyListings(res.data);
+    if (res.success && res.data && Array.isArray(res.data)) {
+      setMyListings(res.data as IHouse[]);
     }
   };
 
@@ -394,14 +399,15 @@ export default function RentalsScreen() {
                 <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
               </TouchableOpacity>
               {PROPERTY_TYPES.map((pt) => {
+                const pType = pt as string;
                 const label =
-                  pt === 'bedsetter'
+                  pType === 'bedsetter'
                     ? 'Bedsitter'
-                    : pt === 'single_room'
+                    : pType === 'single_room'
                     ? 'Single Room'
-                    : pt === 'one_bedroom'
+                    : pType === 'one_bedroom'
                     ? '1 Bedroom'
-                    : pt.replace('_', ' ');
+                    : pType.replace('_', ' ');
                 return (
                   <TouchableOpacity
                     key={pt}

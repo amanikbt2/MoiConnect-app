@@ -4,7 +4,8 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View
+  View,
+  Platform
 } from 'react-native';
 
 type IceMessageButton = {
@@ -103,10 +104,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fdff',
     borderWidth: 1,
     borderColor: '#bae6fd',
-    shadowColor: '#0c4a6e',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 18px rgba(12, 74, 110, 0.22)' },
+      default: {
+        shadowColor: '#0c4a6e',
+        shadowOpacity: 0.22,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 8 }
+      }
+    }),
     elevation: 12
   },
   iceOrb: {

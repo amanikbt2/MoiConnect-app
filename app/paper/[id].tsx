@@ -6,7 +6,8 @@ import { apiRequest } from '../../src/services/api';
 import {
   saveDownloadedPaper,
   removeDownloadedPaper,
-  isPaperDownloaded
+  isPaperDownloaded,
+  getDownloadedPapers
 } from '../../src/services/offlineStorage';
 import { IPaper } from '@moi/shared';
 import { Button } from '../../src/components/Button';
@@ -42,18 +43,18 @@ export default function PaperDetailScreen({ route }: any) {
 
   const fetchPaper = async () => {
     setLoading(true);
-    const res = await apiRequest<{ data: IPaper }>(`/papers/${id}`);
+    const res: any = await apiRequest<any>(`/papers/${id}`);
     setLoading(false);
     if (res.success && res.data) {
-      setPaper(res.data);
+      setPaper(res.data as IPaper);
     } else {
       // If offline/network failure, check if paper is stored locally
       const savedPapers = await isPaperDownloaded(id);
       if (savedPapers) {
-        const allSaved = await import('../../src/services/offlineStorage').then(m => m.getDownloadedPapers());
+        const allSaved = await getDownloadedPapers();
         const found = allSaved.find(p => p._id === id);
         if (found) {
-          setPaper(found);
+          setPaper(found as any as IPaper);
         }
       }
     }
@@ -127,9 +128,9 @@ export default function PaperDetailScreen({ route }: any) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.badgeRow}>
-        <Badge label={paper.type.replace('_', ' ')} variant="green" />
-        <Badge label={paper.unitCode} variant="blue" />
-        <Badge label={paper.status} variant="gold" />
+        <Badge label={paper.type.replace('_', ' ')} variant="success" />
+        <Badge label={paper.unitCode} variant="info" />
+        <Badge label={paper.status} variant="warning" />
       </View>
 
       <Text style={styles.title}>{paper.title}</Text>

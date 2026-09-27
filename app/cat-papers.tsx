@@ -13,12 +13,14 @@ import {
   Dimensions,
   Animated,
   ScrollView,
-  Platform
+  Platform,
+  AppState
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
+import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -67,7 +69,7 @@ const RECOMMENDED_CAT_PAPERS: CATPaperItem[] = [
     catType: 'CAT 1',
     downloadsCount: 2920,
     starsCount: 2410,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_cat1.pdf',
     examYear: '2025',
@@ -115,7 +117,7 @@ const RECOMMENDED_CAT_PAPERS: CATPaperItem[] = [
     catType: 'CAT 1',
     downloadsCount: 2890,
     starsCount: 2450,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com220_cat1.pdf',
     examYear: '2024',
@@ -134,7 +136,7 @@ const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [
     catType: 'CAT 1',
     downloadsCount: 1920,
     starsCount: 1540,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_cat1.pdf',
     examYear: '2025',
@@ -182,7 +184,7 @@ const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [
     catType: 'CAT 1',
     downloadsCount: 1890,
     starsCount: 1450,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com220_cat1.pdf',
     examYear: '2024',
@@ -214,7 +216,7 @@ const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [
     catType: 'CAT 2',
     downloadsCount: 1780,
     starsCount: 1420,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/mat210_cat2.pdf',
     examYear: '2024',
@@ -230,7 +232,7 @@ const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [
     catType: 'CAT 1',
     downloadsCount: 1420,
     starsCount: 1190,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/law210_cat1.pdf',
     examYear: '2025',
@@ -311,7 +313,7 @@ export default function CatPapersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [catsData, setCatsData] = useState<CATPaperItem[]>(INITIAL_CAT_PAPERS_DATA);
+  const [catsData, setCatsData] = useState<CATPaperItem[]>([]);
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
   // Facebook-Style Lazy Loading State (load 4 cards = 2 rows at a time)
@@ -329,10 +331,15 @@ export default function CatPapersScreen() {
 
   const router = useAppNavigation();
 
+  const [showDemoMaterials, setShowDemoMaterials] = useState(false);
+
   // Fetch real uploaded CAT papers from Cloudinary / backend API
   const fetchRealCatPapers = async () => {
     try {
-      const res = await apiRequest<{ data: IPaper[] }>('/papers');
+      const demoSetting = await getShowDemoMaterialsSetting();
+      setShowDemoMaterials(demoSetting);
+
+      const res = await apiRequest<{ data: IPaper[] }>(`/papers?refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
           .filter(
@@ -350,22 +357,25 @@ export default function CatPapersScreen() {
             unitName: p.unitName || p.title,
             school: p.school || 'Moi University',
             catType: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
-            downloadsCount: p.downloads || 38,
+            downloadsCount: p.downloads || 4500,
             starsCount: 22,
-            ratingScore: '4.8',
-            thumbnail: p.fileUrl?.match(/\.(jpg|jpeg|png|webp)/i)
-              ? p.fileUrl
-              : 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
+            ratingScore: p.ratingScore || '4.8',
+            thumbnail: p.thumbnail 
+              || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+              || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
+              || 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
             fileUrl: p.fileUrl,
             examYear: String(p.examYear || 2025),
             tag: '🔥 Real CAT'
           }));
 
-        setCatsData((prev) => {
-          const combined = [...realCatPapers, ...INITIAL_CAT_PAPERS];
-          const unique = combined.filter((v, i, a) => a.findIndex((t) => t.id === v.id || t.title === v.title) === i);
-          return unique;
-        });
+        setCatsData(
+          realCatPapers.length > 0
+            ? (demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
+            : (demoSetting ? INITIAL_CAT_PAPERS_DATA : [])
+        );
+      } else {
+        setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []);
       }
     } catch (err) {
       console.log('Error fetching real CAT papers:', err);
@@ -374,6 +384,10 @@ export default function CatPapersScreen() {
 
   useEffect(() => {
     fetchRealCatPapers();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchRealCatPapers();
+    });
+    return () => subscription.remove();
   }, []);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
@@ -576,85 +590,89 @@ export default function CatPapersScreen() {
         </ScrollView>
 
         {/* AUTO-SCROLLING SUGGESTIONS CAROUSEL */}
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionIconCircle}>
-            <SparklesIcon color="#15803d" size={18} />
-          </View>
-          <View>
-            <Text style={styles.sectionTitle}>Recommended CAT 1 & 2 Quizzes</Text>
-            <Text style={styles.sectionSub}>Auto-suggested for continuous assessment revision</Text>
-          </View>
-        </View>
+        {((catsData.length > 0 ? catsData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : [])).length > 0) && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionIconCircle}>
+                <SparklesIcon color="#15803d" size={18} />
+              </View>
+              <View>
+                <Text style={styles.sectionTitle}>Recommended CAT 1 & 2 Quizzes</Text>
+                <Text style={styles.sectionSub}>Auto-suggested for continuous assessment revision</Text>
+              </View>
+            </View>
 
-        <FlatList
-          ref={carouselListRef}
-          data={RECOMMENDED_CAT_PAPERS}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.carouselListContent}
-          snapToInterval={CAROUSEL_CARD_WIDTH + 14}
-          decelerationRate="fast"
-          onScrollBeginDrag={() => { isCarouselInteracting.current = true; }}
-          onScrollEndDrag={() => { setTimeout(() => { isCarouselInteracting.current = false; }, 3000); }}
-          getItemLayout={(_, index) => ({
-            length: CAROUSEL_CARD_WIDTH + 14,
-            offset: (CAROUSEL_CARD_WIDTH + 14) * index,
-            index
-          })}
-          onScrollToIndexFailed={(info) => {
-            carouselListRef.current?.scrollToOffset({
-              offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
-              animated: true
-            });
-          }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.carouselCard}
-              activeOpacity={0.88}
-              onPress={() => handleOpenPreview(item)}
-            >
-              <View style={styles.carouselThumbnailContainer}>
-                <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
-                <View style={styles.carouselOverlay} />
-                <View style={styles.carouselBadgeRow}>
-                  <View style={styles.carouselTypeBadge}>
-                    <Text style={styles.carouselTypeText}>{item.catType}</Text>
-                  </View>
-                  {item.tag && (
-                    <View style={styles.carouselTagBadge}>
-                      <Text style={styles.carouselTagText}>{item.tag}</Text>
+            <FlatList
+              ref={carouselListRef}
+              data={catsData.length > 0 ? catsData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : [])}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselListContent}
+              snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+              decelerationRate="fast"
+              onScrollBeginDrag={() => { isCarouselInteracting.current = true; }}
+              onScrollEndDrag={() => { setTimeout(() => { isCarouselInteracting.current = false; }, 3000); }}
+              getItemLayout={(_, index) => ({
+                length: CAROUSEL_CARD_WIDTH + 14,
+                offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+                index
+              })}
+              onScrollToIndexFailed={(info) => {
+                carouselListRef.current?.scrollToOffset({
+                  offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                  animated: true
+                });
+              }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.carouselCard}
+                  activeOpacity={0.88}
+                  onPress={() => handleOpenPreview(item)}
+                >
+                  <View style={styles.carouselThumbnailContainer}>
+                    <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+                    <View style={styles.carouselOverlay} />
+                    <View style={styles.carouselBadgeRow}>
+                      <View style={styles.carouselTypeBadge}>
+                        <Text style={styles.carouselTypeText}>{item.catType}</Text>
+                      </View>
+                      {item.tag && (
+                        <View style={styles.carouselTagBadge}>
+                          <Text style={styles.carouselTagText}>{item.tag}</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.carouselBody}>
-                <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-                <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
-
-                <View style={styles.carouselFooter}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <DownloadIcon color="#15803d" size={13} />
-                    <Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text>
                   </View>
-                  <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
 
-        {/* Carousel Pagination Indicator Dots */}
-        <View style={styles.dotsRow}>
-          {RECOMMENDED_CAT_PAPERS.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === carouselIndex ? styles.activeDot : styles.inactiveDot]}
+                  <View style={styles.carouselBody}>
+                    <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+                    <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+
+                    <View style={styles.carouselFooter}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <DownloadIcon color="#15803d" size={13} />
+                        <Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text>
+                      </View>
+                      <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
             />
-          ))}
-        </View>
+
+            {/* Carousel Pagination Indicator Dots */}
+            <View style={styles.dotsRow}>
+              {(catsData.length > 0 ? catsData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : [])).map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.dot, i === carouselIndex ? styles.activeDot : styles.inactiveDot]}
+                />
+              ))}
+            </View>
+          </>
+        )}
 
         {/* MAIN FEED: FACEBOOK STYLE LAZY LOADED CONTINUOUS SCROLL */}
         <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>

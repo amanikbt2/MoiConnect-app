@@ -227,10 +227,10 @@ export default function ChatRoomScreen({ route }: any) {
 
   const loadMessageHistory = async () => {
     setLoading(true);
-    const res = await apiRequest<{ data: any[] }>(`/conversations/${conversationId}/messages`);
+    const res: any = await apiRequest<any>(`/conversations/${conversationId}/messages`);
     setLoading(false);
     if (res.success && res.data) {
-      setMessages(res.data);
+      setMessages(res.data as any[]);
       cacheMessages(conversationId, res.data);
     } else {
       const cached = await getCachedMessages(conversationId);
@@ -598,7 +598,7 @@ export default function ChatRoomScreen({ route }: any) {
                           ]}
                           onPress={() => handleToggleReaction(item._id, emoji)}
                         >
-                          <Text style={styles.reactionBadgeText}>{emoji} {count}</Text>
+                          <Text style={styles.reactionBadgeText}>{emoji} {String(count)}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -673,12 +673,12 @@ export default function ChatRoomScreen({ route }: any) {
             onChangeText={setText}
             style={styles.textInput}
             returnKeyType="send"
-            onSubmitEditing={handleSendMessage}
+            onSubmitEditing={handleSend}
             blurOnSubmit={false}
             onKeyPress={(e: any) => {
               if (Platform.OS === 'web' && e.nativeEvent?.key === 'Enter' && !e.nativeEvent?.shiftKey) {
                 e.preventDefault();
-                handleSendMessage();
+                handleSend();
               }
             }}
           />

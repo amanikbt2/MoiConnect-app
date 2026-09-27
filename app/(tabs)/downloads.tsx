@@ -146,7 +146,7 @@ export default function DownloadsScreen() {
 
           const thumbUri = item.thumbnail || FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length];
           const mtidText = item.mtid || `P000${(index % 9) + 1}`;
-          const paperTag = item.pinned ? 'PINNED' : (item.paperType || 'Exam Pack');
+          const paperTag = item.pinned ? 'PINNED' : ((item as any).paperType || 'Exam Pack');
           const downloadsCount = item.downloadsCount || (2100 + (index * 130));
           const rating = item.ratingScore || '4.8';
           const shortSchool = (item.school || 'School of Science')

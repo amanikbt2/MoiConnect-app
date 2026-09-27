@@ -174,10 +174,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingTop: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px -2px 4px rgba(0, 0, 0, 0.05)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4
+      }
+    }),
     elevation: 8,
     zIndex: 9999,
   },

@@ -29,12 +29,23 @@ export interface IUser {
   activeRole: UserRole;
   landlordStatus: LandlordStatus;
   accountStatus: AccountStatus;
+  points?: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export type PaperType = 'past_paper' | 'cat' | 'revision' | 'notes';
 export type PaperStatus = 'pending' | 'approved' | 'rejected';
+
+export interface IPaperAttachment {
+  _id?: string;
+  fileUrl: string;
+  tempFilename?: string;
+  fileType: string;
+  fileSize?: number;
+  originalName?: string;
+  publicId?: string;
+}
 
 export interface IPaper {
   _id: string;
@@ -52,8 +63,10 @@ export interface IPaper {
   examYear?: number;
   fileUrl: string;
   publicId?: string;
+  tempFilename?: string;
   fileType: string;
   fileSize?: number;
+  attachments?: IPaperAttachment[];
   submittedBy: IUser | string;
   status: PaperStatus;
   rejectionReason?: string;
@@ -64,8 +77,8 @@ export interface IPaper {
   updatedAt: string;
 }
 
-export type PropertyType = 'bedsetter' | 'single_room' | 'hostel' | 'apartment' | 'other';
-export type HouseStatus = 'pending' | 'approved' | 'rejected';
+export type PropertyType = 'bedsetter' | 'single_room' | 'one_bedroom' | 'two_bedroom' | 'studio' | 'hostel' | 'apartment' | 'other';
+export type HouseStatus = 'pending' | 'approved' | 'rejected' | 'available';
 export type OccupancyStatus = 'available' | 'occupied';
 
 export interface IHouse {
@@ -75,17 +88,25 @@ export interface IHouse {
   landlordId: IUser | string;
   propertyType: PropertyType;
   location: string;
+  locationName?: string;
   monthlyRent: number;
+  pricePerMonth?: number;
   deposit: number;
+  totalRooms?: number;
+  availableRooms?: number;
+  phoneContact?: string;
+  whatsappContact?: string;
   amenities: string[];
   photos: string[];
   availableFrom?: string;
   status: HouseStatus;
   occupancyStatus: OccupancyStatus;
+  isVerified?: boolean;
   rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }
+
 
 export type BookingStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
 

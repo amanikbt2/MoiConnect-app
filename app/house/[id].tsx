@@ -13,6 +13,7 @@ import {
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
+import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import {
   cacheHouseDetail,
   getCachedHouseDetail,
@@ -166,17 +167,20 @@ export default function HouseDetailScreen({ route }: any) {
 
   const fetchHouse = async () => {
     setLoading(true);
-    const res = await apiRequest<{ data: IHouse }>(`/houses/${id}`);
+    const showDemo = await getShowDemoMaterialsSetting();
+    const res: any = await apiRequest<any>(`/houses/${id}`);
     setLoading(false);
     if (res.success && res.data) {
-      setHouse(res.data);
+      setHouse(res.data as IHouse);
       cacheHouseDetail(res.data);
     } else {
       const cached = await getCachedHouseDetail(id);
       if (cached) {
         setHouse(cached);
-      } else if (id && MOCK_HOUSES_MAP[id]) {
+      } else if (showDemo && id && MOCK_HOUSES_MAP[id]) {
         setHouse(MOCK_HOUSES_MAP[id]);
+      } else {
+        setHouse(null);
       }
     }
   };
@@ -295,8 +299,8 @@ export default function HouseDetailScreen({ route }: any) {
 
       <View style={styles.body}>
         <View style={styles.badgeRow}>
-          <Badge label={house.propertyType.replace('_', ' ')} variant="green" />
-          <Badge label={house.occupancyStatus} variant={house.occupancyStatus === 'available' ? 'blue' : 'gray'} />
+          <Badge label={house.propertyType.replace('_', ' ')} variant="success" />
+          <Badge label={house.occupancyStatus} variant={house.occupancyStatus === 'available' ? 'info' : 'neutral'} />
         </View>
 
         <Text style={styles.title}>{house.title}</Text>

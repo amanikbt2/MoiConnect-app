@@ -113,7 +113,7 @@ export default function FAQScreen() {
             <Text style={styles.deletionBannerTitle}>Need to Delete Your Account?</Text>
           </View>
           <Text style={styles.deletionBannerText}>
-            Go to Profile -> tap the three-dot menu in the top-right corner -> choose "Delete account", or tap here to read step-by-step instructions.
+            Go to Profile -&gt; tap the three-dot menu in the top-right corner -&gt; choose "Delete account", or tap here to read step-by-step instructions.
           </Text>
         </TouchableOpacity>
 

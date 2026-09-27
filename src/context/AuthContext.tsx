@@ -27,6 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const saveUserProfile = async (userData: IUser) => {
     setUser(userData);
+    setUserPoints(userData.points ?? 5);
     await setStoredToken('moi_user_profile', JSON.stringify(userData));
   };
 

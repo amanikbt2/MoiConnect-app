@@ -14,7 +14,8 @@ import {
   Image,
   Dimensions,
   Animated,
-  Platform
+  Platform,
+  AppState
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
@@ -26,6 +27,7 @@ import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper } from '../../src/services/offlineStorage';
+import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 import {
@@ -56,6 +58,11 @@ export interface NoteItem {
   unitCode: string;
   unitName: string;
   school: string;
+  department?: string;
+  courseCode?: string;
+  semester?: string;
+  academicYear?: string;
+  description?: string;
   paperType: string;
   downloads: string;
   rating: string;
@@ -77,9 +84,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Revision Notes',
     downloads: '1,420',
-    rating: '4.9 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
-    tag: '✨ 99% Match',
+    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ 99% Match',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     author: 'Prof. Omondi'
   },
@@ -92,9 +99,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Exam Pack',
     downloads: '2,180',
-    rating: '4.8 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
-    tag: '✨ Top Recommendation',
+    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Top Recommendation',
     thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
     author: 'Dr. Kiprop'
   },
@@ -107,9 +114,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Worked Solutions',
     downloads: '980',
-    rating: '5.0 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
-    tag: '✨ High Rating',
+    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ High Rating',
     thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
     author: 'Math Club Moi'
   },
@@ -122,9 +129,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'PDF Summary',
     downloads: '1,750',
-    rating: '4.7 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
-    tag: '✨ Recommended',
+    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Recommended',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     author: 'Alex K.'
   },
@@ -137,9 +144,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Cheatsheet',
     downloads: '3,110',
-    rating: '4.9 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
-    tag: '✨ Popular Year 4',
+    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Popular Year 4',
     thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80',
     author: 'Dev Society'
   }
@@ -155,7 +162,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Math Dept',
     paperType: 'Past Paper',
     downloads: '890',
-    rating: '4.8',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'CAT 1 + 2',
     thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
@@ -170,7 +177,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Notes PDF',
     downloads: '640',
-    rating: '4.7',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Full Syllabus',
     thumbnail: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80',
@@ -185,7 +192,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Law',
     paperType: 'Case Book',
     downloads: '1,210',
-    rating: '5.0',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'Verified',
     thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
@@ -200,7 +207,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Business School',
     paperType: 'Lecture Slides',
     downloads: '1,890',
-    rating: '4.6',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Year 1 Core',
     thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80',
@@ -215,7 +222,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Education',
     paperType: 'Revision Pack',
     downloads: '730',
-    rating: '4.8',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'Exam Ready',
     thumbnail: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80',
@@ -230,7 +237,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Formula Sheet',
     downloads: '1,450',
-    rating: '4.9',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Solved Problems',
     thumbnail: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=600&q=80',
@@ -245,7 +252,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Diagram Notes',
     downloads: '920',
-    rating: '4.7',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'High Yield',
     thumbnail: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
@@ -260,7 +267,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Nursing',
     paperType: 'Study Guide',
     downloads: '1,680',
-    rating: '5.0',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Medical Core',
     thumbnail: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
@@ -275,7 +282,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Humanities',
     paperType: 'PDF Guide',
     downloads: '2,040',
-    rating: '4.9',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'All Schools',
     thumbnail: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=600&q=80',
@@ -292,9 +299,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Exam + Answer',
     downloads: '4,200',
-    rating: '5.0 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
-    tag: '🔥 #1 Trending',
+    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #1 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
     author: 'Moi Code Hub'
   },
@@ -306,9 +313,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'CAT Answers',
     downloads: '3,850',
-    rating: '4.9 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
-    tag: '🔥 #2 Trending',
+    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #2 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
     author: 'Sammy T.'
   },
@@ -320,9 +327,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Lab Manual',
     downloads: '2,910',
-    rating: '4.8 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
-    tag: '🔥 #3 Trending',
+    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #3 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
     author: 'Hardware Rep'
   },
@@ -334,9 +341,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Proposal Template',
     downloads: '5,100',
-    rating: '5.0 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
-    tag: '🔥 #4 Trending',
+    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #4 Trending',
     author: 'Dr. Wanjala',
     thumbnail: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80'
   },
@@ -348,9 +355,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Formula & Proofs',
     downloads: '2,640',
-    rating: '4.9 ⭐',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
-    tag: '🔥 #5 Trending',
+    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #5 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
     author: 'Math Club'
   }
@@ -365,7 +372,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Python Code + PDF',
     downloads: '2,310',
-    rating: '5.0',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'New Release',
     thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80',
@@ -379,7 +386,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Business School',
     paperType: 'Lecture Summary',
     downloads: '1,120',
-    rating: '4.7',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'Popular',
     thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
@@ -393,7 +400,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'School of Science',
     paperType: 'R Script + Notes',
     downloads: '940',
-    rating: '4.8',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Stats Core',
     thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80',
@@ -407,7 +414,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Humanities',
     paperType: 'Essay Compilation',
     downloads: '680',
-    rating: '4.6',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'Year 1',
     thumbnail: 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=600&q=80',
@@ -421,7 +428,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Lab Practical',
     downloads: '1,950',
-    rating: '4.9',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Industry Ready',
     thumbnail: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80',
@@ -435,7 +442,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Past Paper + Sol',
     downloads: '3,400',
-    rating: '4.8',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'Freshman Essential',
     thumbnail: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=600&q=80',
@@ -449,7 +456,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Diagram Book',
     downloads: '1,560',
-    rating: '4.7',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Circuit Schematics',
     thumbnail: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=600&q=80',
@@ -463,7 +470,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Project Code Notes',
     downloads: '2,890',
-    rating: '5.0',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2025',
     tag: 'Hot Course',
     thumbnail: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80',
@@ -477,7 +484,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Case Study Notes',
     downloads: '1,280',
-    rating: '4.8',
+          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
     examYear: '2024',
     tag: 'Fintech Focus',
     thumbnail: 'https://images.unsplash.com/photo-1556742049-0a670fc80799?auto=format&fit=crop&w=600&q=80',
@@ -566,10 +573,14 @@ export default function AcademicsScreen({ route }: any) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [realUploadedNotes, setRealUploadedNotes] = useState<NoteItem[]>([]);
+  const [showDemoMaterials, setShowDemoMaterials] = useState(false);
 
-  const fetchRealAcademicPapers = async () => {
+  const fetchRealAcademicPapers = async (searchQueryParam?: string) => {
     try {
-      const res = await apiRequest<{ data: IPaper[] }>('/papers');
+      const url = searchQueryParam && searchQueryParam.trim()
+        ? `/papers?search=${encodeURIComponent(searchQueryParam.trim())}&refresh=${Date.now()}`
+        : `/papers?refresh=${Date.now()}`;
+      const res = await apiRequest<{ data: IPaper[] }>(url);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped: NoteItem[] = res.data.map((p) => ({
           id: p._id || (p as any).id,
@@ -578,18 +589,26 @@ export default function AcademicsScreen({ route }: any) {
           unitCode: p.unitCode || p.courseCode || 'MOI',
           unitName: p.unitName || p.title,
           school: p.school || 'Moi University',
-          paperType: p.type === 'notes' ? 'Revision Notes' : (p.type === 'cat' ? 'CAT Paper' : 'Past Paper'),
+          department: p.department,
+          courseCode: p.courseCode,
+          semester: p.semester,
+          academicYear: p.academicYear,
+          description: p.description,
+          paperType: p.type === 'notes' ? 'Revision Notes' : (p.type === 'cat' ? 'CAT Paper' : (p.type === 'past_paper' ? 'Past Paper' : 'Study Guide')),
           downloads: formatCount(p.downloads || 65),
-          rating: '4.9 ⭐',
+          rating: `${p.ratingScore || '4.8'} ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â`,
           examYear: String(p.examYear || 2025),
-          tag: '✨ Real Uploaded',
-          thumbnail: p.fileUrl?.match(/\.(jpg|jpeg|png|webp)/i)
-            ? p.fileUrl
-            : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+          tag: p.mtid ? `MTID: ${p.mtid}` : 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Real Uploaded',
+          thumbnail: p.thumbnail 
+            || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+            || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
+            || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
           author: typeof p.submittedBy === 'object' && p.submittedBy ? (p.submittedBy as any).name || 'Moi Student' : 'Moi Student',
           fileUrl: p.fileUrl
         }));
         setRealUploadedNotes(mapped);
+      } else {
+        setRealUploadedNotes([]);
       }
     } catch (err) {
       console.log('Error fetching real academic papers:', err);
@@ -598,6 +617,14 @@ export default function AcademicsScreen({ route }: any) {
 
   useEffect(() => {
     fetchRealAcademicPapers();
+    getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        fetchRealAcademicPapers();
+        getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   const handleOpenPreview = (item: NoteItem) => {
@@ -621,7 +648,6 @@ export default function AcademicsScreen({ route }: any) {
     try {
       await saveDownloadedPaper({
         _id: `note_${doc.id}`,
-        title: doc.title,
         school: doc.school || 'Moi University',
         department: doc.unitName || doc.unitCode,
         courseCode: doc.unitCode,
@@ -695,7 +721,7 @@ export default function AcademicsScreen({ route }: any) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
 
-  const { user, addPoints } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (route?.params?.upload === 'true' || route?.params?.upload === true) {
@@ -709,20 +735,107 @@ export default function AcademicsScreen({ route }: any) {
     }
   }, [route?.params]);
 
-  const filterNoteItem = (item: NoteItem) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.unitCode.toLowerCase().includes(q) ||
-      item.unitName.toLowerCase().includes(q) ||
-      item.school.toLowerCase().includes(q)
-    );
-  };
+  // Debounced API Search
+  useEffect(() => {
+    if (searchQuery.trim().length > 1) {
+      const timer = setTimeout(() => {
+        fetchRealAcademicPapers(searchQuery.trim());
+      }, 350);
+      return () => clearTimeout(timer);
+    } else if (searchQuery.trim().length === 0) {
+      fetchRealAcademicPapers();
+    }
+  }, [searchQuery]);
 
-  const combinedForYou = [...realUploadedNotes.slice(0, 3), ...FOR_YOU_CAROUSEL].filter(filterNoteItem);
-  const combinedGrid1 = [...realUploadedNotes, ...GRID_SECTION_1].filter(filterNoteItem);
-  const combinedGrid2 = [...realUploadedNotes.slice(3), ...GRID_SECTION_2].filter(filterNoteItem);
+  // Categorize items into Top Matches vs Related Materials (supporting hidden metadata like semester, academicYear, examYear, etc.)
+  const smartSearchResults = React.useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      return { isSearching: false, topMatches: [], relatedMatches: [] };
+    }
+
+    const allPool: NoteItem[] = [
+      ...realUploadedNotes,
+      ...(showDemoMaterials ? FOR_YOU_CAROUSEL : []),
+      ...(showDemoMaterials ? GRID_SECTION_1 : []),
+      ...(showDemoMaterials ? TRENDING_CAROUSEL : []),
+      ...(showDemoMaterials ? GRID_SECTION_2 : [])
+    ];
+
+    const filterByDisc = (item: NoteItem) => {
+      if (activeFilterDisc === 'all') return true;
+      if (activeFilterDisc === 'past_paper') return item.paperType.toLowerCase().includes('past') || item.paperType.toLowerCase().includes('exam');
+      if (activeFilterDisc === 'cat') return item.paperType.toLowerCase().includes('cat');
+      return true;
+    };
+
+    const seenIds = new Set<string>();
+    const topMatches: NoteItem[] = [];
+    const relatedMatches: NoteItem[] = [];
+
+    allPool.forEach((item) => {
+      if (seenIds.has(item.id) || !filterByDisc(item)) return;
+      seenIds.add(item.id);
+
+      const title = (item.title || '').toLowerCase();
+      const unitCode = (item.unitCode || '').toLowerCase();
+      const unitName = (item.unitName || '').toLowerCase();
+      const school = (item.school || '').toLowerCase();
+      const department = (item.department || '').toLowerCase();
+      const courseCode = (item.courseCode || '').toLowerCase();
+      const semester = (item.semester || '').toLowerCase();
+      const academicYear = (item.academicYear || '').toLowerCase();
+      const paperType = (item.paperType || '').toLowerCase();
+      const mtid = (item.mtid || '').toLowerCase();
+      const examYear = String(item.examYear || '').toLowerCase();
+      const description = (item.description || '').toLowerCase();
+      const author = (item.author || '').toLowerCase();
+
+      // Top Match: direct hit on unitCode, title, courseCode, or mtid
+      const isTopMatch =
+        unitCode.includes(q) ||
+        mtid.includes(q) ||
+        title.includes(q) ||
+        courseCode.includes(q);
+
+      // Related Match: hit on hidden metadata like semester, academicYear, examYear, school, department, paperType, description
+      const isRelatedMatch =
+        !isTopMatch &&
+        (semester.includes(q) ||
+          academicYear.includes(q) ||
+          examYear.includes(q) ||
+          school.includes(q) ||
+          department.includes(q) ||
+          paperType.includes(q) ||
+          description.includes(q) ||
+          author.includes(q) ||
+          unitName.includes(q));
+
+      if (isTopMatch) {
+        topMatches.push(item);
+      } else if (isRelatedMatch) {
+        relatedMatches.push(item);
+      }
+    });
+
+    return {
+      isSearching: true,
+      topMatches,
+      relatedMatches
+    };
+  }, [searchQuery, realUploadedNotes, activeFilterDisc, showDemoMaterials]);
+
+  const combinedForYou = realUploadedNotes.length > 0
+    ? realUploadedNotes
+    : (showDemoMaterials ? FOR_YOU_CAROUSEL : []);
+
+  const combinedGrid1 = realUploadedNotes.length > 0
+    ? realUploadedNotes
+    : (showDemoMaterials ? GRID_SECTION_1 : []);
+
+  const combinedGrid2 = realUploadedNotes.length > 3
+    ? realUploadedNotes.slice(3)
+    : (showDemoMaterials ? GRID_SECTION_2 : []);
 
   // Auto Scroll For You Carousel
   useEffect(() => {
@@ -743,7 +856,7 @@ export default function AcademicsScreen({ route }: any) {
 
   // Auto Scroll Trending Carousel
   useEffect(() => {
-    if (!TRENDING_CAROUSEL || TRENDING_CAROUSEL.length <= 1) return;
+    if (!showDemoMaterials || TRENDING_CAROUSEL.length <= 1) return;
     const timer = setInterval(() => {
       if (!isTrendingInteracting.current && trendingListRef.current) {
         const nextIndex = (trendingIndex + 1) % TRENDING_CAROUSEL.length;
@@ -756,12 +869,12 @@ export default function AcademicsScreen({ route }: any) {
       }
     }, 4500);
     return () => clearInterval(timer);
-  }, [trendingIndex, TRENDING_CAROUSEL?.length]);
+  }, [trendingIndex, showDemoMaterials]);
 
   const fetchOfflinePapers = async () => {
     setLoading(true);
     const saved = await getDownloadedPapers();
-    setDownloadedPapers(saved);
+    setDownloadedPapers(saved as any as IPaper[]);
     setLoading(false);
     setRefreshing(false);
   };
@@ -769,11 +882,11 @@ export default function AcademicsScreen({ route }: any) {
   const fetchMySubmissions = async () => {
     if (!user) return;
     setLoading(true);
-    const res = await apiRequest<{ data: IPaper[] }>('/papers/my-submissions');
+    const res: any = await apiRequest<any>('/papers/my-submissions');
     setLoading(false);
     setRefreshing(false);
     if (res.success && res.data) {
-      setMySubmissions(res.data);
+      setMySubmissions(res.data as IPaper[]);
     }
   };
 
@@ -813,10 +926,9 @@ export default function AcademicsScreen({ route }: any) {
     setSubmitting(false);
 
     if (res.success) {
-      addPoints(10, 'Uploaded revision material');
       showIceMessage(
-        'Submission Received! (+10 pts Awarded)',
-        'Your academic paper has been submitted successfully and +10 reward points have been credited to your profile!',
+        'Submission Received',
+        'Your academic paper has been submitted for review. You will receive +10 reward points after administrator approval.',
         [{ text: 'OK', onPress: () => {
           setShowUploadModal(false);
           setActiveTab('submissions');
@@ -875,7 +987,7 @@ export default function AcademicsScreen({ route }: any) {
         </View>
 
         <View style={styles.carouselBody}>
-          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ` : ''}{item.unitCode} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {item.school}</Text>
           <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
 
           <View style={styles.carouselFooter}>
@@ -922,7 +1034,7 @@ export default function AcademicsScreen({ route }: any) {
 
         <View style={styles.gridBody}>
           <Text style={styles.gridMetaLine} numberOfLines={1}>
-            MTID: {mtidText} • {item.unitCode} • {shortSchool}
+            MTID: {mtidText} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {item.unitCode} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {shortSchool}
           </Text>
           <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
 
@@ -978,7 +1090,7 @@ export default function AcademicsScreen({ route }: any) {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
+                  <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1009,136 +1121,217 @@ export default function AcademicsScreen({ route }: any) {
             })}
           </ScrollView>
 
-          {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionIconCircle}>
-              <SparklesIcon color="#15803d" size={18} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>Based on your profile</Text>
-              <Text style={styles.sectionSub}>Recommended for your course & year</Text>
-            </View>
-          </View>
+          {/* SMART CATEGORIZED SEARCH RESULTS OR NORMAL BROWSE SECTIONS */}
+          {smartSearchResults.isSearching ? (
+            <View style={{ marginTop: 16 }}>
+              {/* Search Summary Banner */}
+              <View style={{ backgroundColor: '#f0fdf4', padding: 14, borderRadius: 14, borderColor: '#bbf7d0', borderWidth: 1, marginBottom: 20 }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#166534' }}>
+                  Smart Search results for "{searchQuery}"
+                </Text>
+                <Text style={{ fontSize: 12, color: '#15803d', marginTop: 3 }}>
+                  {smartSearchResults.topMatches.length} Top Match(es) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {smartSearchResults.relatedMatches.length} Related Material(s)
+                </Text>
+              </View>
 
-          <FlatList
-            ref={forYouListRef}
-            data={combinedForYou}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.carouselListContent}
-            snapToInterval={CAROUSEL_CARD_WIDTH + 14}
-            decelerationRate="fast"
-            onScrollBeginDrag={() => { isForYouInteracting.current = true; }}
-            onScrollEndDrag={() => { setTimeout(() => { isForYouInteracting.current = false; }, 3000); }}
-            renderItem={({ item }) => renderCarouselCard(item)}
-            getItemLayout={(_, index) => ({
-              length: CAROUSEL_CARD_WIDTH + 14,
-              offset: (CAROUSEL_CARD_WIDTH + 14) * index,
-              index
-            })}
-            onScrollToIndexFailed={(info) => {
-              forYouListRef.current?.scrollToOffset({
-                offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
-                animated: true
-              });
-            }}
-          />
+              {/* SECTION 1: TOP MATCH / TOP RESULTS */}
+              <View style={styles.sectionHeaderRow}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                  <SparklesIcon color="#15803d" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Top Match Results</Text>
+                  <Text style={styles.sectionSub}>Direct title, unit code & MTID matches</Text>
+                </View>
+              </View>
 
-          {/* Carousel Pagination Dots */}
-          <View style={styles.dotsRow}>
-            {combinedForYou.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === forYouIndex ? styles.activeDot : styles.inactiveDot]}
+              {smartSearchResults.topMatches.length > 0 ? (
+                <View style={styles.gridContainer}>
+                  {smartSearchResults.topMatches.map((item) => renderGridCard(item))}
+                </View>
+              ) : (
+                <View style={{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }}>
+                  <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+                    No direct unit code or title match for "{searchQuery}". See related materials below.
+                  </Text>
+                </View>
+              )}
+
+              {/* SECTION 2: RELATED MATERIALS (SCROLL DOWN) */}
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
+                  <BookIcon color="#2563eb" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Related Materials & Hidden Metadata</Text>
+                  <Text style={styles.sectionSub}>Matched by semester, year level, department or category</Text>
+                </View>
+              </View>
+
+              {smartSearchResults.relatedMatches.length > 0 ? (
+                <View style={styles.gridContainer}>
+                  {smartSearchResults.relatedMatches.map((item) => renderGridCard(item))}
+                </View>
+              ) : (
+                <View style={{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }}>
+                  <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+                    No secondary metadata matches for "{searchQuery}".
+                  </Text>
+                </View>
+              )}
+
+              {/* EMPTY STATE IF BOTH 0 */}
+              {smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 && (
+                <View style={{ padding: 36, alignItems: 'center' }}>
+                  <DocumentIcon color="#94a3b8" size={42} />
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12 }}>
+                    No results found for "{searchQuery}"
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300 }}>
+                    Try searching by unit code (e.g. COM 310), course (e.g. BSC-CS), semester (e.g. Semester 1), or year (e.g. Year 1 or 2024).
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <>
+              {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionIconCircle}>
+                  <SparklesIcon color="#15803d" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Based on your profile</Text>
+                  <Text style={styles.sectionSub}>Recommended for your course & year</Text>
+                </View>
+              </View>
+
+              <FlatList
+                ref={forYouListRef}
+                data={combinedForYou}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carouselListContent}
+                snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+                decelerationRate="fast"
+                onScrollBeginDrag={() => { isForYouInteracting.current = true; }}
+                onScrollEndDrag={() => { setTimeout(() => { isForYouInteracting.current = false; }, 3000); }}
+                renderItem={({ item }) => renderCarouselCard(item)}
+                getItemLayout={(_, index) => ({
+                  length: CAROUSEL_CARD_WIDTH + 14,
+                  offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+                  index
+                })}
+                onScrollToIndexFailed={(info) => {
+                  forYouListRef.current?.scrollToOffset({
+                    offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                    animated: true
+                  });
+                }}
               />
-            ))}
-          </View>
 
-          {/* SECTION 2: GRID SECTION 1 (LAZY LOADED 2 LINES AT A TIME) */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
-              <BookIcon color="#15803d" size={18} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>Essential Course Notes & Papers</Text>
-              <Text style={styles.sectionSub}>Top rated revision materials</Text>
-            </View>
-          </View>
+              {/* Carousel Pagination Dots */}
+              <View style={styles.dotsRow}>
+                {combinedForYou.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, i === forYouIndex ? styles.activeDot : styles.inactiveDot]}
+                  />
+                ))}
+              </View>
 
-          <View style={styles.gridContainer}>
-            {combinedGrid1.slice(0, visibleCountSection1).map((item) => renderGridCard(item))}
-          </View>
+              {/* SECTION 2: GRID SECTION 1 (LAZY LOADED 2 LINES AT A TIME) */}
+              <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                  <BookIcon color="#15803d" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Essential Course Notes & Papers</Text>
+                  <Text style={styles.sectionSub}>Top rated revision materials</Text>
+                </View>
+              </View>
 
-          {/* Facebook-style Bottom Shimmer Loading for Section 1 */}
-          {loadingMoreSection1 && (
-            <ShimmerGridLoader title="Fetching 2 more lines of notes & papers..." />
-          )}
+              <View style={styles.gridContainer}>
+                {combinedGrid1.slice(0, visibleCountSection1).map((item) => renderGridCard(item))}
+              </View>
 
-          {/* SECTION 3: TRENDING NOW CAROUSEL */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#ffedd5' }]}>
-              <FlameIcon color="#ea580c" size={18} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>Trending on Campus</Text>
-              <Text style={styles.sectionSub}>Most downloaded notes this week</Text>
-            </View>
-          </View>
+              {/* Facebook-style Bottom Shimmer Loading for Section 1 */}
+              {loadingMoreSection1 && (
+                <ShimmerGridLoader title="Fetching 2 more lines of notes & papers..." />
+              )}
 
-          <FlatList
-            ref={trendingListRef}
-            data={TRENDING_CAROUSEL}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.carouselListContent}
-            snapToInterval={CAROUSEL_CARD_WIDTH + 14}
-            decelerationRate="fast"
-            onScrollBeginDrag={() => { isTrendingInteracting.current = true; }}
-            onScrollEndDrag={() => { setTimeout(() => { isTrendingInteracting.current = false; }, 3000); }}
-            renderItem={({ item }) => renderCarouselCard(item)}
-            getItemLayout={(_, index) => ({
-              length: CAROUSEL_CARD_WIDTH + 14,
-              offset: (CAROUSEL_CARD_WIDTH + 14) * index,
-              index
-            })}
-            onScrollToIndexFailed={(info) => {
-              trendingListRef.current?.scrollToOffset({
-                offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
-                animated: true
-              });
-            }}
-          />
+              {showDemoMaterials && (
+                <>
+              {/* SECTION 3: TRENDING NOW CAROUSEL */}
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#ffedd5' }]}>
+                  <FlameIcon color="#ea580c" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Trending on Campus</Text>
+                  <Text style={styles.sectionSub}>Most downloaded notes this week</Text>
+                </View>
+              </View>
 
-          {/* Trending Carousel Dots */}
-          <View style={styles.dotsRow}>
-            {TRENDING_CAROUSEL.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === trendingIndex ? styles.activeDot : styles.inactiveDot]}
+              <FlatList
+                ref={trendingListRef}
+                data={TRENDING_CAROUSEL}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carouselListContent}
+                snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+                decelerationRate="fast"
+                onScrollBeginDrag={() => { isTrendingInteracting.current = true; }}
+                onScrollEndDrag={() => { setTimeout(() => { isTrendingInteracting.current = false; }, 3000); }}
+                renderItem={({ item }) => renderCarouselCard(item)}
+                getItemLayout={(_, index) => ({
+                  length: CAROUSEL_CARD_WIDTH + 14,
+                  offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+                  index
+                })}
+                onScrollToIndexFailed={(info) => {
+                  trendingListRef.current?.scrollToOffset({
+                    offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                    animated: true
+                  });
+                }}
               />
-            ))}
-          </View>
 
-          {/* SECTION 4: GRID SECTION 2 (LAZY LOADED 2 LINES AT A TIME) */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#dbeafe' }]}>
-              <FileTextIcon color="#2563eb" size={18} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>Recently Uploaded & Recommended</Text>
-              <Text style={styles.sectionSub}>Fresh notes uploaded by students & lecturers</Text>
-            </View>
-          </View>
+              {/* Trending Carousel Dots */}
+              <View style={styles.dotsRow}>
+                {TRENDING_CAROUSEL.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, i === trendingIndex ? styles.activeDot : styles.inactiveDot]}
+                  />
+                ))}
+              </View>
 
-          <View style={styles.gridContainer}>
-            {combinedGrid2.slice(0, visibleCountSection2).map((item) => renderGridCard(item))}
-          </View>
+                </>
+              )}
 
-          {/* Facebook-style Bottom Shimmer Loading for Section 2 */}
-          {loadingMoreSection2 && (
-            <ShimmerGridLoader title="Fetching 2 more lines of recently uploaded notes..." />
+              {/* SECTION 4: GRID SECTION 2 (LAZY LOADED 2 LINES AT A TIME) */}
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#dbeafe' }]}>
+                  <FileTextIcon color="#2563eb" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Recently Uploaded & Recommended</Text>
+                  <Text style={styles.sectionSub}>Fresh notes uploaded by students & lecturers</Text>
+                </View>
+              </View>
+
+              <View style={styles.gridContainer}>
+                {combinedGrid2.slice(0, visibleCountSection2).map((item) => renderGridCard(item))}
+              </View>
+
+              {/* Facebook-style Bottom Shimmer Loading for Section 2 */}
+              {loadingMoreSection2 && (
+                <ShimmerGridLoader title="Fetching 2 more lines of recently uploaded notes..." />
+              )}
+            </>
           )}
 
           {/* App Footer */}
@@ -1146,15 +1339,15 @@ export default function AcademicsScreen({ route }: any) {
             <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
               <Text style={styles.footerLink}>Privacy Policy</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>·</Text>
+            <Text style={styles.footerDivider}>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</Text>
             <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
               <Text style={styles.footerLink}>Terms of Use</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>·</Text>
+            <Text style={styles.footerDivider}>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</Text>
             <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
               <Text style={styles.footerLink}>Support</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>·</Text>
+            <Text style={styles.footerDivider}>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</Text>
             <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
           </View>
 

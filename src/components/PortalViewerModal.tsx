@@ -20,6 +20,7 @@ export interface PortalConfig {
   url: string;
   domain: string;
   badgeColor?: string;
+  openInCustomTab?: boolean;
 }
 
 interface PortalViewerModalProps {

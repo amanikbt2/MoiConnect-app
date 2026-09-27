@@ -1679,9 +1679,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.2,
-    textShadowColor: 'rgba(0, 0, 0, 0.65)',
-    textShadowOffset: { width: 0, height: 1.5 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.65)',
+        textShadowOffset: { width: 0, height: 1.5 },
+        textShadowRadius: 3
+      }
+    }),
   },
   headerSub: {
     color: '#dcfce7',

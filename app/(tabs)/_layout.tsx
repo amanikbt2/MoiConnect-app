@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, Modal, Pressable, Alert, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Modal, Pressable, Alert, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon, MoreVerticalIcon, TrashIcon } from '../../src/components/Icons';
 import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
@@ -18,9 +18,14 @@ function HomeHeaderTitle() {
           fontSize: 24,
           fontWeight: '900',
           letterSpacing: -0.2,
-          textShadowColor: 'rgba(0, 0, 0, 0.65)',
-          textShadowOffset: { width: 0, height: 1.5 },
-          textShadowRadius: 3,
+          ...Platform.select({
+            web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+            default: {
+              textShadowColor: 'rgba(0, 0, 0, 0.65)',
+              textShadowOffset: { width: 0, height: 1.5 },
+              textShadowRadius: 3,
+            },
+          }),
         }}
       >
         <Text style={{ color: '#ffffff' }}>Moi</Text>
@@ -38,9 +43,14 @@ function DownloadsHeaderTitle() {
           fontSize: 24,
           fontWeight: '900',
           letterSpacing: -0.2,
-          textShadowColor: 'rgba(0, 0, 0, 0.65)',
-          textShadowOffset: { width: 0, height: 1.5 },
-          textShadowRadius: 3,
+          ...Platform.select({
+            web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+            default: {
+              textShadowColor: 'rgba(0, 0, 0, 0.65)',
+              textShadowOffset: { width: 0, height: 1.5 },
+              textShadowRadius: 3,
+            },
+          }),
         }}
       >
         <Text style={{ color: '#ffffff' }}>Down</Text>
@@ -58,9 +68,14 @@ function NotesPdfHeaderTitle() {
           fontSize: 24,
           fontWeight: '900',
           letterSpacing: -0.2,
-          textShadowColor: 'rgba(0, 0, 0, 0.65)',
-          textShadowOffset: { width: 0, height: 1.5 },
-          textShadowRadius: 3,
+          ...Platform.select({
+            web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+            default: {
+              textShadowColor: 'rgba(0, 0, 0, 0.65)',
+              textShadowOffset: { width: 0, height: 1.5 },
+              textShadowRadius: 3,
+            },
+          }),
         }}
       >
         <Text style={{ color: '#ffffff' }}>Notes </Text>
@@ -78,9 +93,14 @@ function RentalsHeaderTitle() {
           fontSize: 24,
           fontWeight: '900',
           letterSpacing: -0.2,
-          textShadowColor: 'rgba(0, 0, 0, 0.65)',
-          textShadowOffset: { width: 0, height: 1.5 },
-          textShadowRadius: 3,
+          ...Platform.select({
+            web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+            default: {
+              textShadowColor: 'rgba(0, 0, 0, 0.65)',
+              textShadowOffset: { width: 0, height: 1.5 },
+              textShadowRadius: 3,
+            },
+          }),
         }}
       >
         <Text style={{ color: '#ffffff' }}>Students </Text>
@@ -98,9 +118,14 @@ function ProfileHeaderTitle() {
           fontSize: 24,
           fontWeight: '900',
           letterSpacing: -0.2,
-          textShadowColor: 'rgba(0, 0, 0, 0.65)',
-          textShadowOffset: { width: 0, height: 1.5 },
-          textShadowRadius: 3,
+          ...Platform.select({
+            web: { textShadow: '0px 1.5px 3px rgba(0, 0, 0, 0.65)' },
+            default: {
+              textShadowColor: 'rgba(0, 0, 0, 0.65)',
+              textShadowOffset: { width: 0, height: 1.5 },
+              textShadowRadius: 3,
+            },
+          }),
         }}
       >
         <Text style={{ color: '#ffffff' }}>Student </Text>

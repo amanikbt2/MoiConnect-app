@@ -11,12 +11,15 @@ import {
   Image,
   Dimensions,
   Linking,
-  Platform
+  Platform,
+  AppState
 } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
+import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
+import * as WebBrowser from 'expo-web-browser';
 
 import {
   SearchIcon,
@@ -136,7 +139,16 @@ export default function HomeScreen() {
   const [activePortal, setActivePortal] = useState<PortalConfig | null>(null);
   const [showPortalModal, setShowPortalModal] = useState(false);
 
-  const handleOpenPortal = (config: PortalConfig) => {
+  const handleOpenPortal = async (config: PortalConfig) => {
+    if (config.openInCustomTab && Platform.OS !== 'web') {
+      await WebBrowser.openBrowserAsync(config.url, {
+        toolbarColor: '#064e3b',
+        controlsColor: '#ffffff',
+        enableBarCollapsing: true
+      });
+      return;
+    }
+
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') {
         window.open(config.url, '_blank', 'noopener,noreferrer');
@@ -155,16 +167,27 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const router = useAppNavigation();
 
+  const [showDemoMaterials, setShowDemoMaterials] = useState(false);
+  const [realSuggestedMaterials, setRealSuggestedMaterials] = useState<SuggestedMaterial[]>([]);
+
   useEffect(() => {
     fetchDashboardData();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchDashboardData();
+    });
+    return () => subscription.remove();
   }, []);
+
+  const displaySuggestedMaterials = realSuggestedMaterials.length > 0
+    ? realSuggestedMaterials
+    : (showDemoMaterials ? SUGGESTED_MATERIALS : []);
 
   // Smart continuous auto-scroll timer for Suggested Materials
   useEffect(() => {
-    if (!user) return;
+    if (!user || displaySuggestedMaterials.length === 0) return;
     const timer = setInterval(() => {
       if (!isInteracting.current && flatListRef.current) {
-        const nextIndex = (activeSuggestedIndex + 1) % SUGGESTED_MATERIALS.length;
+        const nextIndex = (activeSuggestedIndex + 1) % displaySuggestedMaterials.length;
         setActiveSuggestedIndex(nextIndex);
         flatListRef.current.scrollToIndex({
           index: nextIndex,
@@ -174,10 +197,29 @@ export default function HomeScreen() {
     }, 3800);
 
     return () => clearInterval(timer);
-  }, [activeSuggestedIndex, user]);
+  }, [activeSuggestedIndex, user, displaySuggestedMaterials.length]);
 
   const fetchDashboardData = async () => {
     try {
+      getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
+
+      const res = await apiRequest<{ data: any[] }>('/papers?refresh=' + Date.now());
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: SuggestedMaterial[] = res.data.map((p, idx) => ({
+          id: p._id || String(idx),
+          title: p.title,
+          code: p.unitCode || p.courseCode || 'MOI',
+          school: p.school || 'Moi University',
+          paperType: p.type === 'notes' ? 'Notes PDF' : (p.type === 'cat' ? 'CAT Paper' : 'Past Paper'),
+          downloads: String(p.downloads || 45),
+          recommendationTag: p.mtid ? `MTID: ${p.mtid}` : 'âœ¨ Real Uploaded',
+          thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'
+        }));
+        setRealSuggestedMaterials(mapped);
+      } else {
+        setRealSuggestedMaterials([]);
+      }
+
       if (user) {
         const favsRes = await apiRequest<{ favorites: any[] }>('/favorites');
         if (favsRes && favsRes.success && favsRes.data && Array.isArray(favsRes.data.favorites)) {
@@ -185,6 +227,7 @@ export default function HomeScreen() {
         }
       }
     } catch (e) {
+      setRealSuggestedMaterials([]);
       console.warn('Dashboard fetch error', e);
     } finally {
       setRefreshing(false);
@@ -238,7 +281,7 @@ export default function HomeScreen() {
         {/* Card Body */}
         <View style={styles.cardBody}>
           <Text style={styles.cardMeta}>
-            {item.code} • {item.school}
+            {item.code} â€¢ {item.school}
           </Text>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {item.title}
@@ -378,7 +421,8 @@ export default function HomeScreen() {
               onPress={() =>
                 handleOpenPortal({
                   title: 'Moi University Student Portal',
-                  url: 'https://portal.mu.ac.ke',
+                  url: 'https://portal.mu.ac.ke/',
+                  openInCustomTab: true,
                   domain: 'portal.mu.ac.ke'
                 })
               }
@@ -396,8 +440,8 @@ export default function HomeScreen() {
               onPress={() =>
                 handleOpenPortal({
                   title: 'MuSOMi E-Learning Portal',
-                  url: 'https://musomi.mu.ac.ke',
-                  domain: 'musomi.mu.ac.ke'
+                  url: 'https://elearning.mu.ac.ke',
+                  domain: 'elearning.mu.ac.ke'
                 })
               }
             >
@@ -426,46 +470,52 @@ export default function HomeScreen() {
         </View>
 
         {user ? (
-          <>
-            <FlatList
-              ref={flatListRef}
-              data={SUGGESTED_MATERIALS}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={renderSuggestedCard}
-              contentContainerStyle={styles.suggestedListContent}
-              snapToInterval={CARD_WIDTH + CARD_GAP}
-              decelerationRate="fast"
-              onScrollBeginDrag={handleScrollBegin}
-              onScrollEndDrag={handleScrollEnd}
-              onMomentumScrollEnd={handleScrollEnd}
-              getItemLayout={(_, index) => ({
-                length: CARD_WIDTH + CARD_GAP,
-                offset: (CARD_WIDTH + CARD_GAP) * index,
-                index,
-              })}
-              onScrollToIndexFailed={(info) => {
-                flatListRef.current?.scrollToOffset({
-                  offset: info.index * (CARD_WIDTH + CARD_GAP),
-                  animated: true,
-                });
-              }}
-            />
+          displaySuggestedMaterials.length > 0 ? (
+            <>
+              <FlatList
+                ref={flatListRef}
+                data={displaySuggestedMaterials}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                renderItem={renderSuggestedCard}
+                contentContainerStyle={styles.suggestedListContent}
+                snapToInterval={CARD_WIDTH + CARD_GAP}
+                decelerationRate="fast"
+                onScrollBeginDrag={handleScrollBegin}
+                onScrollEndDrag={handleScrollEnd}
+                onMomentumScrollEnd={handleScrollEnd}
+                getItemLayout={(_, index) => ({
+                  length: CARD_WIDTH + CARD_GAP,
+                  offset: (CARD_WIDTH + CARD_GAP) * index,
+                  index,
+                })}
+                onScrollToIndexFailed={(info) => {
+                  flatListRef.current?.scrollToOffset({
+                    offset: info.index * (CARD_WIDTH + CARD_GAP),
+                    animated: true,
+                  });
+                }}
+              />
 
-            {/* Carousel Pagination Dots */}
-            <View style={styles.paginationDots}>
-              {SUGGESTED_MATERIALS.map((item, index) => (
-                <View
-                  key={item.id}
-                  style={[
-                    styles.dot,
-                    index === activeSuggestedIndex ? styles.activeDot : styles.inactiveDot,
-                  ]}
-                />
-              ))}
+              {/* Carousel Pagination Dots */}
+              <View style={styles.paginationDots}>
+                {displaySuggestedMaterials.map((item, index) => (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.dot,
+                      index === activeSuggestedIndex ? styles.activeDot : styles.inactiveDot,
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <View style={{ padding: 20, alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 12, marginHorizontal: 16 }}>
+              <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '600' }}>No academic materials available yet.</Text>
             </View>
-          </>
+          )
         ) : (
           <View style={styles.loginPromptCard}>
             <View style={styles.loginPromptIconContainer}>
@@ -493,15 +543,15 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Privacy Policy</Text>
         </TouchableOpacity>
-        <Text style={styles.footerDivider}>·</Text>
+        <Text style={styles.footerDivider}>Â·</Text>
         <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Terms of Use</Text>
         </TouchableOpacity>
-        <Text style={styles.footerDivider}>·</Text>
+        <Text style={styles.footerDivider}>Â·</Text>
         <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Support</Text>
         </TouchableOpacity>
-        <Text style={styles.footerDivider}>·</Text>
+        <Text style={styles.footerDivider}>Â·</Text>
         <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
       </View>
 
@@ -589,10 +639,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    ...((Platform.OS === 'web' ? { boxShadow: '0px 4px 10px rgba(15, 23, 42, 0.08)' } : {}) as any),
     elevation: 2
   },
   iconWrapper: {
@@ -622,10 +669,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    ...((Platform.OS === 'web' ? { boxShadow: '0px 4px 10px rgba(15, 23, 42, 0.08)' } : {}) as any),
     elevation: 2,
     gap: 14
   },
@@ -678,10 +722,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    ...((Platform.OS === 'web' ? { boxShadow: '0px 4px 10px rgba(15, 23, 42, 0.08)' } : {}) as any),
     elevation: 3
   },
   thumbnailContainer: {
@@ -725,10 +766,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4
+    ...((Platform.OS === 'web' ? { boxShadow: '0px 4px 10px rgba(15, 23, 42, 0.08)' } : {}) as any),
   },
   matchText: {
     color: '#15803d',
@@ -807,10 +845,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    ...((Platform.OS === 'web' ? { boxShadow: '0px 4px 10px rgba(15, 23, 42, 0.08)' } : {}) as any),
     elevation: 2
   },
   loginPromptIconContainer: {
@@ -845,10 +880,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 10,
-    shadowColor: '#15803d',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    ...((Platform.OS === 'web' ? { boxShadow: '0px 4px 10px rgba(15, 23, 42, 0.08)' } : {}) as any),
     elevation: 2
   },
   loginPromptBtnText: {

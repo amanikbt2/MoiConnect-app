@@ -214,9 +214,9 @@ export default function ProfileScreen() {
           <Text style={styles.userName}>{studentDetails.fullName || user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
           <View style={styles.userBadgeRow}>
-            <Badge label="Moi Student" variant="green" />
+            <Badge label="Moi Student" variant="success" />
             {user.roles?.includes('landlord') && (
-              <Badge label="Landlord" variant="gold" />
+              <Badge label="Landlord" variant="warning" />
             )}
           </View>
         </View>

@@ -13,12 +13,14 @@ import {
   Dimensions,
   Animated,
   ScrollView,
-  Platform
+  Platform,
+  AppState
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
+import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -69,7 +71,7 @@ const RECOMMENDED_PAST_PAPERS: PastPaperItem[] = [
     semester: 'Semester 1',
     downloadsCount: 3420,
     starsCount: 2890,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_exam2024.pdf',
     hasSolutions: true,
@@ -140,7 +142,7 @@ const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [
     semester: 'Semester 1',
     downloadsCount: 2940,
     starsCount: 2410,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_exam2024.pdf',
     hasSolutions: true,
@@ -208,7 +210,7 @@ const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [
     semester: 'Semester 1',
     downloadsCount: 1890,
     starsCount: 1410,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/law210_exam2023.pdf',
     hasSolutions: true,
@@ -259,7 +261,7 @@ const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [
     semester: 'Semester 2',
     downloadsCount: 2150,
     starsCount: 1840,
-    ratingScore: '4.9',
+    ratingScore: '4.8',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     fileUrl: 'https://res.cloudinary.com/mconnect/docs/com220_exam2024.pdf',
     hasSolutions: true,
@@ -325,7 +327,7 @@ export default function PastPapersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [papersData, setPapersData] = useState<PastPaperItem[]>(INITIAL_PAST_PAPERS_DATA);
+  const [papersData, setPapersData] = useState<PastPaperItem[]>([]);
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
   // Facebook-Style Lazy Loading State (load 4 cards = 2 rows at a time)
@@ -343,10 +345,15 @@ export default function PastPapersScreen() {
 
   const router = useAppNavigation();
 
+  const [showDemoMaterials, setShowDemoMaterials] = useState(false);
+
   // Fetch real uploaded past papers from Cloudinary / backend API
   const fetchRealPastPapers = async () => {
     try {
-      const res = await apiRequest<{ data: IPaper[] }>('/papers');
+      const demoSetting = await getShowDemoMaterialsSetting();
+      setShowDemoMaterials(demoSetting);
+
+      const res = await apiRequest<{ data: IPaper[] }>(`/papers?refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
           .filter(
@@ -365,22 +372,25 @@ export default function PastPapersScreen() {
             school: p.school || 'Moi University',
             examYear: String(p.examYear || 2025),
             semester: p.semester || 'Semester 1',
-            downloadsCount: p.downloads || 45,
+            downloadsCount: p.downloads || 4500,
             starsCount: 28,
-            ratingScore: '4.9',
-            thumbnail: p.fileUrl?.match(/\.(jpg|jpeg|png|webp)/i)
-              ? p.fileUrl
-              : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+            ratingScore: p.ratingScore || '4.8',
+            thumbnail: p.thumbnail 
+              || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+              || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
+              || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
             fileUrl: p.fileUrl,
             hasSolutions: p.type === 'solution' || p.title.toLowerCase().includes('solution'),
             tag: '✨ Real Uploaded'
           }));
 
-        setPapersData((prev) => {
-          const combined = [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA];
-          const unique = combined.filter((v, i, a) => a.findIndex((t) => t.id === v.id || t.title === v.title) === i);
-          return unique;
-        });
+        setPapersData(
+          realPastPapers.length > 0
+            ? (demoSetting ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
+            : (demoSetting ? INITIAL_PAST_PAPERS_DATA : [])
+        );
+      } else {
+        setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []);
       }
     } catch (err) {
       console.log('Error fetching real past papers:', err);
@@ -389,6 +399,10 @@ export default function PastPapersScreen() {
 
   useEffect(() => {
     fetchRealPastPapers();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchRealPastPapers();
+    });
+    return () => subscription.remove();
   }, []);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
@@ -594,23 +608,25 @@ export default function PastPapersScreen() {
         </ScrollView>
 
         {/* AUTO-SCROLLING SUGGESTIONS CAROUSEL */}
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionIconCircle}>
-            <SparklesIcon color="#15803d" size={18} />
-          </View>
-          <View>
-            <Text style={styles.sectionTitle}>Recommended Past Exams</Text>
-            <Text style={styles.sectionSub}>Auto-suggested for your upcoming examinations</Text>
-          </View>
-        </View>
+        {((papersData.length > 0 ? papersData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])).length > 0) && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionIconCircle}>
+                <SparklesIcon color="#15803d" size={18} />
+              </View>
+              <View>
+                <Text style={styles.sectionTitle}>Recommended Past Exams</Text>
+                <Text style={styles.sectionSub}>Auto-suggested for your upcoming examinations</Text>
+              </View>
+            </View>
 
-        <FlatList
-          ref={carouselListRef}
-          data={RECOMMENDED_PAST_PAPERS}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.carouselListContent}
+            <FlatList
+              ref={carouselListRef}
+              data={papersData.length > 0 ? papersData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselListContent}
           snapToInterval={CAROUSEL_CARD_WIDTH + 14}
           decelerationRate="fast"
           onScrollBeginDrag={() => { isCarouselInteracting.current = true; }}
@@ -666,13 +682,15 @@ export default function PastPapersScreen() {
 
         {/* Carousel Pagination Indicator Dots */}
         <View style={styles.dotsRow}>
-          {RECOMMENDED_PAST_PAPERS.map((_, i) => (
+          {(papersData.length > 0 ? papersData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])).map((_, i) => (
             <View
               key={i}
               style={[styles.dot, i === carouselIndex ? styles.activeDot : styles.inactiveDot]}
             />
           ))}
         </View>
+      </>
+    )}
 
         {/* MAIN FEED: FACEBOOK STYLE LAZY LOADED CONTINUOUS SCROLL */}
         <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
