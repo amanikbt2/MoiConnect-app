@@ -62,7 +62,6 @@ export default function ContributeScreen() {
   const { user } = useAuth();
 
   const [title, setTitle] = useState('');
-  const [courseCode, setCourseCode] = useState('');
   const [unitCode, setUnitCode] = useState('');
   const [department, setDepartment] = useState('');
   const [academicLevel, setAcademicLevel] = useState('');
@@ -120,8 +119,8 @@ export default function ContributeScreen() {
       return;
     }
 
-    if (!title.trim() || courseCode.trim().length < 2) {
-      setFormError('Enter a title and a course code with at least 2 characters.');
+    if (!title.trim() || unitCode.trim().length < 2) {
+      setFormError('Enter a title and a unit code with at least 2 characters.');
       return;
     }
 
@@ -221,7 +220,7 @@ export default function ContributeScreen() {
         title: title.trim(),
         school: selectedSchool,
         department: department.trim() || school.trim(),
-        courseCode: courseCode.trim().toUpperCase(),
+        courseCode: unitCode.trim().toUpperCase(),
         unitCode: unitCode.trim().toUpperCase(),
         unitName: title.trim(),
         type,
@@ -437,10 +436,6 @@ export default function ContributeScreen() {
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Course Code <Text style={styles.required}>*</Text></Text>
-              <TextInput style={styles.textInput} placeholder="e.g. COM 310" placeholderTextColor="#94a3b8" value={courseCode} onChangeText={setCourseCode} autoCapitalize="characters" />
-            </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.inputLabel}>Unit Code <Text style={styles.required}>*</Text></Text>
               <TextInput style={styles.textInput} placeholder="e.g. COM 310" placeholderTextColor="#94a3b8" value={unitCode} onChangeText={setUnitCode} autoCapitalize="characters" />

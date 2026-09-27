@@ -153,7 +153,6 @@ export default function LandlordPortalScreen() {
 
   // Paper Modal Edit Fields
   const [editTitle, setEditTitle] = useState('');
-  const [editCourseCode, setEditCourseCode] = useState('');
   const [editUnitCode, setEditUnitCode] = useState('');
   const [editDepartment, setEditDepartment] = useState('');
   const [editAcademicYear, setEditAcademicYear] = useState('');
@@ -230,7 +229,6 @@ export default function LandlordPortalScreen() {
   const handleOpenPaperModal = (paper: any) => {
     setSelectedPaper(paper);
     setEditTitle(paper.title || '');
-    setEditCourseCode(paper.courseCode || paper.unitCode || '');
     setEditUnitCode(paper.unitCode || paper.courseCode || '');
     setEditDepartment(paper.department || '');
     setEditAcademicYear(paper.academicYear || '');
@@ -298,7 +296,7 @@ export default function LandlordPortalScreen() {
         method: 'PATCH',
         body: JSON.stringify({
           title: editTitle.trim(),
-          courseCode: editCourseCode.trim().toUpperCase(),
+          courseCode: editUnitCode.trim().toUpperCase(),
           unitCode: editUnitCode.trim().toUpperCase(),
           school: editSchool.trim(),
           department: editDepartment.trim() || editSchool.trim(),
@@ -314,7 +312,7 @@ export default function LandlordPortalScreen() {
         setSelectedPaper((prev: any) => ({
           ...prev,
           title: editTitle.trim(),
-          courseCode: editCourseCode.trim().toUpperCase(),
+          courseCode: editUnitCode.trim().toUpperCase(),
           school: editSchool.trim(),
           examYear: parseInt(editYear) || 2025,
           academicYear: editAcademicYear.trim(),
@@ -1567,10 +1565,6 @@ export default function LandlordPortalScreen() {
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Course Code <Text style={styles.required}>*</Text></Text>
-                <TextInput style={styles.textInput} value={editCourseCode} onChangeText={setEditCourseCode} placeholder="e.g. COM 310" autoCapitalize="characters" />
-              </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.inputLabel}>Unit Code <Text style={styles.required}>*</Text></Text>
                 <TextInput style={styles.textInput} value={editUnitCode} onChangeText={setEditUnitCode} placeholder="e.g. COM 310" autoCapitalize="characters" />
