@@ -19,9 +19,8 @@
       "buildNumber": "16"
     },
     "android": {
-
       "package": "com.amanikbt1.moiconnect",
-      "versionCode": 16
+      "versionCode": 17
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
@@ -55,8 +54,9 @@
     "scheme": "moiconnect",
     "extra": {
       "eas": {
-        "projectId": "6bc75097-4c94-43f5-950e-5b576b4fb62a"
+        "projectId": "fa4d81da-2f9b-43f9-81fb-8eb7c7f4ba2b"
       }
-    }
+    },
+    "owner": "sliver3"
   }
 }
