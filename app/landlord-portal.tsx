@@ -154,6 +154,11 @@ export default function LandlordPortalScreen() {
   // Paper Modal Edit Fields
   const [editTitle, setEditTitle] = useState('');
   const [editCourseCode, setEditCourseCode] = useState('');
+  const [editUnitCode, setEditUnitCode] = useState('');
+  const [editDepartment, setEditDepartment] = useState('');
+  const [editAcademicYear, setEditAcademicYear] = useState('');
+  const [editSemester, setEditSemester] = useState('');
+  const [editDescription, setEditDescription] = useState('');
   const [editSchool, setEditSchool] = useState('');
   const [editYear, setEditYear] = useState('2025');
   const [editType, setEditType] = useState('past_paper');
@@ -226,6 +231,11 @@ export default function LandlordPortalScreen() {
     setSelectedPaper(paper);
     setEditTitle(paper.title || '');
     setEditCourseCode(paper.courseCode || paper.unitCode || '');
+    setEditUnitCode(paper.unitCode || paper.courseCode || '');
+    setEditDepartment(paper.department || '');
+    setEditAcademicYear(paper.academicYear || '');
+    setEditSemester(paper.semester || '');
+    setEditDescription(paper.description || '');
     setEditSchool(paper.school || '');
     setEditYear(String(paper.examYear || 2025));
     setEditType(paper.type || 'past_paper');
@@ -289,10 +299,13 @@ export default function LandlordPortalScreen() {
         body: JSON.stringify({
           title: editTitle.trim(),
           courseCode: editCourseCode.trim().toUpperCase(),
-          unitCode: editCourseCode.trim().toUpperCase(),
+          unitCode: editUnitCode.trim().toUpperCase(),
           school: editSchool.trim(),
-          department: editSchool.trim(),
+          department: editDepartment.trim() || editSchool.trim(),
           examYear: parseInt(editYear) || 2025,
+          academicYear: editAcademicYear.trim(),
+          semester: editSemester.trim(),
+          description: editDescription.trim(),
           type: editType
         })
       });
@@ -304,6 +317,9 @@ export default function LandlordPortalScreen() {
           courseCode: editCourseCode.trim().toUpperCase(),
           school: editSchool.trim(),
           examYear: parseInt(editYear) || 2025,
+          academicYear: editAcademicYear.trim(),
+          semester: editSemester.trim(),
+          description: editDescription.trim(),
           type: editType
         }));
         fetchPendingPapers();
@@ -600,7 +616,7 @@ export default function LandlordPortalScreen() {
       });
 
       if (res.success && res.data) {
-        setListings((prev) => [res.data!, ...prev]);
+        setListings((prev) => [res.data as unknown as IHouse, ...prev]);
         setShowAddModal(false);
         setNewTitle('');
         setNewDesc('');
@@ -1540,56 +1556,64 @@ export default function LandlordPortalScreen() {
               </TouchableOpacity>
             </View>
             {/* Metadata Editing Fields */}
+            <View style={styles.metadataSectionHeader}>
+              <Text style={styles.metadataSectionTitle}>✎ Edit Metadata</Text>
+              <Text style={styles.metadataSectionHint}>Keep the academic details clear and searchable.</Text>
+            </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Unit Title <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={styles.textInput}
-                value={editTitle}
-                onChangeText={setEditTitle}
-                placeholder="e.g. Distributed Operating Systems"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Course / Unit Code <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={styles.textInput}
-                value={editCourseCode}
-                onChangeText={setEditCourseCode}
-                placeholder="e.g. COM 310"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>School / Faculty</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editSchool}
-                onChangeText={setEditSchool}
-                placeholder="e.g. School of Information Sciences"
-              />
+              <TextInput style={styles.textInput} value={editTitle} onChangeText={setEditTitle} placeholder="e.g. Distributed Operating Systems" />
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Exam Year</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={editYear}
-                  onChangeText={setEditYear}
-                  keyboardType="numeric"
-                />
+                <Text style={styles.inputLabel}>Course Code <Text style={styles.required}>*</Text></Text>
+                <TextInput style={styles.textInput} value={editCourseCode} onChangeText={setEditCourseCode} placeholder="e.g. COM 310" autoCapitalize="characters" />
               </View>
-
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Type</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={editType}
-                  onChangeText={setEditType}
-                  placeholder="past_paper, cat, notes"
-                />
+                <Text style={styles.inputLabel}>Unit Code <Text style={styles.required}>*</Text></Text>
+                <TextInput style={styles.textInput} value={editUnitCode} onChangeText={setEditUnitCode} placeholder="e.g. COM 310" autoCapitalize="characters" />
               </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Department</Text>
+                <TextInput style={styles.textInput} value={editDepartment} onChangeText={setEditDepartment} placeholder="e.g. Computer Science" />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Academic Level / Year</Text>
+                <TextInput style={styles.textInput} value={editAcademicYear} onChangeText={setEditAcademicYear} placeholder="e.g. Year 3" />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>School / Faculty</Text>
+              <TextInput style={styles.textInput} value={editSchool} onChangeText={setEditSchool} placeholder="e.g. School of Information Sciences" />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Semester</Text>
+                <TextInput style={styles.textInput} value={editSemester} onChangeText={setEditSemester} placeholder="e.g. Semester 1" />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Exam / Resource Year</Text>
+                <TextInput style={styles.textInput} value={editYear} onChangeText={setEditYear} keyboardType="numeric" placeholder="2025" />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Material Type</Text>
+                <TextInput style={styles.textInput} value={editType} onChangeText={setEditType} placeholder="past_paper, cat, notes" />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description / Overview <Text style={styles.optionalLabel}>(Optional)</Text></Text>
+              <TextInput style={[styles.textInput, styles.metadataTextArea]} value={editDescription} onChangeText={setEditDescription} placeholder="Topic outline or useful instructions for students..." multiline numberOfLines={3} textAlignVertical="top" />
             </View>
 
             {/* Save Edits Button */}
@@ -1727,6 +1751,11 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 16
   },
+  metadataSectionHeader: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: '#e2e8f0' },
+  metadataSectionTitle: { color: '#0f172a', fontSize: 15, fontWeight: '800' },
+  metadataSectionHint: { color: '#64748b', fontSize: 11, marginTop: 3 },
+  optionalLabel: { color: '#94a3b8', fontWeight: '500' },
+  metadataTextArea: { minHeight: 82, paddingTop: 12 },
   inputGroup: {
     marginBottom: 14
   },

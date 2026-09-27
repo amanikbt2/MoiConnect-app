@@ -48,12 +48,26 @@ const MATERIAL_TYPES = [
   { label: 'Exam Solutions', value: 'solution', IconComponent: LightbulbIcon }
 ];
 
+export interface PickedFileItem {
+  id: string;
+  name: string;
+  size?: number;
+  uri: string;
+  mimeType?: string;
+  file?: any;
+}
+
 export default function ContributeScreen() {
   const router = useAppNavigation();
   const { user } = useAuth();
 
   const [title, setTitle] = useState('');
   const [courseCode, setCourseCode] = useState('');
+  const [unitCode, setUnitCode] = useState('');
+  const [department, setDepartment] = useState('');
+  const [academicLevel, setAcademicLevel] = useState('');
+  const [semester, setSemester] = useState('');
+  const [description, setDescription] = useState('');
   const [schoolInput, setSchoolInput] = useState(SCHOOL_OPTIONS[0]);
   const [school, setSchool] = useState(SCHOOL_OPTIONS[0]);
   const [type, setType] = useState('past_paper');
@@ -63,34 +77,32 @@ export default function ContributeScreen() {
     sch.toLowerCase().includes(schoolInput.toLowerCase().trim())
   );
 
-  // Selected file state from Phone Storage
-  const [pickedFile, setPickedFile] = useState<{
-    name: string;
-    size?: number;
-    uri: string;
-    mimeType?: string;
-  } | null>(null);
+  // Selected files state from Phone Storage (Supports multiple files & combinations of images/PDFs/DOCs)
+  const [pickedFiles, setPickedFiles] = useState<PickedFileItem[]>([]);
 
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState('');
   const [showSchoolPicker, setShowSchoolPicker] = useState(false);
 
-  // File Picker handler
+  // File Picker handler (Supports multiple selection and sequential addition)
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/*'],
         copyToCacheDirectory: true,
+        multiple: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        setPickedFile({
+        const newItems: PickedFileItem[] = result.assets.map((file, idx) => ({
+          id: `${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
           name: file.name,
           size: file.size,
           uri: file.uri,
           mimeType: file.mimeType || 'application/pdf',
-        });
+          file: (file as any).file,
+        }));
+        setPickedFiles((prev) => [...prev, ...newItems]);
       }
     } catch (err) {
       console.warn('Document picker error:', err);
@@ -98,9 +110,13 @@ export default function ContributeScreen() {
     }
   };
 
+  const handleRemoveFile = (id: string) => {
+    setPickedFiles((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const handleUploadSubmit = async () => {
-    if (!pickedFile) {
-      showIceMessage('Missing File', 'Please select a document from your phone storage to upload.');
+    if (pickedFiles.length === 0) {
+      showIceMessage('Missing File(s)', 'Please select at least one document or image from your phone storage to upload.');
       return;
     }
 
@@ -115,78 +131,110 @@ export default function ContributeScreen() {
     try {
       const selectedSchool = schoolInput.trim() || school || SCHOOL_OPTIONS[0];
 
-      // 1. Send file to backend server temporary storage (uploads/temp/)
-      const formData = new FormData();
-      if (Platform.OS === 'web') {
-        const rawFile = (pickedFile as any).file || (pickedFile as any).output?.[0];
-        if (rawFile && (rawFile instanceof File || rawFile instanceof Blob)) {
-          formData.append('file', rawFile, pickedFile.name);
-        } else {
-          try {
-            const res = await fetch(pickedFile.uri);
-            const fileBlob = await res.blob();
-            formData.append('file', fileBlob, pickedFile.name || 'document.pdf');
-          } catch (blobErr) {
-            console.warn('Web blob conversion fallback:', blobErr);
-            formData.append('file', {
-              uri: pickedFile.uri,
-              name: pickedFile.name,
-              type: pickedFile.mimeType || 'application/pdf',
-            } as any);
+      // 1. Send all selected files to backend server temporary storage (uploads/temp/)
+      const uploadedAttachments: Array<{
+        fileUrl: string;
+        tempFilename?: string;
+        fileType: 'pdf' | 'doc' | 'image' | 'text';
+        fileSize: number;
+        originalName: string;
+      }> = [];
+
+      for (const item of pickedFiles) {
+        const formData = new FormData();
+        if (Platform.OS === 'web') {
+          const rawFile = item.file || (item as any).output?.[0];
+          if (rawFile && (rawFile instanceof File || rawFile instanceof Blob)) {
+            formData.append('file', rawFile, item.name);
+          } else {
+            try {
+              const res = await fetch(item.uri);
+              const fileBlob = await res.blob();
+              formData.append('file', fileBlob, item.name || 'document.pdf');
+            } catch (blobErr) {
+              console.warn('Web blob conversion fallback:', blobErr);
+              formData.append('file', {
+                uri: item.uri,
+                name: item.name,
+                type: item.mimeType || 'application/pdf',
+              } as any);
+            }
           }
+        } else {
+          formData.append('file', {
+            uri: item.uri,
+            name: item.name,
+            type: item.mimeType || 'application/pdf',
+          } as any);
         }
-      } else {
-        formData.append('file', {
-          uri: pickedFile.uri,
-          name: pickedFile.name,
-          type: pickedFile.mimeType || 'application/pdf',
-        } as any);
-      }
 
-      let uploadedTempFilename: string | undefined = undefined;
-      let uploadedFileUrl = pickedFile.uri;
-      let uploadedFileSize = pickedFile.size || 1258291;
-      let uploadedFileType: 'pdf' | 'doc' | 'image' = pickedFile.name.toLowerCase().endsWith('.pdf')
-        ? 'pdf'
-        : (pickedFile.name.toLowerCase().endsWith('.docx') || pickedFile.name.toLowerCase().endsWith('.doc') ? 'doc' : 'image');
+        let uploadedTempFilename: string | undefined = undefined;
+        let uploadedFileUrl = item.uri;
+        let uploadedFileSize = item.size || 1258291;
+        const ext = item.name.toLowerCase().split('.').pop() || '';
+        let uploadedFileType: 'pdf' | 'doc' | 'image' | 'text' = ext === 'pdf'
+          ? 'pdf'
+          : (['docx', 'doc'].includes(ext) ? 'doc' : (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? 'image' : 'pdf'));
 
-      try {
-        const uploadRes = await apiRequest<{
-          tempFilename: string;
-          originalName: string;
-          fileUrl: string;
-          relativeUrl: string;
-          fileSize: number;
-          fileType: 'pdf' | 'doc' | 'image';
-        }>('/papers/upload', {
-          method: 'POST',
-          body: formData,
+        try {
+          const uploadRes = await apiRequest<{
+            tempFilename: string;
+            originalName: string;
+            fileUrl: string;
+            relativeUrl: string;
+            fileSize: number;
+            fileType: 'pdf' | 'doc' | 'image' | 'text';
+          }>('/papers/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (uploadRes?.success && uploadRes.data) {
+            uploadedTempFilename = uploadRes.data.tempFilename;
+            uploadedFileUrl = uploadRes.data.fileUrl;
+            uploadedFileSize = uploadRes.data.fileSize || uploadedFileSize;
+            uploadedFileType = uploadRes.data.fileType || uploadedFileType;
+          }
+        } catch (uploadErr) {
+          console.warn('Direct server upload note for file ' + item.name + ':', uploadErr);
+        }
+
+        uploadedAttachments.push({
+          fileUrl: uploadedFileUrl,
+          tempFilename: uploadedTempFilename,
+          fileType: uploadedFileType,
+          fileSize: uploadedFileSize,
+          originalName: item.name,
         });
-
-        if (uploadRes?.success && uploadRes.data) {
-          uploadedTempFilename = uploadRes.data.tempFilename;
-          uploadedFileUrl = uploadRes.data.fileUrl;
-          uploadedFileSize = uploadRes.data.fileSize || uploadedFileSize;
-          uploadedFileType = uploadRes.data.fileType || uploadedFileType;
-        }
-      } catch (uploadErr) {
-        console.warn('Direct server upload note:', uploadErr);
       }
 
-      // 2. Submit paper record referencing server temp storage
+      const primary = uploadedAttachments[0];
+      const imageAttachment = uploadedAttachments.find(
+        att => att.fileType === 'image' || att.originalName?.match(/\.(jpg|jpeg|png|webp|gif)/i)
+      );
+      const calculatedThumbnail = imageAttachment
+        ? imageAttachment.fileUrl
+        : (primary.fileType === 'image' ? primary.fileUrl : undefined);
+
+      // 2. Submit paper record referencing all uploaded attachments
       const payload = {
         title: title.trim(),
         school: selectedSchool,
-        department: selectedSchool,
+        department: department.trim() || school.trim(),
         courseCode: courseCode.trim().toUpperCase(),
-        unitCode: courseCode.trim().toUpperCase(),
+        unitCode: unitCode.trim().toUpperCase(),
         unitName: title.trim(),
         type,
         examYear: parseInt(examYear) || 2025,
-        fileUrl: uploadedFileUrl,
-        tempFilename: uploadedTempFilename,
-        fileType: uploadedFileType,
-        fileSize: uploadedFileSize
+        academicYear: academicLevel.trim() || undefined,
+        semester: semester.trim() || undefined,
+        description: description.trim() || undefined,
+        fileUrl: primary.fileUrl,
+        thumbnail: calculatedThumbnail,
+        tempFilename: primary.tempFilename,
+        fileType: primary.fileType,
+        fileSize: primary.fileSize,
+        attachments: uploadedAttachments,
       };
 
       let serverPaperId = `paper_${Date.now()}`;
@@ -209,11 +257,16 @@ export default function ContributeScreen() {
         department: payload.department,
         courseCode: payload.courseCode,
         unitCode: payload.unitCode,
+        academicYear: payload.academicYear,
+        semester: payload.semester,
+        description: payload.description,
         unitName: payload.unitName,
         type: payload.type as any,
         examYear: payload.examYear,
         fileUrl: payload.fileUrl,
+        thumbnail: payload.thumbnail,
         fileType: payload.fileType as any,
+        attachments: payload.attachments as any,
         uploadedBy: { _id: user?._id || 'guest', name: user?.name || 'Guest Student' } as any,
         status: 'pending',
         createdAt: new Date().toISOString(),
@@ -222,9 +275,10 @@ export default function ContributeScreen() {
 
       setUploading(false);
 
+      const filesCountText = pickedFiles.length > 1 ? `${pickedFiles.length} files (combination)` : '1 file';
       const successMsg = user
-        ? `"${payload.title}" (${payload.courseCode}) has been submitted successfully for administrator review!`
-        : `"${payload.title}" (${payload.courseCode}) has been submitted for review!\n\nNote: You submitted as a guest. Sign in anytime to receive points and approval notifications.`;
+        ? `"${payload.title}" (${payload.courseCode}) with ${filesCountText} has been submitted successfully for administrator review!`
+        : `"${payload.title}" (${payload.courseCode}) with ${filesCountText} has been submitted for review!\n\nNote: You submitted as a guest. Sign in anytime to receive points and approval notifications.`;
 
       const navigateAway = () => {
         if (router.canGoBack()) {
@@ -289,27 +343,50 @@ export default function ContributeScreen() {
 
         {/* 1. Phone Storage File Selection Area */}
         <View style={styles.formSection}>
-          <Text style={styles.fieldLabel}>1. Select Document File <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.fieldLabel}>
+            1. Select Document File(s) / Materials <Text style={styles.required}>*</Text>
+          </Text>
 
-          {pickedFile ? (
-            <View style={styles.selectedFileCard}>
-              <View style={styles.fileIconCircle}>
-                <FileTextIcon color="#15803d" size={24} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.selectedFileName} numberOfLines={1}>
-                  {pickedFile.name}
-                </Text>
-                <Text style={styles.selectedFileMeta}>
-                  {formatFileSize(pickedFile.size)} • {pickedFile.name.split('.').pop()?.toUpperCase()}
-                </Text>
-              </View>
+          {pickedFiles.length > 0 ? (
+            <View style={{ gap: 10 }}>
+              {pickedFiles.map((fileItem, idx) => {
+                const ext = fileItem.name.split('.').pop()?.toUpperCase() || 'FILE';
+                const isImg = ['JPG', 'JPEG', 'PNG', 'WEBP', 'GIF'].includes(ext);
+                return (
+                  <View key={fileItem.id} style={styles.selectedFileCard}>
+                    <View style={[styles.fileIconCircle, isImg && { backgroundColor: '#fdf2f8' }]}>
+                      <FileTextIcon color={isImg ? '#db2777' : '#15803d'} size={24} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.fileIndexBadge}>Doc #{idx + 1}</Text>
+                        <Text style={styles.selectedFileName} numberOfLines={1}>
+                          {fileItem.name}
+                        </Text>
+                      </View>
+                      <Text style={styles.selectedFileMeta}>
+                        {formatFileSize(fileItem.size)} • {ext}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removeFileBtn}
+                      onPress={() => handleRemoveFile(fileItem.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.removeFileBtnText}>✕ Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+
+              {/* Add Material / Add Another File Button */}
               <TouchableOpacity
-                style={styles.changeFileBtn}
+                style={styles.addMoreFilesBtn}
                 onPress={handlePickDocument}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
-                <Text style={styles.changeFileBtnText}>Change</Text>
+                <UploadIcon color="#15803d" size={18} style={{ marginRight: 6 }} />
+                <Text style={styles.addMoreFilesBtnText}>+ Add Another File / Material (Images/PDF/DOC)</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -322,7 +399,7 @@ export default function ContributeScreen() {
                 <UploadIcon color="#15803d" size={32} />
               </View>
               <Text style={styles.dropzoneTitle}>Tap to select from Phone Storage</Text>
-              <Text style={styles.dropzoneSub}>Supports PDF, DOCX, DOC & Images</Text>
+              <Text style={styles.dropzoneSub}>Supports PDF, DOCX, DOC & Images. Select multiple files or mix images + PDF.</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -351,110 +428,81 @@ export default function ContributeScreen() {
           </View>
         </View>
 
-        {/* 3. Details Form */}
+        {/* 3. Course & Unit Details */}
         <View style={styles.formSection}>
           <Text style={styles.fieldLabel}>3. Course & Unit Details</Text>
-
-          {/* Unit Title */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Unit Title / Exam Name <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Database Management Systems Main Exam"
-              placeholderTextColor="#94a3b8"
-              value={title}
-              onChangeText={setTitle}
-            />
+            <TextInput style={styles.textInput} placeholder="e.g. Database Management Systems Main Exam" placeholderTextColor="#94a3b8" value={title} onChangeText={setTitle} />
           </View>
 
-          {/* Course Code & Exam Year Row */}
           <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1.4 }]}>
-              <Text style={styles.inputLabel}>Course Code <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. COM 310"
-                placeholderTextColor="#94a3b8"
-                value={courseCode}
-                onChangeText={setCourseCode}
-                autoCapitalize="characters"
-              />
-            </View>
-
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Exam Year</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="2025"
-                placeholderTextColor="#94a3b8"
-                value={examYear}
-                onChangeText={setExamYear}
-                keyboardType="numeric"
-              />
+              <Text style={styles.inputLabel}>Course Code <Text style={styles.required}>*</Text></Text>
+              <TextInput style={styles.textInput} placeholder="e.g. COM 310" placeholderTextColor="#94a3b8" value={courseCode} onChangeText={setCourseCode} autoCapitalize="characters" />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.inputLabel}>Unit Code <Text style={styles.required}>*</Text></Text>
+              <TextInput style={styles.textInput} placeholder="e.g. COM 310" placeholderTextColor="#94a3b8" value={unitCode} onChangeText={setUnitCode} autoCapitalize="characters" />
             </View>
           </View>
 
-          {/* School Selector - Smart Searchable Dropdown Input */}
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.inputLabel}>Department <Text style={styles.required}>*</Text></Text>
+              <TextInput style={styles.textInput} placeholder="e.g. Computer Science" placeholderTextColor="#94a3b8" value={department} onChangeText={setDepartment} />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.inputLabel}>Academic Level / Year</Text>
+              <TextInput style={styles.textInput} placeholder="e.g. Year 3" placeholderTextColor="#94a3b8" value={academicLevel} onChangeText={setAcademicLevel} />
+            </View>
+          </View>
+        </View>
+
+        {/* 4. Academic Classification */}
+        <View style={styles.formSection}>
+          <Text style={styles.fieldLabel}>4. Academic Classification</Text>
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.inputLabel}>Semester</Text>
+              <TextInput style={styles.textInput} placeholder="e.g. Semester 1" placeholderTextColor="#94a3b8" value={semester} onChangeText={setSemester} />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.inputLabel}>Exam / Resource Year</Text>
+              <TextInput style={styles.textInput} placeholder="2025" placeholderTextColor="#94a3b8" value={examYear} onChangeText={setExamYear} keyboardType="numeric" />
+            </View>
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>School / Faculty</Text>
             <View style={[styles.searchableInputWrapper, showSchoolPicker && styles.dropdownInputFocused]}>
-              <TextInput
-                style={styles.textInputInWrapper}
-                placeholder="Select or type School / Faculty..."
-                placeholderTextColor="#94a3b8"
-                value={schoolInput}
-                onChangeText={(text) => {
-                  setSchoolInput(text);
-                  setSchool(text);
-                  setShowSchoolPicker(true);
-                }}
-                onFocus={() => setShowSchoolPicker(true)}
-              />
-              <TouchableOpacity
-                style={styles.dropdownChevronBtn}
-                onPress={() => setShowSchoolPicker(!showSchoolPicker)}
-                activeOpacity={0.7}
-              >
-                <Text style={{ color: showSchoolPicker ? '#15803d' : '#64748b', fontSize: 12, fontWeight: '700' }}>
-                  {showSchoolPicker ? '▲' : '▼'}
-                </Text>
+              <TextInput style={styles.textInputInWrapper} placeholder="Select or type School / Faculty..." placeholderTextColor="#94a3b8" value={schoolInput} onChangeText={(value) => { setSchoolInput(value); setSchool(value); setShowSchoolPicker(true); }} onFocus={() => setShowSchoolPicker(true)} />
+              <TouchableOpacity style={styles.dropdownChevronBtn} onPress={() => setShowSchoolPicker(!showSchoolPicker)} activeOpacity={0.7}>
+                <Text style={{ color: showSchoolPicker ? '#15803d' : '#64748b', fontSize: 12, fontWeight: '700' }}>{showSchoolPicker ? '▲' : '▼'}</Text>
               </TouchableOpacity>
             </View>
-
             {showSchoolPicker && (
               <View style={styles.dropdownMenu}>
-                <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true} keyboardShouldPersistTaps="handled">
-                  {filteredSchools.length > 0 ? (
-                    filteredSchools.map((sch) => {
-                      const isSelected = schoolInput.trim().toLowerCase() === sch.toLowerCase();
-                      return (
-                        <TouchableOpacity
-                          key={sch}
-                          style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
-                          onPress={() => {
-                            setSchoolInput(sch);
-                            setSchool(sch);
-                            setShowSchoolPicker(false);
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
-                            {sch}
-                          </Text>
-                          {isSelected && <CheckIcon color="#15803d" size={16} />}
-                        </TouchableOpacity>
-                      );
-                    })
-                  ) : (
-                    <View style={styles.dropdownItemEmpty}>
-                      <Text style={styles.dropdownItemEmptyText}>
-                        No matching school. Custom entry "{schoolInput}" will be saved.
-                      </Text>
-                    </View>
+                <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                  {filteredSchools.length > 0 ? filteredSchools.map((sch) => {
+                    const isSelected = schoolInput.trim().toLowerCase() === sch.toLowerCase();
+                    return (
+                      <TouchableOpacity key={sch} style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]} onPress={() => { setSchoolInput(sch); setSchool(sch); setShowSchoolPicker(false); }} activeOpacity={0.7}>
+                        <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>{sch}</Text>
+                        {isSelected && <CheckIcon color="#15803d" size={16} />}
+                      </TouchableOpacity>
+                    );
+                  }) : (
+                    <View style={styles.dropdownItemEmpty}><Text style={styles.dropdownItemEmptyText}>No matching school. Your custom entry will be saved.</Text></View>
                   )}
                 </ScrollView>
               </View>
             )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Description / Overview <Text style={styles.optional}>(Optional)</Text></Text>
+            <TextInput style={[styles.textInput, styles.textArea]} placeholder="Add a short overview, topics covered, or useful instructions for students..." placeholderTextColor="#94a3b8" value={description} onChangeText={setDescription} multiline numberOfLines={4} textAlignVertical="top" />
           </View>
         </View>
 
@@ -571,6 +619,8 @@ const styles = StyleSheet.create({
   required: {
     color: '#ef4444'
   },
+  optional: { color: '#94a3b8', fontWeight: '500' },
+  textArea: { minHeight: 92, paddingTop: 12 },
   dropzoneCard: {
     backgroundColor: '#f8fafc',
     borderRadius: 16,
@@ -629,17 +679,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2
   },
-  changeFileBtn: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
+  fileIndexBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    backgroundColor: '#0f172a',
+    color: '#ffffff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden'
+  },
+  removeFileBtn: {
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#bbf7d0'
+    borderColor: '#fecaca'
   },
-  changeFileBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
+  removeFileBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#dc2626'
+  },
+  addMoreFilesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#15803d',
+    borderStyle: 'dashed',
+    marginTop: 4
+  },
+  addMoreFilesBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
     color: '#15803d'
   },
   typeGrid: {

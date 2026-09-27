@@ -6,6 +6,7 @@ const OFFLINE_MSG_QUEUE_KEY = 'moi_offline_msg_queue';
 
 export interface OfflinePaper {
   _id: string;
+  isDemo?: boolean;
   title: string;
   school: string;
   department?: string;
@@ -23,6 +24,8 @@ export interface OfflinePaper {
   thumbnail?: string;
   mtid?: string;
   semester?: string;
+  academicYear?: string;
+  description?: string;
   ratingScore?: string;
   downloadsCount?: number;
   hasSolutions?: boolean;
@@ -37,6 +40,7 @@ const DEFAULT_INITIAL_PAPERS: OfflinePaper[] = [
   {
     _id: 'pp_rec1',
     mtid: 'P0001',
+    isDemo: true,
     title: 'COM 310 Data Structures Main Exam Paper 2024',
     unitCode: 'COM 310',
     unitName: 'Data Structures & Algorithms',
@@ -57,6 +61,7 @@ const DEFAULT_INITIAL_PAPERS: OfflinePaper[] = [
   {
     _id: 'pp_rec2',
     mtid: 'P0002',
+    isDemo: true,
     title: 'MAT 210 Calculus II End of Semester Exam 2024',
     unitCode: 'MAT 210',
     unitName: 'Calculus II',
@@ -168,6 +173,8 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     thumbnail: paperInput.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     mtid: paperInput.mtid || `P000${Math.floor(Math.random() * 9) + 1}`,
     semester: paperInput.semester || 'SEMESTER 1',
+    academicYear: paperInput.academicYear || '',
+    description: paperInput.description || '',
     ratingScore: paperInput.ratingScore || '4.9',
     downloadsCount: paperInput.downloadsCount || 2900,
     hasSolutions: paperInput.hasSolutions ?? true,
@@ -250,6 +257,90 @@ export const isPaperDownloaded = async (paperId: string): Promise<boolean> => {
   return papers.some((p) => (p._id === paperId || p._id === `note_${paperId}` || p._id === `paper_${paperId}`) && p.status === 'completed');
 };
 
+
+export const cacheRentals = async (rentals: any[]): Promise<void> => {
+  try {
+    await setItem('moi_cached_rentals_list', JSON.stringify(rentals));
+  } catch {}
+};
+
+export const getCachedRentals = async (): Promise<any[]> => {
+  try {
+    const str = await getItem('moi_cached_rentals_list');
+    return str ? JSON.parse(str) : [];
+  } catch {
+    return [];
+  }
+};
+
+const CACHED_HOUSES_KEY = 'moi_cached_house_details';
+
+export const cacheHouseDetail = async (house: any): Promise<void> => {
+  try {
+    const existingStr = await getItem(CACHED_HOUSES_KEY);
+    const cache: Record<string, any> = existingStr ? JSON.parse(existingStr) : {};
+    cache[house._id] = house;
+    await setItem(CACHED_HOUSES_KEY, JSON.stringify(cache));
+  } catch {}
+};
+
+export const getCachedHouseDetail = async (id: string): Promise<any | null> => {
+  try {
+    const existingStr = await getItem(CACHED_HOUSES_KEY);
+    if (!existingStr) return null;
+    const cache: Record<string, any> = JSON.parse(existingStr);
+    return cache[id] || null;
+  } catch {
+    return null;
+  }
+};
+
+// ─── Offline booking queue ────────────────────────────────────────────────
+
+const OFFLINE_BOOKING_QUEUE_KEY = 'moi_offline_booking_queue';
+
+export const enqueueOfflineBooking = async (booking: {
+  tempId: string;
+  houseId: string;
+  requestedMoveIn: string;
+  notes?: string;
+  houseTitle?: string;
+  createdAt: string;
+}): Promise<void> => {
+  const existingStr = await getItem(OFFLINE_BOOKING_QUEUE_KEY);
+  const queue: any[] = existingStr ? JSON.parse(existingStr) : [];
+  queue.push(booking);
+  await setItem(OFFLINE_BOOKING_QUEUE_KEY, JSON.stringify(queue));
+};
+
+export const getOfflineBookingQueue = async (): Promise<any[]> => {
+  const existingStr = await getItem(OFFLINE_BOOKING_QUEUE_KEY);
+  return existingStr ? JSON.parse(existingStr) : [];
+};
+
+// ─── Chat message cache ───────────────────────────────────────────────────
+
+const CHAT_MESSAGES_KEY = 'moi_cached_chat_messages';
+
+export const cacheMessages = async (conversationId: string, messages: any[]): Promise<void> => {
+  try {
+    const existingStr = await getItem(CHAT_MESSAGES_KEY);
+    const cache: Record<string, any[]> = existingStr ? JSON.parse(existingStr) : {};
+    cache[conversationId] = messages.slice(-100); // keep last 100
+    await setItem(CHAT_MESSAGES_KEY, JSON.stringify(cache));
+  } catch {}
+};
+
+export const getCachedMessages = async (conversationId: string): Promise<any[]> => {
+  try {
+    const existingStr = await getItem(CHAT_MESSAGES_KEY);
+    if (!existingStr) return [];
+    const cache: Record<string, any[]> = JSON.parse(existingStr);
+    return cache[conversationId] || [];
+  } catch {
+    return [];
+  }
+};
 
 export const enqueueOfflineMessage = async (msg: {
   tempId: string;
