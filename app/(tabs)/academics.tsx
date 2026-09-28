@@ -1135,7 +1135,7 @@ export default function AcademicsScreen({ route }: any) {
               </View>
 
               {/* SECTION 1: TOP MATCH / TOP RESULTS */}
-              <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionHeaderRow, smartSearchResults.topMatches.length === 0 && { display: 'none' }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
                   <SparklesIcon color="#15803d" size={18} />
                 </View>
@@ -1150,7 +1150,7 @@ export default function AcademicsScreen({ route }: any) {
                   {smartSearchResults.topMatches.map((item) => renderGridCard(item))}
                 </View>
               ) : (
-                <View style={{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }}>
+                <View style={[{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }, { display: 'none' }]}>
                   <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center' }}>
                     No direct unit code or title match for "{searchQuery}". See related materials below.
                   </Text>
@@ -1158,7 +1158,7 @@ export default function AcademicsScreen({ route }: any) {
               )}
 
               {/* SECTION 2: RELATED MATERIALS (SCROLL DOWN) */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, smartSearchResults.relatedMatches.length === 0 && { display: 'none' }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
                   <BookIcon color="#2563eb" size={18} />
                 </View>
@@ -1173,7 +1173,7 @@ export default function AcademicsScreen({ route }: any) {
                   {smartSearchResults.relatedMatches.map((item) => renderGridCard(item))}
                 </View>
               ) : (
-                <View style={{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }}>
+                <View style={[{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }, { display: 'none' }]}>
                   <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center' }}>
                     No secondary metadata matches for "{searchQuery}".
                   </Text>
@@ -1196,7 +1196,7 @@ export default function AcademicsScreen({ route }: any) {
           ) : (
             <>
               {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
-              <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionHeaderRow, combinedForYou.length === 0 && { display: 'none' }]}>
                 <View style={styles.sectionIconCircle}>
                   <SparklesIcon color="#15803d" size={18} />
                 </View>
@@ -1242,7 +1242,7 @@ export default function AcademicsScreen({ route }: any) {
               </View>
 
               {/* SECTION 2: GRID SECTION 1 (LAZY LOADED 2 LINES AT A TIME) */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 24 }, combinedGrid1.length === 0 && { display: 'none' }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
                   <BookIcon color="#15803d" size={18} />
                 </View>
@@ -1264,7 +1264,7 @@ export default function AcademicsScreen({ route }: any) {
               {showDemoMaterials && (
                 <>
               {/* SECTION 3: TRENDING NOW CAROUSEL */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, TRENDING_CAROUSEL.length === 0 && { display: 'none' }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#ffedd5' }]}>
                   <FlameIcon color="#ea580c" size={18} />
                 </View>
@@ -1313,7 +1313,7 @@ export default function AcademicsScreen({ route }: any) {
               )}
 
               {/* SECTION 4: GRID SECTION 2 (LAZY LOADED 2 LINES AT A TIME) */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, combinedGrid2.length === 0 && { display: 'none' }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#dbeafe' }]}>
                   <FileTextIcon color="#2563eb" size={18} />
                 </View>

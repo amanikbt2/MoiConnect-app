@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Platform, Modal, ScrollView, Image } from 'react-native';
+import { View, Text, Platform, Modal, ScrollView, Image, AppState } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -498,7 +498,13 @@ function AppNavigator({ currentRoute }) {
         navigationRef.navigate('MainTabs', { screen: 'MessagesTab' });
       }
     });
-    return removeNotificationListener;
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void registerForPushNotificationsAsync();
+    });
+    return () => {
+      removeNotificationListener();
+      appStateSubscription.remove();
+    };
   }, [user]);
 
 

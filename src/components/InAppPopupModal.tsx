@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -8,16 +8,17 @@ import {
   Image,
   Linking,
   ScrollView,
-  Dimensions
+  Dimensions,
+  TextInput
 } from 'react-native';
 import { useAppNavigation } from '../utils/navigation';
-import { saveDismissedPopupId } from '../services/popupService';
+import { saveDismissedPopupId, submitPopupResponse } from '../services/popupService';
 import { CloseIcon, ChevronRightIcon, SparklesIcon, DownloadIcon } from './Icons';
 
 export interface PopupItem {
   _id: string;
   popupId: string;
-  type: 'normal' | 'update';
+  type: 'normal' | 'update' | 'interactive';
   title: string;
   subtitle?: string;
   body?: string;
@@ -26,6 +27,7 @@ export interface PopupItem {
   actionTarget?: string;
   actionButtonText?: string;
   actions?: { label: string; target: string; type: 'in_app' | 'external' }[];
+  inputs?: { id: string; label: string; type: 'text' | 'radio' | 'toggle' | 'checkbox'; required: boolean; options?: string[]; placeholder?: string }[];
   minAppVersion?: string;
   playStoreUrl?: string;
   isForceUpdate?: boolean;
@@ -45,8 +47,15 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
   popup,
   onClose
 }) => {
-  if (!popup || !visible) return null;
+  const [inputValues, setInputValues] = useState<Record<string, string | boolean>>({});
+  const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    setInputValues({});
+    setSubmitting(false);
+  }, [popup?.popupId]);
+
+  if (!popup || !visible) return null;
   const router = useAppNavigation();
   const isUpdateType = popup.type === 'update';
 
@@ -83,6 +92,18 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
       Linking.openURL(action.target).catch(() => {});
     } else {
       router.push(action.target);
+    }
+  };
+  const handleInteractiveSubmit = async () => {
+    if (!popup.inputs?.length || submitting) return;
+    const missing = popup.inputs.find((input) => input.required && (inputValues[input.id] === undefined || inputValues[input.id] === ''));
+    if (missing) return;
+    setSubmitting(true);
+    const result = await submitPopupResponse(popup.popupId, inputValues);
+    setSubmitting(false);
+    if (result.success) {
+      await saveDismissedPopupId(popup.popupId);
+      onClose();
     }
   };
   const handleDismiss = async () => {
@@ -145,6 +166,38 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
               </View>
             )}
 
+            {popup.type === 'interactive' && popup.inputs?.map((input) => (
+              <View key={input.id} style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>{input.label}{input.required ? ' *' : ''}</Text>
+                {input.type === 'text' && (
+                  <TextInput
+                    value={String(inputValues[input.id] || '')}
+                    onChangeText={(value) => setInputValues((current) => ({ ...current, [input.id]: value }))}
+                    placeholder={input.placeholder || 'Type your response'}
+                    placeholderTextColor="#94a3b8"
+                    style={styles.textInput}
+                  />
+                )}
+                {input.type === 'radio' && (input.options || []).map((option) => (
+                  <TouchableOpacity key={option} style={styles.choiceRow} onPress={() => setInputValues((current) => ({ ...current, [input.id]: option }))}>
+                    <View style={[styles.choiceCircle, inputValues[input.id] === option && styles.choiceCircleSelected]} />
+                    <Text style={styles.choiceText}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+                {(input.type === 'toggle' || input.type === 'checkbox') && (
+                  <TouchableOpacity style={styles.choiceRow} onPress={() => setInputValues((current) => ({ ...current, [input.id]: !current[input.id] }))}>
+                    <View style={[styles.checkBox, Boolean(inputValues[input.id]) && styles.checkBoxSelected]}><Text style={styles.checkMark}>{inputValues[input.id] ? '✓' : ''}</Text></View>
+                    <Text style={styles.choiceText}>{input.type === 'toggle' ? 'Yes' : 'Select this option'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {popup.type === 'interactive' && (
+              <TouchableOpacity style={styles.mainActionBtn} onPress={handleInteractiveSubmit} activeOpacity={0.88} disabled={submitting}>
+                <Text style={styles.mainActionText}>{submitting ? 'Submitting...' : 'Submit Response'}</Text>
+                <ChevronRightIcon color="#ffffff" size={16} />
+              </TouchableOpacity>
+            )}
             {/* Smart Action Buttons */}
             {popupActions.map((action, index) => (
               <TouchableOpacity
@@ -287,7 +340,65 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center'
   },
-  mainActionBtn: {
+  inputGroup: {
+    width: '100%',
+    marginBottom: 12
+  },
+  inputLabel: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 6
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#0f172a',
+    fontSize: 13,
+    backgroundColor: '#ffffff'
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8
+  },
+  choiceCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#94a3b8'
+  },
+  choiceCircleSelected: {
+    borderColor: '#15803d',
+    backgroundColor: '#15803d'
+  },
+  checkBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  checkBoxSelected: {
+    backgroundColor: '#15803d',
+    borderColor: '#15803d'
+  },
+  checkMark: {
+    color: '#ffffff',
+    fontWeight: '900'
+  },
+  choiceText: {
+    color: '#334155',
+    fontSize: 13,
+    flex: 1
+  },  mainActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

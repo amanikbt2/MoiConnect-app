@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
 const OFFLINE_PAPERS_KEY = 'moi_offline_papers';
 const OFFLINE_MSG_QUEUE_KEY = 'moi_offline_msg_queue';
@@ -16,6 +17,7 @@ export interface OfflinePaper {
   type: string;
   examYear?: number | string;
   fileUrl: string;
+  localUri?: string;
   fileType?: string;
   uploadedBy?: { _id: string; name: string };
   createdAt: string;
@@ -152,10 +154,14 @@ export const updatePaperDownloadState = async (
 
 export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper> => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
-  let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
-
+  const papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
   const targetId = paperInput._id || `paper_${Date.now()}`;
-  const existingIndex = papers.findIndex((p) => p._id === targetId);
+  const existingIndex = papers.findIndex((paper) => paper._id === targetId);
+  const existingPaper = existingIndex >= 0 ? papers[existingIndex] : undefined;
+
+  if (existingPaper?.status === 'completed' && existingPaper.localUri) {
+    return existingPaper;
+  }
 
   const newPaperItem: OfflinePaper = {
     _id: targetId,
@@ -170,7 +176,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     fileUrl: paperInput.fileUrl || '',
     fileType: paperInput.fileType || 'pdf',
     uploadedBy: paperInput.uploadedBy || { _id: 'admin', name: 'Moi Faculty' },
-    thumbnail: paperInput.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+    thumbnail: paperInput.thumbnail || '',
     mtid: paperInput.mtid || `P000${Math.floor(Math.random() * 9) + 1}`,
     semester: paperInput.semester || 'SEMESTER 1',
     academicYear: paperInput.academicYear || '',
@@ -181,36 +187,59 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     createdAt: paperInput.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: 'downloading',
-    progress: 5,
-    pinned: false
+    progress: 0,
+    pinned: existingPaper?.pinned || false
   };
 
-  if (existingIndex >= 0) {
-    if (papers[existingIndex].status === 'completed') {
-      return papers[existingIndex];
-    }
-    papers[existingIndex] = { ...papers[existingIndex], status: 'downloading', progress: 5 };
-  } else {
-    papers.unshift(newPaperItem);
-  }
-
+  if (existingIndex >= 0) papers[existingIndex] = { ...existingPaper, ...newPaperItem };
+  else papers.unshift(newPaperItem);
   await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers));
   await notifyDownloadListeners();
 
-  runSimulatedDownload(targetId);
-  return newPaperItem;
+  if (Platform.OS === 'web') {
+    runSimulatedDownload(targetId);
+    return newPaperItem;
+  }
+
+  try {
+    if (!newPaperItem.fileUrl) throw new Error('This material has no downloadable file URL.');
+    const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const extension = newPaperItem.fileType === 'pdf' ? 'pdf' : (newPaperItem.fileType || 'bin').replace(/[^a-zA-Z0-9]/g, '');
+    const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
+    await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
+    const localUri = `${privateDirectory}moi_material_${safeName}.${extension}`;
+    const task = FileSystem.createDownloadResumable(
+      newPaperItem.fileUrl,
+      localUri,
+      {},
+      ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+        const progress = totalBytesExpectedToWrite > 0 ? Math.round((totalBytesWritten / totalBytesExpectedToWrite) * 100) : 0;
+        updatePaperDownloadState(targetId, { progress });
+      }
+    );
+    const result = await task.downloadAsync();
+    if (!result?.uri) throw new Error('The local file was not created.');
+    await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri } as any);
+    return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri };
+  } catch (error) {
+    await updatePaperDownloadState(targetId, { status: 'failed', progress: 0 });
+    throw error;
+  }
 };
 
 export const saveDownloadedPaper = savePaperForOffline;
-
 export const retryPaperDownload = async (paperId: string) => {
-  await updatePaperDownloadState(paperId, { status: 'downloading', progress: 5 });
-  runSimulatedDownload(paperId);
+  const existingStr = await getItem(OFFLINE_PAPERS_KEY);
+  const paper = existingStr ? (JSON.parse(existingStr) as OfflinePaper[]).find((item) => item._id === paperId) : undefined;
+  if (!paper) return;
+  if (paper.localUri && Platform.OS !== 'web') {
+    await FileSystem.deleteAsync(paper.localUri, { idempotent: true }).catch(() => undefined);
+  }
+  await savePaperForOffline({ ...paper, localUri: undefined });
 };
-
 export const togglePinOfflinePaper = async (paperId: string) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
-  let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : DEFAULT_INITIAL_PAPERS;
+  let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
   papers = papers.map((p) => {
     if (p._id === paperId) {
       return { ...p, pinned: !p.pinned };
@@ -225,8 +254,7 @@ export const getDownloadedPapers = async (): Promise<OfflinePaper[]> => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
   let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
   if (!existingStr || papers.length === 0) {
-    papers = DEFAULT_INITIAL_PAPERS;
-    await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers));
+    papers = [];
   }
   return papers.sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
@@ -237,17 +265,21 @@ export const getDownloadedPapers = async (): Promise<OfflinePaper[]> => {
 
 export const removeOfflinePaper = async (paperId: string) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
-  if (!existingStr) return;
-  let papers: OfflinePaper[] = JSON.parse(existingStr);
-  papers = papers.filter((p) => p._id !== paperId);
-  await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers));
   if (activeDownloadIntervals[paperId]) {
     clearInterval(activeDownloadIntervals[paperId]);
     delete activeDownloadIntervals[paperId];
   }
+  if (!existingStr) return;
+
+  const papers: OfflinePaper[] = JSON.parse(existingStr);
+  const paper = papers.find((item) => item._id === paperId);
+  if (paper?.localUri && Platform.OS !== 'web') {
+    await FileSystem.deleteAsync(paper.localUri, { idempotent: true }).catch(() => undefined);
+  }
+
+  await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers.filter((item) => item._id !== paperId)));
   await notifyDownloadListeners();
 };
-
 export const removeDownloadedPaper = removeOfflinePaper;
 
 export const isPaperDownloaded = async (paperId: string): Promise<boolean> => {
@@ -447,8 +479,64 @@ export const getCommunityUnreadCount = async (): Promise<number> => {
   return Math.max(0, messages.length - 1 - index);
 };
 
+export interface CommunityUnreadSummary {
+  general: number;
+  mentions: number;
+}
+
+export const getCommunityUnreadSummary = async (user?: { email?: string; name?: string } | null): Promise<CommunityUnreadSummary> => {
+  const [messages, lastReadId, readMentionIds] = await Promise.all([
+    getStoredCommunityMessages(),
+    getLastReadCommunityMsgId(),
+    getReadCommunityMentionIds()
+  ]);
+
+  if (!messages?.length || !lastReadId) return { general: 0, mentions: 0 };
+
+  const lastReadIndex = messages.findIndex((message: any) => (message.id || message._id) === lastReadId);
+  if (lastReadIndex === -1) return { general: 0, mentions: 0 };
+
+  const unreadMessages = messages.slice(lastReadIndex + 1);
+  const mentionIds = new Set(readMentionIds);
+  const email = user?.email?.toLowerCase().trim() || '';
+  const emailPrefix = email.split('@')[0];
+  const name = user?.name?.toLowerCase().trim() || '';
+  const firstName = name.split(' ')[0] || '';
+
+  const mentions = unreadMessages.filter((message: any) => {
+    const messageId = message.id || message._id;
+    if (!messageId || mentionIds.has(messageId) || message.isMe) return false;
+    const text = String(message.text || '').toLowerCase();
+    return Boolean(
+      (email && text.includes(`@${email}`)) ||
+      (emailPrefix && emailPrefix.length >= 3 && text.includes(`@${emailPrefix}`)) ||
+      (name && text.includes(`@${name}`)) ||
+      (firstName && firstName.length >= 2 && text.includes(`@${firstName}`))
+    );
+  }).length;
+
+  return {
+    mentions,
+    general: Math.max(0, unreadMessages.length - mentions)
+  };
+};
+
 type UnreadCountListener = (count: number) => void;
 const unreadCountListeners = new Set<UnreadCountListener>();
+
+type UnreadSummaryListener = (summary: CommunityUnreadSummary) => void;
+const unreadSummaryListeners = new Map<UnreadSummaryListener, { email?: string; name?: string } | null>();
+
+export const subscribeToUnreadSummaryUpdates = (
+  listener: UnreadSummaryListener,
+  user?: { email?: string; name?: string } | null
+) => {
+  unreadSummaryListeners.set(listener, user || null);
+  getCommunityUnreadSummary(user).then(listener);
+  return () => {
+    unreadSummaryListeners.delete(listener);
+  };
+};
 
 export const subscribeToUnreadCountUpdates = (listener: UnreadCountListener) => {
   unreadCountListeners.add(listener);
@@ -461,5 +549,7 @@ export const subscribeToUnreadCountUpdates = (listener: UnreadCountListener) => 
 export const notifyUnreadCountListeners = async () => {
   const count = await getCommunityUnreadCount();
   unreadCountListeners.forEach((fn) => fn(count));
+  unreadSummaryListeners.forEach((user, listener) => {
+    getCommunityUnreadSummary(user).then(listener);
+  });
 };
-

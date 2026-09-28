@@ -63,11 +63,11 @@ export interface PopupAction {
 
 export interface ClientPopupResponse {
   hasPopup: boolean;
-  type?: 'normal' | 'update';
+  type?: 'normal' | 'update' | 'interactive';
   popup?: {
     _id: string;
     popupId: string;
-    type: 'normal' | 'update';
+    type: 'normal' | 'update' | 'interactive';
     title: string;
     subtitle?: string;
     body?: string;
@@ -76,6 +76,7 @@ export interface ClientPopupResponse {
     actionTarget?: string;
     actionButtonText?: string;
     actions?: PopupAction[];
+    inputs?: { id: string; label: string; type: 'text' | 'radio' | 'toggle' | 'checkbox'; required: boolean; options?: string[]; placeholder?: string }[];
     minAppVersion?: string;
     playStoreUrl?: string;
     isForceUpdate?: boolean;
@@ -115,4 +116,11 @@ export const checkAppPopups = async (
   } catch (e) {
     return { hasPopup: false };
   }
+};
+export const submitPopupResponse = async (popupId: string, responses: Record<string, string | boolean>): Promise<{ success: boolean; error?: string }> => {
+  const result = await apiRequest(`/notify/popups/${popupId}/responses`, {
+    method: 'POST',
+    body: JSON.stringify({ responses })
+  });
+  return { success: result.success, error: result.error };
 };

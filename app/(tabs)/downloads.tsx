@@ -79,7 +79,7 @@ export default function DownloadsScreen() {
       unitCode: paper.unitCode,
       unitName: paper.unitName,
       school: paper.school,
-      fileUrl: paper.fileUrl,
+      fileUrl: paper.localUri || paper.fileUrl,
       pages: 'PDF Document',
       author: paper.uploadedBy?.name || 'Moi Lecturer',
       summary: paper.title,

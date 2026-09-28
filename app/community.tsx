@@ -18,7 +18,8 @@ import {
   PanResponder,
   Animated,
   Easing,
-  Image
+  Image,
+  AppState
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -38,7 +39,8 @@ import {
   CameraIcon,
   CloseIcon,
   ImageIcon,
-  VideoIcon
+  VideoIcon,
+  BotIcon
 } from '../src/components/Icons';
 import { getSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
@@ -59,6 +61,7 @@ import {
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { LinkifiedText } from '../src/components/LinkifiedText';
 
 export interface FileAttachment {
   name: string;
@@ -70,10 +73,15 @@ export interface FileAttachment {
 export interface CommunityMessage {
   id: string;
   clientMsgId?: string;
+  deliveryStatus?: 'queued' | 'sent' | 'delivered';
+  pendingPayload?: any;
   senderId?: string;
   senderEmail?: string;
   senderName: string;
   senderFaculty: string;
+  senderCourse?: string;
+  senderPhone?: string;
+  senderAvatarUrl?: string;
   avatarBg: string;
   text: string;
   timestamp: string;
@@ -86,6 +94,7 @@ export interface CommunityMessage {
   reactions?: Record<string, number>;
   myReaction?: string;
   isDemo?: boolean;
+  stickerId?: string;
   replyTo?: {
     id: string;
     senderEmail?: string;
@@ -96,6 +105,19 @@ export interface CommunityMessage {
 }
 
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
+const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
+const isCampusBotMessage = (message: CommunityMessage) =>
+  message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
+  message.senderName.toLowerCase().includes('campus bot');
+
+const STICKERS = [
+  { id: 'heart', label: 'Love', source: require('../assets/stickers/heart.png') },
+  { id: 'thumbs-up', label: 'Nice', source: require('../assets/stickers/thumbs-up.png') },
+  { id: 'party', label: 'Celebrate', source: require('../assets/stickers/party.png') },
+  { id: 'laugh', label: 'Laugh', source: require('../assets/stickers/laugh.png') },
+  { id: 'star', label: 'Great', source: require('../assets/stickers/star.png') }
+] as const;
+const STICKER_SOURCES: Record<string, any> = Object.fromEntries(STICKERS.map((sticker) => [sticker.id, sticker.source]));
 
 function SwipeableMessageItem({
   children,
@@ -358,11 +380,13 @@ export default function CommunityScreen() {
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>([]);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<CommunityMessage | null>(null);
 
   useEffect(() => {
     getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
@@ -388,6 +412,7 @@ export default function CommunityScreen() {
     });
   }, []);
   const tempSentIdsRef = useRef<Set<string>>(new Set());
+  const retryingMessageIdsRef = useRef<Set<string>>(new Set());
 
   // WhatsApp-style Unread Tracking & Auto-scroll State
   const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<string | null>(null);
@@ -396,6 +421,7 @@ export default function CommunityScreen() {
 
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [botTyping, setBotTyping] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -403,7 +429,7 @@ export default function CommunityScreen() {
   const typingDotAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (typingUsers.length > 0) {
+    if (typingUsers.length > 0 || botTyping) {
       const anim = Animated.loop(
         Animated.sequence([
           Animated.timing(typingDotAnim, { toValue: 1, duration: 400, easing: Easing.ease, useNativeDriver: Platform.OS !== 'web' }),
@@ -415,12 +441,45 @@ export default function CommunityScreen() {
     } else {
       typingDotAnim.setValue(0);
     }
-  }, [typingUsers.length]);
+  }, [typingUsers.length, botTyping]);
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
   const isNearBottomRef = useRef<boolean>(true);
   const initialScrollDoneRef = useRef<boolean>(false);
+  const isDraggingRef = useRef<boolean>(false);
+  const pendingScrollToEndRef = useRef<boolean>(false);
+
+  const scrollToLatestWhenReady = (animated: boolean, force = false) => {
+    if (force) pendingScrollToEndRef.current = true;
+
+    const scrollToEnd = () => {
+      if (pendingScrollToEndRef.current || (!isDraggingRef.current && isNearBottomRef.current)) {
+        flatListRef.current?.scrollToEnd({ animated });
+      }
+    };
+
+    setTimeout(scrollToEnd, 40);
+    setTimeout(scrollToEnd, 140);
+    setTimeout(() => {
+      scrollToEnd();
+      pendingScrollToEndRef.current = false;
+    }, 360);
+  };
+
+  const handleMessageListLayout = () => {
+    if (pendingScrollToEndRef.current) {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }
+  };
+
+  const handleMessageListContentSizeChange = () => {
+    if (pendingScrollToEndRef.current) {
+      flatListRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 80);
+      pendingScrollToEndRef.current = false;
+    }
+  };
   const evalIsMe = (msgSenderId?: any, msgSenderEmail?: string, msgSenderName?: string, msgClientMsgId?: string): boolean => {
     if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
       return true;
@@ -535,10 +594,8 @@ export default function CommunityScreen() {
       setUnreadCount(0);
       setFirstUnreadMsgId(null);
       setShowUnreadBtn(false);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-        initialScrollDoneRef.current = true;
-      }, 150);
+      scrollToLatestWhenReady(false, true);
+      initialScrollDoneRef.current = true;
       return;
     }
 
@@ -553,19 +610,7 @@ export default function CommunityScreen() {
 
       if (!initialScrollDoneRef.current) {
         initialScrollDoneRef.current = true;
-        setTimeout(() => {
-          if (flatListRef.current) {
-            try {
-              flatListRef.current.scrollToIndex({
-                index: firstUnreadIndex,
-                animated: false,
-                viewPosition: 0.1
-              });
-            } catch (e) {
-              flatListRef.current.scrollToEnd({ animated: false });
-            }
-          }
-        }, 200);
+        scrollToLatestWhenReady(false, true);
       }
     } else {
       setUnreadCount(0);
@@ -573,9 +618,7 @@ export default function CommunityScreen() {
       setShowUnreadBtn(false);
       if (!initialScrollDoneRef.current) {
         initialScrollDoneRef.current = true;
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: false });
-        }, 150);
+        scrollToLatestWhenReady(false, true);
       }
     }
   };
@@ -592,7 +635,7 @@ export default function CommunityScreen() {
       const latestId = messages[messages.length - 1].id;
       markAsRead(latestId);
     }
-    flatListRef.current?.scrollToEnd({ animated: true });
+    scrollToLatestWhenReady(true, true);
   };
 
   const handleScroll = (event: any) => {
@@ -657,19 +700,26 @@ export default function CommunityScreen() {
           const formattedMsg: CommunityMessage = {
             id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
             clientMsgId: serverMsg.clientMsgId,
+            deliveryStatus: isMyMsg ? 'delivered' : undefined,
             senderId: serverMsg.senderId,
             senderEmail: serverMsg.senderEmail,
             senderName: serverMsg.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+            senderCourse: serverMsg.senderCourse,
+            senderPhone: serverMsg.senderPhone,
+            senderAvatarUrl: serverMsg.senderAvatarUrl,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: serverMsg.createdAt || new Date().toISOString(),
             isMe: isMyMsg,
             fileAttachment: serverMsg.fileAttachment,
+            stickerId: serverMsg.stickerId,
             replyTo: serverMsg.replyTo,
             reactions: serverMsg.reactions || {}
           };
+          if (isCampusBotMessage(formattedMsg)) setBotTyping(false);
+
 
           setMessages((prev) => {
             const existingIdx = prev.findIndex((m) =>
@@ -697,9 +747,7 @@ export default function CommunityScreen() {
 
             if (formattedMsg.isMe || isNearBottomRef.current) {
               markAsRead(formattedMsg.id);
-              setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-              }, 80);
+              scrollToLatestWhenReady(true, formattedMsg.isMe);
             } else {
               setUnreadCount((c) => c + 1);
               setShowUnreadBtn(true);
@@ -812,10 +860,14 @@ export default function CommunityScreen() {
           return {
             id: serverMsg._id || serverMsg.id,
             clientMsgId: serverMsg.clientMsgId,
+            deliveryStatus: isMyMsg ? 'delivered' : undefined,
             senderId: serverMsg.senderId,
             senderEmail: serverMsg.senderEmail,
             senderName: serverMsg.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+            senderCourse: serverMsg.senderCourse,
+            senderPhone: serverMsg.senderPhone,
+            senderAvatarUrl: serverMsg.senderAvatarUrl,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -823,9 +875,12 @@ export default function CommunityScreen() {
             updatedAt: serverMsg.updatedAt,
             isMe: isMyMsg,
             fileAttachment: serverMsg.fileAttachment,
+            stickerId: serverMsg.stickerId,
             replyTo: serverMsg.replyTo,
             reactions: serverMsg.reactions || {}
           };
+
+
         });
 
         setMessages((prev) => {
@@ -930,8 +985,61 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!inputText.trim() && !selectedFile) return;
+  const updateMessageDelivery = (clientMsgId: string, deliveryStatus: CommunityMessage['deliveryStatus']) => {
+    setMessages((prev) => {
+      const updated = prev.map((message) =>
+        message.clientMsgId === clientMsgId
+          ? { ...message, deliveryStatus, pendingPayload: deliveryStatus === 'delivered' ? undefined : message.pendingPayload }
+          : message
+      );
+      void saveCommunityMessages(updated);
+      return updated;
+    });
+  };
+
+  const transmitMessage = async (payload: any, clientMsgId: string) => {
+    if (retryingMessageIdsRef.current.has(clientMsgId)) return;
+    retryingMessageIdsRef.current.add(clientMsgId);
+    try {
+      const socket = await getSocket();
+      if (socket?.connected) {
+        socket.emit('community:send_message', payload, (ack: { success?: boolean }) => {
+          if (ack?.success) updateMessageDelivery(clientMsgId, 'sent');
+        });
+      }
+
+      const result = await apiRequest('/community/messages', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (result.success) updateMessageDelivery(clientMsgId, 'sent');
+    } catch (error) {
+      // Keep the message queued locally; retryQueuedMessages will resend it.
+      console.log('[Community] Message queued while offline.');
+    } finally {
+      retryingMessageIdsRef.current.delete(clientMsgId);
+    }
+  };
+
+  const retryQueuedMessages = () => {
+    messages
+      .filter((message) => message.isMe && message.deliveryStatus === 'queued' && message.pendingPayload)
+      .forEach((message) => void transmitMessage(message.pendingPayload, message.clientMsgId || message.id));
+  };
+
+  useEffect(() => {
+    void retryQueuedMessages();
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void retryQueuedMessages();
+    });
+    const retryTimer = setInterval(retryQueuedMessages, 10000);
+    return () => {
+      appStateSubscription.remove();
+      clearInterval(retryTimer);
+    };
+  }, [messages]);
+  const handleSendMessage = (stickerId?: string) => {
+    if (!inputText.trim() && !selectedFile && !stickerId) return;
 
     if (isTypingRef.current) {
       isTypingRef.current = false;
@@ -947,7 +1055,14 @@ export default function CommunityScreen() {
     }
 
     const sentText = inputText.trim();
-    const isBotMentioned = sentText.toLowerCase().includes('@bot');
+    const isDirectBotMention = /(^|\s)@(bot|campusbot|campus bot)\b/i.test(sentText);
+    const isReplyToBot = Boolean(replyingTo && isCampusBotMessage(replyingTo));
+    const isBotMentioned = isDirectBotMention || isReplyToBot;
+
+    // Start the bot indicator before any network work so it is visible immediately.
+    if (isBotMentioned) {
+      setBotTyping(true);
+    }
 
     const replyToData = replyingTo
       ? {
@@ -975,25 +1090,35 @@ export default function CommunityScreen() {
       senderEmail: user ? user.email : undefined,
       text: sentText,
       fileAttachment: selectedFile || undefined,
+      stickerId,
       replyTo: replyToData,
       senderName: user ? user.name : 'Moi Student',
       senderFaculty: facultySubtitle,
+      senderCourse: myProfile?.course,
+      senderPhone: myProfile?.phone || user?.phone,
+      senderAvatarUrl: myProfile?.avatarUri || user?.avatarUrl,
       avatarBg: '#15803d'
     };
 
     const newMessage: CommunityMessage = {
       id: tempId,
       clientMsgId: tempId,
+      deliveryStatus: 'queued',
+      pendingPayload: payload,
       senderId: user ? user._id : undefined,
       senderEmail: user ? user.email : undefined,
       senderName: payload.senderName,
       senderFaculty: payload.senderFaculty,
+      senderCourse: payload.senderCourse,
+      senderPhone: payload.senderPhone,
+      senderAvatarUrl: payload.senderAvatarUrl,
       avatarBg: payload.avatarBg,
       text: sentText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isoDate: new Date().toISOString(),
       isMe: true,
       fileAttachment: selectedFile || undefined,
+      stickerId,
       replyTo: replyToData,
       reactions: {}
     };
@@ -1008,50 +1133,15 @@ export default function CommunityScreen() {
 
     setInputText('');
     setSelectedFile(null);
+    setShowStickerPicker(false);
     setReplyingTo(null);
 
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 80);
+    scrollToLatestWhenReady(true, true);
 
-    // 2. Emit Real-time via WebSocket (Sub-10ms delivery to connected users)
-    getSocket().then((socket) => {
-      if (socket) {
-        socket.emit('community:send_message', payload);
-      }
-    });
+    // Send immediately when online, otherwise retain the queued message locally.
+    void transmitMessage(payload, tempId);
 
-    // 3. HTTP Fallback to guarantee MongoDB persistence & trigger Push Notifications
-    apiRequest('/community/messages', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }).catch((e) => console.log('HTTP post fallback:', e));
 
-    // Auto Bot Response
-    if (isBotMentioned) {
-      setTimeout(() => {
-        const botMessage: CommunityMessage = {
-          id: (Date.now() + 1).toString(),
-          senderName: 'Campus Bot 🤖',
-          senderFaculty: 'Moi Uni AI Assistant',
-          avatarBg: '#6366f1',
-          text: 'Hello! 🤖 I am Campus Bot. How can I help you today? You can ask me about past papers, rental hostels, or campus announcements!',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isoDate: new Date().toISOString(),
-          isMe: false,
-          reactions: { '🤖': 1, '❤️': 1 }
-        };
-
-        setMessages((prev) => {
-          const updated = [...prev, botMessage];
-          saveCommunityMessages(updated);
-          return updated;
-        });
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }, 1000);
-    }
   };
 
   const handleToggleReaction = async (msgId: string, emoji: string) => {
@@ -1270,6 +1360,17 @@ export default function CommunityScreen() {
             contentContainerStyle={styles.messageList}
             onScroll={handleScroll}
             scrollEventThrottle={16}
+            onLayout={handleMessageListLayout}
+            onContentSizeChange={handleMessageListContentSizeChange}
+            onScrollBeginDrag={() => {
+              isDraggingRef.current = true;
+            }}
+            onMomentumScrollEnd={() => {
+              isDraggingRef.current = false;
+            }}
+            onScrollEndDrag={() => {
+              isDraggingRef.current = false;
+            }}
             onScrollToIndexFailed={(info) => {
               setTimeout(() => {
                 flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
@@ -1317,9 +1418,20 @@ export default function CommunityScreen() {
                   <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
                     <View style={[styles.messageBubbleWrapper, item.isMe ? styles.myWrapper : styles.otherWrapper]}>
                       {!item.isMe && (
-                        <View style={[styles.senderAvatar, { backgroundColor: item.avatarBg }]}>
-                          <Text style={styles.avatarLetter}>{item.senderName[0]?.toUpperCase()}</Text>
-                        </View>
+                        <TouchableOpacity
+                          style={[styles.senderAvatar, isCampusBotMessage(item) && styles.botAvatarRing, { backgroundColor: item.avatarBg }]}
+                          onPress={() => setSelectedProfile(item)}
+                          activeOpacity={0.8}
+                          accessibilityLabel={`View ${item.senderName}'s profile`}
+                        >
+                          {isCampusBotMessage(item) ? (
+                            <Image source={CAMPUS_BOT_AVATAR} style={styles.botAvatarImage} />
+                          ) : item.senderAvatarUrl ? (
+                            <Image source={{ uri: item.senderAvatarUrl }} style={styles.botAvatarImage} />
+                          ) : (
+                            <Text style={styles.avatarLetter}>{item.senderName[0]?.toUpperCase()}</Text>
+                          )}
+                        </TouchableOpacity>
                       )}
 
                       <View style={styles.bubbleContainer}>
@@ -1355,7 +1467,9 @@ export default function CommunityScreen() {
                         >
                           {!item.isMe && (
                             <View style={styles.senderHeader}>
-                              <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
+                              <View style={styles.senderNameRow}>
+                                <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
+                              </View>
                               <Text style={styles.senderFaculty}>{formatStudentSubtitle(undefined, undefined, undefined, item.senderFaculty)}</Text>
                             </View>
                           )}
@@ -1377,6 +1491,10 @@ export default function CommunityScreen() {
                                 </Text>
                               </View>
                             </TouchableOpacity>
+                          )}
+
+                          {item.stickerId && STICKER_SOURCES[item.stickerId] && (
+                            <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} />
                           )}
 
                           {/* File Attachment Card */}
@@ -1404,9 +1522,9 @@ export default function CommunityScreen() {
 
                           {/* Text content with clean wrapping */}
                           {!!item.text && (
-                            <Text style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}>
+                            <LinkifiedText style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}>
                               {item.text}
-                            </Text>
+                            </LinkifiedText>
                           )}
 
                           {/* Timestamp & Ticks */}
@@ -1422,9 +1540,16 @@ export default function CommunityScreen() {
                               {item.timestamp}
                             </Text>
                             {item.isMe && (
-                              <View style={styles.ticksWrapper}>
-                                <CheckIcon color="#38bdf8" size={14} />
-                              </View>
+                              item.deliveryStatus === 'queued' ? (
+                                <Text style={styles.queuedClock}>◷</Text>
+                              ) : (
+                                <View style={styles.ticksWrapper}>
+                                  <CheckIcon color={item.deliveryStatus === 'delivered' ? '#38bdf8' : '#94a3b8'} size={14} />
+                                  {item.deliveryStatus === 'delivered' && (
+                                    <CheckIcon color="#38bdf8" size={14} style={styles.secondTick} />
+                                  )}
+                                </View>
+                              )
                             )}
                           </View>
                         </TouchableOpacity>
@@ -1528,7 +1653,7 @@ export default function CommunityScreen() {
           )}
 
           {/* WhatsApp Style Live Typing Indicator Banner */}
-          {typingUsers.length > 0 && (
+          {(typingUsers.length > 0 || botTyping) && (
             <View style={styles.typingIndicatorBanner}>
               <View style={styles.typingDotsContainer}>
                 <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
@@ -1545,23 +1670,45 @@ export default function CommunityScreen() {
                 />
                 <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
               </View>
-              <Text style={styles.typingIndicatorText} numberOfLines={1}>
-                💬 {formatTypingText(typingUsers)}
-              </Text>
+              <View style={styles.typingIndicatorContent}>
+                {botTyping && typingUsers.length === 0 ? (
+                  <View style={styles.typingBotLabel}>
+                    <BotIcon color="#6366f1" size={14} />
+                    <Text style={styles.typingIndicatorText} numberOfLines={1}>Campus Bot is typing...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.typingIndicatorText} numberOfLines={1}>
+                    {formatTypingText(typingUsers)}
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
           {/* WhatsApp Style Bottom Input Bar */}
+          {showStickerPicker && (
+            <View style={styles.stickerPicker}>
+              {STICKERS.map((sticker) => (
+                <TouchableOpacity key={sticker.id} style={styles.stickerOption} onPress={() => handleSendMessage(sticker.id)} activeOpacity={0.8}>
+                  <Image source={sticker.source} style={styles.stickerOptionImage} />
+                  <Text style={styles.stickerOptionLabel}>{sticker.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           <View style={styles.inputContainer}>
             <View style={styles.inputPill}>
+
+
+
+
               <TouchableOpacity
                 style={styles.pillIconBtn}
-                onPress={() => setShowFileModal(true)}
+                onPress={() => setShowStickerPicker((visible) => !visible)}
                 activeOpacity={0.7}
               >
-                <PaperclipIcon color="#8696a0" size={22} />
+                <SmileIcon color="#8696a0" size={21} />
               </TouchableOpacity>
-
               <TextInput
                 style={styles.input}
                 placeholder="@bot to mention campus bot"
@@ -1569,7 +1716,7 @@ export default function CommunityScreen() {
                 value={inputText}
                 onChangeText={handleInputChange}
                 returnKeyType="send"
-                onSubmitEditing={handleSendMessage}
+                onSubmitEditing={() => handleSendMessage()}
                 blurOnSubmit={false}
                 onKeyPress={(e: any) => {
                   if (Platform.OS === 'web' && e.nativeEvent?.key === 'Enter' && !e.nativeEvent?.shiftKey) {
@@ -1578,6 +1725,16 @@ export default function CommunityScreen() {
                   }
                 }}
               />
+
+              <TouchableOpacity
+                style={styles.pillIconBtn}
+                onPress={() => setShowFileModal(true)}
+                activeOpacity={0.7}
+              >
+                <PaperclipIcon color="#8696a0" size={22} />
+              </TouchableOpacity>
+
+
             </View>
 
             <TouchableOpacity
@@ -1585,7 +1742,7 @@ export default function CommunityScreen() {
                 styles.sendBtn,
                 (!inputText.trim() && !selectedFile) && styles.sendBtnDisabled
               ]}
-              onPress={handleSendMessage}
+              onPress={() => handleSendMessage()}
               disabled={!inputText.trim() && !selectedFile}
               activeOpacity={0.8}
             >
@@ -1593,6 +1750,37 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Compact community profile preview */}
+        <Modal visible={!!selectedProfile} transparent animationType="fade" onRequestClose={() => setSelectedProfile(null)}>
+          <Pressable style={styles.profileModalOverlay} onPress={() => setSelectedProfile(null)}>
+            <Pressable style={styles.profileModalCard} onPress={(event) => event.stopPropagation()}>
+              {selectedProfile && (
+                <>
+                  <TouchableOpacity style={styles.profileModalClose} onPress={() => setSelectedProfile(null)}>
+                    <CloseIcon color="#64748b" size={16} />
+                  </TouchableOpacity>
+                  <View style={[styles.profileModalAvatar, { backgroundColor: selectedProfile.avatarBg }]}>
+                    {isCampusBotMessage(selectedProfile) ? (
+                      <Image source={CAMPUS_BOT_AVATAR} style={styles.profileModalAvatarImage} />
+                    ) : selectedProfile.senderAvatarUrl ? (
+                      <Image source={{ uri: selectedProfile.senderAvatarUrl }} style={styles.profileModalAvatarImage} />
+                    ) : (
+                      <Text style={styles.profileModalAvatarText}>{selectedProfile.senderName[0]?.toUpperCase()}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.profileModalName}>{selectedProfile.senderName}</Text>
+                  <Text style={styles.profileModalRole}>MoiConnect community member</Text>
+                  <View style={styles.profileInfoList}>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Faculty</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderFaculty || 'Not provided'}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Course</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderCourse || 'Not provided'}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Phone</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderPhone || 'Not provided'}</Text></View>
+                  </View>
+                </>
+              )}
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* File Selection Modal */}
         <Modal visible={showFileModal} transparent animationType="fade" onRequestClose={() => setShowFileModal(false)}>
@@ -1790,17 +1978,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 2
   },
+  botAvatarRing: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#f4c542',
+    padding: 2,
+    backgroundColor: '#fff8dc',
+    shadowColor: '#c58b00',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 3
+  },
+  botAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14
+  },
   avatarLetter: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800'
   },
   bubbleContainer: {
-    flex: 1,
+    flexGrow: 0,
     flexShrink: 1,
+    maxWidth: '100%',
     position: 'relative'
   },
   bubble: {
+    maxWidth: '100%',
     borderRadius: 14,
     padding: 10,
     paddingHorizontal: 14,
@@ -1822,6 +2031,11 @@ const styles = StyleSheet.create({
   senderHeader: {
     marginBottom: 4
   },
+  senderNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
   senderName: {
     fontSize: 12,
     fontWeight: '800'
@@ -1837,7 +2051,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     flexShrink: 1,
     flexWrap: 'wrap',
-    ...(Platform.OS === 'web' ? { wordBreak: 'break-word' } : {})
+    wordBreak: Platform.OS === 'web' ? 'break-word' : undefined
   } as any,
   myText: {
     color: '#0f172a'
@@ -1866,7 +2080,18 @@ const styles = StyleSheet.create({
     color: '#94a3b8'
   },
   ticksWrapper: {
-    marginLeft: 2
+    marginLeft: 2,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  secondTick: {
+    marginLeft: -9
+  },
+  queuedClock: {
+    marginLeft: 3,
+    color: '#94a3b8',
+    fontSize: 14,
+    lineHeight: 14
   },
   fileCard: {
     flexDirection: 'row',
@@ -1992,6 +2217,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16
   },
+  stickerPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 8
+  },
+  stickerOption: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 64
+  },
+  stickerOptionImage: {
+    width: 48,
+    height: 48
+  },
+  stickerOptionLabel: {
+    color: '#64748b',
+    fontSize: 9,
+    marginTop: 2
+  },
+  sentStickerImage: {
+    width: 132,
+    height: 132,
+    alignSelf: 'flex-start',
+    marginBottom: 4
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2053,6 +2308,92 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end'
+  },
+  profileModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24
+  },
+  profileModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 22,
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 8
+  },
+  profileModalClose: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  profileModalAvatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 12
+  },
+  profileModalAvatarImage: {
+    width: '100%',
+    height: '100%'
+  },
+  profileModalAvatarText: {
+    color: '#ffffff',
+    fontSize: 38,
+    fontWeight: '800'
+  },
+  profileModalName: {
+    color: '#0f172a',
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center'
+  },
+  profileModalRole: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 3,
+    marginBottom: 16
+  },
+  profileInfoList: {
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0'
+  },
+  profileInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  profileInfoLabel: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  profileInfoValue: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'right'
   },
   modalCard: {
     backgroundColor: '#ffffff',
@@ -2442,5 +2783,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#15803d'
+  },
+  typingIndicatorContent: {
+    flex: 1,
+    minWidth: 0
+  },
+  typingBotLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
   }
 });

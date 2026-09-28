@@ -45,7 +45,7 @@ export function NotificationCenterModal() {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (): Promise<INotificationItem[] | null> => {
     try {
       setLoading(true);
       const res = await apiRequest<{
@@ -59,9 +59,12 @@ export function NotificationCenterModal() {
       if (list) {
         setNotifications(list);
         setUnreadCount(unread);
+        return list;
       }
+      return null;
     } catch (err) {
       console.log('Error loading notifications:', err);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -81,6 +84,20 @@ export function NotificationCenterModal() {
         setNotifications(list);
         setUnreadCount(unread);
       }
+    } catch (err) {}
+  };
+
+  const markAllAsRead = async (items: INotificationItem[]) => {
+    const unreadItems = items.filter(item => !item.isRead);
+    if (unreadItems.length === 0) {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      await apiRequest('/notifications/read-all', { method: 'POST' });
+      setNotifications(prev => prev.map(item => ({ ...item, isRead: true })));
+      setUnreadCount(0);
     } catch (err) {}
   };
 
@@ -115,9 +132,12 @@ export function NotificationCenterModal() {
       {/* Bell Icon Trigger with Unread Badge */}
       <TouchableOpacity
         style={styles.bellButton}
-        onPress={() => {
+        onPress={async () => {
           setModalVisible(true);
-          fetchNotifications();
+          const latest = await fetchNotifications();
+          if (latest) {
+            await markAllAsRead(latest);
+          }
         }}
         activeOpacity={0.7}
       >

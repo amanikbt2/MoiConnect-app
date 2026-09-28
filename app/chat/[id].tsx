@@ -43,6 +43,7 @@ import {
   ImageIcon,
   VideoIcon
 } from '../../src/components/Icons';
+import { LinkifiedText } from '../../src/components/LinkifiedText';
 
 export interface FileAttachment {
   name: string;
@@ -565,9 +566,9 @@ export default function ChatRoomScreen({ route }: any) {
 
                     {/* Text content with clean text wrapping */}
                     {!!item.text && (
-                      <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
+                      <LinkifiedText style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
                         {item.text}
-                      </Text>
+                      </LinkifiedText>
                     )}
 
                     <View style={styles.metaRow}>

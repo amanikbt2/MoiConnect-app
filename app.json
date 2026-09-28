@@ -6,26 +6,23 @@
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#14532d"
-    },
+
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "16"
+      "buildNumber": "17"
     },
     "android": {
       "icon": "./assets/playstore_assets/icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/playstore_assets/icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#15803d",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.amanikbt1.moiconnect",
+      "package": "com.amanikbt1.moiconnect",`n
+      "permissions": ["CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"],
       "versionCode": 17
     },
     "notification": {

@@ -927,6 +927,27 @@ export function FolderIcon({ color = '#ffffff', size = 18, style }: IconProps) {
   );
 }
 
+export function BotIcon({ color = '#6366f1', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 3V5M9 3H15"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <Rect x="4" y="6" width="16" height="14" rx="4" fill={color} opacity={0.16} stroke={color} strokeWidth="1.8" />
+      <Circle cx="9" cy="12" r="1.3" fill={color} />
+      <Circle cx="15" cy="12" r="1.3" fill={color} />
+      <Path
+        d="M8.5 16C9.5 17 10.5 17.5 12 17.5C13.5 17.5 14.5 17 15.5 16"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
 
 
 

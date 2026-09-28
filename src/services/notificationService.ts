@@ -39,20 +39,31 @@ export async function registerForPushNotificationsAsync() {
     }
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-    const pushTokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-    const token = pushTokenData.data;
-
-    if (token) {
-      await apiRequest('/notifications/register-token', {
-        method: 'POST',
-        body: JSON.stringify({
-          token,
-          platform: Platform.OS
-        })
-      });
-      console.log('[Notifications]: Push token registered successfully:', token);
+    if (!projectId) {
+      console.error('[Notifications]: Expo project ID is missing from the Android build.');
+      return null;
     }
 
+    const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = pushTokenData.data;
+    if (!token) {
+      console.error('[Notifications]: Android did not return an Expo push token.');
+      return null;
+    }
+
+    const registration = await apiRequest('/notifications/register-token', {
+      method: 'POST',
+      body: JSON.stringify({
+        token,
+        platform: Platform.OS
+      })
+    });
+    if (!registration.success) {
+      console.error('[Notifications]: Backend token registration failed:', registration.error || 'Unknown error');
+      return null;
+    }
+
+    console.log('[Notifications]: Push token registered successfully.');
     return token;
   } catch (error) {
     console.error('[Notifications]: Error registering push token:', error);

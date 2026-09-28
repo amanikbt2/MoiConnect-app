@@ -12,9 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, DownloadIcon } from './Icons';
 import {
   subscribeToUnreadCountUpdates,
+  subscribeToUnreadSummaryUpdates,
   getStoredCommunityMessages,
   saveLastReadCommunityMsgId
 } from '../services/offlineStorage';
+import { useAuth } from '../context/AuthContext';
 
 export interface GlobalBottomBarProps {
   currentRoute?: string;
@@ -22,13 +24,19 @@ export interface GlobalBottomBarProps {
 }
 
 export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: GlobalBottomBarProps) {
+  const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [unreadMentions, setUnreadMentions] = useState<number>(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToUnreadCountUpdates((count) => {
       setUnreadCount(count);
     });
+    const unsubscribeSummary = subscribeToUnreadSummaryUpdates((summary) => {
+      setUnreadCount(summary.general);
+      setUnreadMentions(summary.mentions);
+    }, user);
 
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
@@ -41,10 +49,11 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: Global
 
     return () => {
       unsubscribe();
+      unsubscribeSummary();
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [user]);
 
   let bottomInset = 0;
   try {
@@ -152,8 +161,13 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: Global
             resizeMode="contain"
           />
           {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            <View style={styles.generalBadge}>
+              <Text style={styles.generalBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            </View>
+          )}
+          {unreadMentions > 0 && (
+            <View style={styles.mentionBadge}>
+              <Text style={styles.mentionBadgeText}>@{unreadMentions > 99 ? '99+' : unreadMentions}</Text>
             </View>
           )}
         </View>
@@ -211,22 +225,42 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
   },
-  badge: {
+  generalBadge: {
     position: 'absolute',
-    top: -4,
-    right: -10,
-    backgroundColor: '#ef4444',
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
+    top: -1,
+    left: -10,
+    backgroundColor: '#16a34a',
+    borderRadius: 7,
+    minWidth: 15,
+    height: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
-  badgeText: {
+  generalBadgeText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '900',
-    lineHeight: 12,
+    lineHeight: 10,
+  },
+  mentionBadge: {
+    position: 'absolute',
+    top: -9,
+    right: -12,
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    minWidth: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  mentionBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 13,
   },
 });

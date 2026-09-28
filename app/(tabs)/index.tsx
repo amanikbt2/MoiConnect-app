@@ -19,7 +19,6 @@ import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
-import * as WebBrowser from 'expo-web-browser';
 
 import {
   SearchIcon,
@@ -140,14 +139,6 @@ export default function HomeScreen() {
   const [showPortalModal, setShowPortalModal] = useState(false);
 
   const handleOpenPortal = async (config: PortalConfig) => {
-    if (config.openInCustomTab && Platform.OS !== 'web') {
-      await WebBrowser.openBrowserAsync(config.url, {
-        toolbarColor: '#064e3b',
-        controlsColor: '#ffffff',
-        enableBarCollapsing: true
-      });
-      return;
-    }
 
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') {
@@ -325,6 +316,7 @@ export default function HomeScreen() {
             onSubmitEditing={() => {
               if (searchQuery.trim()) {
                 router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`);
+                setSearchQuery('');
               }
             }}
             style={styles.searchInput}
@@ -332,7 +324,10 @@ export default function HomeScreen() {
           {searchQuery.trim().length > 0 && (
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`)}
+              onPress={() => {
+                router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`);
+                setSearchQuery('');
+              }}
               style={styles.searchSendBtn}
             >
               <SendIcon color="#ffffff" size={14} />
@@ -422,7 +417,6 @@ export default function HomeScreen() {
                 handleOpenPortal({
                   title: 'Moi University Student Portal',
                   url: 'https://portal.mu.ac.ke/',
-                  openInCustomTab: true,
                   domain: 'portal.mu.ac.ke'
                 })
               }
@@ -441,7 +435,6 @@ export default function HomeScreen() {
                 handleOpenPortal({
                   title: 'MuSOMi E-Learning Portal',
                   url: 'https://elearning.mu.ac.ke/',
-                  openInCustomTab: true,
                   domain: 'elearning.mu.ac.ke'
                 })
               }
