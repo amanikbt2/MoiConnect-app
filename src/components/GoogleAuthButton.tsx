@@ -150,7 +150,12 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         // Sign in operation already in progress
         return;
       } else {
-        onError(error.message || 'Could not launch native Google Sign-In.');
+        const errorCode = String(error.code || '').toUpperCase();
+        if (errorCode === 'DEVELOPER_ERROR') {
+          onError('Google Sign-In is not configured for this Android build. Add the app package and signing SHA-1 to the Google OAuth Android client, then rebuild.');
+        } else {
+          onError(error.message || 'Could not launch native Google Sign-In.');
+        }
       }
     }
   };

@@ -84,9 +84,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Revision Notes',
     downloads: '1,420',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
-    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ 99% Match',
+    tag: '✨ 99% Match',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
     author: 'Prof. Omondi'
   },
@@ -99,9 +99,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Exam Pack',
     downloads: '2,180',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
-    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Top Recommendation',
+    tag: '✨ Top Recommendation',
     thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
     author: 'Dr. Kiprop'
   },
@@ -114,9 +114,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Worked Solutions',
     downloads: '980',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
-    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ High Rating',
+    tag: '✨ High Rating',
     thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
     author: 'Math Club Moi'
   },
@@ -129,9 +129,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'PDF Summary',
     downloads: '1,750',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
-    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Recommended',
+    tag: '✨ Recommended',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
     author: 'Alex K.'
   },
@@ -144,9 +144,9 @@ const FOR_YOU_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Cheatsheet',
     downloads: '3,110',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
-    tag: 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Popular Year 4',
+    tag: '✨ Popular Year 4',
     thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80',
     author: 'Dev Society'
   }
@@ -162,7 +162,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Math Dept',
     paperType: 'Past Paper',
     downloads: '890',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'CAT 1 + 2',
     thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
@@ -177,7 +177,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Notes PDF',
     downloads: '640',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Full Syllabus',
     thumbnail: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80',
@@ -192,7 +192,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Law',
     paperType: 'Case Book',
     downloads: '1,210',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'Verified',
     thumbnail: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
@@ -207,7 +207,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Business School',
     paperType: 'Lecture Slides',
     downloads: '1,890',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Year 1 Core',
     thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=600&q=80',
@@ -222,7 +222,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Education',
     paperType: 'Revision Pack',
     downloads: '730',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'Exam Ready',
     thumbnail: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80',
@@ -237,7 +237,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Formula Sheet',
     downloads: '1,450',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Solved Problems',
     thumbnail: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=600&q=80',
@@ -252,7 +252,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Diagram Notes',
     downloads: '920',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'High Yield',
     thumbnail: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
@@ -267,7 +267,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'School of Nursing',
     paperType: 'Study Guide',
     downloads: '1,680',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Medical Core',
     thumbnail: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
@@ -282,7 +282,7 @@ const GRID_SECTION_1: NoteItem[] = [
     school: 'Humanities',
     paperType: 'PDF Guide',
     downloads: '2,040',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'All Schools',
     thumbnail: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=600&q=80',
@@ -299,9 +299,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Exam + Answer',
     downloads: '4,200',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
-    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #1 Trending',
+    tag: '🔥 #1 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
     author: 'Moi Code Hub'
   },
@@ -313,9 +313,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'CAT Answers',
     downloads: '3,850',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
-    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #2 Trending',
+    tag: '🔥 #2 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
     author: 'Sammy T.'
   },
@@ -327,9 +327,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Lab Manual',
     downloads: '2,910',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
-    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #3 Trending',
+    tag: '🔥 #3 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
     author: 'Hardware Rep'
   },
@@ -341,9 +341,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Proposal Template',
     downloads: '5,100',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
-    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #4 Trending',
+    tag: '🔥 #4 Trending',
     author: 'Dr. Wanjala',
     thumbnail: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80'
   },
@@ -355,9 +355,9 @@ const TRENDING_CAROUSEL: NoteItem[] = [
     school: 'School of Science',
     paperType: 'Formula & Proofs',
     downloads: '2,640',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
-    tag: 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ #5 Trending',
+    tag: '🔥 #5 Trending',
     thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
     author: 'Math Club'
   }
@@ -372,7 +372,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Python Code + PDF',
     downloads: '2,310',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'New Release',
     thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80',
@@ -386,7 +386,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Business School',
     paperType: 'Lecture Summary',
     downloads: '1,120',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'Popular',
     thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
@@ -400,7 +400,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'School of Science',
     paperType: 'R Script + Notes',
     downloads: '940',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Stats Core',
     thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80',
@@ -414,7 +414,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Humanities',
     paperType: 'Essay Compilation',
     downloads: '680',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'Year 1',
     thumbnail: 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?auto=format&fit=crop&w=600&q=80',
@@ -428,7 +428,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Lab Practical',
     downloads: '1,950',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Industry Ready',
     thumbnail: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80',
@@ -442,7 +442,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Past Paper + Sol',
     downloads: '3,400',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'Freshman Essential',
     thumbnail: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=600&q=80',
@@ -456,7 +456,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Diagram Book',
     downloads: '1,560',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Circuit Schematics',
     thumbnail: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=600&q=80',
@@ -470,7 +470,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Project Code Notes',
     downloads: '2,890',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2025',
     tag: 'Hot Course',
     thumbnail: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80',
@@ -484,7 +484,7 @@ const GRID_SECTION_2: NoteItem[] = [
     school: 'Info Sciences',
     paperType: 'Case Study Notes',
     downloads: '1,280',
-          rating: '4.8 ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â',
+          rating: '4.8 ⭐',
     examYear: '2024',
     tag: 'Fintech Focus',
     thumbnail: 'https://images.unsplash.com/photo-1556742049-0a670fc80799?auto=format&fit=crop&w=600&q=80',
@@ -596,9 +596,9 @@ export default function AcademicsScreen({ route }: any) {
           description: p.description,
           paperType: p.type === 'notes' ? 'Revision Notes' : (p.type === 'cat' ? 'CAT Paper' : (p.type === 'past_paper' ? 'Past Paper' : 'Study Guide')),
           downloads: formatCount(p.downloads || 65),
-          rating: `${p.ratingScore || '4.8'} ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â`,
+          rating: `${p.ratingScore || '4.8'} ⭐`,
           examYear: String(p.examYear || 2025),
-          tag: p.mtid ? `MTID: ${p.mtid}` : 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ Real Uploaded',
+          tag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
           thumbnail: p.thumbnail 
             || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
             || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
@@ -987,7 +987,7 @@ export default function AcademicsScreen({ route }: any) {
         </View>
 
         <View style={styles.carouselBody}>
-          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ` : ''}{item.unitCode} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {item.school}</Text>
+          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
           <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
 
           <View style={styles.carouselFooter}>
@@ -1034,7 +1034,7 @@ export default function AcademicsScreen({ route }: any) {
 
         <View style={styles.gridBody}>
           <Text style={styles.gridMetaLine} numberOfLines={1}>
-            MTID: {mtidText} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {item.unitCode} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {shortSchool}
+            MTID: {mtidText} • {item.unitCode} • {shortSchool}
           </Text>
           <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
 
@@ -1090,7 +1090,7 @@ export default function AcademicsScreen({ route }: any) {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢</Text>
+                  <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1130,7 +1130,7 @@ export default function AcademicsScreen({ route }: any) {
                   Smart Search results for "{searchQuery}"
                 </Text>
                 <Text style={{ fontSize: 12, color: '#15803d', marginTop: 3 }}>
-                  {smartSearchResults.topMatches.length} Top Match(es) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {smartSearchResults.relatedMatches.length} Related Material(s)
+                  {smartSearchResults.topMatches.length} Top Match(es) • {smartSearchResults.relatedMatches.length} Related Material(s)
                 </Text>
               </View>
 
@@ -1339,15 +1339,15 @@ export default function AcademicsScreen({ route }: any) {
             <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
               <Text style={styles.footerLink}>Privacy Policy</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</Text>
+            <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
               <Text style={styles.footerLink}>Terms of Use</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</Text>
+            <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
               <Text style={styles.footerLink}>Support</Text>
             </TouchableOpacity>
-            <Text style={styles.footerDivider}>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</Text>
+            <Text style={styles.footerDivider}>·</Text>
             <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
           </View>
 

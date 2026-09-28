@@ -212,7 +212,7 @@ export default function HomeScreen() {
           school: p.school || 'Moi University',
           paperType: p.type === 'notes' ? 'Notes PDF' : (p.type === 'cat' ? 'CAT Paper' : 'Past Paper'),
           downloads: String(p.downloads || 45),
-          recommendationTag: p.mtid ? `MTID: ${p.mtid}` : 'âœ¨ Real Uploaded',
+          recommendationTag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
           thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'
         }));
         setRealSuggestedMaterials(mapped);
@@ -281,7 +281,7 @@ export default function HomeScreen() {
         {/* Card Body */}
         <View style={styles.cardBody}>
           <Text style={styles.cardMeta}>
-            {item.code} â€¢ {item.school}
+            {item.code} • {item.school}
           </Text>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {item.title}
@@ -440,7 +440,8 @@ export default function HomeScreen() {
               onPress={() =>
                 handleOpenPortal({
                   title: 'MuSOMi E-Learning Portal',
-                  url: 'https://elearning.mu.ac.ke',
+                  url: 'https://elearning.mu.ac.ke/',
+                  openInCustomTab: true,
                   domain: 'elearning.mu.ac.ke'
                 })
               }
@@ -543,15 +544,15 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Privacy Policy</Text>
         </TouchableOpacity>
-        <Text style={styles.footerDivider}>Â·</Text>
+        <Text style={styles.footerDivider}>·</Text>
         <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Terms of Use</Text>
         </TouchableOpacity>
-        <Text style={styles.footerDivider}>Â·</Text>
+        <Text style={styles.footerDivider}>·</Text>
         <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
           <Text style={styles.footerLink}>Support</Text>
         </TouchableOpacity>
-        <Text style={styles.footerDivider}>Â·</Text>
+        <Text style={styles.footerDivider}>·</Text>
         <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
       </View>
 

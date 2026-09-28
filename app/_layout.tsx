@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/context/AuthContext';
@@ -21,25 +21,33 @@ function AppRuntimeServices() {
   const router = useRouter();
   const [activePopup, setActivePopup] = useState<any>(null);
   const [popupVisible, setPopupVisible] = useState(false);
+  const popupCheckInFlight = useRef(false);
 
   const loadPopup = async () => {
-    const result = await checkAppPopups('1.1.4', user);
-    if (result.hasPopup && result.popup) {
-      setActivePopup(result.popup);
-      setPopupVisible(true);
+    if (popupCheckInFlight.current) return;
+    popupCheckInFlight.current = true;
+    try {
+      const result = await checkAppPopups('1.1.5', user);
+      if (result.hasPopup && result.popup) {
+        setActivePopup(result.popup);
+        setPopupVisible(true);
+      }
+    } finally {
+      popupCheckInFlight.current = false;
     }
   };
 
   useEffect(() => {
-    if (user) {
-      void registerForPushNotificationsAsync();
-    }
+    void registerForPushNotificationsAsync();
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       router.push(screenPath as any);
     });
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') loadPopup();
+      if (state === 'active') {
+        void registerForPushNotificationsAsync();
+        loadPopup();
+      }
     });
 
     loadPopup();
