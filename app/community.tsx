@@ -700,7 +700,7 @@ export default function CommunityScreen() {
           const formattedMsg: CommunityMessage = {
             id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
             clientMsgId: serverMsg.clientMsgId,
-            deliveryStatus: isMyMsg ? 'delivered' : undefined,
+            deliveryStatus: isMyMsg ? (serverMsg.waitForBot ? 'queued' : 'delivered') : undefined,
             senderId: serverMsg.senderId,
             senderEmail: serverMsg.senderEmail,
             senderName: serverMsg.senderName || 'Moi Student',
@@ -718,7 +718,12 @@ export default function CommunityScreen() {
             replyTo: serverMsg.replyTo,
             reactions: serverMsg.reactions || {}
           };
-          if (isCampusBotMessage(formattedMsg)) setBotTyping(false);
+          if (isCampusBotMessage(formattedMsg)) {
+            setBotTyping(false);
+            if (formattedMsg.replyTo?.id) {
+              updateMessageDelivery(formattedMsg.replyTo.id, 'sent');
+            }
+          }
 
 
           setMessages((prev) => {
@@ -793,6 +798,7 @@ export default function CommunityScreen() {
 
         socket.on('community:user_stop_typing', (data: { userId: string }) => {
           if (!data || !data.userId) return;
+          if (data.userId === 'campus-bot') setBotTyping(false);
           setTypingUsers((prev) => prev.filter((u) => u.userId !== data.userId));
           if (typingTimeoutsRef.current[data.userId]) {
             clearTimeout(typingTimeoutsRef.current[data.userId]);
@@ -1012,7 +1018,18 @@ export default function CommunityScreen() {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      if (result.success) updateMessageDelivery(clientMsgId, 'sent');
+      if (result.success) {
+        if (payload.waitForBot) {
+          const persistedId = result.data?._id || result.data?.id;
+          if (persistedId) {
+            setMessages((prev) => prev.map((message) =>
+              message.clientMsgId === clientMsgId ? { ...message, id: persistedId } : message
+            ));
+          }
+        } else {
+          updateMessageDelivery(clientMsgId, 'sent');
+        }
+      }
     } catch (error) {
       // Keep the message queued locally; retryQueuedMessages will resend it.
       console.log('[Community] Message queued while offline.');
@@ -1097,6 +1114,7 @@ export default function CommunityScreen() {
       senderCourse: myProfile?.course,
       senderPhone: myProfile?.phone || user?.phone,
       senderAvatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+      waitForBot: isBotMentioned,
       avatarBg: '#15803d'
     };
 

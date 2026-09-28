@@ -21,7 +21,8 @@
         "backgroundColor": "#15803d",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.amanikbt1.moiconnect",`n
+      "package": "com.amanikbt1.moiconnect",
+
       "permissions": ["CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"],
       "versionCode": 17
     },
