@@ -33,7 +33,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   googleLogin
 }) => {
   const [clientId, setClientId] = useState<string>(
-    config.google.webClientId || config.google.androidClientId || DEFAULT_GOOGLE_CLIENT_ID
+    config.google.webClientId || DEFAULT_GOOGLE_CLIENT_ID
   );
   const [loading, setLoading] = useState(false);
 
@@ -152,7 +152,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       } else {
         const errorCode = String(error.code || '').toUpperCase();
         if (errorCode === 'DEVELOPER_ERROR') {
-          onError('Google Sign-In is not configured for this Android build. Add the app package and signing SHA-1 to the Google OAuth Android client, then rebuild.');
+          onError('Google Sign-In setup is incomplete for Android. Add com.amanikbt1.moiconnect and this build SHA-1 to the Google OAuth Android client, then rebuild.');
         } else {
           onError(error.message || 'Could not launch native Google Sign-In.');
         }

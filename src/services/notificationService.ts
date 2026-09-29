@@ -12,7 +12,19 @@ Notifications.setNotificationHandler({
   }),
 });
 
+let registrationInFlight: Promise<string | null> | null = null;
+
 export async function registerForPushNotificationsAsync() {
+  if (registrationInFlight) return registrationInFlight;
+  registrationInFlight = registerPushToken();
+  try {
+    return await registrationInFlight;
+  } finally {
+    registrationInFlight = null;
+  }
+}
+
+async function registerPushToken() {
   if (Platform.OS === 'web') {
     return null;
   }
@@ -38,12 +50,13 @@ export async function registerForPushNotificationsAsync() {
       return null;
     }
 
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
     if (!projectId) {
-      console.error('[Notifications]: Expo project ID is missing from the Android build.');
+      console.error('[Notifications]: Expo project ID is missing. Set EXPO_PUBLIC_EAS_PROJECT_ID or link the build with EAS.');
       return null;
     }
 
+    console.log(`[Notifications]: Requesting Expo token for project ${projectId}.`);
     const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = pushTokenData.data;
     if (!token) {
@@ -66,7 +79,7 @@ export async function registerForPushNotificationsAsync() {
     console.log('[Notifications]: Push token registered successfully.');
     return token;
   } catch (error) {
-    console.error('[Notifications]: Error registering push token:', error);
+    console.error('[Notifications]: Error registering push token:', error instanceof Error ? error.message : error);
     return null;
   }
 }

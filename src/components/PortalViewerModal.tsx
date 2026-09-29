@@ -107,7 +107,7 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
               <Text style={styles.errorTitle}>Portal could not be loaded securely</Text>
               <Text style={styles.errorText}>The certificate for {portal.domain} is not trusted by this device's in-app browser.</Text>
               <TouchableOpacity style={styles.browserButton} onPress={() => Linking.openURL(portal.url)} activeOpacity={0.8}>
-                <Text style={styles.browserButtonText}>Open in Phone Browser</Text>
+                <Text style={styles.browserButtonText}>Open in web  →</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.retryButton} onPress={handleRefresh} activeOpacity={0.8}>
                 <Text style={styles.retryButtonText}>Try Again</Text>
@@ -121,8 +121,9 @@ export const PortalViewerModal: React.FC<PortalViewerModalProps> = ({
               javaScriptEnabled={true}
               domStorageEnabled={true}
               startInLoadingState={true}
-              onLoadEnd={() => { setLoading(false); setLoadError(null); }}
-              onError={() => { setLoading(false); setLoadError('Portal certificate error'); }}
+              onLoadEnd={() => { setLoading(false); }}
+              onError={(event) => { setLoading(false); setLoadError(event.nativeEvent?.description || 'Portal could not be loaded.'); }}
+              onHttpError={(event) => { setLoading(false); setLoadError(`The portal returned HTTP ${event.nativeEvent?.statusCode || 'an error'}.`); }}
               allowFileAccess={true}
               showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}

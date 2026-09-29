@@ -15,6 +15,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Linking,
   PanResponder,
   Animated,
   Easing,
@@ -120,6 +121,12 @@ const MENTION_ASSISTANTS: Array<MentionUser & { avatar: any }> = [
   { id: 'campus-bot', name: 'Campus Bot', avatar: CAMPUS_BOT_AVATAR },
   { id: 'campus-ai', name: 'Campus AI', avatar: CAMPUS_AI_AVATAR }
 ];
+const getCloudinaryVideoPreviewUrl = (url: string): string => {
+  if (!url.includes('/video/upload/')) return url;
+  const [path, query] = url.split('?');
+  const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
+  return query ? `${previewPath}?${query}` : previewPath;
+};
 const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
   message.senderName.toLowerCase().includes('campus bot');
@@ -702,7 +709,7 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting()]).then(([cachedMsgs, demoSetting]) => {
+    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting()]).then(([cachedMsgs, demoSetting]) => {
       setShowDemoMaterials(demoSetting);
       const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
       const msgsToLoad = rawMsgs
@@ -721,6 +728,7 @@ export default function CommunityScreen() {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
       }
       initReadStateAndScroll(msgsToLoad);
+      return msgsToLoad;
     });
 
     // 3. Connect Real-time WebSocket Listeners
@@ -728,11 +736,22 @@ export default function CommunityScreen() {
     getSocket().then((socket) => {
       if (socket) {
         activeSocket = socket;
+        const handleSocketConnect = () => {
+          socket.emit('community:request_online_count');
+          socket.emit('join_community');
+          void fetchDeltaSync();
+          retryQueuedMessages();
+        };
+        const handleSocketReconnectError = (error: any) => {
+          console.warn('[Community] Socket reconnect pending:', error?.message || error);
+        };
+
+        socket.on('connect', handleSocketConnect);
+        socket.on('connect_error', handleSocketReconnectError);
         socket.on('community:online_count', (stats: { totalOnline?: number }) => {
           setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
         });
-        socket.emit('community:request_online_count');
-        socket.emit('join_community');
+        if (socket.connected) handleSocketConnect();
 
         socket.on('community:receive_message', (serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
@@ -881,9 +900,13 @@ export default function CommunityScreen() {
     });
 
     // 4. Trigger Incremental Delta Sync (Fetch new un-synced messages since timestamp)
-    fetchDeltaSync();
+    cacheReady.then(() => {
+      if (!cancelled) fetchDeltaSync();
+    });
 
+    let cancelled = false;
     return () => {
+      cancelled = true;
       cleanupNotif();
       if (activeSocket) {
         activeSocket.off('community:receive_message');
@@ -892,6 +915,8 @@ export default function CommunityScreen() {
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
+        activeSocket.off('connect', handleSocketConnect);
+        activeSocket.off('connect_error', handleSocketReconnectError);
       }
     };
   }, [user]);
@@ -1140,22 +1165,24 @@ export default function CommunityScreen() {
         socket.emit('community:send_message', payload, (ack: { success?: boolean }) => {
           if (ack?.success) updateMessageDelivery(clientMsgId, 'sent');
         });
-      }
-
-      const result = await apiRequest('/community/messages', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (result.success) {
-        if (payload.waitForBot) {
-          const persistedId = result.data?._id || result.data?.id;
-          if (persistedId) {
-            setMessages((prev) => prev.map((message) =>
-              message.clientMsgId === clientMsgId ? { ...message, id: persistedId } : message
-            ));
+      } else {
+        // Use HTTP only when Socket.IO is unavailable. Sending both transports
+        // can create two source messages and make the assistant reply twice.
+        const result = await apiRequest('/community/messages', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        if (result.success) {
+          if (payload.waitForBot) {
+            const persistedId = result.data?._id || result.data?.id;
+            if (persistedId) {
+              setMessages((prev) => prev.map((message) =>
+                message.clientMsgId === clientMsgId ? { ...message, id: persistedId } : message
+              ));
+            }
+          } else {
+            updateMessageDelivery(clientMsgId, 'sent');
           }
-        } else {
-          updateMessageDelivery(clientMsgId, 'sent');
         }
       }
     } catch (error) {
@@ -1175,7 +1202,13 @@ export default function CommunityScreen() {
   useEffect(() => {
     void retryQueuedMessages();
     const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void retryQueuedMessages();
+      if (state === 'active') {
+        void getSocket().then((socket) => {
+          if (socket && !socket.connected) socket.connect();
+        });
+        void fetchDeltaSync();
+        void retryQueuedMessages();
+      }
     });
     const retryTimer = setInterval(retryQueuedMessages, 10000);
     return () => {
@@ -1656,24 +1689,38 @@ export default function CommunityScreen() {
 
                           {/* File Attachment Card */}
                           {item.fileAttachment && (
-                            <View style={styles.fileCard}>
-                              <View style={styles.fileIconBox}>
-                                <FileTextIcon color="#15803d" size={24} />
+                            <View>
+                              {(item.fileAttachment.type === 'image' || item.fileAttachment.type === 'video') && (
+                                <TouchableOpacity
+                                  style={styles.chatMediaPreview}
+                                  onPress={() => item.fileAttachment?.type === 'video' && Linking.openURL(item.fileAttachment.url)}
+                                  activeOpacity={item.fileAttachment.type === 'video' ? 0.8 : 1}
+                                >
+                                  <Image
+                                    source={{ uri: item.fileAttachment.type === 'video' ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url) : item.fileAttachment.url }}
+                                    style={styles.chatMediaImage}
+                                    resizeMode="cover"
+                                  />
+                                  {item.fileAttachment.type === 'video' && (
+                                    <View style={styles.chatVideoOverlay}>
+                                      <View style={styles.chatVideoPlay}><Text style={styles.chatVideoPlayText}>▶</Text></View>
+                                      <Text style={styles.chatVideoHint}>Tap to play</Text>
+                                    </View>
+                                  )}
+                                </TouchableOpacity>
+                              )}
+                              <View style={styles.fileCard}>
+                                <View style={styles.fileIconBox}>
+                                  {item.fileAttachment.type === 'video' ? <VideoIcon color="#f97316" size={24} /> : item.fileAttachment.type === 'image' ? <ImageIcon color="#2563eb" size={24} /> : <FileTextIcon color="#15803d" size={24} />}
+                                </View>
+                                <View style={styles.fileInfo}>
+                                  <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
+                                  <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
+                                </View>
+                                <TouchableOpacity style={styles.fileDownloadBtn} onPress={() => handleDownloadFileAttachment(item.fileAttachment!)}>
+                                  <DownloadIcon color="#ffffff" size={14} />
+                                </TouchableOpacity>
                               </View>
-                              <View style={styles.fileInfo}>
-                                <Text style={styles.fileName} numberOfLines={1}>
-                                  {item.fileAttachment.name}
-                                </Text>
-                                <Text style={styles.fileMeta}>
-                                  {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
-                                </Text>
-                              </View>
-                              <TouchableOpacity
-                                style={styles.fileDownloadBtn}
-                                onPress={() => handleDownloadFileAttachment(item.fileAttachment!)}
-                              >
-                                <DownloadIcon color="#ffffff" size={14} />
-                              </TouchableOpacity>
                             </View>
                           )}
 
@@ -2302,6 +2349,47 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(21, 128, 61, 0.2)'
+  },
+  chatMediaPreview: {
+    width: 240,
+    height: 190,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    marginBottom: 6,
+    position: 'relative'
+  },
+  chatMediaImage: {
+    width: '100%',
+    height: '100%'
+  },
+  chatVideoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.18)'
+  },
+  chatVideoPlay: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(21, 128, 61, 0.94)'
+  },
+  chatVideoPlayText: {
+    color: '#ffffff',
+    fontSize: 20,
+    marginLeft: 3
+  },
+  chatVideoHint: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 8,
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
   },
   fileIconBox: {
     width: 36,

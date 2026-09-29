@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
-
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -18,12 +17,16 @@
       "icon": "./assets/playstore_assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#15803d",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "backgroundColor": "#006400",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.amanikbt1.moiconnect",
-
-      "permissions": ["CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"],
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS"
+      ],
       "versionCode": 19
     },
     "notification": {
@@ -56,11 +59,11 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "moiconnect",
+    "owner": "sliver4",
     "extra": {
       "eas": {
-        "projectId": "fa4d81da-2f9b-43f9-81fb-8eb7c7f4ba2b"
+        "projectId": "53c51c41-a1f7-40a0-8111-7b7cd97d968e"
       }
-    },
-    "owner": "sliver3"
+    }
   }
 }

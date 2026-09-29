@@ -66,14 +66,14 @@ function AppRuntimeServices() {
   };
 
   useEffect(() => {
-    void registerForPushNotificationsAsync();
+    if (user) void registerForPushNotificationsAsync();
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       router.push(screenPath as any);
     });
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void registerForPushNotificationsAsync();
+        if (user) void registerForPushNotificationsAsync();
         loadPopup();
         void prefetchCommunityMessages();
       }

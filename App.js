@@ -492,14 +492,14 @@ function AppNavigator({ currentRoute }) {
   const [popupVisible, setPopupVisible] = React.useState(false);
 
   React.useEffect(() => {
-    void registerForPushNotificationsAsync();
+    if (user) void registerForPushNotificationsAsync();
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       if (screenPath === '/(tabs)/messages' && navigationRef.isReady()) {
         navigationRef.navigate('MainTabs', { screen: 'MessagesTab' });
       }
     });
     const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void registerForPushNotificationsAsync();
+      if (state === 'active') if (user) void registerForPushNotificationsAsync();
     });
     return () => {
       removeNotificationListener();
