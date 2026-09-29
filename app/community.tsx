@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../src/context/AuthContext';
 import { useAppNavigation } from '../src/utils/navigation';
 import {
@@ -62,6 +63,7 @@ import {
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
+import { useLocalSearchParams } from 'expo-router';
 
 export interface FileAttachment {
   name: string;
@@ -104,9 +106,20 @@ export interface CommunityMessage {
   };
 }
 
+interface MentionUser {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+}
+
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
 const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
 const CAMPUS_AI_AVATAR = require('../assets/campus-ai-avatar.png');
+const MENTION_DIRECTORY_KEY = 'moi_community_mention_directory_v1';
+const MENTION_ASSISTANTS: Array<MentionUser & { avatar: any }> = [
+  { id: 'campus-bot', name: 'Campus Bot', avatar: CAMPUS_BOT_AVATAR },
+  { id: 'campus-ai', name: 'Campus AI', avatar: CAMPUS_AI_AVATAR }
+];
 const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
   message.senderName.toLowerCase().includes('campus bot');
@@ -378,11 +391,18 @@ const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(messa
 export default function CommunityScreen() {
   const { user } = useAuth();
   const router = useAppNavigation();
+  const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [mentionDirectory, setMentionDirectory] = useState<MentionUser[]>([]);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionLoading, setMentionLoading] = useState(false);
+  const mentionFetchInFlightRef = useRef(false);
+  const mentionFetchedQueriesRef = useRef<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
   const [showFileModal, setShowFileModal] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
@@ -409,6 +429,7 @@ export default function CommunityScreen() {
   const [readMentionVersion, setReadMentionVersion] = useState(0);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const dismissedMentionIds = useRef<Set<string>>(new Set());
+  const focusMentionHandledRef = useRef(false);
 
   useEffect(() => {
     getReadCommunityMentionIds().then((ids) => {
@@ -460,17 +481,19 @@ export default function CommunityScreen() {
     if (force) pendingScrollToEndRef.current = true;
 
     const scrollToEnd = () => {
-      if (pendingScrollToEndRef.current || (!isDraggingRef.current && isNearBottomRef.current)) {
+      if (force || pendingScrollToEndRef.current || (!isDraggingRef.current && isNearBottomRef.current)) {
         flatListRef.current?.scrollToEnd({ animated });
       }
     };
 
     setTimeout(scrollToEnd, 40);
     setTimeout(scrollToEnd, 140);
+    setTimeout(scrollToEnd, 360);
+    setTimeout(scrollToEnd, 700);
     setTimeout(() => {
       scrollToEnd();
       pendingScrollToEndRef.current = false;
-    }, 360);
+    }, 1100);
   };
 
   const handleMessageListLayout = () => {
@@ -482,8 +505,7 @@ export default function CommunityScreen() {
   const handleMessageListContentSizeChange = () => {
     if (pendingScrollToEndRef.current) {
       flatListRef.current?.scrollToEnd({ animated: true });
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 80);
-      pendingScrollToEndRef.current = false;
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
     }
   };
   const evalIsMe = (msgSenderId?: any, msgSenderEmail?: string, msgSenderName?: string, msgClientMsgId?: string): boolean => {
@@ -539,7 +561,8 @@ export default function CommunityScreen() {
       if (currUser.name) {
         const fullNameLower = currUser.name.toLowerCase().trim();
         const firstNameLower = currUser.name.split(' ')[0]?.toLowerCase().trim();
-        if (textLower.includes(`@${fullNameLower}`) || (firstNameLower && firstNameLower.length >= 2 && textLower.includes(`@${firstNameLower}`))) {
+        const mentionSlug = fullNameLower.replace(/\s+/g, '_');
+        if (textLower.includes(`@${fullNameLower}`) || textLower.includes(`@${mentionSlug}`) || (firstNameLower && firstNameLower.length >= 2 && textLower.includes(`@${firstNameLower}`))) {
           return true;
         }
       }
@@ -558,41 +581,47 @@ export default function CommunityScreen() {
     setUnreadMentionIds(mentions);
   }, [messages, user, readMentionVersion]);
 
-  const scrollToMessage = (targetId: string) => {
-    const targetIndex = messages.findIndex((m) => m.id === targetId);
-    if (targetIndex !== -1 && flatListRef.current) {
-      try {
-        flatListRef.current.scrollToIndex({
-          index: targetIndex,
-          animated: true,
-          viewPosition: 0.5
-        });
-      } catch (e) {
-        try {
-          flatListRef.current.scrollToItem({ item: messages[targetIndex], animated: true });
-        } catch (err) {
-          flatListRef.current.scrollToEnd({ animated: true });
-        }
-      }
+  const scrollToMessage = (targetId: string): boolean => {
+    const normalizedTargetId = String(targetId);
+    const targetIndex = messages.findIndex((m) =>
+      String(m.id) === normalizedTargetId ||
+      String((m as any)._id || '') === normalizedTargetId ||
+      String(m.clientMsgId || '') === normalizedTargetId
+    );
+    if (targetIndex === -1 || !flatListRef.current) return false;
 
-      setHighlightedMsgId(targetId);
-      setTimeout(() => {
-        setHighlightedMsgId((curr) => (curr === targetId ? null : curr));
-      }, 2500);
-    }
+    const canonicalId = messages[targetIndex].id;
+    pendingScrollToEndRef.current = false;
+    isNearBottomRef.current = false;
+    setHighlightedMsgId(canonicalId);
+    const jumpToTarget = (animated: boolean) => {
+      flatListRef.current?.scrollToIndex({ index: targetIndex, animated, viewPosition: 0.5, viewOffset: 0 });
+    };
+    jumpToTarget(true);
+    setTimeout(() => jumpToTarget(false), 180);
+    setTimeout(() => jumpToTarget(true), 500);
+    setTimeout(() => {
+      setHighlightedMsgId((curr) => (curr === canonicalId ? null : curr));
+    }, 3000);
+    return true;
   };
 
   const handleJumpToNextMention = () => {
     if (unreadMentionIds.length === 0) return;
 
     const targetId = unreadMentionIds[0];
+    if (!scrollToMessage(targetId)) return;
     dismissedMentionIds.current.add(targetId);
     readMentionIdsRef.current.add(targetId);
     void saveReadCommunityMentionIds(Array.from(readMentionIdsRef.current));
-    scrollToMessage(targetId);
-
     setUnreadMentionIds((prev) => prev.filter((id) => id !== targetId));
   };
+
+  useEffect(() => {
+    if (String(focusMention) !== '1' || focusMentionHandledRef.current || unreadMentionIds.length === 0) return;
+    focusMentionHandledRef.current = true;
+    handleJumpToNextMention();
+  }, [focusMention, unreadMentionIds.length]);
 
   const initReadStateAndScroll = async (currentMsgs: CommunityMessage[]) => {
     if (currentMsgs.length === 0) return;
@@ -650,9 +679,10 @@ export default function CommunityScreen() {
 
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 120;
+    const paddingToBottom = 48;
     const isBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
     isNearBottomRef.current = isBottom;
+    setShowUnreadBtn((visible) => visible === !isBottom ? visible : !isBottom);
 
     if (isBottom && messages.length > 0) {
       const latestId = messages[messages.length - 1].id;
@@ -957,8 +987,96 @@ export default function CommunityScreen() {
       setAvailableFiles(showDemoMaterials ? SAMPLE_ATTACHMENTS : []);
     }
   };
+
+  const readMentionDirectoryCache = async (): Promise<MentionUser[]> => {
+    try {
+      const stored = Platform.OS === 'web'
+        ? localStorage.getItem(MENTION_DIRECTORY_KEY)
+        : await SecureStore.getItemAsync(MENTION_DIRECTORY_KEY);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((entry) => entry?.id && entry?.name).map((entry) => ({
+        id: String(entry.id),
+        name: String(entry.name),
+        avatarUrl: entry.avatarUrl ? String(entry.avatarUrl) : undefined
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const writeMentionDirectoryCache = async (directory: MentionUser[]) => {
+    try {
+      const value = JSON.stringify(directory.slice(0, 5000));
+      if (Platform.OS === 'web') localStorage.setItem(MENTION_DIRECTORY_KEY, value);
+      else await SecureStore.setItemAsync(MENTION_DIRECTORY_KEY, value);
+    } catch (error) {
+      console.warn('[Mentions] Directory cache was not saved:', error);
+    }
+  };
+
+  const fetchMentionDirectory = async (query = '') => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (mentionFetchInFlightRef.current || (normalizedQuery && mentionFetchedQueriesRef.current.has(normalizedQuery))) return;
+    mentionFetchInFlightRef.current = true;
+    setMentionLoading(true);
+    try {
+      const suffix = normalizedQuery ? `?q=${encodeURIComponent(normalizedQuery)}` : '';
+      const response = await apiRequest<{ success: boolean; data?: MentionUser[] }>(`/community/mention-users${suffix}`);
+      const fetched = Array.isArray(response?.data) ? response.data.map((entry) => ({
+        id: String(entry.id),
+        name: String(entry.name),
+        avatarUrl: entry.avatarUrl
+      })) : [];
+      if (normalizedQuery) mentionFetchedQueriesRef.current.add(normalizedQuery);
+      if (fetched.length > 0) {
+        setMentionDirectory((current) => {
+          const byId = new Map([...current, ...fetched].map((entry) => [entry.id, entry]));
+          const merged = Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+          void writeMentionDirectoryCache(merged);
+          return merged;
+        });
+      }
+    } catch (error) {
+      console.warn('[Mentions] Directory refresh skipped:', error);
+    } finally {
+      mentionFetchInFlightRef.current = false;
+      setMentionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void readMentionDirectoryCache().then((cached) => {
+      if (cached.length > 0) setMentionDirectory(cached);
+    });
+  }, []);
+
+  const selectMention = (entry: MentionUser) => {
+    const mentionToken = entry.id === 'campus-bot' ? 'bot' : entry.id === 'campus-ai' ? 'ai' : entry.name.trim().replace(/\s+/g, '_');
+    const nextText = inputText.replace(/(^|\s)@[^\s@]*$/, `$1@${mentionToken} `);
+    setInputText(nextText);
+    setMentionQuery('');
+    setShowMentionSuggestions(false);
+  };
+
   const handleInputChange = (text: string) => {
     setInputText(text);
+
+    const activeMention = text.match(/(^|\s)@([^\s@]*)$/);
+    if (activeMention) {
+      const query = activeMention[2] || '';
+      setMentionQuery(query);
+      setShowMentionSuggestions(true);
+      if (mentionDirectory.length === 0) void fetchMentionDirectory();
+      else {
+        const localMatch = mentionDirectory.some((entry) => entry.name.toLowerCase().includes(query.toLowerCase()));
+        if (!localMatch && query.trim().length >= 2) void fetchMentionDirectory(query);
+      }
+    } else {
+      setMentionQuery('');
+      setShowMentionSuggestions(false);
+    }
 
     if (text.trim().length > 0) {
       if (!isTypingRef.current) {
@@ -1407,8 +1525,11 @@ export default function CommunityScreen() {
             }}
             onScrollToIndexFailed={(info) => {
               setTimeout(() => {
-                flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-              }, 100);
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+              }, 120);
+              setTimeout(() => {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+              }, 450);
             }}
             ListHeaderComponent={
               <View style={styles.dateDivider}>
@@ -1616,16 +1737,20 @@ export default function CommunityScreen() {
           />
 
           {/* WhatsApp Style Floating Unread / Scroll to Bottom Button */}
-          {showUnreadBtn && unreadCount > 0 && (
+          {showUnreadBtn && (
             <TouchableOpacity
               style={styles.floatingUnreadBtn}
               onPress={scrollToBottomAndMarkRead}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Scroll to latest messages"
             >
               <Text style={styles.floatingUnreadArrow}>↓</Text>
-              <View style={styles.floatingUnreadBadge}>
-                <Text style={styles.floatingUnreadBadgeText}>{unreadCount}</Text>
-              </View>
+              {unreadCount > 0 && (
+                <View style={styles.floatingUnreadBadge}>
+                  <Text style={styles.floatingUnreadBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           )}
 
@@ -1730,6 +1855,42 @@ export default function CommunityScreen() {
                   <Text style={styles.stickerOptionLabel}>{sticker.label}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          )}
+          {showMentionSuggestions && (
+            <View style={styles.mentionSuggestions}>
+              <View style={styles.mentionSuggestionsHeader}>
+                <Text style={styles.mentionSuggestionsTitle}>Mention someone</Text>
+                {mentionLoading && <Text style={styles.mentionSuggestionsLoading}>Updating…</Text>}
+              </View>
+              <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={styles.mentionSuggestionsList}>
+                {MENTION_ASSISTANTS
+                  .filter((entry) => entry.name.toLowerCase().includes(mentionQuery.toLowerCase()) || (mentionQuery.toLowerCase() === 'bot' && entry.id === 'campus-bot') || (mentionQuery.toLowerCase() === 'ai' && entry.id === 'campus-ai'))
+                  .map((entry) => (
+                    <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
+                      <Image source={entry.avatar} style={styles.mentionAvatar} />
+                      <View style={styles.mentionUserText}>
+                        <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
+                        <Text style={styles.mentionUserSubtitle}>Assistant</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                {mentionDirectory
+                  .filter((entry) => entry.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+                  .slice(0, 8)
+                  .map((entry) => (
+                    <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
+                      {entry.avatarUrl ? <Image source={{ uri: entry.avatarUrl }} style={styles.mentionAvatar} /> : <View style={styles.mentionAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{entry.name[0]?.toUpperCase()}</Text></View>}
+                      <View style={styles.mentionUserText}>
+                        <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
+                        <Text style={styles.mentionUserSubtitle}>MoiConnect user</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                {!mentionLoading && MENTION_ASSISTANTS.every((entry) => !entry.name.toLowerCase().includes(mentionQuery.toLowerCase())) && mentionDirectory.filter((entry) => entry.name.toLowerCase().includes(mentionQuery.toLowerCase())).length === 0 && (
+                  <Text style={styles.mentionEmptyText}>No matching users yet</Text>
+                )}
+              </ScrollView>
             </View>
           )}
           <View style={styles.inputContainer}>
@@ -2278,6 +2439,88 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 9,
     marginTop: 2
+  },
+  mentionSuggestions: {
+    marginHorizontal: 8,
+    marginBottom: 4,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#dbe4ea',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: 'hidden'
+  },
+  mentionSuggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f5'
+  },
+  mentionSuggestionsTitle: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  mentionSuggestionsLoading: {
+    color: '#15803d',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  mentionSuggestionsList: {
+    maxHeight: 220
+  },
+  mentionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 10
+  },
+  mentionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e2e8f0'
+  },
+  mentionAvatarFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#15803d'
+  },
+  mentionAvatarFallbackText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  mentionUserText: {
+    flex: 1,
+    minWidth: 0
+  },
+  mentionUserName: {
+    color: '#0f172a',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  mentionUserSubtitle: {
+    color: '#64748b',
+    fontSize: 10,
+    marginTop: 1
+  },
+  mentionEmptyText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    textAlign: 'center',
+    padding: 14
   },
   sentStickerImage: {
     width: 132,

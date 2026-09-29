@@ -21,9 +21,10 @@ import { useAuth } from '../context/AuthContext';
 export interface GlobalBottomBarProps {
   currentRoute?: string;
   onNavigate?: (tabName: 'Home' | 'Downloads' | 'Community') => void;
+  onMentionNavigate?: () => void;
 }
 
-export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: GlobalBottomBarProps) {
+export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentionNavigate }: GlobalBottomBarProps) {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [unreadMentions, setUnreadMentions] = useState<number>(0);
@@ -166,9 +167,15 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate }: Global
             </View>
           )}
           {unreadMentions > 0 && (
-            <View style={styles.mentionBadge}>
+            <TouchableOpacity
+              style={styles.mentionBadge}
+              onPress={() => onMentionNavigate ? onMentionNavigate() : handlePress('Community')}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Jump to unread mention"
+            >
               <Text style={styles.mentionBadgeText}>@{unreadMentions > 99 ? '99+' : unreadMentions}</Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
         <Text style={[styles.tabLabel, isCommunityActive ? styles.tabLabelActive : styles.tabLabelInactive]}>

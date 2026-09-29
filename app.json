@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoiConnect",
     "slug": "moiconnect",
-    "version": "1.1.5",
+    "version": "1.1.6",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -24,7 +24,7 @@
       "package": "com.amanikbt1.moiconnect",
 
       "permissions": ["CAMERA", "RECORD_AUDIO", "POST_NOTIFICATIONS"],
-      "versionCode": 17
+      "versionCode": 19
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

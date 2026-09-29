@@ -557,6 +557,7 @@ export const getCommunityUnreadSummary = async (user?: { email?: string; name?: 
   const emailPrefix = email.split('@')[0];
   const name = user?.name?.toLowerCase().trim() || '';
   const firstName = name.split(' ')[0] || '';
+  const nameSlug = name.replace(/\s+/g, '_');
 
   const mentions = unreadMessages.filter((message: any) => {
     const messageId = message.id || message._id;
@@ -566,6 +567,7 @@ export const getCommunityUnreadSummary = async (user?: { email?: string; name?: 
       (email && text.includes(`@${email}`)) ||
       (emailPrefix && emailPrefix.length >= 3 && text.includes(`@${emailPrefix}`)) ||
       (name && text.includes(`@${name}`)) ||
+      (nameSlug && text.includes(`@${nameSlug}`)) ||
       (firstName && firstName.length >= 2 && text.includes(`@${firstName}`))
     );
   }).length;
