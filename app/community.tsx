@@ -106,9 +106,14 @@ export interface CommunityMessage {
 
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
 const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
+const CAMPUS_AI_AVATAR = require('../assets/campus-ai-avatar.png');
 const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
   message.senderName.toLowerCase().includes('campus bot');
+const isCampusAIMessage = (message: CommunityMessage) =>
+  message.senderEmail?.toLowerCase() === 'campusai@moiconnect.app' ||
+  message.senderName.toLowerCase() === 'campus ai';
+const isCampusAssistantMessage = (message: CommunityMessage) => isCampusBotMessage(message) || isCampusAIMessage(message);
 
 const STICKERS = [
   { id: 'heart', label: 'Love', source: require('../assets/stickers/heart.png') },
@@ -422,6 +427,7 @@ export default function CommunityScreen() {
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [botTyping, setBotTyping] = useState(false);
+  const [botTypingName, setBotTypingName] = useState('Campus Bot');
   const [onlineCount, setOnlineCount] = useState(0);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -513,6 +519,10 @@ export default function CommunityScreen() {
       }
       const parentMsg = allMsgs.find((p) => p.id === msg.replyTo?.id);
       if (parentMsg && parentMsg.isMe) return true;
+      if (isCampusAssistantMessage(msg) && parentMsg?.replyTo) {
+        const originalMessage = allMsgs.find((candidate) => candidate.id === parentMsg.replyTo?.id);
+        if (originalMessage?.isMe) return true;
+      }
     }
 
     // 2. Mention check: text contains @Email, @MyName, or @MyFirstName
@@ -718,7 +728,7 @@ export default function CommunityScreen() {
             replyTo: serverMsg.replyTo,
             reactions: serverMsg.reactions || {}
           };
-          if (isCampusBotMessage(formattedMsg)) {
+          if (isCampusAssistantMessage(formattedMsg)) {
             setBotTyping(false);
             if (formattedMsg.replyTo?.id) {
               updateMessageDelivery(formattedMsg.replyTo.id, 'sent');
@@ -798,7 +808,7 @@ export default function CommunityScreen() {
 
         socket.on('community:user_stop_typing', (data: { userId: string }) => {
           if (!data || !data.userId) return;
-          if (data.userId === 'campus-bot') setBotTyping(false);
+          if (data.userId === 'campus-bot' || data.userId === 'campus-ai') setBotTyping(false);
           setTypingUsers((prev) => prev.filter((u) => u.userId !== data.userId));
           if (typingTimeoutsRef.current[data.userId]) {
             clearTimeout(typingTimeoutsRef.current[data.userId]);
@@ -1072,13 +1082,19 @@ export default function CommunityScreen() {
     }
 
     const sentText = inputText.trim();
-    const isDirectBotMention = /(^|\s)@(bot|campusbot|campus bot)\b/i.test(sentText);
-    const isReplyToBot = Boolean(replyingTo && isCampusBotMessage(replyingTo));
+    const isStopCommand = /^\s*@(bot|campusbot|campus\s+bot|ai|campusai|campus\s+ai)\s+stop\b/i.test(sentText);
+    const mentionMatch = sentText.match(/(^|\s)@(bot|campusbot|campus\s+bot|ai|campusai|campus\s+ai)\b/i);
+    const isDirectBotMention = !!mentionMatch && !isStopCommand;
+    const isReplyToBot = Boolean(replyingTo && isCampusAssistantMessage(replyingTo) && !isStopCommand);
     const isBotMentioned = isDirectBotMention || isReplyToBot;
 
     // Start the bot indicator before any network work so it is visible immediately.
     if (isBotMentioned) {
       setBotTyping(true);
+      const target = mentionMatch?.[2]?.toLowerCase() || '';
+      setBotTypingName(target === 'ai' || target === 'campusai' || target.includes('ai') || (!!replyingTo && isCampusAIMessage(replyingTo)) ? 'Campus AI' : 'Campus Bot');
+    } else if (isStopCommand) {
+      setBotTyping(false);
     }
 
     const replyToData = replyingTo
@@ -1437,13 +1453,15 @@ export default function CommunityScreen() {
                     <View style={[styles.messageBubbleWrapper, item.isMe ? styles.myWrapper : styles.otherWrapper]}>
                       {!item.isMe && (
                         <TouchableOpacity
-                          style={[styles.senderAvatar, isCampusBotMessage(item) && styles.botAvatarRing, { backgroundColor: item.avatarBg }]}
+                          style={[styles.senderAvatar, isCampusAssistantMessage(item) && styles.botAvatarRing, { backgroundColor: item.avatarBg }]}
                           onPress={() => setSelectedProfile(item)}
                           activeOpacity={0.8}
                           accessibilityLabel={`View ${item.senderName}'s profile`}
                         >
                           {isCampusBotMessage(item) ? (
                             <Image source={CAMPUS_BOT_AVATAR} style={styles.botAvatarImage} />
+                          ) : isCampusAIMessage(item) ? (
+                            <Image source={CAMPUS_AI_AVATAR} style={styles.botAvatarImage} />
                           ) : item.senderAvatarUrl ? (
                             <Image source={{ uri: item.senderAvatarUrl }} style={styles.botAvatarImage} />
                           ) : (
@@ -1692,7 +1710,7 @@ export default function CommunityScreen() {
                 {botTyping && typingUsers.length === 0 ? (
                   <View style={styles.typingBotLabel}>
                     <BotIcon color="#6366f1" size={14} />
-                    <Text style={styles.typingIndicatorText} numberOfLines={1}>Campus Bot is typing...</Text>
+                    <Text style={styles.typingIndicatorText} numberOfLines={1}>{botTypingName} is typing...</Text>
                   </View>
                 ) : (
                   <Text style={styles.typingIndicatorText} numberOfLines={1}>
@@ -1729,7 +1747,7 @@ export default function CommunityScreen() {
               </TouchableOpacity>
               <TextInput
                 style={styles.input}
-                placeholder="@bot to mention campus bot"
+                placeholder="@bot or @ai • @bot stop to cancel"
                 placeholderTextColor="#8696a0"
                 value={inputText}
                 onChangeText={handleInputChange}
@@ -1781,6 +1799,8 @@ export default function CommunityScreen() {
                   <View style={[styles.profileModalAvatar, { backgroundColor: selectedProfile.avatarBg }]}>
                     {isCampusBotMessage(selectedProfile) ? (
                       <Image source={CAMPUS_BOT_AVATAR} style={styles.profileModalAvatarImage} />
+                    ) : isCampusAIMessage(selectedProfile) ? (
+                      <Image source={CAMPUS_AI_AVATAR} style={styles.profileModalAvatarImage} />
                     ) : selectedProfile.senderAvatarUrl ? (
                       <Image source={{ uri: selectedProfile.senderAvatarUrl }} style={styles.profileModalAvatarImage} />
                     ) : (

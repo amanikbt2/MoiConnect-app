@@ -418,8 +418,13 @@ export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetail
 };
 
 const COMMUNITY_MESSAGES_KEY = 'moi_community_messages_cache';
+const COMMUNITY_MESSAGES_FILE = FileSystem.documentDirectory
+  ? `${FileSystem.documentDirectory}community-messages-cache.json`
+  : null;
 const LAST_READ_COMMUNITY_KEY = 'moi_community_last_read_id';
 const COMMUNITY_REACTOR_ID_KEY = 'moi_community_reactor_id';
+const MAX_CACHED_COMMUNITY_MESSAGES = 120;
+let communityCacheWrite: Promise<void> = Promise.resolve();
 
 export const getCommunityReactorId = async (): Promise<string> => {
   const existing = await getItem(COMMUNITY_REACTOR_ID_KEY);
@@ -430,13 +435,63 @@ export const getCommunityReactorId = async (): Promise<string> => {
 };
 
 export const getStoredCommunityMessages = async (): Promise<any[]> => {
-  const existingStr = await getItem(COMMUNITY_MESSAGES_KEY);
-  return existingStr ? JSON.parse(existingStr) : [];
+  try {
+    const existingStr = Platform.OS === 'web'
+      ? await getItem(COMMUNITY_MESSAGES_KEY)
+      : COMMUNITY_MESSAGES_FILE
+        ? await FileSystem.readAsStringAsync(COMMUNITY_MESSAGES_FILE).catch(() => null)
+        : await getItem(COMMUNITY_MESSAGES_KEY);
+    if (!existingStr) return [];
+    const parsed = JSON.parse(existingStr);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 export const saveCommunityMessages = async (messages: any[]) => {
-  await setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(messages));
-  await notifyUnreadCountListeners();
+  const compact = (message: any) => {
+    const stripDataAvatar = (avatar?: string) => avatar?.startsWith('data:') ? undefined : avatar;
+    return {
+      ...message,
+      text: typeof message.text === 'string' ? message.text.slice(-4000) : '',
+      senderAvatarUrl: stripDataAvatar(message.senderAvatarUrl),
+      pendingPayload: message.pendingPayload
+        ? { ...message.pendingPayload, senderAvatarUrl: stripDataAvatar(message.pendingPayload.senderAvatarUrl) }
+        : undefined
+    };
+  };
+  const compacted = messages.map(compact);
+  const queued = compacted.filter((message) => message.deliveryStatus === 'queued' && message.pendingPayload);
+  const history = compacted.filter((message) => !(message.deliveryStatus === 'queued' && message.pendingPayload));
+
+  communityCacheWrite = communityCacheWrite.catch(() => undefined).then(async () => {
+    let lastError: unknown;
+    for (const keepCount of [MAX_CACHED_COMMUNITY_MESSAGES, 80, 40, 20, 0]) {
+      const retained = [...history.slice(keepCount > 0 ? -keepCount : history.length), ...queued]
+        .sort((a, b) => String(a.isoDate || '').localeCompare(String(b.isoDate || '')));
+      const serialized = JSON.stringify(retained);
+      try {
+        if (Platform.OS === 'web') {
+          await setItem(COMMUNITY_MESSAGES_KEY, serialized);
+        } else if (COMMUNITY_MESSAGES_FILE) {
+          await FileSystem.writeAsStringAsync(COMMUNITY_MESSAGES_FILE, serialized);
+        } else {
+          await setItem(COMMUNITY_MESSAGES_KEY, serialized);
+        }
+        lastError = undefined;
+        break;
+      } catch (error) {
+        lastError = error;
+        if (Platform.OS === 'web') {
+          try { localStorage.removeItem(COMMUNITY_MESSAGES_KEY); } catch {}
+        }
+      }
+    }
+    if (lastError) console.warn('[Community cache] Unable to persist the compact message cache.');
+    await notifyUnreadCountListeners().catch(() => undefined);
+  }).catch(() => console.warn('[Community cache] Message cache update was skipped.'));
+  await communityCacheWrite;
 };
 const READ_COMMUNITY_MENTIONS_KEY = 'moi_community_read_mention_ids';
 
