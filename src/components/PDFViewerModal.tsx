@@ -69,6 +69,28 @@ export function formatCount(input: number | string | undefined | null): string {
   return val % 1 === 0 ? `${val.toFixed(0)}b` : `${val.toFixed(1).replace(/\.0$/, '')}b`;
 }
 
+export function getCleanPdfUrl(rawUrl?: string): string {
+  if (!rawUrl) return '';
+  let url = rawUrl;
+
+  if (url.includes('api.cloudinary.com')) {
+    try {
+      const parsed = new URL(url);
+      const pid = parsed.searchParams.get('public_id');
+      const cloudName = parsed.pathname.split('/')[2] || 'mconnect';
+      if (pid) {
+        const cleanPid = pid.replace(/^\//, '');
+        const ext = cleanPid.match(/\.[a-z0-9]+$/i) ? '' : '.pdf';
+        return `https://res.cloudinary.com/${cloudName}/raw/upload/${cleanPid}${ext}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  return url;
+}
+
 export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   visible,
   document,
@@ -191,9 +213,10 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
   const isDownloading = downloadInfo.status === 'downloading';
   const isCompleted = downloadInfo.status === 'completed';
-  const fileUrl = document.fileUrl?.startsWith('/')
+  const rawFileUrl = document.fileUrl?.startsWith('/')
     ? config.apiUrl.replace(/\/api\/v1\/?$/, '') + document.fileUrl
     : document.fileUrl;
+  const fileUrl = getCleanPdfUrl(rawFileUrl);
   const hasRealDocument = /^https?:\/\//i.test(fileUrl || '') || /^\/\/[^/]/.test(fileUrl || '');
   const embeddedFileUrl = fileUrl
     ? fileUrl + (fileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')

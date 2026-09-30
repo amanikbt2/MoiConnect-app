@@ -53,6 +53,8 @@ import {
   saveDownloadedPaper,
   saveCommunityMessages,
   getCommunityReactorId,
+  getCommunitySyncCursor,
+  saveCommunitySyncCursor,
   getLastReadCommunityMsgId,
   saveLastReadCommunityMsgId,
   getReadCommunityMentionIds,
@@ -401,6 +403,7 @@ export default function CommunityScreen() {
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -482,39 +485,6 @@ export default function CommunityScreen() {
   const isNearBottomRef = useRef<boolean>(true);
   const initialScrollDoneRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
-  const pendingScrollToEndRef = useRef<boolean>(false);
-
-  const scrollToLatestWhenReady = (animated: boolean, force = false) => {
-    if (force) pendingScrollToEndRef.current = true;
-
-    const scrollToEnd = () => {
-      if (force || pendingScrollToEndRef.current || (!isDraggingRef.current && isNearBottomRef.current)) {
-        flatListRef.current?.scrollToEnd({ animated });
-      }
-    };
-
-    setTimeout(scrollToEnd, 40);
-    setTimeout(scrollToEnd, 140);
-    setTimeout(scrollToEnd, 360);
-    setTimeout(scrollToEnd, 700);
-    setTimeout(() => {
-      scrollToEnd();
-      pendingScrollToEndRef.current = false;
-    }, 1100);
-  };
-
-  const handleMessageListLayout = () => {
-    if (pendingScrollToEndRef.current) {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }
-  };
-
-  const handleMessageListContentSizeChange = () => {
-    if (pendingScrollToEndRef.current) {
-      flatListRef.current?.scrollToEnd({ animated: true });
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
-    }
-  };
   const evalIsMe = (msgSenderId?: any, msgSenderEmail?: string, msgSenderName?: string, msgClientMsgId?: string): boolean => {
     if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
       return true;
@@ -590,23 +560,17 @@ export default function CommunityScreen() {
 
   const scrollToMessage = (targetId: string): boolean => {
     const normalizedTargetId = String(targetId);
-    const targetIndex = messages.findIndex((m) =>
+    const targetIndex = displayMessages.findIndex((m) =>
       String(m.id) === normalizedTargetId ||
       String((m as any)._id || '') === normalizedTargetId ||
       String(m.clientMsgId || '') === normalizedTargetId
     );
     if (targetIndex === -1 || !flatListRef.current) return false;
 
-    const canonicalId = messages[targetIndex].id;
-    pendingScrollToEndRef.current = false;
-    isNearBottomRef.current = false;
+    const canonicalId = displayMessages[targetIndex].id;
+    isNearBottomRef.current = targetIndex === 0;
     setHighlightedMsgId(canonicalId);
-    const jumpToTarget = (animated: boolean) => {
-      flatListRef.current?.scrollToIndex({ index: targetIndex, animated, viewPosition: 0.5, viewOffset: 0 });
-    };
-    jumpToTarget(true);
-    setTimeout(() => jumpToTarget(false), 180);
-    setTimeout(() => jumpToTarget(true), 500);
+    flatListRef.current.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.5 });
     setTimeout(() => {
       setHighlightedMsgId((curr) => (curr === canonicalId ? null : curr));
     }, 3000);
@@ -640,7 +604,6 @@ export default function CommunityScreen() {
       setUnreadCount(0);
       setFirstUnreadMsgId(null);
       setShowUnreadBtn(false);
-      scrollToLatestWhenReady(false, true);
       initialScrollDoneRef.current = true;
       return;
     }
@@ -653,20 +616,12 @@ export default function CommunityScreen() {
       setFirstUnreadMsgId(firstUnreadId);
       setUnreadCount(count);
       setShowUnreadBtn(true);
-
-      if (!initialScrollDoneRef.current) {
-        initialScrollDoneRef.current = true;
-        scrollToLatestWhenReady(false, true);
-      }
     } else {
       setUnreadCount(0);
       setFirstUnreadMsgId(null);
       setShowUnreadBtn(false);
-      if (!initialScrollDoneRef.current) {
-        initialScrollDoneRef.current = true;
-        scrollToLatestWhenReady(false, true);
-      }
     }
+    initialScrollDoneRef.current = true;
   };
 
   const markAsRead = async (latestId: string) => {
@@ -681,15 +636,14 @@ export default function CommunityScreen() {
       const latestId = messages[messages.length - 1].id;
       markAsRead(latestId);
     }
-    scrollToLatestWhenReady(true, true);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 48;
-    const isBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    const { contentOffset } = event.nativeEvent;
+    const isBottom = contentOffset.y <= 60;
     isNearBottomRef.current = isBottom;
-    setShowUnreadBtn((visible) => visible === !isBottom ? visible : !isBottom);
+    setShowUnreadBtn(!isBottom);
 
     if (isBottom && messages.length > 0) {
       const latestId = messages[messages.length - 1].id;
@@ -709,7 +663,7 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting()]).then(([cachedMsgs, demoSetting]) => {
+    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getCommunitySyncCursor()]).then(([cachedMsgs, demoSetting, storedCursor]) => {
       setShowDemoMaterials(demoSetting);
       const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
       const msgsToLoad = rawMsgs
@@ -723,7 +677,11 @@ export default function CommunityScreen() {
         const timestamp = message.updatedAt || message.isoDate;
         return timestamp && timestamp > latest ? timestamp : latest;
       }, '');
-      lastSyncedISO.current = latestCachedTimestamp || '';
+      // New installs start from now instead of downloading the entire server archive.
+      // Existing installs retain their previous cache cursor and only request deltas.
+      const initialCursor = storedCursor || latestCachedTimestamp || new Date().toISOString();
+      lastSyncedISO.current = initialCursor;
+      if (!storedCursor) void saveCommunitySyncCursor(initialCursor);
       if ((!cachedMsgs || cachedMsgs.length === 0) && demoSetting) {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
       }
@@ -745,9 +703,16 @@ export default function CommunityScreen() {
         const handleSocketReconnectError = (error: any) => {
           console.warn('[Community] Socket reconnect pending:', error?.message || error);
         };
+        const handleSocketDisconnect = () => {
+          // Mark the start of the offline window so reconnect only requests missed messages.
+          const offlineSince = new Date().toISOString();
+          lastSyncedISO.current = offlineSince;
+          void saveCommunitySyncCursor(offlineSince);
+        };
 
         socket.on('connect', handleSocketConnect);
         socket.on('connect_error', handleSocketReconnectError);
+        socket.on('disconnect', handleSocketDisconnect);
         socket.on('community:online_count', (stats: { totalOnline?: number }) => {
           setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
         });
@@ -811,7 +776,9 @@ export default function CommunityScreen() {
 
             if (formattedMsg.isMe || isNearBottomRef.current) {
               markAsRead(formattedMsg.id);
-              scrollToLatestWhenReady(true, formattedMsg.isMe);
+              if (formattedMsg.isMe) {
+                flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+              }
             } else {
               setUnreadCount((c) => c + 1);
               setShowUnreadBtn(true);
@@ -917,6 +884,7 @@ export default function CommunityScreen() {
         activeSocket.off('community:online_count');
         activeSocket.off('connect', handleSocketConnect);
         activeSocket.off('connect_error', handleSocketReconnectError);
+        activeSocket.off('disconnect', handleSocketDisconnect);
       }
     };
   }, [user]);
@@ -984,6 +952,7 @@ export default function CommunityScreen() {
       }
       if ((res as any).syncedAt) {
         lastSyncedISO.current = (res as any).syncedAt;
+        await saveCommunitySyncCursor((res as any).syncedAt);
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
@@ -1208,6 +1177,10 @@ export default function CommunityScreen() {
         });
         void fetchDeltaSync();
         void retryQueuedMessages();
+      } else {
+        const offlineSince = new Date().toISOString();
+        lastSyncedISO.current = offlineSince;
+        void saveCommunitySyncCursor(offlineSince);
       }
     });
     const retryTimer = setInterval(retryQueuedMessages, 10000);
@@ -1540,13 +1513,14 @@ export default function CommunityScreen() {
         <View style={styles.chatBackground}>
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={displayMessages}
+            inverted={true}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messageList}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            onLayout={handleMessageListLayout}
-            onContentSizeChange={handleMessageListContentSizeChange}
+
+
             onScrollBeginDrag={() => {
               isDraggingRef.current = true;
             }}
@@ -1564,7 +1538,7 @@ export default function CommunityScreen() {
                 flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
               }, 450);
             }}
-            ListHeaderComponent={
+            ListFooterComponent={
               <View style={styles.dateDivider}>
                 <Text style={styles.dateDividerText}>TODAY • CAMPUS DISCUSSION</Text>
               </View>

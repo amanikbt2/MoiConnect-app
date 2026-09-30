@@ -177,6 +177,7 @@ function SwipeableMessageItem({
 export default function ChatRoomScreen({ route }: any) {
   const conversationId = route?.params?.id;
   const [messages, setMessages] = useState<any[]>([]);
+  const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -213,7 +214,7 @@ export default function ChatRoomScreen({ route }: any) {
   };
 
   const scrollToMessage = (msgId: string) => {
-    const index = messages.findIndex((m) => (m._id || m.id) === msgId);
+    const index = displayMessages.findIndex((m) => (m._id || m.id) === msgId);
     if (index !== -1 && flatListRef.current) {
       flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
     }
@@ -227,17 +228,19 @@ export default function ChatRoomScreen({ route }: any) {
   }, [conversationId, user]);
 
   const loadMessageHistory = async () => {
-    setLoading(true);
+    const cached = await getCachedMessages(conversationId);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const res: any = await apiRequest<any>(`/conversations/${conversationId}/messages`);
     setLoading(false);
-    if (res.success && res.data) {
+    if (res.success && Array.isArray(res.data)) {
       setMessages(res.data as any[]);
       cacheMessages(conversationId, res.data);
-    } else {
-      const cached = await getCachedMessages(conversationId);
-      if (cached && cached.length > 0) {
-        setMessages(cached);
-      }
     }
   };
 
@@ -481,10 +484,10 @@ export default function ChatRoomScreen({ route }: any) {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={displayMessages}
+          inverted={true}
           keyExtractor={(item, index) => item._id || index.toString()}
           contentContainerStyle={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           renderItem={({ item }) => {
             const sender = typeof item.senderId === 'object' ? (item.senderId as any) : null;
             const isMe = (sender ? sender._id : item.senderId) === user?._id;

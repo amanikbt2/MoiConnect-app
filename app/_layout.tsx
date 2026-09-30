@@ -13,8 +13,6 @@ import { registerForPushNotificationsAsync, setupNotificationResponseListener } 
 import { useAuth } from '../src/context/AuthContext';
 
 import { initSocket } from '../src/services/socket';
-import { apiRequest } from '../src/services/api';
-import { getStoredCommunityMessages, saveCommunityMessages } from '../src/services/offlineStorage';
 
 const queryClient = new QueryClient();
 
@@ -24,33 +22,6 @@ function AppRuntimeServices() {
   const [activePopup, setActivePopup] = useState<any>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const popupCheckInFlight = useRef(false);
-  const communityPrefetchInFlight = useRef(false);
-
-  const prefetchCommunityMessages = async () => {
-    if (communityPrefetchInFlight.current) return;
-    communityPrefetchInFlight.current = true;
-    try {
-      const [cached, response] = await Promise.all([
-        getStoredCommunityMessages(),
-        apiRequest<{ success: boolean; data?: any[] }>('/community/messages?limit=120')
-      ]);
-      if (!response.success || !Array.isArray(response.data)) return;
-      const merged = new Map<string, any>();
-      [...cached, ...response.data].forEach((message: any) => {
-        const id = String(message.id || message._id || message.clientMsgId || '');
-        if (id) merged.set(id, message);
-      });
-      const refreshed = Array.from(merged.values()).sort((a, b) =>
-        new Date(a.createdAt || a.isoDate || 0).getTime() - new Date(b.createdAt || b.isoDate || 0).getTime()
-      );
-      await saveCommunityMessages(refreshed.slice(-120));
-    } catch {
-      // Optional background work; the chat screen retries when opened.
-    } finally {
-      communityPrefetchInFlight.current = false;
-    }
-  };
-
   const loadPopup = async () => {
     if (popupCheckInFlight.current) return;
     popupCheckInFlight.current = true;
@@ -75,12 +46,10 @@ function AppRuntimeServices() {
       if (state === 'active') {
         if (user) void registerForPushNotificationsAsync();
         loadPopup();
-        void prefetchCommunityMessages();
       }
     });
 
     loadPopup();
-    void prefetchCommunityMessages();
     return () => {
       removeNotificationListener();
       appStateSubscription.remove();

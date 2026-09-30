@@ -422,6 +422,7 @@ const COMMUNITY_MESSAGES_FILE = FileSystem.documentDirectory
   ? `${FileSystem.documentDirectory}community-messages-cache.json`
   : null;
 const LAST_READ_COMMUNITY_KEY = 'moi_community_last_read_id';
+const COMMUNITY_SYNC_CURSOR_KEY = 'moi_community_sync_cursor';
 const COMMUNITY_REACTOR_ID_KEY = 'moi_community_reactor_id';
 const MAX_CACHED_COMMUNITY_MESSAGES = 120;
 let communityCacheWrite: Promise<void> = Promise.resolve();
@@ -493,6 +494,16 @@ export const saveCommunityMessages = async (messages: any[]) => {
   }).catch(() => console.warn('[Community cache] Message cache update was skipped.'));
   await communityCacheWrite;
 };
+
+export const getCommunitySyncCursor = async (): Promise<string | null> => {
+  const value = await getItem(COMMUNITY_SYNC_CURSOR_KEY);
+  return value || null;
+};
+
+export const saveCommunitySyncCursor = async (cursor: string): Promise<void> => {
+  if (cursor) await setItem(COMMUNITY_SYNC_CURSOR_KEY, cursor);
+};
+
 const READ_COMMUNITY_MENTIONS_KEY = 'moi_community_read_mention_ids';
 
 export const getReadCommunityMentionIds = async (): Promise<string[]> => {
