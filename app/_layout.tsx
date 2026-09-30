@@ -11,6 +11,7 @@ import { InAppPopupModal } from '../src/components/InAppPopupModal';
 import { checkAppPopups } from '../src/services/popupService';
 import { registerForPushNotificationsAsync, setupNotificationResponseListener } from '../src/services/notificationService';
 import { useAuth } from '../src/context/AuthContext';
+import { syncCommunityUnreadBackground } from '../src/services/offlineStorage';
 
 import { initSocket } from '../src/services/socket';
 
@@ -37,15 +38,22 @@ function AppRuntimeServices() {
   };
 
   useEffect(() => {
-    if (user) void registerForPushNotificationsAsync();
+    void registerForPushNotificationsAsync();
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       router.push(screenPath as any);
     });
 
+    // 30-second lightweight poll for new community messages and mentions
+    void syncCommunityUnreadBackground();
+    const communitySyncInterval = setInterval(() => {
+      void syncCommunityUnreadBackground();
+    }, 30000);
+
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        if (user) void registerForPushNotificationsAsync();
+        void registerForPushNotificationsAsync();
         loadPopup();
+        void syncCommunityUnreadBackground();
       }
     });
 
@@ -53,6 +61,7 @@ function AppRuntimeServices() {
     return () => {
       removeNotificationListener();
       appStateSubscription.remove();
+      clearInterval(communitySyncInterval);
     };
   }, [user]);
 

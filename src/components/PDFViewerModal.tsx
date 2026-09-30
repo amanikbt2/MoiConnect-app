@@ -14,8 +14,9 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { DownloadIcon, CheckIcon, ArrowLeftIcon } from './Icons';
+import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, VolumeOffIcon } from './Icons';
 import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
+import { ttsService, TTSState } from '../services/ttsService';
 import { config } from '../config';
 
 export interface PDFDocumentItem {
@@ -88,6 +89,10 @@ export function getCleanPdfUrl(rawUrl?: string): string {
     }
   }
 
+  if (url.includes('/raw/upload/')) {
+    url = url.replace(/\/raw\/upload\/s--[^/]+--\//, '/raw/upload/').split('?')[0];
+  }
+
   return url;
 }
 
@@ -108,7 +113,30 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     progress?: number;
   }>({});
 
+  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false });
+
   const spinValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const unsub = ttsService.subscribe((st) => setTtsState(st));
+    return () => {
+      unsub();
+      ttsService.stop();
+    };
+  }, []);
+
+  const handleToggleTTS = () => {
+    if (!document) return;
+    const textToRead = [
+      `Course Unit: ${document.unitCode} ${document.unitName || ''}.`,
+      `Document Title: ${document.title}.`,
+      document.summary ? `Summary: ${document.summary}.` : '',
+      document.sampleText ? `Content excerpt: ${document.sampleText}.` : '',
+      `Page ${activePage} preview for ${document.title}.`
+    ].filter(Boolean).join(' ');
+
+    ttsService.toggle(textToRead);
+  };
 
   useEffect(() => {
     if (!document) return;
@@ -253,30 +281,71 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </Text>
           </View>
 
-          {/* Top Right Header Action Button: Download / Save PDF */}
-          <TouchableOpacity
-            style={[
-              styles.downloadIconBtn,
-              isCompleted && styles.downloadIconBtnSuccess,
-              isDownloading && styles.downloadIconBtnActive
-            ]}
-            onPress={handleSave}
-            disabled={isDownloading}
-            activeOpacity={0.8}
-            accessibilityLabel={isCompleted ? 'Downloaded' : isDownloading ? 'Downloading' : 'Download PDF for offline access'}
-          >
-            {isDownloading ? (
-              <View style={styles.spinnerWrapper}>
-                <Animated.View style={[styles.spinRing, { transform: [{ rotate: spin }] }]} />
-                <Text style={styles.progressPercentText}>{downloadInfo.progress || 5}%</Text>
-              </View>
-            ) : isCompleted ? (
-              <CheckIcon color="#ffffff" size={20} />
-            ) : (
-              <DownloadIcon color="#ffffff" size={20} />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Audio TTS Voice Mode Toggle Button */}
+            <TouchableOpacity
+              style={[
+                styles.audioIconBtn,
+                ttsState.isSpeaking && styles.audioIconBtnActive
+              ]}
+              onPress={handleToggleTTS}
+              activeOpacity={0.8}
+              accessibilityLabel={ttsState.isSpeaking ? 'Stop voice reading' : 'Read document aloud'}
+            >
+              {ttsState.isSpeaking ? (
+                <VolumeOffIcon color="#ffffff" size={20} />
+              ) : (
+                <VolumeIcon color="#ffffff" size={20} />
+              )}
+            </TouchableOpacity>
+
+            {/* Top Right Header Action Button: Download / Save PDF */}
+            <TouchableOpacity
+              style={[
+                styles.downloadIconBtn,
+                isCompleted && styles.downloadIconBtnSuccess,
+                isDownloading && styles.downloadIconBtnActive
+              ]}
+              onPress={handleSave}
+              disabled={isDownloading}
+              activeOpacity={0.8}
+              accessibilityLabel={isCompleted ? 'Downloaded' : isDownloading ? 'Downloading' : 'Download PDF for offline access'}
+            >
+              {isDownloading ? (
+                <View style={styles.spinnerWrapper}>
+                  <Animated.View style={[styles.spinRing, { transform: [{ rotate: spin }] }]} />
+                  <Text style={styles.progressPercentText}>{downloadInfo.progress || 5}%</Text>
+                </View>
+              ) : isCompleted ? (
+                <CheckIcon color="#ffffff" size={20} />
+              ) : (
+                <DownloadIcon color="#ffffff" size={20} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* Voice Reading Mode Active Banner */}
+        {ttsState.isSpeaking && (
+          <View style={styles.ttsBanner}>
+            <View style={styles.ttsBannerContent}>
+              <Text style={styles.ttsBannerIcon}>🔊</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ttsBannerTitle}>Voice Reading Mode Active</Text>
+                <Text style={styles.ttsBannerText} numberOfLines={1}>
+                  Reading {document.unitCode} - {document.title} aloud
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.ttsStopBtn}
+                onPress={() => ttsService.stop()}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.ttsStopBtnText}>Stop Voice</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Instant PDF Preview Container */}
         <View style={styles.bodyContainer}>
@@ -892,5 +961,61 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748b',
     letterSpacing: 0.5
+  },
+  audioIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)'
+  },
+  audioIconBtnActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+    borderWidth: 2,
+    shadowColor: '#38bdf8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  ttsBanner: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0369a1'
+  },
+  ttsBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  ttsBannerIcon: {
+    fontSize: 16
+  },
+  ttsBannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff'
+  },
+  ttsBannerText: {
+    fontSize: 11,
+    color: '#e0f2fe',
+    fontWeight: '500'
+  },
+  ttsStopBtn: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6
+  },
+  ttsStopBtnText: {
+    color: '#0284c7',
+    fontSize: 11,
+    fontWeight: '800'
   }
 });

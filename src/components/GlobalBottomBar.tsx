@@ -14,7 +14,8 @@ import {
   subscribeToUnreadCountUpdates,
   subscribeToUnreadSummaryUpdates,
   getStoredCommunityMessages,
-  saveLastReadCommunityMsgId
+  saveLastReadCommunityMsgId,
+  syncCommunityUnreadBackground
 } from '../services/offlineStorage';
 import { useAuth } from '../context/AuthContext';
 
@@ -114,6 +115,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
   };
 
   const containerPaddingBottom = Math.max(bottomInset, Platform.OS === 'ios' ? 14 : 6);
+  const totalUnreadCount = unreadCount + unreadMentions;
 
   return (
     <View style={[styles.container, { paddingBottom: containerPaddingBottom }]}>
@@ -161,22 +163,35 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
             }}
             resizeMode="contain"
           />
-          {unreadCount > 0 && (
-            <View style={styles.generalBadge}>
-              <Text style={styles.generalBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+
+          {unreadMentions > 0 ? (
+            <>
+              {/* Left Side: Mention Badge (@) */}
+              <TouchableOpacity
+                style={styles.mentionBadgeLeft}
+                onPress={() => (onMentionNavigate ? onMentionNavigate() : handlePress('Community'))}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Jump to unread mention"
+              >
+                <Text style={styles.mentionBadgeLeftText}>@</Text>
+              </TouchableOpacity>
+
+              {/* Right Side: Total Unread Count Badge */}
+              <View style={styles.countBadgeRight}>
+                <Text style={styles.badgeText}>
+                  {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                </Text>
+              </View>
+            </>
+          ) : totalUnreadCount > 0 ? (
+            /* Center: Normal Red Unread Count Badge */
+            <View style={styles.countBadgeCenter}>
+              <Text style={styles.badgeText}>
+                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+              </Text>
             </View>
-          )}
-          {unreadMentions > 0 && (
-            <TouchableOpacity
-              style={styles.mentionBadge}
-              onPress={() => onMentionNavigate ? onMentionNavigate() : handlePress('Community')}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-              accessibilityLabel="Jump to unread mention"
-            >
-              <Text style={styles.mentionBadgeText}>@{unreadMentions > 99 ? '99+' : unreadMentions}</Text>
-            </TouchableOpacity>
-          )}
+          ) : null}
         </View>
         <Text style={[styles.tabLabel, isCommunityActive ? styles.tabLabelActive : styles.tabLabelInactive]}>
           Community
@@ -218,7 +233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 26,
-    width: 26,
+    width: 32,
   },
   tabLabel: {
     fontSize: 11,
@@ -232,42 +247,88 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
   },
-  generalBadge: {
+  mentionBadgeLeft: {
     position: 'absolute',
-    top: -1,
-    left: -10,
-    backgroundColor: '#ef4444',
-    borderRadius: 7,
-    minWidth: 15,
-    height: 15,
+    top: -7,
+    left: -12,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    zIndex: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 3px rgba(245, 158, 11, 0.3)' },
+      default: {
+        shadowColor: '#f59e0b',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2
+      }
+    }),
   },
-  generalBadgeText: {
-    color: '#ffffff',
-    fontSize: 8,
+  mentionBadgeLeftText: {
+    color: '#f59e0b',
+    fontSize: 10,
     fontWeight: '900',
-    lineHeight: 10,
+    lineHeight: 12,
   },
-  mentionBadge: {
+  countBadgeRight: {
     position: 'absolute',
-    top: -9,
+    top: -7,
     right: -12,
-    backgroundColor: '#dc2626',
-    borderRadius: 12,
-    minWidth: 25,
-    height: 25,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
-    borderWidth: 2,
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
     borderColor: '#ffffff',
+    zIndex: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 3px rgba(239, 68, 68, 0.3)' },
+      default: {
+        shadowColor: '#ef4444',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2
+      }
+    }),
   },
-  mentionBadgeText: {
+  countBadgeCenter: {
+    position: 'absolute',
+    top: -7,
+    alignSelf: 'center',
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    zIndex: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 3px rgba(239, 68, 68, 0.3)' },
+      default: {
+        shadowColor: '#ef4444',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2
+      }
+    }),
+  },
+  badgeText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '900',
-    lineHeight: 13,
+    lineHeight: 11,
   },
 });

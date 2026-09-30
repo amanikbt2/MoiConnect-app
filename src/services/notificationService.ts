@@ -50,17 +50,25 @@ async function registerPushToken() {
       return null;
     }
 
-    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
-    if (!projectId) {
-      console.error('[Notifications]: Expo project ID is missing. Set EXPO_PUBLIC_EAS_PROJECT_ID or link the build with EAS.');
-      return null;
+    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '53c51c41-a1f7-40a0-8111-7b7cd97d968e';
+
+    let token: string | null = null;
+    try {
+      console.log(`[Notifications]: Requesting Expo token for project ${projectId}.`);
+      const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+      token = pushTokenData.data;
+    } catch (tokenErr) {
+      console.warn('[Notifications]: getExpoPushTokenAsync error, attempting native device token fallback:', tokenErr);
+      try {
+        const nativeToken = await Notifications.getDevicePushTokenAsync();
+        token = typeof nativeToken.data === 'string' ? nativeToken.data : JSON.stringify(nativeToken.data);
+      } catch (nativeErr) {
+        console.error('[Notifications]: Could not fetch native device token:', nativeErr);
+      }
     }
 
-    console.log(`[Notifications]: Requesting Expo token for project ${projectId}.`);
-    const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    const token = pushTokenData.data;
     if (!token) {
-      console.error('[Notifications]: Android did not return an Expo push token.');
+      console.error('[Notifications]: Android did not return a valid push token.');
       return null;
     }
 
@@ -76,7 +84,7 @@ async function registerPushToken() {
       return null;
     }
 
-    console.log('[Notifications]: Push token registered successfully.');
+    console.log('[Notifications]: Push token registered successfully with backend.');
     return token;
   } catch (error) {
     console.error('[Notifications]: Error registering push token:', error instanceof Error ? error.message : error);

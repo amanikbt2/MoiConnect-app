@@ -950,6 +950,126 @@ export function BotIcon({ color = '#6366f1', size = 18, style }: IconProps) {
 }
 
 
+export function RefreshIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M23 4V10H17M1 20V14H7M3.51 9A9 9 0 0 1 18.36 5.64L23 10M1 14L5.64 18.36A9 9 0 0 0 20.49 15"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function VolumeIcon({ color = '#ffffff', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M11 5L6 9H2V15H6L11 19V5Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M19.07 4.93A10 10 0 0 1 19.07 19.07M15.54 8.46A5 5 0 0 1 15.54 15.54"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function VolumeOffIcon({ color = '#ffffff', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M11 5L6 9H2V15H6L11 19V5ZM23 9L17 15M17 9L23 15"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function TransmitterIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 2V22M12 4L8 20M12 4L16 20M9 12H15M8 16H16"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M5 8A9 9 0 0 1 19 8M8 10A5 5 0 0 1 16 10"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <Circle cx="12" cy="4" r="1.5" fill={color} />
+    </Svg>
+  );
+}
+
+export function MicIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M12 1A3 3 0 0 0 9 4V12A3 3 0 0 0 15 12V4A3 3 0 0 0 12 1Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M19 10V12A7 7 0 0 1 5 12V10M12 19V23M8 23H16"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function MicOffIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M1 1L23 23M9 9V12A3 3 0 0 0 14.12 14.12M15 9.34V4A3 3 0 0 0 9.34 1.34M19 10V12A7 7 0 0 1 6.32 17.68M12 19V23M8 23H16"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function CameraOffIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M1 1L23 23M21 21H3A2 2 0 0 1 1 19V7A2 2 0 0 1 3 5H4.5L6 3H11M23 7V17A2 2 0 0 1 21.6 18.8M16 16A4 4 0 0 1 8 8"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+
 
 
 

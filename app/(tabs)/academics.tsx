@@ -22,6 +22,7 @@ import { apiRequest } from '../../src/services/api';
 import { IPaper, MOI_SCHOOLS, PAPER_TYPES } from '@moi/shared';
 import { Skeleton } from '../../src/components/Skeleton';
 import { EmptyState } from '../../src/components/EmptyState';
+import { OfflineState } from '../../src/components/OfflineState';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
@@ -532,7 +533,7 @@ function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: numbe
         <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
       </View>
       <View style={styles.gridContainer}>
-        {[1, 2].map((idx) => (
+        {(Array.from({ length: count }, (_, i) => i + 1)).map((idx) => (
           <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
             <View style={styles.shimmerThumbnail} />
             <View style={styles.shimmerBody}>
@@ -574,9 +575,13 @@ export default function AcademicsScreen({ route }: any) {
 
   const [realUploadedNotes, setRealUploadedNotes] = useState<NoteItem[]>([]);
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   const fetchRealAcademicPapers = async (searchQueryParam?: string) => {
     try {
+      setInitialLoading(true);
+      setFetchError(false);
       const url = searchQueryParam && searchQueryParam.trim()
         ? `/papers?search=${encodeURIComponent(searchQueryParam.trim())}&refresh=${Date.now()}`
         : `/papers?refresh=${Date.now()}`;
@@ -606,12 +611,12 @@ export default function AcademicsScreen({ route }: any) {
           author: typeof p.submittedBy === 'object' && p.submittedBy ? (p.submittedBy as any).name || 'Moi Student' : 'Moi Student',
           fileUrl: p.fileUrl
         }));
-        setRealUploadedNotes(mapped);
+        setRealUploadedNotes(mapped); setInitialLoading(false);
       } else {
-        setRealUploadedNotes([]);
+        setRealUploadedNotes([]); setInitialLoading(false);
       }
     } catch (err) {
-      console.log('Error fetching real academic papers:', err);
+      console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false);
     }
   };
 
@@ -837,6 +842,15 @@ export default function AcademicsScreen({ route }: any) {
     ? realUploadedNotes.slice(3)
     : (showDemoMaterials ? GRID_SECTION_2 : []);
 
+  const combinedTrending = React.useMemo(() => {
+    if (realUploadedNotes.length > 0) {
+      return [...realUploadedNotes]
+        .sort((a, b) => (parseInt(String(b.downloads).replace(/,/g, '')) || 0) - (parseInt(String(a.downloads).replace(/,/g, '')) || 0))
+        .slice(0, 6);
+    }
+    return TRENDING_CAROUSEL;
+  }, [realUploadedNotes]);
+
   // Auto Scroll For You Carousel
   useEffect(() => {
     if (!combinedForYou || combinedForYou.length <= 1) return;
@@ -856,10 +870,10 @@ export default function AcademicsScreen({ route }: any) {
 
   // Auto Scroll Trending Carousel
   useEffect(() => {
-    if (!showDemoMaterials || TRENDING_CAROUSEL.length <= 1) return;
+    if (!combinedTrending || combinedTrending.length <= 1) return;
     const timer = setInterval(() => {
       if (!isTrendingInteracting.current && trendingListRef.current) {
-        const nextIndex = (trendingIndex + 1) % TRENDING_CAROUSEL.length;
+        const nextIndex = (trendingIndex + 1) % combinedTrending.length;
         setTrendingIndex(nextIndex);
         try {
           trendingListRef.current.scrollToIndex({ index: nextIndex, animated: true });
@@ -869,7 +883,7 @@ export default function AcademicsScreen({ route }: any) {
       }
     }, 4500);
     return () => clearInterval(timer);
-  }, [trendingIndex, showDemoMaterials]);
+  }, [trendingIndex, combinedTrending?.length]);
 
   const fetchOfflinePapers = async () => {
     setLoading(true);
@@ -1122,7 +1136,13 @@ export default function AcademicsScreen({ route }: any) {
           </ScrollView>
 
           {/* SMART CATEGORIZED SEARCH RESULTS OR NORMAL BROWSE SECTIONS */}
-          {smartSearchResults.isSearching ? (
+          {initialLoading ? (
+            <View style={{ marginTop: 16 }}>
+              <ShimmerGridLoader title="loading more resources" count={6} />
+            </View>
+          ) : fetchError && realUploadedNotes.length === 0 && !showDemoMaterials ? (
+            <OfflineState onRetry={() => fetchRealAcademicPapers(searchQuery)} />
+          ) : smartSearchResults.isSearching ? (
             <View style={{ marginTop: 16 }}>
               {/* Search Summary Banner */}
               <View style={{ backgroundColor: '#f0fdf4', padding: 14, borderRadius: 14, borderColor: '#bbf7d0', borderWidth: 1, marginBottom: 20 }}>
@@ -1258,13 +1278,13 @@ export default function AcademicsScreen({ route }: any) {
 
               {/* Facebook-style Bottom Shimmer Loading for Section 1 */}
               {loadingMoreSection1 && (
-                <ShimmerGridLoader title="Fetching 2 more lines of notes & papers..." />
+                <ShimmerGridLoader title="loading more resources" count={4} />
               )}
 
-              {showDemoMaterials && (
-                <>
+
+
               {/* SECTION 3: TRENDING NOW CAROUSEL */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, TRENDING_CAROUSEL.length === 0 && { display: 'none' }]}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, combinedTrending.length === 0 && { display: 'none' }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#ffedd5' }]}>
                   <FlameIcon color="#ea580c" size={18} />
                 </View>
@@ -1276,7 +1296,7 @@ export default function AcademicsScreen({ route }: any) {
 
               <FlatList
                 ref={trendingListRef}
-                data={TRENDING_CAROUSEL}
+                data={combinedTrending}
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1301,7 +1321,7 @@ export default function AcademicsScreen({ route }: any) {
 
               {/* Trending Carousel Dots */}
               <View style={styles.dotsRow}>
-                {TRENDING_CAROUSEL.map((_, i) => (
+                {combinedTrending.map((_, i) => (
                   <View
                     key={i}
                     style={[styles.dot, i === trendingIndex ? styles.activeDot : styles.inactiveDot]}
@@ -1309,8 +1329,8 @@ export default function AcademicsScreen({ route }: any) {
                 ))}
               </View>
 
-                </>
-              )}
+
+
 
               {/* SECTION 4: GRID SECTION 2 (LAZY LOADED 2 LINES AT A TIME) */}
               <View style={[styles.sectionHeaderRow, { marginTop: 28 }, combinedGrid2.length === 0 && { display: 'none' }]}>
@@ -1329,7 +1349,7 @@ export default function AcademicsScreen({ route }: any) {
 
               {/* Facebook-style Bottom Shimmer Loading for Section 2 */}
               {loadingMoreSection2 && (
-                <ShimmerGridLoader title="Fetching 2 more lines of recently uploaded notes..." />
+                <ShimmerGridLoader title="loading more resources" count={4} />
               )}
             </>
           )}

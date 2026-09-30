@@ -214,9 +214,13 @@ export default function ChatRoomScreen({ route }: any) {
   };
 
   const scrollToMessage = (msgId: string) => {
-    const index = displayMessages.findIndex((m) => (m._id || m.id) === msgId);
-    if (index !== -1 && flatListRef.current) {
-      flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+    try {
+      const index = displayMessages.findIndex((m) => (m._id || m.id) === msgId);
+      if (index !== -1 && flatListRef.current) {
+        flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
+    } catch (err) {
+      console.warn('[Chat] scrollToMessage failed:', err);
     }
   };
 

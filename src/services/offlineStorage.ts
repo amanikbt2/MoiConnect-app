@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { apiRequest } from './api';
 
 const OFFLINE_PAPERS_KEY = 'moi_offline_papers';
 const OFFLINE_MSG_QUEUE_KEY = 'moi_offline_msg_queue';
@@ -557,12 +558,20 @@ export const getCommunityUnreadSummary = async (user?: { email?: string; name?: 
     getReadCommunityMentionIds()
   ]);
 
-  if (!messages?.length || !lastReadId) return { general: 0, mentions: 0 };
+  if (!messages?.length) return { general: 0, mentions: 0 };
 
-  const lastReadIndex = messages.findIndex((message: any) => (message.id || message._id) === lastReadId);
-  if (lastReadIndex === -1) return { general: 0, mentions: 0 };
+  let unreadMessages: any[] = [];
+  if (!lastReadId) {
+    unreadMessages = messages;
+  } else {
+    const lastReadIndex = messages.findIndex((message: any) => (message.id || message._id) === lastReadId);
+    if (lastReadIndex === -1) {
+      unreadMessages = [];
+    } else {
+      unreadMessages = messages.slice(lastReadIndex + 1);
+    }
+  }
 
-  const unreadMessages = messages.slice(lastReadIndex + 1);
   const mentionIds = new Set(readMentionIds);
   const email = user?.email?.toLowerCase().trim() || '';
   const emailPrefix = email.split('@')[0];
@@ -620,4 +629,81 @@ export const notifyUnreadCountListeners = async () => {
   unreadSummaryListeners.forEach((user, listener) => {
     getCommunityUnreadSummary(user).then(listener);
   });
+};
+
+let backgroundSyncInFlight = false;
+
+export const syncCommunityUnreadBackground = async (): Promise<void> => {
+  if (backgroundSyncInFlight) return;
+  backgroundSyncInFlight = true;
+  try {
+    const storedCursor = await getCommunitySyncCursor();
+    const cachedMsgs = await getStoredCommunityMessages();
+
+    const latestCachedTimestamp = cachedMsgs.reduce((latest: string, msg: any) => {
+      const ts = msg.updatedAt || msg.isoDate;
+      return ts && ts > latest ? ts : latest;
+    }, '');
+
+    const cursor = storedCursor || latestCachedTimestamp || '';
+    const sinceParam = cursor ? `?since=${encodeURIComponent(cursor)}` : '';
+
+    const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
+    const payload = res?.data;
+
+    if (payload && payload.success && Array.isArray(payload.data) && payload.data.length > 0) {
+      let updated = [...cachedMsgs];
+      let changed = false;
+
+      for (const serverMsg of payload.data) {
+        const formattedId = serverMsg._id || serverMsg.id;
+        const existingIdx = updated.findIndex((m: any) =>
+          (serverMsg.clientMsgId && m.clientMsgId === serverMsg.clientMsgId) ||
+          (serverMsg.clientMsgId && m.id === serverMsg.clientMsgId) ||
+          (m.id || m._id) === formattedId
+        );
+
+        const formattedMsg = {
+          id: formattedId,
+          clientMsgId: serverMsg.clientMsgId,
+          senderId: serverMsg.senderId,
+          senderEmail: serverMsg.senderEmail,
+          senderName: serverMsg.senderName || 'Moi Student',
+          senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+          senderCourse: serverMsg.senderCourse,
+          senderPhone: serverMsg.senderPhone,
+          senderAvatarUrl: serverMsg.senderAvatarUrl,
+          avatarBg: serverMsg.avatarBg || '#15803d',
+          text: serverMsg.text || '',
+          timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isoDate: serverMsg.createdAt,
+          updatedAt: serverMsg.updatedAt,
+          fileAttachment: serverMsg.fileAttachment,
+          stickerId: serverMsg.stickerId,
+          replyTo: serverMsg.replyTo,
+          reactions: serverMsg.reactions || {}
+        };
+
+        if (existingIdx !== -1) {
+          updated[existingIdx] = { ...updated[existingIdx], ...formattedMsg };
+          changed = true;
+        } else {
+          updated.push(formattedMsg);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        const newCursor = payload.syncedAt || new Date().toISOString();
+        await saveCommunitySyncCursor(newCursor);
+        await saveCommunityMessages(updated);
+      }
+    } else if (payload && payload.syncedAt) {
+      await saveCommunitySyncCursor(payload.syncedAt);
+    }
+  } catch {
+    // Silent catch for background unread poll
+  } finally {
+    backgroundSyncInFlight = false;
+  }
 };

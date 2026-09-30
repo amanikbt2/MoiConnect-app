@@ -21,6 +21,7 @@ import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { OfflineState } from '../src/components/OfflineState';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -265,7 +266,7 @@ const FILTER_DISCS = [
   { id: '2025', label: '2025 CATs', iconType: 'calendar' }
 ];
 
-function ShimmerGridLoader() {
+function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
   const fadeAnim = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
@@ -291,10 +292,10 @@ function ShimmerGridLoader() {
     <View style={styles.shimmerContainer}>
       <View style={styles.shimmerHeaderRow}>
         <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
-        <Text style={styles.shimmerLoadingLabel}>Loading 2 more lines of CAT papers...</Text>
+        <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
       </View>
       <View style={styles.gridContainer}>
-        {[1, 2].map((idx) => (
+        {(Array.from({ length: count }, (_, i) => i + 1)).map((idx) => (
           <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
             <View style={styles.shimmerThumbnail} />
             <View style={styles.shimmerBody}>
@@ -332,10 +333,14 @@ export default function CatPapersScreen() {
   const router = useAppNavigation();
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
   const fetchRealCatPapers = async () => {
     try {
+      setInitialLoading(true);
+      setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
@@ -373,12 +378,12 @@ export default function CatPapersScreen() {
           realCatPapers.length > 0
             ? (demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
             : (demoSetting ? INITIAL_CAT_PAPERS_DATA : [])
-        );
+        ); setInitialLoading(false);
       } else {
-        setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []);
+        setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []); setInitialLoading(false);
       }
     } catch (err) {
-      console.log('Error fetching real CAT papers:', err);
+      console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false);
     }
   };
 
@@ -685,7 +690,12 @@ export default function CatPapersScreen() {
           </View>
         </View>
 
-        <View style={styles.gridContainer}>
+        {initialLoading ? (
+          <ShimmerGridLoader title="loading more resources" count={6} />
+        ) : fetchError && catsData.length === 0 && !showDemoMaterials ? (
+          <OfflineState onRetry={fetchRealCatPapers} />
+        ) : (
+          <View style={styles.gridContainer}>
           {visibleFeedCats.map((item) => {
             const isStarred = !!userStars[item.id];
             return (
@@ -736,9 +746,10 @@ export default function CatPapersScreen() {
             );
           })}
         </View>
+        )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}
-        {loadingMore && <ShimmerGridLoader />}
+        {loadingMore && <ShimmerGridLoader title="loading more resources" count={4} />}
       </ScrollView>
 
       {/* Fast In-App PDF Preview Window */}

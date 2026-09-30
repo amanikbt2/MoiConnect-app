@@ -21,6 +21,7 @@ import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { OfflineState } from '../src/components/OfflineState';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -279,7 +280,7 @@ const FILTER_DISCS = [
   { id: 'science', label: 'Science', iconType: 'book' }
 ];
 
-function ShimmerGridLoader() {
+function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
   const fadeAnim = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
@@ -305,10 +306,10 @@ function ShimmerGridLoader() {
     <View style={styles.shimmerContainer}>
       <View style={styles.shimmerHeaderRow}>
         <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
-        <Text style={styles.shimmerLoadingLabel}>Loading 2 more lines of past exam papers...</Text>
+        <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
       </View>
       <View style={styles.gridContainer}>
-        {[1, 2].map((idx) => (
+        {(Array.from({ length: count }, (_, i) => i + 1)).map((idx) => (
           <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
             <View style={styles.shimmerThumbnail} />
             <View style={styles.shimmerBody}>
@@ -346,10 +347,14 @@ export default function PastPapersScreen() {
   const router = useAppNavigation();
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   // Fetch real uploaded past papers from Cloudinary / backend API
   const fetchRealPastPapers = async () => {
     try {
+      setInitialLoading(true);
+      setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
@@ -388,12 +393,12 @@ export default function PastPapersScreen() {
           realPastPapers.length > 0
             ? (demoSetting ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
             : (demoSetting ? INITIAL_PAST_PAPERS_DATA : [])
-        );
+        ); setInitialLoading(false);
       } else {
-        setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []);
+        setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []); setInitialLoading(false);
       }
     } catch (err) {
-      console.log('Error fetching real past papers:', err);
+      console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false);
     }
   };
 
@@ -703,7 +708,12 @@ export default function PastPapersScreen() {
           </View>
         </View>
 
-        <View style={styles.gridContainer}>
+        {initialLoading ? (
+          <ShimmerGridLoader title="loading more resources" count={6} />
+        ) : fetchError && papersData.length === 0 && !showDemoMaterials ? (
+          <OfflineState onRetry={fetchRealPastPapers} />
+        ) : (
+          <View style={styles.gridContainer}>
           {visibleFeedPapers.map((item) => {
             const isStarred = !!userStars[item.id];
             return (
@@ -756,9 +766,10 @@ export default function PastPapersScreen() {
             );
           })}
         </View>
+        )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}
-        {loadingMore && <ShimmerGridLoader />}
+        {loadingMore && <ShimmerGridLoader title="loading more resources" count={4} />}
       </ScrollView>
 
       {/* Fast In-App PDF Preview Window */}

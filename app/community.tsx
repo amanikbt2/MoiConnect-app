@@ -42,7 +42,11 @@ import {
   CloseIcon,
   ImageIcon,
   VideoIcon,
-  BotIcon
+  BotIcon,
+  TransmitterIcon,
+  MicIcon,
+  MicOffIcon,
+  CameraOffIcon
 } from '../src/components/Icons';
 import { getSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
@@ -558,6 +562,20 @@ export default function CommunityScreen() {
     setUnreadMentionIds(mentions);
   }, [messages, user, readMentionVersion]);
 
+  const scrollToLatestWhenReady = (animated = true) => {
+    try {
+      if (flatListRef.current) {
+        if (typeof (flatListRef.current as any).scrollToOffset === 'function') {
+          (flatListRef.current as any).scrollToOffset({ offset: 0, animated });
+        } else if (typeof (flatListRef.current as any).scrollToIndex === 'function') {
+          (flatListRef.current as any).scrollToIndex({ index: 0, animated });
+        }
+      }
+    } catch (err) {
+      console.warn('[CommunityChat] Safe scroll notice:', err);
+    }
+  };
+
   const scrollToMessage = (targetId: string): boolean => {
     const normalizedTargetId = String(targetId);
     const targetIndex = displayMessages.findIndex((m) =>
@@ -570,7 +588,11 @@ export default function CommunityScreen() {
     const canonicalId = displayMessages[targetIndex].id;
     isNearBottomRef.current = targetIndex === 0;
     setHighlightedMsgId(canonicalId);
-    flatListRef.current.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.5 });
+    try {
+      flatListRef.current.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.5 });
+    } catch (err) {
+      console.warn('[CommunityChat] scrollToIndex failed:', err);
+    }
     setTimeout(() => {
       setHighlightedMsgId((curr) => (curr === canonicalId ? null : curr));
     }, 3000);
@@ -636,7 +658,7 @@ export default function CommunityScreen() {
       const latestId = messages[messages.length - 1].id;
       markAsRead(latestId);
     }
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    scrollToLatestWhenReady(true);
   };
 
   const handleScroll = (event: any) => {
@@ -777,7 +799,7 @@ export default function CommunityScreen() {
             if (formattedMsg.isMe || isNearBottomRef.current) {
               markAsRead(formattedMsg.id);
               if (formattedMsg.isMe) {
-                flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+                scrollToLatestWhenReady(true);
               }
             } else {
               setUnreadCount((c) => c + 1);
@@ -802,11 +824,8 @@ export default function CommunityScreen() {
           }
         });
 
-        socket.on('community:user_typing', (data: { userId: string; userName: string }) => {
+        socket.on('community:user_typing', (data: { userId: string; userName: string; socketId?: string }) => {
           if (!data || !data.userId) return;
-          if (user && (user._id === data.userId || (user.name && user.name.toLowerCase().trim() === data.userName?.toLowerCase().trim()))) {
-            return;
-          }
 
           setTypingUsers((prev) => {
             if (prev.some((u) => u.userId === data.userId)) return prev;
@@ -882,9 +901,9 @@ export default function CommunityScreen() {
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
-        activeSocket.off('connect', handleSocketConnect);
-        activeSocket.off('connect_error', handleSocketReconnectError);
-        activeSocket.off('disconnect', handleSocketDisconnect);
+        activeSocket.off('connect');
+        activeSocket.off('connect_error');
+        activeSocket.off('disconnect');
       }
     };
   }, [user]);
@@ -1131,16 +1150,23 @@ export default function CommunityScreen() {
     try {
       const socket = await getSocket();
       if (socket?.connected) {
+        // Mark delivery as sent immediately so retry timer doesn't duplicate
+        updateMessageDelivery(clientMsgId, 'delivered');
         socket.emit('community:send_message', payload, (ack: { success?: boolean }) => {
+          retryingMessageIdsRef.current.delete(clientMsgId);
           if (ack?.success) updateMessageDelivery(clientMsgId, 'sent');
         });
+        // Release ref after short timeout if ack callback wasn't returned
+        setTimeout(() => {
+          retryingMessageIdsRef.current.delete(clientMsgId);
+        }, 5000);
       } else {
-        // Use HTTP only when Socket.IO is unavailable. Sending both transports
-        // can create two source messages and make the assistant reply twice.
+        // Use HTTP only when Socket.IO is unavailable.
         const result = await apiRequest('/community/messages', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
+        retryingMessageIdsRef.current.delete(clientMsgId);
         if (result.success) {
           if (payload.waitForBot) {
             const persistedId = result.data?._id || result.data?.id;
@@ -1149,23 +1175,23 @@ export default function CommunityScreen() {
                 message.clientMsgId === clientMsgId ? { ...message, id: persistedId } : message
               ));
             }
-          } else {
-            updateMessageDelivery(clientMsgId, 'sent');
           }
+          updateMessageDelivery(clientMsgId, 'sent');
         }
       }
     } catch (error) {
-      // Keep the message queued locally; retryQueuedMessages will resend it.
-      console.log('[Community] Message queued while offline.');
-    } finally {
       retryingMessageIdsRef.current.delete(clientMsgId);
+      console.log('[Community] Message queued while offline.');
     }
   };
 
   const retryQueuedMessages = () => {
-    messages
-      .filter((message) => message.isMe && message.deliveryStatus === 'queued' && message.pendingPayload)
-      .forEach((message) => void transmitMessage(message.pendingPayload, message.clientMsgId || message.id));
+    setMessages((prevMsgs) => {
+      prevMsgs
+        .filter((message) => message.isMe && message.deliveryStatus === 'queued' && message.pendingPayload)
+        .forEach((message) => void transmitMessage(message.pendingPayload, message.clientMsgId || message.id));
+      return prevMsgs;
+    });
   };
 
   useEffect(() => {
@@ -1183,12 +1209,12 @@ export default function CommunityScreen() {
         void saveCommunitySyncCursor(offlineSince);
       }
     });
-    const retryTimer = setInterval(retryQueuedMessages, 10000);
+    const retryTimer = setInterval(retryQueuedMessages, 15000);
     return () => {
       appStateSubscription.remove();
       clearInterval(retryTimer);
     };
-  }, [messages]);
+  }, []);
   const handleSendMessage = (stickerId?: string) => {
     if (!inputText.trim() && !selectedFile && !stickerId) return;
 
@@ -1294,7 +1320,7 @@ export default function CommunityScreen() {
     setShowStickerPicker(false);
     setReplyingTo(null);
 
-    scrollToLatestWhenReady(true, true);
+    scrollToLatestWhenReady(true);
 
     // Send immediately when online, otherwise retain the queued message locally.
     void transmitMessage(payload, tempId);

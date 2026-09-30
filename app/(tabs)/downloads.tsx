@@ -156,7 +156,11 @@ export default function DownloadsScreen() {
 
           return (
             <TouchableOpacity
-              style={[styles.squareCard, item.pinned && styles.squareCardPinned]}
+              style={[
+                styles.squareCard,
+                item.pinned && styles.squareCardPinned,
+                isDownloading && styles.squareCardDownloading
+              ]}
               activeOpacity={0.88}
               onPress={() => handleOpenPreview(item)}
             >
@@ -198,7 +202,7 @@ export default function DownloadsScreen() {
                   {isDownloading ? (
                     <View style={styles.downloadingPill}>
                       <RefreshCwIcon color="#ffffff" size={10} />
-                      <Text style={styles.statusPillText}>{progress}%</Text>
+                      <Text style={styles.statusPillText}>Downloading...</Text>
                     </View>
                   ) : isFailed ? (
                     <View style={styles.failedPill}>
@@ -226,10 +230,27 @@ export default function DownloadsScreen() {
                   {item.title}
                 </Text>
 
-                {/* Download Progress Bar if in progress */}
+                {/* Download Progress Bar & Cancel Row if in progress */}
                 {isDownloading && (
-                  <View style={styles.miniProgressTrack}>
-                    <View style={[styles.miniProgressBarFill, { width: `${Math.min(100, Math.max(5, progress))}%` }]} />
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressTrackAndPercent}>
+                      <View style={styles.miniProgressTrack}>
+                        <View style={[styles.miniProgressBarFill, { width: `${Math.min(100, Math.max(5, progress))}%` }]} />
+                      </View>
+                      <Text style={styles.progressPercentText}>{progress}%</Text>
+                    </View>
+
+                    {/* Small Cancel Button Below Progress Bar */}
+                    <TouchableOpacity
+                      style={styles.cancelDownloadBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        removeOfflinePaper(item._id);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={styles.cancelDownloadText}>✕ Cancel</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
 
@@ -397,6 +418,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4
   },
+  squareCardDownloading: {
+    opacity: 0.72
+  },
   thumbnailHeader: {
     height: 96,
     width: '100%',
@@ -518,17 +542,43 @@ const styles = StyleSheet.create({
     lineHeight: 16.5,
     marginBottom: 6
   },
+  progressContainer: {
+    marginVertical: 4
+  },
+  progressTrackAndPercent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
   miniProgressTrack: {
+    flex: 1,
     height: 4,
     backgroundColor: '#dbeafe',
     borderRadius: 2,
-    overflow: 'hidden',
-    marginVertical: 4
+    overflow: 'hidden'
   },
   miniProgressBarFill: {
     height: '100%',
     backgroundColor: '#2563eb',
     borderRadius: 2
+  },
+  progressPercentText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2563eb'
+  },
+  cancelDownloadBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4
+  },
+  cancelDownloadText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#dc2626'
   },
   cardDivider: {
     height: 1,
