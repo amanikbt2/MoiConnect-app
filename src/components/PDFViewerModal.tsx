@@ -253,7 +253,29 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </Text>
           </View>
 
-          <View style={styles.headerActionSpacer} />
+          {/* Top Right Header Action Button: Download / Save PDF */}
+          <TouchableOpacity
+            style={[
+              styles.downloadIconBtn,
+              isCompleted && styles.downloadIconBtnSuccess,
+              isDownloading && styles.downloadIconBtnActive
+            ]}
+            onPress={handleSave}
+            disabled={isDownloading}
+            activeOpacity={0.8}
+            accessibilityLabel={isCompleted ? 'Downloaded' : isDownloading ? 'Downloading' : 'Download PDF for offline access'}
+          >
+            {isDownloading ? (
+              <View style={styles.spinnerWrapper}>
+                <Animated.View style={[styles.spinRing, { transform: [{ rotate: spin }] }]} />
+                <Text style={styles.progressPercentText}>{downloadInfo.progress || 5}%</Text>
+              </View>
+            ) : isCompleted ? (
+              <CheckIcon color="#ffffff" size={20} />
+            ) : (
+              <DownloadIcon color="#ffffff" size={20} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Instant PDF Preview Container */}

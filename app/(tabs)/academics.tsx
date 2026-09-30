@@ -503,7 +503,7 @@ const FILTER_DISCS = [
   { id: 'date', label: 'Filter by Date', iconType: 'calendar' },
 ];
 
-function ShimmerGridLoader({ title }: { title?: string }) {
+function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
   const fadeAnim = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
@@ -529,7 +529,7 @@ function ShimmerGridLoader({ title }: { title?: string }) {
     <View style={styles.shimmerContainer}>
       <View style={styles.shimmerHeaderRow}>
         <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
-        <Text style={styles.shimmerLoadingLabel}>{title || 'Fetching 2 more lines of notes...'}</Text>
+        <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
       </View>
       <View style={styles.gridContainer}>
         {[1, 2].map((idx) => (

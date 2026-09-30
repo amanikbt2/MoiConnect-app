@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoiConnect",
     "slug": "moiconnect",
-    "version": "1.1.7",
+    "version": "1.1.8",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "17"
+      "buildNumber": "22"
     },
     "android": {
       "icon": "./assets/playstore_assets/icon.png",
@@ -21,7 +21,7 @@
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS"
       ],
-      "versionCode": 21
+      "versionCode": 22
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

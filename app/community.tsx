@@ -1929,7 +1929,7 @@ export default function CommunityScreen() {
               </TouchableOpacity>
               <TextInput
                 style={styles.input}
-                placeholder="@bot or @ai • @bot stop to cancel"
+                placeholder="@bot or @ai to mention"
                 placeholderTextColor="#8696a0"
                 value={inputText}
                 onChangeText={handleInputChange}
