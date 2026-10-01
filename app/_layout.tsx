@@ -13,7 +13,11 @@ import { registerForPushNotificationsAsync, setupNotificationResponseListener } 
 import { useAuth } from '../src/context/AuthContext';
 import { syncCommunityUnreadBackground } from '../src/services/offlineStorage';
 
+import * as SplashScreen from 'expo-splash-screen';
 import { initSocket } from '../src/services/socket';
+
+// Hide splash screen immediately when JS bundle executes
+void SplashScreen.hideAsync().catch(() => {});
 
 const queryClient = new QueryClient();
 
@@ -84,6 +88,7 @@ export default function RootLayout() {
   };
 
   useEffect(() => {
+    void SplashScreen.hideAsync().catch(() => {});
     // Automatically initialize socket connection for online status tracking
     initSocket().catch(() => {});
 

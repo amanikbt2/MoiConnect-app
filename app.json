@@ -14,6 +14,10 @@
       "buildNumber": "23"
     },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/playstore_assets/icon.png",
+        "backgroundColor": "#006400"
+      },
       "icon": "./assets/playstore_assets/icon.png",
       "package": "com.amanikbt1.moiconnect",
       "permissions": [
