@@ -40,68 +40,90 @@ export const clearAuthTokens = async () => {
   await removeStoredToken('moi_user_profile');
 };
 
+const inFlightGetRequests = new Map<string, Promise<any>>();
+
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string; pagination?: any }> {
-  let token = await getStoredToken(ACCESS_TOKEN_KEY);
+  const method = (options.method || 'GET').toUpperCase();
 
-  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
-
-  const headers: Record<string, string> = {
-    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(options.headers as Record<string, string> || {})
-  };
-
-  if (isFormData && headers['Content-Type'] === 'application/json') {
-    delete headers['Content-Type'];
+  // Deduplicate identical in-flight GET requests within 800ms
+  if (method === 'GET' && inFlightGetRequests.has(endpoint)) {
+    return inFlightGetRequests.get(endpoint)!;
   }
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const requestPromise = (async () => {
+    let token = await getStoredToken(ACCESS_TOKEN_KEY);
 
-  try {
-    let response = await fetch(`${config.apiUrl}${endpoint}`, {
-      ...options,
-      headers
-    });
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
-    // Attempt token refresh on 401 Unauthorized
-    if (response.status === 401 && token) {
-      const refreshToken = await getStoredToken(REFRESH_TOKEN_KEY);
-      if (refreshToken) {
-        const refreshRes = await fetch(`${config.apiUrl}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken })
-        });
+    const headers: Record<string, string> = {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(options.headers as Record<string, string> || {})
+    };
 
-        if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
-          if (refreshData.success && refreshData.data?.tokens) {
-            await saveAuthTokens(
-              refreshData.data.tokens.accessToken,
-              refreshData.data.tokens.refreshToken
-            );
-            headers['Authorization'] = `Bearer ${refreshData.data.tokens.accessToken}`;
-            response = await fetch(`${config.apiUrl}${endpoint}`, {
-              ...options,
-              headers
-            });
+    if (isFormData && headers['Content-Type'] === 'application/json') {
+      delete headers['Content-Type'];
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      let response = await fetch(`${config.apiUrl}${endpoint}`, {
+        ...options,
+        headers
+      });
+
+      // Attempt token refresh on 401 Unauthorized
+      if (response.status === 401 && token) {
+        const refreshToken = await getStoredToken(REFRESH_TOKEN_KEY);
+        if (refreshToken) {
+          const refreshRes = await fetch(`${config.apiUrl}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken })
+          });
+
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            if (refreshData.success && refreshData.data?.tokens) {
+              await saveAuthTokens(
+                refreshData.data.tokens.accessToken,
+                refreshData.data.tokens.refreshToken
+              );
+              headers['Authorization'] = `Bearer ${refreshData.data.tokens.accessToken}`;
+              response = await fetch(`${config.apiUrl}${endpoint}`, {
+                ...options,
+                headers
+              });
+            }
+          } else {
+            await clearAuthTokens();
           }
-        } else {
-          await clearAuthTokens();
         }
       }
-    }
 
-    const json = await response.json();
-    if (!response.ok) {
-      return { success: false, error: json.error || 'Request failed' };
+      const json = await response.json();
+      if (!response.ok) {
+        return { success: false, error: json.error || 'Request failed' };
+      }
+      return json;
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Network connection failed' };
     }
-    return json;
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Network connection failed' };
+  })();
+
+  if (method === 'GET') {
+    inFlightGetRequests.set(endpoint, requestPromise);
+    setTimeout(() => {
+      if (inFlightGetRequests.get(endpoint) === requestPromise) {
+        inFlightGetRequests.delete(endpoint);
+      }
+    }, 800);
   }
+
+  return requestPromise;
 }

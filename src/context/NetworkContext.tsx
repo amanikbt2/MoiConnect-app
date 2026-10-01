@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { registerForPushNotificationsAsync } from '../services/notificationService';
+import { syncCommunityUnreadBackground } from '../services/offlineStorage';
 
 interface NetworkContextType {
   isOnline: boolean;
@@ -11,7 +13,11 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     // For web / Expo fallback, window online event or default true
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      void registerForPushNotificationsAsync();
+      void syncCommunityUnreadBackground();
+    };
     const handleOffline = () => setIsOnline(false);
 
     if (typeof window !== 'undefined' && window.addEventListener) {

@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoiConnect",
     "slug": "moiconnect",
-    "version": "1.1.8",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "22"
+      "buildNumber": "23"
     },
     "android": {
       "icon": "./assets/playstore_assets/icon.png",
@@ -21,7 +21,7 @@
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS"
       ],
-      "versionCode": 23
+      "versionCode": 25
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
@@ -47,7 +47,9 @@
           }
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

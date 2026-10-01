@@ -71,12 +71,22 @@ import { setupNotificationResponseListener, sendWebBrowserNotification } from '.
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
+import { CommunityLiveRoom } from '../src/components/CommunityLiveRoom';
+import { RealCameraView } from '../src/components/RealCameraView';
+import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModal';
 
 export interface FileAttachment {
   name: string;
   url: string;
   size: string;
   type: 'pdf' | 'doc' | 'image' | 'video';
+  paperId?: string;
+  title?: string;
+  unitCode?: string;
+  unitName?: string;
+  school?: string;
+  pages?: string;
+  author?: string;
 }
 
 export interface CommunityMessage {
@@ -321,83 +331,9 @@ export function formatStudentSubtitle(
   return 'Moi University Student';
 }
 
-const SAMPLE_ATTACHMENTS: FileAttachment[] = [
-  {
-    name: 'COM_310_CAT1_Timetable_2025.pdf',
-    url: 'https://res.cloudinary.com/mconnect/docs/com310_cat1.pdf',
-    size: '1.4 MB',
-    type: 'pdf'
-  },
-  {
-    name: 'Data_Structures_Trees_Notes.pdf',
-    url: 'https://res.cloudinary.com/mconnect/docs/data_structures.pdf',
-    size: '2.1 MB',
-    type: 'pdf'
-  },
-  {
-    name: 'Annex_Bus_Timetable_Sem2.jpg',
-    url: 'https://res.cloudinary.com/mconnect/docs/bus_schedule.jpg',
-    size: '480 KB',
-    type: 'image'
-  }
-];
+const SAMPLE_ATTACHMENTS: FileAttachment[] = [];
 
-const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [
-  {
-    id: '1',
-    senderName: 'Mercy Chebet',
-    senderFaculty: 'School of Information Sciences',
-    avatarBg: '#3b82f6',
-    text: 'Jambo everyone! 👋 Does anyone have the revised COM 310 CAT 1 timetable for this Friday?',
-    timestamp: '09:42 AM',
-    isoDate: new Date(Date.now() - 3600000 * 3).toISOString(),
-    isMe: false,
-    reactions: { '❤️': 4, '👍': 2 },
-    isDemo: true
-  },
-  {
-    id: '2',
-    senderName: 'Brian Kipkurui',
-    senderFaculty: 'Engineering Y4',
-    avatarBg: '#10b981',
-    text: 'Yes Mercy, it was shifted to 2:00 PM at Margaret Thatcher Library hall B. Here is the PDF document details attachment:',
-    timestamp: '09:45 AM',
-    isoDate: new Date(Date.now() - 3600000 * 2).toISOString(),
-    isMe: false,
-    fileAttachment: {
-      name: 'COM_310_CAT1_Revision_Notes.pdf',
-      url: 'https://res.cloudinary.com/mconnect/docs/com310_notes.pdf',
-      size: '1.8 MB',
-      type: 'pdf'
-    },
-    reactions: { '👍': 9, '🔥': 5 },
-    isDemo: true
-  },
-  {
-    id: '3',
-    senderName: 'Amina Hassan',
-    senderFaculty: 'School of Law',
-    avatarBg: '#ec4899',
-    text: 'Quick notice: The Annex Hostel bus departs main campus at 1:15 PM today 🚌 Please don’t be late!',
-    timestamp: '10:02 AM',
-    isoDate: new Date(Date.now() - 3600000 * 1).toISOString(),
-    isMe: false,
-    reactions: { '❤️': 15, '🙏': 3 },
-    isDemo: true
-  },
-  {
-    id: '4',
-    senderName: 'David Omondi',
-    senderFaculty: 'Computer Science Y3',
-    avatarBg: '#8b5cf6',
-    text: 'We are hosting a React Native & Node.js tech workshop at the Innovation Hub tomorrow 4PM. Everyone is welcome! 🚀⚡',
-    timestamp: '10:15 AM',
-    isoDate: new Date(Date.now() - 1800000).toISOString(),
-    isMe: false,
-    reactions: { '🔥': 22, '👍': 11 },
-    isDemo: true
-  }
-];
+const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [];
 
 const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(message.isDemo) || INITIAL_COMMUNITY_MESSAGES.some((seed) => seed.id === message.id && seed.senderName === message.senderName);
 
@@ -418,6 +354,8 @@ export default function CommunityScreen() {
   const mentionFetchInFlightRef = useRef(false);
   const mentionFetchedQueriesRef = useRef<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>([]);
@@ -426,6 +364,102 @@ export default function CommunityScreen() {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<CommunityMessage | null>(null);
+
+  // Go Live Broadcast State
+  const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
+  const [isLiveHost, setIsLiveHost] = useState<boolean>(false);
+  const [isLiveJoined, setIsLiveJoined] = useState<boolean>(false);
+  const [liveHostName, setLiveHostName] = useState<string>('Amani');
+  const [liveHostAvatar, setLiveHostAvatar] = useState<string>('');
+  const [liveParticipants, setLiveParticipants] = useState<Array<{ id: string; name: string; avatar?: string }>>([]);
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
+  const [isCameraOff, setIsCameraOff] = useState<boolean>(false);
+  const [liveCredentials, setLiveCredentials] = useState<{ url: string; token: string } | null>(null);
+  const [liveTokenLoading, setLiveTokenLoading] = useState(false);
+
+  const requestLiveCredentials = async () => {
+    setLiveTokenLoading(true);
+    const myName = user?.name || myProfile?.fullName || 'Student';
+    const myId = user?._id || Date.now().toString();
+    const response = await apiRequest<{ url: string; token: string }>(
+      `/community/live/token?name=${encodeURIComponent(myName)}&userId=${encodeURIComponent(myId)}`
+    );
+    setLiveTokenLoading(false);
+    if (response.success && response.data?.url && response.data?.token) {
+      setLiveCredentials(response.data);
+      return response.data;
+    }
+    return { url: '', token: 'socket_fallback' };
+  };
+
+  const handleStartLiveStream = async () => {
+    const credentials = await requestLiveCredentials();
+    if (!credentials) return;
+    const hostName = user?.name || myProfile?.fullName || 'Amani';
+    const hostAvatar = (user as any)?.avatarUrl || myProfile?.avatarUri || '';
+    setIsLiveActive(true);
+    setIsLiveHost(true);
+    setIsLiveJoined(true);
+    setLiveHostName(hostName);
+    setLiveHostAvatar(hostAvatar);
+    setLiveParticipants([]);
+
+    const socket = await getSocket();
+    if (socket) {
+      socket.emit('community:live_start', {
+        hostName,
+        hostAvatar,
+        hostId: user?._id || Date.now().toString()
+      });
+    }
+    showIceMessage('Live Started 🔴', 'You are now broadcasting live to Moi Campus!');
+  };
+
+  const handleJoinLiveStream = async () => {
+    const credentials = await requestLiveCredentials();
+    if (!credentials) return;
+    setIsLiveJoined(true);
+    const myId = user?._id || Date.now().toString();
+    const myName = user?.name || myProfile?.fullName || 'Student';
+    const myAvatar = (user as any)?.avatarUrl || myProfile?.avatarUri || '';
+
+    const newParticipant = { id: myId, name: myName, avatar: myAvatar };
+    setLiveParticipants((prev) => {
+      if (prev.some((p) => p.id === myId)) return prev;
+      return [...prev, newParticipant];
+    });
+
+    const socket = await getSocket();
+    if (socket) {
+      socket.emit('community:live_join', newParticipant);
+    }
+  };
+
+  const handleExitLiveStream = async () => {
+    setLiveCredentials(null);
+    setIsLiveJoined(false);
+    const myId = user?._id || Date.now().toString();
+    setLiveParticipants((prev) => prev.filter((p) => p.id !== myId));
+
+    const socket = await getSocket();
+    if (socket) {
+      socket.emit('community:live_leave', { id: myId });
+    }
+  };
+
+  const handleEndLiveStream = async () => {
+    setLiveCredentials(null);
+    setIsLiveActive(false);
+    setIsLiveHost(false);
+    setIsLiveJoined(false);
+    setLiveParticipants([]);
+
+    const socket = await getSocket();
+    if (socket) {
+      socket.emit('community:live_end', {});
+    }
+    showIceMessage('Live Stream Ended', 'The broadcast has ended.');
+  };
 
   useEffect(() => {
     getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
@@ -468,6 +502,7 @@ export default function CommunityScreen() {
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
   const typingDotAnim = useRef(new Animated.Value(0)).current;
+  const livePulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (typingUsers.length > 0 || botTyping) {
@@ -483,6 +518,24 @@ export default function CommunityScreen() {
       typingDotAnim.setValue(0);
     }
   }, [typingUsers.length, botTyping]);
+
+  useEffect(() => {
+    if (!isLiveActive || isLiveHost || isLiveJoined) {
+      livePulseAnim.setValue(0);
+      return;
+    }
+
+    const anim = Animated.loop(
+      Animated.timing(livePulseAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: Platform.OS !== 'web'
+      })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [isLiveActive, isLiveHost, isLiveJoined]);
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
@@ -882,6 +935,40 @@ export default function CommunityScreen() {
             return updated;
           });
         });
+
+        socket.on('community:live_start', (data: { hostName: string; hostAvatar?: string; hostId?: string }) => {
+          setIsLiveActive(true);
+          setLiveHostName(data.hostName || 'Amani');
+          setLiveHostAvatar(data.hostAvatar || '');
+          if (user?._id && data.hostId === user._id) {
+            setIsLiveHost(true);
+            setIsLiveJoined(true);
+          } else {
+            setIsLiveHost(false);
+            setIsLiveJoined(false);
+          }
+        });
+
+        socket.on('community:live_join', (participant: { id: string; name: string; avatar?: string }) => {
+          if (!participant || !participant.id) return;
+          setLiveParticipants((prev) => {
+            if (prev.some((p) => p.id === participant.id)) return prev;
+            return [...prev, participant];
+          });
+        });
+
+        socket.on('community:live_leave', (data: { id: string }) => {
+          if (!data || !data.id) return;
+          setLiveParticipants((prev) => prev.filter((p) => p.id !== data.id));
+        });
+
+        socket.on('community:live_end', () => {
+          setIsLiveActive(false);
+          setIsLiveHost(false);
+          setIsLiveJoined(false);
+          setLiveCredentials(null);
+          setLiveParticipants([]);
+        });
       }
     });
 
@@ -901,6 +988,10 @@ export default function CommunityScreen() {
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
+        activeSocket.off('community:live_start');
+        activeSocket.off('community:live_join');
+        activeSocket.off('community:live_leave');
+        activeSocket.off('community:live_end');
         activeSocket.off('connect');
         activeSocket.off('connect_error');
         activeSocket.off('disconnect');
@@ -987,12 +1078,23 @@ export default function CommunityScreen() {
   const loadFiles = async () => {
     try {
       const downloaded = await getDownloadedPapers();
-      const converted: FileAttachment[] = downloaded.map((p) => ({
-        name: `${p.unitCode || 'NOTE'}_${(p.title || 'Material').replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`,
-        url: p.fileUrl || 'https://res.cloudinary.com/mconnect/docs/sample.pdf',
-        size: '1.8 MB',
-        type: 'pdf'
-      }));
+      const converted: FileAttachment[] = downloaded.map((p) => {
+        const cleanTitle = p.title || 'Academic Material';
+        const cleanCode = p.unitCode || p.courseCode || 'MOI';
+        const fileName = `${cleanCode}_${cleanTitle.replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`;
+        return {
+          name: fileName,
+          url: p.fileUrl || '',
+          size: '1.8 MB',
+          type: 'pdf',
+          paperId: p._id,
+          title: cleanTitle,
+          unitCode: cleanCode,
+          unitName: p.unitName || p.department || cleanTitle,
+          school: p.school || 'Moi University',
+          author: typeof p.uploadedBy === 'object' && p.uploadedBy ? (p.uploadedBy as any).name || 'Moi Student' : 'Moi Student'
+        };
+      });
       const combined = showDemoMaterials ? [...converted, ...SAMPLE_ATTACHMENTS] : converted;
       const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
       setAvailableFiles(unique);
@@ -1367,36 +1469,60 @@ export default function CommunityScreen() {
       });
     }
   };
+  const handleOpenFileAttachment = (file: FileAttachment) => {
+    if (file.type === 'pdf') {
+      const cleanTitle = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
+      const docItem: PDFDocumentItem = {
+        id: file.paperId || `att_${Date.now()}`,
+        title: cleanTitle,
+        unitCode: file.unitCode || 'MOI',
+        unitName: file.unitName || file.school || 'Academic Material',
+        school: file.school || 'Moi University',
+        fileUrl: file.url,
+        pages: file.pages || '48 pages',
+        author: file.author || 'Moi Student',
+        summary: `Shared material: ${cleanTitle}`,
+        sampleText: `Shared document content for ${file.unitCode || 'course'}: ${cleanTitle}.`
+      };
+      setPreviewDoc(docItem);
+      setShowPreviewModal(true);
+    } else {
+      Linking.openURL(file.url);
+    }
+  };
+
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
     try {
+      const paperId = file.paperId || `att_${Date.now()}`;
+      const title = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
       await saveDownloadedPaper({
-        _id: `file_${Date.now()}`,
-        title: file.name,
-        school: 'Moi Campus Community',
-        department: 'General Revision',
-        courseCode: 'COMMUNICATION',
-        unitCode: 'COMM 100',
-        unitName: file.name,
-        type: file.type === 'pdf' ? 'past_paper' : 'lecture_notes',
+        _id: paperId,
+        school: file.school || 'Moi University',
+        department: file.unitName || file.unitCode || 'Academic Material',
+        courseCode: file.unitCode || 'MOI',
+        unitCode: file.unitCode || 'MOI',
+        unitName: file.unitName || title,
+        type: 'notes',
+        title: title,
         examYear: 2025,
         fileUrl: file.url,
-        fileType: file.type === 'pdf' ? 'pdf' : 'other',
-        uploadedBy: { _id: 'comm', name: 'Community Member' } as any,
+        fileType: file.type === 'pdf' ? 'pdf' : (file.type === 'image' ? 'image' : 'video'),
+        uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
         status: 'approved',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
 
       showIceMessage(
-        'File Saved Offline',
-        `"${file.name}" has been saved to your local offline Downloads tab!`,
+        'Downloaded Offline',
+        `"${title}" saved to your offline downloads tab!`,
         [
           { text: 'OK' },
           { text: 'View Downloads', onPress: () => router.push('/(tabs)/downloads') }
         ]
       );
-    } catch (err) {
-      showIceMessage('Save Error', 'Could not save file offline.');
+    } catch (e) {
+      showIceMessage('Download Error', 'Could not save attachment offline.');
     }
   };
 
@@ -1533,7 +1659,156 @@ export default function CommunityScreen() {
             </Text>
             <View style={styles.onlineSubtitle}><OnlineStatusIcon color="#86efac" size={13} /><Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text></View>
           </View>
+
+          {/* Go Live Action Button */}
+          <TouchableOpacity
+            style={[styles.goLiveHeaderBtn, isLiveActive && styles.goLiveHeaderBtnActive]}
+            onPress={() => {
+              if (!isLiveActive) {
+                handleStartLiveStream();
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <TransmitterIcon color={isLiveActive ? '#ef4444' : '#ffffff'} size={18} />
+            <Text style={[styles.goLiveHeaderBtnText, isLiveActive && styles.goLiveHeaderBtnTextActive]}>
+              {isLiveActive ? 'LIVE' : 'Go Live'}
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Full-screen Live Call View */}
+        <Modal
+          visible={isLiveActive && (isLiveHost || isLiveJoined)}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          onRequestClose={() => {
+            if (isLiveHost) {
+              void handleEndLiveStream();
+            } else {
+              void handleExitLiveStream();
+            }
+          }}
+        >
+          <SafeAreaView style={styles.liveFullScreen}>
+          {liveCredentials && liveCredentials.url ? (
+            <CommunityLiveRoom
+              serverUrl={liveCredentials.url}
+              token={liveCredentials.token}
+              isHost={isLiveHost}
+              onClose={isLiveHost ? handleEndLiveStream : handleExitLiveStream}
+            />
+          ) : liveTokenLoading ? (
+            <View style={styles.liveFullScreen}><Text style={styles.liveStageTitle}>Connecting to live room…</Text></View>
+          ) : (
+            <View style={[styles.liveStageContainer, styles.liveFullScreenStage]}>
+            {/* Stage Header Info */}
+            <View style={styles.liveStageHeader}>
+              <TouchableOpacity
+                style={styles.liveBackButton}
+                onPress={isLiveHost ? handleEndLiveStream : handleExitLiveStream}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.liveBackButtonText}>‹</Text>
+              </TouchableOpacity>
+              <View style={styles.liveBadge}>
+                <View style={styles.liveBadgeDot} />
+                <Text style={styles.liveBadgeText}>LIVE</Text>
+              </View>
+              <Text style={styles.liveStageTitle} numberOfLines={1}>
+                {isLiveHost ? 'Your Live Broadcast' : `${liveHostName}'s Live Stream`}
+              </Text>
+              <Text style={styles.liveParticipantCountText}>
+                👥 {liveParticipants.length + 1}
+              </Text>
+            </View>
+
+            {/* Video Grid Stage */}
+            <View style={[styles.liveVideoGrid, styles.liveFullScreenVideoGrid]}>
+              {/* Main Host Big Video Box */}
+              <View style={[styles.hostVideoBox, styles.liveFullScreenHostVideo]}>
+                <RealCameraView
+                  isCameraOff={isCameraOff}
+                  isMicMuted={isMicMuted}
+                  avatarUrl={liveHostAvatar}
+                  userName={liveHostName}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.hostNameOverlay}>
+                  <Text style={styles.hostNameOverlayText}>
+                    {liveHostName} (Host) {isMicMuted ? '🔇 Muted' : '🎙️ Live'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Guest Small Video Cards (Top/Side Row) */}
+              {liveParticipants.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.guestsScrollView}
+                  contentContainerStyle={styles.guestsContainer}
+                >
+                  {liveParticipants.map((guest) => (
+                    <View key={guest.id} style={styles.guestSmallCard}>
+                      <Image
+                        source={guest.avatar ? { uri: guest.avatar } : require('../assets/moi-uni-logo.png')}
+                        style={styles.guestAvatarImg}
+                      />
+                      <View style={styles.guestNameOverlay}>
+                        <Text style={styles.guestNameText} numberOfLines={1}>
+                          {guest.name}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            {/* Live Controls Bar */}
+            <View style={styles.liveControlsBar}>
+              <TouchableOpacity
+                style={[styles.liveControlBtn, isMicMuted && styles.liveControlBtnActive]}
+                onPress={() => setIsMicMuted(!isMicMuted)}
+                activeOpacity={0.7}
+              >
+                {isMicMuted ? <MicOffIcon color="#ef4444" size={18} /> : <MicIcon color="#ffffff" size={18} />}
+                <Text style={styles.liveControlBtnText}>{isMicMuted ? 'Unmute' : 'Mute'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.liveControlBtn, isCameraOff && styles.liveControlBtnActive]}
+                onPress={() => setIsCameraOff(!isCameraOff)}
+                activeOpacity={0.7}
+              >
+                {isCameraOff ? <CameraOffIcon color="#ef4444" size={18} /> : <VideoIcon color="#ffffff" size={18} />}
+                <Text style={styles.liveControlBtnText}>{isCameraOff ? 'Start Cam' : 'Stop Cam'}</Text>
+              </TouchableOpacity>
+
+              {isLiveHost ? (
+                <TouchableOpacity
+                  style={styles.liveEndBtn}
+                  onPress={handleEndLiveStream}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.liveEndBtnText}>End Live</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.liveExitBtn}
+                  onPress={handleExitLiveStream}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.liveExitBtnText}>Exit Live</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          )}
+          </SafeAreaView>
+        </Modal>
 
         {/* WhatsApp-Style Chat Wallpaper */}
         <View style={styles.chatBackground}>
@@ -1709,7 +1984,7 @@ export default function CommunityScreen() {
                                   )}
                                 </TouchableOpacity>
                               )}
-                              <View style={styles.fileCard}>
+                              <TouchableOpacity style={styles.fileCard} onPress={() => handleOpenFileAttachment(item.fileAttachment!)} activeOpacity={0.8}>
                                 <View style={styles.fileIconBox}>
                                   {item.fileAttachment.type === 'video' ? <VideoIcon color="#f97316" size={24} /> : item.fileAttachment.type === 'image' ? <ImageIcon color="#2563eb" size={24} /> : <FileTextIcon color="#15803d" size={24} />}
                                 </View>
@@ -1717,10 +1992,12 @@ export default function CommunityScreen() {
                                   <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
                                   <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
                                 </View>
-                                <TouchableOpacity style={styles.fileDownloadBtn} onPress={() => handleDownloadFileAttachment(item.fileAttachment!)}>
-                                  <DownloadIcon color="#ffffff" size={14} />
-                                </TouchableOpacity>
-                              </View>
+                                {!item.isMe && (
+                                  <TouchableOpacity style={styles.fileDownloadBtn} onPress={(e) => { e.stopPropagation(); handleDownloadFileAttachment(item.fileAttachment!); }}>
+                                    <DownloadIcon color="#ffffff" size={14} />
+                                  </TouchableOpacity>
+                                )}
+                              </TouchableOpacity>
                             </View>
                           )}
 
@@ -1813,6 +2090,40 @@ export default function CommunityScreen() {
                 <Text style={styles.floatingMentionBadgeText}>{unreadMentionIds.length}</Text>
               </View>
             </TouchableOpacity>
+          )}
+
+          {/* Live Stream Audience Join Banner Card */}
+          {isLiveActive && !isLiveHost && !isLiveJoined && (
+          <View style={styles.liveAudienceBannerCard}>
+              <View style={styles.liveAudienceInfo}>
+                <View style={styles.livePulseIcon}>
+                  <Animated.View
+                    style={[
+                      styles.livePulseRing,
+                      {
+                        opacity: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }),
+                        transform: [{ scale: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.8] }) }]
+                      }
+                    ]}
+                  />
+                  <View style={styles.livePulseCore} />
+                </View>
+                <View style={styles.liveAudienceCopy}>
+                  <Text style={styles.liveAudienceText} numberOfLines={1}>
+                    <Text style={styles.liveAudienceHostName}>{liveHostName}</Text> is live
+                  </Text>
+                  <Text style={styles.liveAudienceSubtext}>Join the broadcast now</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.joinLiveBannerBtn}
+                onPress={handleJoinLiveStream}
+                activeOpacity={0.85}
+              >
+                <TransmitterIcon color="#ffffff" size={14} />
+                <Text style={styles.joinLiveBannerBtnText}>Join Live</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Replying Preview Banner */}
@@ -2094,6 +2405,23 @@ export default function CommunityScreen() {
             </Pressable>
           </TouchableOpacity>
         </Modal>
+      <PDFViewerModal
+        visible={showPreviewModal}
+        document={previewDoc}
+        onClose={() => setShowPreviewModal(false)}
+        onDownload={(doc) => handleDownloadFileAttachment({
+          name: doc.title,
+          url: doc.fileUrl,
+          size: '1.8 MB',
+          type: 'pdf',
+          paperId: doc.id,
+          title: doc.title,
+          unitCode: doc.unitCode,
+          unitName: doc.unitName,
+          school: doc.school,
+          author: doc.author
+        })}
+      />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -3161,5 +3489,366 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4
+  },
+  /* Go Live Stream & Stage Styles */
+  liveFullScreen: {
+    flex: 1,
+    backgroundColor: '#020617'
+  },
+  liveFullScreenStage: {
+    flex: 1,
+    margin: 0,
+    padding: 16,
+    borderRadius: 0,
+    borderBottomWidth: 0
+  },
+  liveFullScreenVideoGrid: {
+    flex: 1,
+    justifyContent: 'center'
+  },
+  liveFullScreenHostVideo: {
+    height: '62%',
+    minHeight: 220
+  },
+  goLiveHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginLeft: 8
+  },
+  goLiveHeaderBtnActive: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#ef4444'
+  },
+  goLiveHeaderBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  goLiveHeaderBtnTextActive: {
+    color: '#ef4444'
+  },
+  liveStageContainer: {
+    backgroundColor: '#0f172a',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b'
+  },
+  liveStageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10
+  },
+  liveBackButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8
+  },
+  liveBackButtonText: {
+    color: '#ffffff',
+    fontSize: 30,
+    lineHeight: 30,
+    fontWeight: '300',
+    marginTop: -3
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4
+  },
+  liveBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffffff'
+  },
+  liveBadgeDotPulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444'
+  },
+  liveBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800'
+  },
+  liveStageTitle: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+    marginLeft: 8
+  },
+  liveParticipantCountText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  liveVideoGrid: {
+    gap: 8,
+    alignItems: 'center'
+  },
+  hostVideoBox: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  videoAvatarContainer: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  hostAvatarImg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 6
+  },
+  cameraOffText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  activeVideoPreview: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  hostAvatarImgBg: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    opacity: 0.3
+  },
+  hostAvatarImgFg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: '#22c55e'
+  },
+  videoWaveIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  speakingWaveText: {
+    color: '#4ade80',
+    fontSize: 11,
+    fontWeight: '600'
+  },
+  hostNameOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6
+  },
+  hostNameOverlayText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  guestsScrollView: {
+    marginTop: 8,
+    width: '100%'
+  },
+  guestsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4
+  },
+  guestSmallCard: {
+    width: 80,
+    height: 60,
+    backgroundColor: '#334155',
+    borderRadius: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative'
+  },
+  guestAvatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18
+  },
+  guestNameOverlay: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    right: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 4,
+    paddingHorizontal: 4
+  },
+  guestNameText: {
+    color: '#ffffff',
+    fontSize: 10,
+    textAlign: 'center'
+  },
+  liveControlsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#0f172a',
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b'
+  },
+  liveControlBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  liveControlBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderColor: '#ef4444'
+  },
+  liveControlBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  liveEndBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24
+  },
+  liveEndBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  liveExitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#475569',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24
+  },
+  liveExitBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  liveAudienceBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginHorizontal: 12,
+    marginBottom: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    elevation: 3,
+    shadowColor: '#991b1b',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }
+  },
+  liveAudienceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    flex: 1
+  },
+  livePulseIcon: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  livePulseRing: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#ef4444'
+  },
+  livePulseCore: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: '#fee2e2'
+  },
+  liveAudienceCopy: {
+    flex: 1,
+    minWidth: 0
+  },
+  liveAudienceText: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '600'
+  },
+  liveAudienceHostName: {
+    color: '#b91c1c',
+    fontWeight: '800'
+  },
+  liveAudienceSubtext: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginTop: 1
+  },
+  joinLiveBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18
+  },
+  joinLiveBannerBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
   }
 });

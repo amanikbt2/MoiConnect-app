@@ -63,7 +63,7 @@ function AppRuntimeServices() {
       appStateSubscription.remove();
       clearInterval(communitySyncInterval);
     };
-  }, [user]);
+  }, [user?._id]);
 
   return (
     <InAppPopupModal

@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { apiRequest } from './api';
+import { scheduleLocalMissedMessagesNotification } from './notificationService';
 
 const OFFLINE_PAPERS_KEY = 'moi_offline_papers';
 const OFFLINE_MSG_QUEUE_KEY = 'moi_offline_msg_queue';
@@ -39,50 +40,7 @@ export interface OfflinePaper {
   pinned?: boolean;
 }
 
-const DEFAULT_INITIAL_PAPERS: OfflinePaper[] = [
-  {
-    _id: 'pp_rec1',
-    mtid: 'P0001',
-    isDemo: true,
-    title: 'COM 310 Data Structures Main Exam Paper 2024',
-    unitCode: 'COM 310',
-    unitName: 'Data Structures & Algorithms',
-    school: 'School of Information Sciences',
-    examYear: '2024',
-    semester: 'SEMESTER 1',
-    downloadsCount: 2940,
-    starsCount: 2410,
-    ratingScore: '4.9',
-    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
-    fileUrl: 'https://res.cloudinary.com/mconnect/docs/com310_exam2024.pdf',
-    hasSolutions: true,
-    type: 'past_paper',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    status: 'completed',
-    pinned: true
-  },
-  {
-    _id: 'pp_rec2',
-    mtid: 'P0002',
-    isDemo: true,
-    title: 'MAT 210 Calculus II End of Semester Exam 2024',
-    unitCode: 'MAT 210',
-    unitName: 'Calculus II',
-    school: 'School of Science',
-    examYear: '2024',
-    semester: 'SEMESTER 2',
-    downloadsCount: 3180,
-    starsCount: 2890,
-    ratingScore: '4.8',
-    thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
-    fileUrl: 'https://res.cloudinary.com/mconnect/docs/mat210_exam2024.pdf',
-    hasSolutions: true,
-    type: 'past_paper',
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    status: 'completed',
-    pinned: false
-  }
-];
+const DEFAULT_INITIAL_PAPERS: OfflinePaper[] = [];
 
 const getItem = async (key: string): Promise<string | null> => {
   if (Platform.OS === 'web') {
@@ -697,6 +655,33 @@ export const syncCommunityUnreadBackground = async (): Promise<void> => {
         const newCursor = payload.syncedAt || new Date().toISOString();
         await saveCommunitySyncCursor(newCursor);
         await saveCommunityMessages(updated);
+        await notifyUnreadCountListeners();
+
+        // If new messages arrived while device was offline, alert the user with a system notification
+        const newMessagesFromOthers = payload.data.filter((serverMsg: any) => {
+          return true; // All new messages in delta sync since last online cursor
+        });
+
+        if (newMessagesFromOthers.length > 0) {
+          try {
+            if (newMessagesFromOthers.length === 1) {
+              const single = newMessagesFromOthers[0];
+              const text = single.text || (single.fileAttachment ? '📎 Sent a file' : 'Sent a message');
+              void scheduleLocalMissedMessagesNotification(
+                single.senderName || 'Moi Student',
+                text,
+                'community'
+              );
+            } else {
+              const names = Array.from(new Set(newMessagesFromOthers.map((m: any) => m.senderName || 'Moi Student'))).slice(0, 3).join(', ');
+              void scheduleLocalMissedMessagesNotification(
+                'Missed Community Messages',
+                `${newMessagesFromOthers.length} new messages from ${names} while offline.`,
+                'community'
+              );
+            }
+          } catch (e) {}
+        }
       }
     } else if (payload && payload.syncedAt) {
       await saveCommunitySyncCursor(payload.syncedAt);

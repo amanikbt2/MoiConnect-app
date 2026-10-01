@@ -52,58 +52,7 @@ interface SuggestedMaterial {
   thumbnail: string;
 }
 
-const SUGGESTED_MATERIALS: SuggestedMaterial[] = [
-  {
-    id: '1',
-    title: 'Calculus II Main Examination 2023',
-    code: 'MAT 210',
-    school: 'School of Science',
-    paperType: 'Past Paper',
-    downloads: '342',
-    recommendationTag: '98% match',
-    thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '2',
-    title: 'Database Management Systems CAT 1',
-    code: 'COM 310',
-    school: 'Info Sciences',
-    paperType: 'CAT Paper',
-    downloads: '215',
-    recommendationTag: 'Based on COM 310',
-    thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '3',
-    title: 'Software Engineering Principles',
-    code: 'COM 410',
-    school: 'Computing Dept',
-    paperType: 'Past Paper',
-    downloads: '189',
-    recommendationTag: 'Popular in Year 4',
-    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '4',
-    title: 'Discrete Mathematics & Structures',
-    code: 'COM 112',
-    school: 'Mathematics Dept',
-    paperType: 'Special Exam',
-    downloads: '512',
-    recommendationTag: 'Recommended',
-    thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '5',
-    title: 'Object-Oriented Programming (Java)',
-    code: 'COM 211',
-    school: 'Info Sciences',
-    paperType: 'CAT & Solutions',
-    downloads: '430',
-    recommendationTag: 'Top Rated',
-    thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
-  },
-];
+const SUGGESTED_MATERIALS: SuggestedMaterial[] = [];
 
 function getGreetingText(userName?: string): string {
   const hour = new Date().getHours();
@@ -188,13 +137,13 @@ export default function HomeScreen() {
     }, 3800);
 
     return () => clearInterval(timer);
-  }, [activeSuggestedIndex, user, displaySuggestedMaterials.length]);
+  }, [displaySuggestedMaterials.length, Boolean(user)]);
 
   const fetchDashboardData = async () => {
     try {
       getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
 
-      const res = await apiRequest<{ data: any[] }>('/papers?refresh=' + Date.now());
+      const res = await apiRequest<{ data: any[] }>('/papers');
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped: SuggestedMaterial[] = res.data.map((p, idx) => ({
           id: p._id || String(idx),

@@ -107,7 +107,7 @@ export default function LoginScreen() {
       <View style={styles.form}>
         <Input
           label="Email Address"
-          placeholder="dev@gmail.com or student@moi.ac.ke"
+          placeholder="yourname@gmail.com"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"

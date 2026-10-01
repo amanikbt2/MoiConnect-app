@@ -7,10 +7,19 @@ try {
   ExpoSpeech = null;
 }
 
+export interface VoiceOption {
+  id: string;
+  name: string;
+  language?: string;
+  quality?: string;
+}
+
 export interface TTSState {
   isSpeaking: boolean;
   isPaused: boolean;
   activeText?: string;
+  voices: VoiceOption[];
+  selectedVoiceId: string | null;
 }
 
 type TTSListener = (state: TTSState) => void;
@@ -19,7 +28,100 @@ class TTSService {
   private isSpeaking: boolean = false;
   private isPaused: boolean = false;
   private activeText: string = '';
+  private voices: VoiceOption[] = [];
+  private selectedVoiceId: string | null = null;
   private listeners: Set<TTSListener> = new Set();
+
+  constructor() {
+    void this.loadVoices();
+  }
+
+  public async loadVoices(): Promise<VoiceOption[]> {
+    try {
+      // 1. Mobile Native (Android / iOS) via expo-speech
+      if (ExpoSpeech && Platform.OS !== 'web') {
+        if (typeof ExpoSpeech.getAvailableVoicesAsync === 'function') {
+          const rawVoices = await ExpoSpeech.getAvailableVoicesAsync();
+          if (Array.isArray(rawVoices) && rawVoices.length > 0) {
+            this.voices = rawVoices.map((v: any) => ({
+              id: v.identifier || v.name,
+              name: v.name || v.identifier || 'Default Voice',
+              language: v.language || 'en',
+              quality: v.quality
+            }));
+
+            if (!this.selectedVoiceId) {
+              const pref = this.voices.find(
+                (v) =>
+                  (v.language?.toLowerCase().includes('en') || v.name.toLowerCase().includes('en')) &&
+                  (v.quality === 'Enhanced' || v.name.includes('Google') || v.name.includes('Natural'))
+              );
+              const anyEn = this.voices.find((v) => v.language?.toLowerCase().includes('en'));
+              if (pref) this.selectedVoiceId = pref.id;
+              else if (anyEn) this.selectedVoiceId = anyEn.id;
+              else if (this.voices[0]) this.selectedVoiceId = this.voices[0].id;
+            }
+
+            this.notify();
+            return this.voices;
+          }
+        }
+      }
+
+      // 2. Web & Browser Fallback via Web Speech API
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        const fetchWebVoices = () => {
+          const webVoices = window.speechSynthesis.getVoices();
+          if (Array.isArray(webVoices) && webVoices.length > 0) {
+            this.voices = webVoices.map((v) => ({
+              id: v.voiceURI || v.name,
+              name: v.name,
+              language: v.lang
+            }));
+
+            if (!this.selectedVoiceId) {
+              const pref = this.voices.find(
+                (v) =>
+                  (v.language?.toLowerCase().startsWith('en') || v.name.includes('English')) &&
+                  (v.name.includes('Google') ||
+                    v.name.includes('Natural') ||
+                    v.name.includes('Online') ||
+                    v.name.includes('Samantha') ||
+                    v.name.includes('Alex'))
+              );
+              const anyEn = this.voices.find((v) => v.language?.toLowerCase().startsWith('en'));
+              if (pref) this.selectedVoiceId = pref.id;
+              else if (anyEn) this.selectedVoiceId = anyEn.id;
+              else if (this.voices[0]) this.selectedVoiceId = this.voices[0].id;
+            }
+
+            this.notify();
+          }
+        };
+
+        fetchWebVoices();
+        if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+          window.speechSynthesis.onvoiceschanged = fetchWebVoices;
+        }
+      }
+    } catch (e) {
+      console.warn('[TTS] Error loading voices:', e);
+    }
+    return this.voices;
+  }
+
+  public setVoice(voiceId: string): void {
+    this.selectedVoiceId = voiceId;
+    this.notify();
+
+    if (this.isSpeaking && this.activeText) {
+      const currentText = this.activeText;
+      this.stop();
+      setTimeout(() => {
+        void this.speak(currentText);
+      }, 150);
+    }
+  }
 
   public subscribe(listener: TTSListener): () => void {
     this.listeners.add(listener);
@@ -33,7 +135,9 @@ class TTSService {
     return {
       isSpeaking: this.isSpeaking,
       isPaused: this.isPaused,
-      activeText: this.activeText
+      activeText: this.activeText,
+      voices: this.voices,
+      selectedVoiceId: this.selectedVoiceId
     };
   }
 
@@ -56,7 +160,7 @@ class TTSService {
         this.isPaused = false;
         this.notify();
 
-        await ExpoSpeech.speak(cleanText, {
+        const options: any = {
           language: 'en-US',
           pitch: 1.0,
           rate: 0.95,
@@ -80,7 +184,13 @@ class TTSService {
             this.isPaused = false;
             this.notify();
           }
-        });
+        };
+
+        if (this.selectedVoiceId) {
+          options.voice = this.selectedVoiceId;
+        }
+
+        await ExpoSpeech.speak(cleanText, options);
         return;
       } catch (e) {
         console.warn('[TTS] Native speech error:', e);
@@ -97,11 +207,25 @@ class TTSService {
         utterance.lang = 'en-US';
 
         const voices = window.speechSynthesis.getVoices();
-        const englishVoice = voices.find(
-          (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Android') || v.name.includes('Samantha') || v.name.includes('Alex'))
-        );
-        if (englishVoice) {
-          utterance.voice = englishVoice;
+        if (voices.length > 0) {
+          let chosenVoice = null;
+          if (this.selectedVoiceId) {
+            chosenVoice = voices.find((v) => v.voiceURI === this.selectedVoiceId || v.name === this.selectedVoiceId);
+          }
+          if (!chosenVoice) {
+            chosenVoice = voices.find(
+              (v) =>
+                v.lang.startsWith('en') &&
+                (v.name.includes('Google') ||
+                  v.name.includes('Natural') ||
+                  v.name.includes('Android') ||
+                  v.name.includes('Samantha') ||
+                  v.name.includes('Alex'))
+            );
+          }
+          if (chosenVoice) {
+            utterance.voice = chosenVoice;
+          }
         }
 
         utterance.onstart = () => {
@@ -161,3 +285,4 @@ class TTSService {
 }
 
 export const ttsService = new TTSService();
+

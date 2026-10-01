@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, VolumeOffIcon } from './Icons';
+import { OfflineState } from './OfflineState';
 import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
 import { ttsService, TTSState } from '../services/ttsService';
 import { config } from '../config';
@@ -74,23 +75,17 @@ export function getCleanPdfUrl(rawUrl?: string): string {
   if (!rawUrl) return '';
   let url = rawUrl;
 
-  if (url.includes('api.cloudinary.com')) {
-    try {
-      const parsed = new URL(url);
-      const pid = parsed.searchParams.get('public_id');
-      const cloudName = parsed.pathname.split('/')[2] || 'mconnect';
-      if (pid) {
-        const cleanPid = pid.replace(/^\//, '');
-        const ext = cleanPid.match(/\.[a-z0-9]+$/i) ? '' : '.pdf';
-        return `https://res.cloudinary.com/${cloudName}/raw/upload/${cleanPid}${ext}`;
-      }
-    } catch (e) {
-      // ignore
-    }
+  // 1. If url is already pointing to our backend streaming proxy, use it directly
+  if (url.includes('/api/v1/papers/') || url.includes('/api/papers/')) {
+    return url;
   }
 
-  if (url.includes('/raw/upload/')) {
-    url = url.replace(/\/raw\/upload\/s--[^/]+--\//, '/raw/upload/').split('?')[0];
+  // 2. If url is a Cloudinary URL (res.cloudinary.com or api.cloudinary.com or /raw/upload/),
+  // route it through backend streaming proxy to bypass 401 Unauthorized delivery restriction!
+  if (url.includes('cloudinary.com') || url.includes('/raw/upload/')) {
+    const apiBase = config.apiUrl.replace(/\/$/, '');
+    const cleanRaw = url.split('#')[0];
+    return `${apiBase}/papers/stream-url?url=${encodeURIComponent(cleanRaw)}`;
   }
 
   return url;
@@ -113,7 +108,20 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     progress?: number;
   }>({});
 
-  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false });
+  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null });
+  const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
+  const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
+  const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
+  const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
+
+  const handleRetryPdfLoad = () => {
+    setIsPdfRetrying(true);
+    setHasPdfLoadError(false);
+    setPdfRetryKey((k) => k + 1);
+    setTimeout(() => {
+      setIsPdfRetrying(false);
+    }, 1200);
+  };
 
   const spinValue = useRef(new Animated.Value(0)).current;
 
@@ -125,23 +133,56 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     };
   }, []);
 
+
   const handleToggleTTS = () => {
     if (!document) return;
-    const textToRead = [
-      `Course Unit: ${document.unitCode} ${document.unitName || ''}.`,
-      `Document Title: ${document.title}.`,
-      document.summary ? `Summary: ${document.summary}.` : '',
-      document.sampleText ? `Content excerpt: ${document.sampleText}.` : '',
-      `Page ${activePage} preview for ${document.title}.`
-    ].filter(Boolean).join(' ');
 
-    ttsService.toggle(textToRead);
+    if (ttsState.isSpeaking) {
+      ttsService.stop();
+      return;
+    }
+
+    const parts: string[] = [];
+
+    // 1. Title & Unit Code
+    if (document.title?.trim()) {
+      const code = document.unitCode ? `[${document.unitCode}] ` : '';
+      parts.push(`${code}${document.title.trim()}`);
+    }
+
+    // 2. Summary
+    if (document.summary?.trim()) {
+      parts.push(`Summary: ${document.summary.trim()}`);
+    }
+
+    // 3. Document Body Content / Sample Text
+    if (document.sampleText?.trim()) {
+      const sample = document.sampleText.trim();
+      const alreadyHave = parts.some((p) => p.includes(sample.slice(0, 40)));
+      if (!alreadyHave) {
+        parts.push(sample);
+      }
+    } else {
+      const bodyText = `Key Concepts: Definition and fundamental principles of ${document.unitName || document.unitCode || 'this course'}. Solved Examples: Worked problem steps and formula applications for semester exams. Quick Revision: High yield notes compiled for test evaluation and quick review.`;
+      parts.push(bodyText);
+    }
+
+    if (parts.length === 0) {
+      ttsService.speak(
+        `No readable text content is available for this document. Try downloading it to read offline.`
+      );
+      return;
+    }
+
+    ttsService.speak(parts.join('. '));
   };
 
   useEffect(() => {
     if (!document) return;
     setActivePage(1);
     setZoomScale(1.0);
+    setHasPdfLoadError(false);
+    setIsPdfRetrying(false);
     const docId = document.id;
     const unsubscribe = subscribeToDownloadUpdates((papers) => {
       const found = papers.find(
@@ -250,7 +291,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     ? fileUrl + (fileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     : fileUrl;
   const nativeReaderUrl = hasRealDocument && Platform.OS !== 'web'
-    ? 'https://docs.google.com/gview?embedded=true&chrome=false&url=' + encodeURIComponent(fileUrl)
+    ? 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(fileUrl)
     : fileUrl;
 
   return (
@@ -329,93 +370,128 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
         {ttsState.isSpeaking && (
           <View style={styles.ttsBanner}>
             <View style={styles.ttsBannerContent}>
-              <Text style={styles.ttsBannerIcon}>🔊</Text>
-              <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                onPress={() => ttsService.stop()}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Stop voice reading"
+              >
+                <Text style={styles.ttsBannerIcon}>🔊</Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1, marginLeft: 6 }}>
                 <Text style={styles.ttsBannerTitle}>Voice Reading Mode Active</Text>
                 <Text style={styles.ttsBannerText} numberOfLines={1}>
                   Reading {document.unitCode} - {document.title} aloud
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.ttsStopBtn}
-                onPress={() => ttsService.stop()}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.ttsStopBtnText}>Stop Voice</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Instant PDF Preview Container */}
-        <View style={styles.bodyContainer}>
-          {/* Accessible Zoom Toolbar */}
-          <View style={styles.zoomControlBar}>
-            <View style={styles.zoomInfoGroup}>
-              <Text style={styles.zoomIconText}>🔍</Text>
-              <Text style={styles.zoomLabel}>Pinch to Zoom</Text>
-              <TouchableOpacity onPress={handleResetZoom} activeOpacity={0.7}>
-                <View style={styles.zoomBadge}>
-                  <Text style={styles.zoomBadgeText}>{Math.round(zoomScale * 100)}%</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.zoomActionsGroup}>
-              <TouchableOpacity
-                style={styles.zoomBtn}
-                onPress={handleZoomOut}
-                disabled={zoomScale <= 0.75}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.zoomBtnText}>-</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.zoomBtn}
-                onPress={handleZoomIn}
-                disabled={zoomScale >= 3.5}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.zoomBtnText}>+</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.zoomActionPill, zoomScale >= 3.0 && styles.zoomActionPillActive]}
-                onPress={handleMaxZoom}
-                activeOpacity={0.75}
-              >
-                <Text style={styles.zoomActionPillText}>MAX 300%</Text>
-              </TouchableOpacity>
-
-              {zoomScale !== 1.0 && (
+              {ttsState.voices && ttsState.voices.length > 0 && (
                 <TouchableOpacity
-                  style={styles.zoomResetBtn}
-                  onPress={handleResetZoom}
-                  activeOpacity={0.75}
+                  style={styles.ttsVoiceBtn}
+                  onPress={() => setShowVoicePicker(true)}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.zoomResetBtnText}>Reset</Text>
+                  <Text style={styles.ttsVoiceBtnText}>Change Voice</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
+        )}
 
-          {Platform.OS === 'web' && hasRealDocument ? (
+        {/* Voice Picker Overlay Dropdown */}
+        {showVoicePicker && (
+          <Modal transparent animationType="fade" visible={showVoicePicker} onRequestClose={() => setShowVoicePicker(false)}>
+            <TouchableOpacity
+              style={styles.voicePickerBackdrop}
+              activeOpacity={1}
+              onPress={() => setShowVoicePicker(false)}
+            >
+              <View style={styles.voicePickerCard}>
+                <View style={styles.voicePickerHeader}>
+                  <Text style={styles.voicePickerTitle}>🎙️ Select Preferred Voice</Text>
+                  <TouchableOpacity onPress={() => setShowVoicePicker(false)} style={styles.voicePickerCloseBtn}>
+                    <Text style={styles.voicePickerCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.voicePickerList} nestedScrollEnabled>
+                  {ttsState.voices && ttsState.voices.length > 0 ? (
+                    ttsState.voices
+                      .slice()
+                      .sort((a, b) => {
+                        const aEn = a.language?.toLowerCase().includes('en') || a.name.toLowerCase().includes('english');
+                        const bEn = b.language?.toLowerCase().includes('en') || b.name.toLowerCase().includes('english');
+                        if (aEn && !bEn) return -1;
+                        if (!aEn && bEn) return 1;
+                        return a.name.localeCompare(b.name);
+                      })
+                      .map((v) => {
+                        const isSelected = ttsState.selectedVoiceId === v.id;
+                        return (
+                          <TouchableOpacity
+                            key={v.id}
+                            style={[styles.voiceItem, isSelected && styles.voiceItemSelected]}
+                            onPress={() => {
+                              ttsService.setVoice(v.id);
+                              setShowVoicePicker(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.voiceItemName, isSelected && styles.voiceItemNameSelected]} numberOfLines={1}>
+                                {v.name}
+                              </Text>
+                              <Text style={styles.voiceItemLang} numberOfLines={1}>
+                                {v.language || 'English'} {v.quality ? `• ${v.quality}` : ''}
+                              </Text>
+                            </View>
+                            {isSelected && <Text style={styles.voiceCheckmark}>✓</Text>}
+                          </TouchableOpacity>
+                        );
+                      })
+                  ) : (
+                    <View style={{ padding: 16, alignItems: 'center' }}>
+                      <Text style={{ color: '#94a3b8', fontSize: 13 }}>Default System Voice Active</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Instant PDF Preview Container */}
+        <View style={styles.bodyContainer}>
+          {hasPdfLoadError ? (
+            <View style={styles.pdfErrorWrapper}>
+              <OfflineState
+                title="Failed to load PDF"
+                message="Unable to load document preview. Please check your internet connection and try again."
+                onRetry={handleRetryPdfLoad}
+                retrying={isPdfRetrying}
+              />
+            </View>
+          ) : Platform.OS === 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>
               <iframe
+                key={pdfRetryKey}
                 src={embeddedFileUrl}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title={document.title}
+                onError={() => setHasPdfLoadError(true)}
               />
             </View>
           ) : Platform.OS !== 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>
               <WebView
+                key={pdfRetryKey}
                 source={{ uri: nativeReaderUrl }}
                 style={styles.nativeViewer}
                 originWhitelist={['*']}
                 javaScriptEnabled
                 domStorageEnabled
+                allowFileAccess
+                allowUniversalAccessFromFileURLs
+                mixedContentMode="always"
                 startInLoadingState
                 renderLoading={() => (
                   <View style={styles.viewerLoading}>
@@ -423,6 +499,13 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
                   </View>
                 )}
+                onError={() => setHasPdfLoadError(true)}
+                onHttpError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  if (nativeEvent.statusCode >= 400) {
+                    setHasPdfLoadError(true);
+                  }
+                }}
               />
             </View>
           ) : (
@@ -510,10 +593,10 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     <Text style={styles.paperHeading}>1. READ-ONLY PDF PREVIEW CONTENT (Page {activePage})</Text>
                     <View style={styles.excerptBox}>
                       <Text style={styles.excerptLabel}>
-                        📄 Read-Only Document Excerpt (Testing Mode):
+                        📄 Document Excerpt:
                       </Text>
                       <Text style={styles.excerptText}>
-                        {document.sampleText || `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quick test preview words line for ${document.title} (${document.unitCode}).`}
+                        {document.sampleText || `Academic revision content for ${document.title} (${document.unitCode}).`}
                       </Text>
                     </View>
 
@@ -1017,5 +1100,110 @@ const styles = StyleSheet.create({
     color: '#0284c7',
     fontSize: 11,
     fontWeight: '800'
+  },
+  ttsVoiceBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)'
+  },
+  ttsVoiceBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  voicePickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  voicePickerCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  voicePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+    marginBottom: 8
+  },
+  voicePickerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#f8fafc'
+  },
+  voicePickerCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  voicePickerCloseText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  voicePickerList: {
+    maxHeight: 280
+  },
+  voiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: 'transparent'
+  },
+  voiceItemSelected: {
+    backgroundColor: 'rgba(2, 132, 199, 0.25)',
+    borderWidth: 1,
+    borderColor: '#0284c7'
+  },
+  voiceItemName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#cbd5e1'
+  },
+  voiceItemNameSelected: {
+    color: '#38bdf8',
+    fontWeight: '700'
+  },
+  voiceItemLang: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2
+  },
+  voiceCheckmark: {
+    color: '#38bdf8',
+    fontSize: 16,
+    fontWeight: '900',
+    marginLeft: 8
+  },
+  pdfErrorWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    padding: 16
   }
 });

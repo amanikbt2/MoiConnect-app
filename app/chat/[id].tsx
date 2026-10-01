@@ -15,8 +15,10 @@ import {
   Alert,
   PanResponder,
   Animated,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
+import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppNavigation } from '../../src/utils/navigation';
@@ -44,30 +46,25 @@ import {
   VideoIcon
 } from '../../src/components/Icons';
 import { LinkifiedText } from '../../src/components/LinkifiedText';
+import { PDFViewerModal, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 export interface FileAttachment {
   name: string;
   url: string;
   size: string;
   type: 'pdf' | 'doc' | 'image' | 'video';
+  paperId?: string;
+  title?: string;
+  unitCode?: string;
+  unitName?: string;
+  school?: string;
+  pages?: string;
+  author?: string;
 }
 
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
 
-const SAMPLE_ATTACHMENTS: FileAttachment[] = [
-  {
-    name: 'COM_310_Past_Paper_2025.pdf',
-    url: 'https://res.cloudinary.com/mconnect/docs/com310_2025.pdf',
-    size: '1.5 MB',
-    type: 'pdf'
-  },
-  {
-    name: 'MConnect_Tenancy_Agreement.pdf',
-    url: 'https://res.cloudinary.com/mconnect/docs/tenancy.pdf',
-    size: '950 KB',
-    type: 'pdf'
-  }
-];
+const SAMPLE_ATTACHMENTS: FileAttachment[] = [];
 
 function SwipeableMessageItem({
   children,
@@ -182,6 +179,8 @@ export default function ChatRoomScreen({ route }: any) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
@@ -199,12 +198,23 @@ export default function ChatRoomScreen({ route }: any) {
   const loadFiles = async () => {
     try {
       const downloaded = await getDownloadedPapers();
-      const converted: FileAttachment[] = downloaded.map((p) => ({
-        name: `${p.unitCode || 'NOTE'}_${(p.title || 'Material').replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`,
-        url: p.fileUrl || 'https://res.cloudinary.com/mconnect/docs/sample.pdf',
-        size: '1.8 MB',
-        type: 'pdf'
-      }));
+      const converted: FileAttachment[] = downloaded.map((p) => {
+        const cleanTitle = p.title || 'Academic Material';
+        const cleanCode = p.unitCode || p.courseCode || 'MOI';
+        const fileName = `${cleanCode}_${cleanTitle.replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`;
+        return {
+          name: fileName,
+          url: p.fileUrl || '',
+          size: '1.8 MB',
+          type: 'pdf',
+          paperId: p._id,
+          title: cleanTitle,
+          unitCode: cleanCode,
+          unitName: p.unitName || p.department || cleanTitle,
+          school: p.school || 'Moi University',
+          author: typeof p.uploadedBy === 'object' && p.uploadedBy ? (p.uploadedBy as any).name || 'Moi Student' : 'Moi Student'
+        };
+      });
       const combined = [...converted, ...SAMPLE_ATTACHMENTS];
       const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
       setAvailableFiles(unique);
@@ -374,29 +384,60 @@ export default function ChatRoomScreen({ route }: any) {
     setActiveReactionMsgId(null);
   };
 
+  const handleOpenFileAttachment = (file: FileAttachment) => {
+    if (file.type === 'pdf') {
+      const cleanTitle = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
+      const docItem: PDFDocumentItem = {
+        id: file.paperId || `att_${Date.now()}`,
+        title: cleanTitle,
+        unitCode: file.unitCode || 'MOI',
+        unitName: file.unitName || file.school || 'Academic Material',
+        school: file.school || 'Moi University',
+        fileUrl: file.url,
+        pages: file.pages || '48 pages',
+        author: file.author || 'Moi Student',
+        summary: `Shared material: ${cleanTitle}`,
+        sampleText: `Shared document content for ${file.unitCode || 'course'}: ${cleanTitle}.`
+      };
+      setPreviewDoc(docItem);
+      setShowPreviewModal(true);
+    } else {
+      Linking.openURL(file.url);
+    }
+  };
+
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
     try {
+      const paperId = file.paperId || `att_${Date.now()}`;
+      const title = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
       await saveDownloadedPaper({
-        _id: `file_${Date.now()}`,
-        title: file.name,
-        school: 'MConnect Direct Chat',
-        department: 'Chat Attachment',
-        courseCode: 'SHARED',
-        unitCode: 'DOC 101',
-        unitName: file.name,
-        type: file.type === 'pdf' ? 'past_paper' : 'lecture_notes',
+        _id: paperId,
+        school: file.school || 'Moi University',
+        department: file.unitName || file.unitCode || 'Academic Material',
+        courseCode: file.unitCode || 'MOI',
+        unitCode: file.unitCode || 'MOI',
+        unitName: file.unitName || title,
+        type: 'notes',
+        title: title,
         examYear: 2025,
         fileUrl: file.url,
-        fileType: file.type === 'pdf' ? 'pdf' : 'other',
-        uploadedBy: { _id: 'chat', name: 'Chat Member' } as any,
+        fileType: file.type === 'pdf' ? 'pdf' : (file.type === 'image' ? 'image' : 'video'),
+        uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
         status: 'approved',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
 
-      showIceMessage('File Saved Offline', `"${file.name}" has been saved to your local Downloads tab!`);
-    } catch (err) {
-      showIceMessage('Save Error', 'Could not save file offline.');
+      showIceMessage(
+        'Downloaded Offline',
+        `"${title}" saved to your offline downloads tab!`,
+        [
+          { text: 'OK' },
+          { text: 'View Downloads', onPress: () => router.push('/(tabs)/downloads') }
+        ]
+      );
+    } catch (e) {
+      showIceMessage('Download Error', 'Could not save attachment offline.');
     }
   };
 
@@ -562,12 +603,14 @@ export default function ChatRoomScreen({ route }: any) {
                             {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          style={styles.fileDownloadBtn}
-                          onPress={() => handleDownloadFileAttachment(item.fileAttachment)}
-                        >
-                          <DownloadIcon color="#ffffff" size={12} />
-                        </TouchableOpacity>
+                        {!isMe && (
+                          <TouchableOpacity
+                            style={styles.fileDownloadBtn}
+                            onPress={() => handleDownloadFileAttachment(item.fileAttachment)}
+                          >
+                            <DownloadIcon color="#ffffff" size={12} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     )}
 
@@ -768,7 +811,24 @@ export default function ChatRoomScreen({ route }: any) {
           </Pressable>
         </TouchableOpacity>
       </Modal>
-    </KeyboardAvoidingView>
+    <PDFViewerModal
+        visible={showPreviewModal}
+        document={previewDoc}
+        onClose={() => setShowPreviewModal(false)}
+        onDownload={(doc: PDFDocumentItem) => handleDownloadFileAttachment({
+          name: doc.title,
+          url: doc.fileUrl,
+          size: '1.8 MB',
+          type: 'pdf',
+          paperId: doc.id,
+          title: doc.title,
+          unitCode: doc.unitCode,
+          unitName: doc.unitName,
+          school: doc.school,
+          author: doc.author
+        })}
+      />
+      </KeyboardAvoidingView>
   );
 }
 

@@ -50,13 +50,14 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
   const [inputValues, setInputValues] = useState<Record<string, string | boolean>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  const router = useAppNavigation();
+
   useEffect(() => {
     setInputValues({});
     setSubmitting(false);
   }, [popup?.popupId]);
 
   if (!popup || !visible) return null;
-  const router = useAppNavigation();
   const isUpdateType = popup.type === 'update';
 
   const legacyAction = popup.actionTarget

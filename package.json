@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "main": "index.js",
   "scripts": {
     "start": "expo start --offline",
@@ -11,7 +11,11 @@
     "web": "expo start --web --offline --port 8082"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "^1.0.0",
     "@expo/metro-runtime": "~3.2.3",
+    "@livekit/react-native": "^2.1.0",
+    "@livekit/react-native-expo-plugin": "^1.0.0",
+    "@livekit/react-native-webrtc": "^114.1.6",
     "@moi/shared": "file:./packages/shared",
     "@react-native-google-signin/google-signin": "^12.2.1",
     "@react-navigation/bottom-tabs": "^6.5.20",
@@ -37,6 +41,7 @@
     "expo-status-bar": "~1.12.1",
     "expo-web-browser": "~13.0.3",
     "graphql": "^16.8.1",
+    "livekit-client": "^2.19.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-native": "^0.74.5",

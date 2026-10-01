@@ -128,6 +128,46 @@ export async function notifyLoginSuccess(userName: string) {
     console.warn('[Notifications]: Could not show login success notification:', error);
   }
 }
+
+export async function scheduleLocalMissedMessagesNotification(
+  senderName: string,
+  messageText: string,
+  screen: 'community' | 'chat' = 'community',
+  conversationId?: string
+) {
+  if (Platform.OS === 'web') {
+    sendWebBrowserNotification(`💬 ${senderName}`, messageText);
+    return;
+  }
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'MoiConnect Notifications',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#15803d'
+    });
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `💬 ${senderName}`,
+        body: messageText,
+        sound: 'default',
+        data: {
+          screen,
+          channelId: screen === 'community' ? 'community_chat' : 'chat_message',
+          conversationId
+        }
+      },
+      trigger: null
+    });
+  } catch (error) {
+    console.warn('[Notifications]: Could not schedule local notification:', error);
+  }
+}
 export function setupNotificationResponseListener(onNavigate: (screenPath: string) => void) {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
@@ -136,10 +176,27 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
     return () => {};
   }
 
+  // Handle app cold-start launch when student taps a push notification while app was completely closed
+  Notifications.getLastNotificationResponseAsync()
+    .then((response) => {
+      if (response?.notification) {
+        const data = response.notification.request.content.data;
+        if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
+          onNavigate('/(tabs)/messages');
+        } else if (data && data.screen === 'chat' && data.conversationId) {
+          onNavigate(`/chat/${data.conversationId}`);
+        }
+      }
+    })
+    .catch(() => {});
+
+  // Handle taps while app is running or in background
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
     if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
       onNavigate('/(tabs)/messages');
+    } else if (data && data.screen === 'chat' && data.conversationId) {
+      onNavigate(`/chat/${data.conversationId}`);
     }
   });
 
