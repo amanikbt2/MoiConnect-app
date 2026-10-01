@@ -58,12 +58,17 @@ async function registerPushToken() {
       const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       token = pushTokenData.data;
     } catch (tokenErr) {
-      console.warn('[Notifications]: getExpoPushTokenAsync error, attempting native device token fallback:', tokenErr);
+      console.warn('[Notifications]: getExpoPushTokenAsync error with projectId, attempting fallback without param:', tokenErr);
       try {
-        const nativeToken = await Notifications.getDevicePushTokenAsync();
-        token = typeof nativeToken.data === 'string' ? nativeToken.data : JSON.stringify(nativeToken.data);
-      } catch (nativeErr) {
-        console.error('[Notifications]: Could not fetch native device token:', nativeErr);
+        const pushTokenData = await Notifications.getExpoPushTokenAsync();
+        token = pushTokenData.data;
+      } catch (fallbackErr) {
+        try {
+          const nativeToken = await Notifications.getDevicePushTokenAsync();
+          token = typeof nativeToken.data === 'string' ? nativeToken.data : JSON.stringify(nativeToken.data);
+        } catch (nativeErr) {
+          console.error('[Notifications]: Could not fetch native device token:', nativeErr);
+        }
       }
     }
 
@@ -72,15 +77,25 @@ async function registerPushToken() {
       return null;
     }
 
-    const registration = await apiRequest('/notifications/register-token', {
-      method: 'POST',
-      body: JSON.stringify({
-        token,
-        platform: Platform.OS
-      })
-    });
+    let registration: any = { success: false };
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        registration = await apiRequest('/notifications/register-token', {
+          method: 'POST',
+          body: JSON.stringify({
+            token,
+            platform: Platform.OS
+          })
+        });
+        if (registration.success) break;
+      } catch (reqErr) {
+        console.warn(`[Notifications]: Registration attempt ${attempt} failed:`, reqErr);
+      }
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
     if (!registration.success) {
-      console.error('[Notifications]: Backend token registration failed:', registration.error || 'Unknown error');
+      console.error('[Notifications]: Backend token registration failed after retries:', registration.error || 'Unknown error');
       return null;
     }
 

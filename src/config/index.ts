@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 const RENDER_BACKEND_URL = 'https://moiconnect.onrender.com';
 const LOCAL_BACKEND_PORT = '5000';
@@ -24,6 +25,13 @@ const getDynamicHost = () => {
 
   // Native Android / iOS
   if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost || (Constants as any).manifest?.debuggerHost;
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+        return `http://${ip}:${LOCAL_BACKEND_PORT}`;
+      }
+    }
     return `http://10.0.2.2:${LOCAL_BACKEND_PORT}`;
   }
   return RENDER_BACKEND_URL;
@@ -42,3 +50,4 @@ export const config = {
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || ''
   }
 };
+

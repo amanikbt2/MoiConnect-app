@@ -591,11 +591,15 @@ export default function ChatRoomScreen({ route }: any) {
 
                     {/* File Attachment */}
                     {item.fileAttachment && (
-                      <View style={styles.fileCard}>
+                      <TouchableOpacity
+                        style={styles.fileCard}
+                        onPress={() => handleOpenFileAttachment(item.fileAttachment!)}
+                        activeOpacity={0.8}
+                      >
                         <View style={styles.fileIconBox}>
                           <FileTextIcon color="#15803d" size={22} />
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={styles.fileInfo}>
                           <Text style={styles.fileName} numberOfLines={1}>
                             {item.fileAttachment.name}
                           </Text>
@@ -606,12 +610,15 @@ export default function ChatRoomScreen({ route }: any) {
                         {!isMe && (
                           <TouchableOpacity
                             style={styles.fileDownloadBtn}
-                            onPress={() => handleDownloadFileAttachment(item.fileAttachment)}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleDownloadFileAttachment(item.fileAttachment);
+                            }}
                           >
                             <DownloadIcon color="#ffffff" size={12} />
                           </TouchableOpacity>
                         )}
-                      </View>
+                      </TouchableOpacity>
                     )}
 
                     {/* Text content with clean text wrapping */}
@@ -908,28 +915,36 @@ const styles = StyleSheet.create({
   fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(21, 128, 61, 0.08)',
     borderRadius: 10,
-    padding: 8,
+    padding: 10,
     marginBottom: 6,
-    gap: 8
+    gap: 8,
+    minWidth: 220,
+    borderWidth: 1,
+    borderColor: 'rgba(21, 128, 61, 0.2)'
   },
   fileIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center'
   },
+  fileInfo: {
+    flex: 1,
+    minWidth: 0
+  },
   fileName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#0f172a'
   },
   fileMeta: {
-    fontSize: 10,
-    color: '#64748b'
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2
   },
   fileDownloadBtn: {
     backgroundColor: '#15803d',

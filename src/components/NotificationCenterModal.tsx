@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 import { apiRequest } from '../services/api';
 import {
+  getReadNotificationIds,
+  saveReadNotificationId,
+  saveReadNotificationIdsBatch
+} from '../services/offlineStorage';
+import {
   BellIcon,
   AcademicCapIcon,
   HouseIcon,
@@ -53,13 +58,20 @@ export function NotificationCenterModal() {
         notifications: INotificationItem[];
       }>('/notifications', { method: 'GET' });
 
-      const list = res.data?.notifications || (res as any).notifications;
-      const unread = res.data?.unreadCount ?? (res as any).unreadCount ?? 0;
+      const list: INotificationItem[] = res.data?.notifications || (res as any).notifications;
+      const localReadIdsArr = await getReadNotificationIds();
+      const localReadIds = new Set(localReadIdsArr);
 
       if (list) {
-        setNotifications(list);
-        setUnreadCount(unread);
-        return list;
+        const mergedList = list.map(item => ({
+          ...item,
+          isRead: item.isRead || localReadIds.has(item._id)
+        }));
+        const realUnreadCount = mergedList.filter(item => !item.isRead).length;
+
+        setNotifications(mergedList);
+        setUnreadCount(realUnreadCount);
+        return mergedList;
       }
       return null;
     } catch (err) {
@@ -77,38 +89,55 @@ export function NotificationCenterModal() {
         notifications: INotificationItem[];
       }>('/notifications', { method: 'GET' });
 
-      const list = res.data?.notifications || (res as any).notifications;
-      const unread = res.data?.unreadCount ?? (res as any).unreadCount ?? 0;
+      const list: INotificationItem[] = res.data?.notifications || (res as any).notifications;
+      const localReadIdsArr = await getReadNotificationIds();
+      const localReadIds = new Set(localReadIdsArr);
 
       if (list) {
-        setNotifications(list);
-        setUnreadCount(unread);
+        const mergedList = list.map(item => ({
+          ...item,
+          isRead: item.isRead || localReadIds.has(item._id)
+        }));
+        const realUnreadCount = mergedList.filter(item => !item.isRead).length;
+
+        setNotifications(mergedList);
+        setUnreadCount(realUnreadCount);
       }
     } catch (err) {}
   };
 
   const markAllAsRead = async (items: INotificationItem[]) => {
     const unreadItems = items.filter(item => !item.isRead);
-    if (unreadItems.length === 0) {
-      setUnreadCount(0);
-      return;
-    }
+    const allIds = items.map(i => i._id);
 
     try {
-      await apiRequest('/notifications/read-all', { method: 'POST' });
+      await saveReadNotificationIdsBatch(allIds);
+      if (unreadItems.length > 0) {
+        await apiRequest('/notifications/read-all', { method: 'POST' });
+      }
       setNotifications(prev => prev.map(item => ({ ...item, isRead: true })));
       setUnreadCount(0);
-    } catch (err) {}
+    } catch (err) {
+      setNotifications(prev => prev.map(item => ({ ...item, isRead: true })));
+      setUnreadCount(0);
+    }
   };
 
   const handleMarkRead = async (id: string) => {
     try {
+      await saveReadNotificationId(id);
       await apiRequest(`/notifications/${id}/read`, { method: 'POST' });
       setNotifications(prev =>
         prev.map(n => (n._id === id ? { ...n, isRead: true } : n))
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {}
+    } catch (err) {
+      await saveReadNotificationId(id);
+      setNotifications(prev =>
+        prev.map(n => (n._id === id ? { ...n, isRead: true } : n))
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
   };
 
   const renderMonochromeIcon = (iconName: string) => {

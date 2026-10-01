@@ -62,6 +62,8 @@ import {
   getLastReadCommunityMsgId,
   saveLastReadCommunityMsgId,
   getReadCommunityMentionIds,
+  getDeletedForMeMessageIds,
+  saveDeletedForMeMessageId,
 
   saveReadCommunityMentionIds,
   getStudentPersonalDetails,
@@ -478,6 +480,14 @@ export default function CommunityScreen() {
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const dismissedMentionIds = useRef<Set<string>>(new Set());
   const focusMentionHandledRef = useRef(false);
+  const deletedForMeIdsRef = useRef<Set<string>>(new Set());
+
+  // Options & Report Modal State
+  const [selectedMsgForOptions, setSelectedMsgForOptions] = useState<CommunityMessage | null>(null);
+  const [selectedMsgForReport, setSelectedMsgForReport] = useState<CommunityMessage | null>(null);
+  const [reportReason, setReportReason] = useState<string>('inappropriate_content');
+  const [reportDetails, setReportDetails] = useState<string>('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
 
   useEffect(() => {
     getReadCommunityMentionIds().then((ids) => {
@@ -542,6 +552,7 @@ export default function CommunityScreen() {
   const isNearBottomRef = useRef<boolean>(true);
   const initialScrollDoneRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
+  const userScrolledRef = useRef<boolean>(false);
   const evalIsMe = (msgSenderId?: any, msgSenderEmail?: string, msgSenderName?: string, msgClientMsgId?: string): boolean => {
     if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
       return true;
@@ -615,7 +626,7 @@ export default function CommunityScreen() {
     setUnreadMentionIds(mentions);
   }, [messages, user, readMentionVersion]);
 
-  const scrollToLatestWhenReady = (animated = true) => {
+  function scrollToLatestWhenReady(animated = true) {
     try {
       if (flatListRef.current) {
         if (typeof (flatListRef.current as any).scrollToOffset === 'function') {
@@ -627,7 +638,7 @@ export default function CommunityScreen() {
     } catch (err) {
       console.warn('[CommunityChat] Safe scroll notice:', err);
     }
-  };
+  }
 
   const scrollToMessage = (targetId: string): boolean => {
     const normalizedTargetId = String(targetId);
@@ -720,13 +731,12 @@ export default function CommunityScreen() {
     isNearBottomRef.current = isBottom;
     setShowUnreadBtn(!isBottom);
 
-    if (isBottom && messages.length > 0) {
+    if (isBottom && userScrolledRef.current && messages.length > 0) {
       const latestId = messages[messages.length - 1].id;
       saveLastReadCommunityMsgId(latestId);
-      if (unreadCount > 0 || showUnreadBtn || firstUnreadMsgId) {
+      if (unreadCount > 0 || showUnreadBtn) {
         setUnreadCount(0);
         setShowUnreadBtn(false);
-        setFirstUnreadMsgId(null);
       }
     }
   };
@@ -738,10 +748,12 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getCommunitySyncCursor()]).then(([cachedMsgs, demoSetting, storedCursor]) => {
+    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(([cachedMsgs, demoSetting, storedCursor, deletedForMeIds]) => {
+      deletedForMeIdsRef.current = new Set(deletedForMeIds);
       setShowDemoMaterials(demoSetting);
       const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
       const msgsToLoad = rawMsgs
+        .filter((m) => !deletedForMeIdsRef.current.has(m.id) && !deletedForMeIdsRef.current.has((m as any)._id))
         .filter((m) => demoSetting || !isHardcodedCommunityMessage(m))
         .map((m) => ({
           ...m,
@@ -968,6 +980,15 @@ export default function CommunityScreen() {
           setIsLiveJoined(false);
           setLiveCredentials(null);
           setLiveParticipants([]);
+        });
+
+        socket.on('community:message_deleted', (data: { messageId: string }) => {
+          if (!data || !data.messageId) return;
+          setMessages((prev) => {
+            const updated = prev.filter((m) => m.id !== data.messageId && (m as any)._id !== data.messageId);
+            saveCommunityMessages(updated);
+            return updated;
+          });
         });
       }
     });
@@ -1469,6 +1490,93 @@ export default function CommunityScreen() {
       });
     }
   };
+
+  const handleDeleteForMe = async (msg: CommunityMessage) => {
+    try {
+      const msgId = msg.id;
+      deletedForMeIdsRef.current.add(msgId);
+      await saveDeletedForMeMessageId(msgId);
+      setMessages((prev) => {
+        const updated = prev.filter((m) => m.id !== msgId && (m as any)._id !== msgId);
+        saveCommunityMessages(updated);
+        return updated;
+      });
+      setSelectedMsgForOptions(null);
+      showIceMessage('Message Removed 🗑️', 'Deleted for you on this device.');
+    } catch {
+      showIceMessage('Error', 'Could not delete message for you.');
+    }
+  };
+
+  const handleDeleteForEveryone = async (msg: CommunityMessage) => {
+    try {
+      const msgId = msg.id;
+      setSelectedMsgForOptions(null);
+
+      const res = await apiRequest(`/community/messages/${msgId}`, { method: 'DELETE' });
+      if (res.success) {
+        setMessages((prev) => {
+          const updated = prev.filter((m) => m.id !== msgId && (m as any)._id !== msgId);
+          saveCommunityMessages(updated);
+          return updated;
+        });
+        showIceMessage('Message Deleted 🚨', 'Deleted for everyone in the community.');
+      } else {
+        showIceMessage('Delete Failed', res.error || 'Could not delete message for everyone.');
+      }
+    } catch {
+      showIceMessage('Delete Error', 'Network error while deleting message.');
+    }
+  };
+
+  const handleCopyMessageText = (msg: CommunityMessage) => {
+    try {
+      const textToCopy = msg.text || msg.fileAttachment?.name || '';
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(textToCopy);
+      }
+      setSelectedMsgForOptions(null);
+      showIceMessage('Text Copied 📋', 'Message text copied to clipboard!');
+    } catch {
+      setSelectedMsgForOptions(null);
+      showIceMessage('Text Copied 📋', 'Message text copied!');
+    }
+  };
+
+  const handleOpenReportModal = (msg: CommunityMessage) => {
+    setSelectedMsgForOptions(null);
+    setSelectedMsgForReport(msg);
+    setReportReason('inappropriate_content');
+    setReportDetails('');
+  };
+
+  const handleSubmitReport = async () => {
+    if (!selectedMsgForReport) return;
+    setIsSubmittingReport(true);
+    try {
+      const res = await apiRequest('/reports', {
+        method: 'POST',
+        body: JSON.stringify({
+          targetType: 'community_message',
+          targetId: selectedMsgForReport.id,
+          reason: reportReason,
+          details: reportDetails.trim() || `Reported message text: "${(selectedMsgForReport.text || '').slice(0, 100)}"`
+        })
+      });
+      setIsSubmittingReport(false);
+      setSelectedMsgForReport(null);
+
+      if (res.success) {
+        showIceMessage('Report Submitted 🚩', 'Thank you! Admin team will review this report in the dashboard.');
+      } else {
+        showIceMessage('Report Failed', res.error || 'Could not submit report.');
+      }
+    } catch {
+      setIsSubmittingReport(false);
+      setSelectedMsgForReport(null);
+      showIceMessage('Report Error', 'Could not submit report. Please try again.');
+    }
+  };
   const handleOpenFileAttachment = (file: FileAttachment) => {
     if (file.type === 'pdf') {
       const cleanTitle = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
@@ -1824,6 +1932,7 @@ export default function CommunityScreen() {
 
             onScrollBeginDrag={() => {
               isDraggingRef.current = true;
+              userScrolledRef.current = true;
             }}
             onMomentumScrollEnd={() => {
               isDraggingRef.current = false;
@@ -1866,12 +1975,12 @@ export default function CommunityScreen() {
               return (
                 <View style={{ width: '100%' }}>
                   {/* WhatsApp-Style Unread Divider Line */}
-                  {isFirstUnread && unreadCount > 0 && (
+                  {isFirstUnread && (
                     <View style={styles.unreadDividerContainer}>
                       <View style={styles.unreadDividerLine} />
                       <View style={styles.unreadDividerPill}>
                         <Text style={styles.unreadDividerText}>
-                          {unreadCount} UNREAD {unreadCount === 1 ? 'MESSAGE' : 'MESSAGES'}
+                          {unreadCount > 0 ? `${unreadCount} UNREAD ${unreadCount === 1 ? 'MESSAGE' : 'MESSAGES'}` : 'UNREAD MESSAGES'}
                         </Text>
                       </View>
                       <View style={styles.unreadDividerLine} />
@@ -1920,7 +2029,7 @@ export default function CommunityScreen() {
 
                         <TouchableOpacity
                           activeOpacity={0.9}
-                          onLongPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
+                          onLongPress={() => setSelectedMsgForOptions(item)}
                           onPress={() => {
                             if (isPickerOpen) setActiveReactionMsgId(null);
                           }}
@@ -2422,6 +2531,182 @@ export default function CommunityScreen() {
           author: doc.author
         })}
       />
+
+      {/* 1. Message Options Bottom Sheet Modal */}
+      <Modal
+        visible={Boolean(selectedMsgForOptions)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMsgForOptions(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedMsgForOptions(null)}>
+          <Pressable style={styles.optionsSheetContainer} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            {selectedMsgForOptions && (
+              <View style={styles.optionsMsgPreviewBox}>
+                <Text style={styles.optionsPreviewSender}>{selectedMsgForOptions.senderName}</Text>
+                <Text style={styles.optionsPreviewText} numberOfLines={2}>
+                  {selectedMsgForOptions.text || (selectedMsgForOptions.fileAttachment ? `📎 ${selectedMsgForOptions.fileAttachment.name}` : 'Media content')}
+                </Text>
+              </View>
+            )}
+
+            {/* Quick Reactions Bar */}
+            <View style={styles.optionsReactionRow}>
+              {EMOJI_OPTIONS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={[
+                    styles.optionsEmojiBtn,
+                    selectedMsgForOptions?.myReaction === emoji && styles.optionsEmojiBtnActive
+                  ]}
+                  onPress={() => {
+                    if (selectedMsgForOptions) {
+                      handleToggleReaction(selectedMsgForOptions.id, emoji);
+                      setSelectedMsgForOptions(null);
+                    }
+                  }}
+                >
+                  <Text style={{ fontSize: 22 }}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Actions List */}
+            <View style={styles.optionsList}>
+              <TouchableOpacity
+                style={styles.optionRowItem}
+                onPress={() => {
+                  if (selectedMsgForOptions) setReplyingTo(selectedMsgForOptions);
+                  setSelectedMsgForOptions(null);
+                }}
+              >
+                <View style={[styles.optionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                  <ReplyIcon color="#15803d" size={18} />
+                </View>
+                <Text style={styles.optionRowText}>Reply to Message</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optionRowItem}
+                onPress={() => selectedMsgForOptions && handleCopyMessageText(selectedMsgForOptions)}
+              >
+                <View style={[styles.optionIconCircle, { backgroundColor: '#e0f2fe' }]}>
+                  <Text style={{ fontSize: 16 }}>📋</Text>
+                </View>
+                <Text style={styles.optionRowText}>Copy Message Text</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optionRowItem}
+                onPress={() => selectedMsgForOptions && handleDeleteForMe(selectedMsgForOptions)}
+              >
+                <View style={[styles.optionIconCircle, { backgroundColor: '#fef3c7' }]}>
+                  <TrashIcon color="#d97706" size={18} />
+                </View>
+                <Text style={styles.optionRowText}>Delete for Me</Text>
+              </TouchableOpacity>
+
+              {(selectedMsgForOptions?.isMe || user?.role === 'admin') && (
+                <TouchableOpacity
+                  style={styles.optionRowItem}
+                  onPress={() => selectedMsgForOptions && handleDeleteForEveryone(selectedMsgForOptions)}
+                >
+                  <View style={[styles.optionIconCircle, { backgroundColor: '#fee2e2' }]}>
+                    <TrashIcon color="#ef4444" size={18} />
+                  </View>
+                  <Text style={[styles.optionRowText, { color: '#ef4444' }]}>Delete for Everyone</Text>
+                </TouchableOpacity>
+              )}
+
+              {!selectedMsgForOptions?.isMe && (
+                <TouchableOpacity
+                  style={styles.optionRowItem}
+                  onPress={() => selectedMsgForOptions && handleOpenReportModal(selectedMsgForOptions)}
+                >
+                  <View style={[styles.optionIconCircle, { backgroundColor: '#ffe4e6' }]}>
+                    <Text style={{ fontSize: 16 }}>🚩</Text>
+                  </View>
+                  <Text style={[styles.optionRowText, { color: '#e11d48' }]}>Report Message</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.optionsCancelBtn}
+              onPress={() => setSelectedMsgForOptions(null)}
+            >
+              <Text style={styles.optionsCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 2. Report Message Modal */}
+      <Modal
+        visible={Boolean(selectedMsgForReport)}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedMsgForReport(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedMsgForReport(null)}>
+          <Pressable style={styles.reportCardContainer} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.reportTitle}>🚩 Report Inappropriate Content</Text>
+            <Text style={styles.reportSubtitle}>Select the reason for reporting this message. Admin team will review and take action.</Text>
+
+            {[
+              { id: 'inappropriate_content', label: 'Inappropriate or Offensive Content' },
+              { id: 'spam', label: 'Spam or Unwanted Advertising' },
+              { id: 'harassment', label: 'Harassment or Bullying' },
+              { id: 'misleading_information', label: 'False or Misleading Information' },
+              { id: 'other', label: 'Other Reason' }
+            ].map((reasonItem) => (
+              <TouchableOpacity
+                key={reasonItem.id}
+                style={[
+                  styles.reportReasonRow,
+                  reportReason === reasonItem.id && styles.reportReasonRowSelected
+                ]}
+                onPress={() => setReportReason(reasonItem.id)}
+              >
+                <View style={[styles.radioCircle, reportReason === reasonItem.id && styles.radioCircleSelected]}>
+                  {reportReason === reasonItem.id && <View style={styles.radioDot} />}
+                </View>
+                <Text style={styles.reportReasonText}>{reasonItem.label}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TextInput
+              style={styles.reportDetailsInput}
+              placeholder="Provide optional additional details for the admin..."
+              placeholderTextColor="#94a3b8"
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              multiline
+            />
+
+            <View style={styles.reportBtnRow}>
+              <TouchableOpacity
+                style={styles.reportCancelBtn}
+                onPress={() => setSelectedMsgForReport(null)}
+              >
+                <Text style={styles.reportCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.reportSubmitBtn, isSubmittingReport && { opacity: 0.6 }]}
+                onPress={handleSubmitReport}
+                disabled={isSubmittingReport}
+              >
+                <Text style={styles.reportSubmitBtnText}>
+                  {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -2675,6 +2960,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 6,
     gap: 8,
+    minWidth: 220,
     borderWidth: 1,
     borderColor: 'rgba(21, 128, 61, 0.2)'
   },
@@ -2728,7 +3014,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   fileInfo: {
-    flex: 1
+    flex: 1,
+    minWidth: 0
   },
   fileName: {
     fontSize: 13,
@@ -2750,8 +3037,9 @@ const styles = StyleSheet.create({
   },
   reactionPickerBar: {
     position: 'absolute',
-    top: -42,
-    zIndex: 99,
+    top: -46,
+    zIndex: 99999,
+    elevation: 9999,
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderRadius: 24,
@@ -2759,10 +3047,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0'
   },
@@ -3850,5 +4137,206 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'flex-end',
+    alignItems: 'center'
+  },
+  optionsSheetContainer: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    maxHeight: '85%'
+  },
+  sheetHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#cbd5e1',
+    alignSelf: 'center',
+    marginBottom: 16
+  },
+  optionsMsgPreviewBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#15803d'
+  },
+  optionsPreviewSender: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#15803d',
+    marginBottom: 2
+  },
+  optionsPreviewText: {
+    fontSize: 13,
+    color: '#334155'
+  },
+  optionsReactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginBottom: 18
+  },
+  optionsEmojiBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  optionsEmojiBtnActive: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1'
+  },
+  optionsList: {
+    gap: 6,
+    marginBottom: 14
+  },
+  optionRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#ffffff'
+  },
+  optionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  optionRowText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  optionsCancelBtn: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4
+  },
+  optionsCancelBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#64748b'
+  },
+  reportCardContainer: {
+    width: '92%',
+    maxWidth: 440,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 22,
+    alignSelf: 'center',
+    marginBottom: 'auto',
+    marginTop: 'auto'
+  },
+  reportTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4
+  },
+  reportSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 16
+  },
+  reportReasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 8,
+    backgroundColor: '#ffffff'
+  },
+  reportReasonRowSelected: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fff1f2'
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  radioCircleSelected: {
+    borderColor: '#ef4444'
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444'
+  },
+  reportReasonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1e293b'
+  },
+  reportDetailsInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 13,
+    color: '#0f172a',
+    minHeight: 70,
+    marginTop: 8,
+    marginBottom: 16,
+    textAlignVertical: 'top'
+  },
+  reportBtnRow: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  reportCancelBtn: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center'
+  },
+  reportCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748b'
+  },
+  reportSubmitBtn: {
+    flex: 1.4,
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center'
+  },
+  reportSubmitBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff'
   }
 });

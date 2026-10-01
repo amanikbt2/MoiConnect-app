@@ -692,3 +692,56 @@ export const syncCommunityUnreadBackground = async (): Promise<void> => {
     backgroundSyncInFlight = false;
   }
 };
+
+const READ_NOTIFICATIONS_KEY = 'moi_read_notification_ids';
+
+export const getReadNotificationIds = async (): Promise<string[]> => {
+  try {
+    const raw = await getItem(READ_NOTIFICATIONS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (_) {
+    return [];
+  }
+};
+
+export const saveReadNotificationId = async (id: string): Promise<void> => {
+  try {
+    const existing = await getReadNotificationIds();
+    if (!existing.includes(id)) {
+      existing.push(id);
+      await setItem(READ_NOTIFICATIONS_KEY, JSON.stringify(existing));
+    }
+  } catch (_) {}
+};
+
+export const saveReadNotificationIdsBatch = async (ids: string[]): Promise<void> => {
+  try {
+    const existing = await getReadNotificationIds();
+    const set = new Set([...existing, ...ids]);
+    await setItem(READ_NOTIFICATIONS_KEY, JSON.stringify(Array.from(set)));
+  } catch (_) {}
+};
+
+const DELETED_FOR_ME_KEY = 'moi_community_deleted_for_me_ids';
+
+export const getDeletedForMeMessageIds = async (): Promise<string[]> => {
+  try {
+    const raw = await getItem(DELETED_FOR_ME_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveDeletedForMeMessageId = async (id: string): Promise<void> => {
+  try {
+    const existing = await getDeletedForMeMessageIds();
+    if (!existing.includes(id)) {
+      existing.push(id);
+      await setItem(DELETED_FOR_ME_KEY, JSON.stringify(existing));
+    }
+  } catch {}
+};

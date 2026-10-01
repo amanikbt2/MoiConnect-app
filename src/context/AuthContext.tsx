@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { IUser, RegisterInput, LoginInput, RequestLandlordInput } from '@moi/shared';
 import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken, setStoredToken, removeStoredToken } from '../services/api';
 import { disconnectSocket } from '../services/socket';
-import { notifyLoginSuccess } from '../services/notificationService';
+import { notifyLoginSuccess, registerForPushNotificationsAsync } from '../services/notificationService';
 
 interface AuthContextType {
   user: IUser | null;
@@ -29,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
     setUserPoints(userData.points ?? 5);
     await setStoredToken('moi_user_profile', JSON.stringify(userData));
+    void registerForPushNotificationsAsync();
   };
 
   const addPoints = (amount: number, reason?: string) => {
