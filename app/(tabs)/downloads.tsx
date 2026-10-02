@@ -81,7 +81,6 @@ export default function DownloadsScreen() {
       school: paper.school,
       fileUrl: paper.localUri || paper.fileUrl,
       ttsTextUrl: paper.ttsLocalUri,
-      pages: 'PDF Document',
       author: paper.uploadedBy?.name || 'Moi Lecturer',
       summary: paper.title,
       sampleText: `Offline Saved Examination Document for ${paper.unitCode} (${paper.unitName || paper.title}). All sections available for offline reading.`

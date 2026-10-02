@@ -17,7 +17,7 @@ import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, VolumeOffIcon } from './Icons';
 import { OfflineState } from './OfflineState';
-import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
+import { subscribeToDownloadUpdates, OfflinePaper, personalizeLectureText } from '../services/offlineStorage';
 import { ttsService, TTSState } from '../services/ttsService';
 import { config } from '../config';
 
@@ -30,7 +30,6 @@ export interface PDFDocumentItem {
   school?: string;
   fileUrl: string;
   ttsTextUrl?: string;
-  pages?: string;
   author?: string;
   summary?: string;
   sampleText?: string;
@@ -100,6 +99,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   onDownload
 }) => {
   const [activePage, setActivePage] = useState(1);
+  const [actualPageCount, setActualPageCount] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState<number>(1.0);
   const initialPinchDist = useRef<number>(0);
   const initialPinchScale = useRef<number>(1.0);
@@ -118,6 +118,10 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
   const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
+
+  useEffect(() => {
+    setActualPageCount(null);
+  }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
 
   const handleRetryPdfLoad = () => {
     setIsPdfRetrying(true);
@@ -195,11 +199,13 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       const lectureTextRaw = document.ttsTextUrl.startsWith('file://')
         ? await FileSystem.readAsStringAsync(document.ttsTextUrl)
         : await (async () => {
-            const response = await fetch(document.ttsTextUrl!);
+            const separator = document.ttsTextUrl!.includes('?') ? '&' : '?';
+            const freshTtsUrl = `${document.ttsTextUrl}${separator}refresh=${Date.now()}`;
+            const response = await fetch(freshTtsUrl, { cache: 'no-store' });
             if (!response.ok) throw new Error(`TTS text request failed (${response.status})`);
             return response.text();
           })();
-      const lectureText = lectureTextRaw.replace(/^\uFEFF/, '').trim();
+      const lectureText = (await personalizeLectureText(lectureTextRaw)).replace(/^\uFEFF/, '').trim();
       if (!lectureText || /^\s*<(?:!doctype|html|body)\b/i.test(lectureText)) {
         throw new Error('Lecture text file is empty or invalid');
       }
@@ -364,7 +370,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               {document.unitCode} - {document.title}
             </Text>
             <Text style={styles.headerSub} numberOfLines={1} ellipsizeMode="tail">
-              Lightning PDF Reader • {document.pages || 'PDF Document'}
+              Lightning PDF Reader • {actualPageCount ? `${actualPageCount} pages` : 'PDF document'}
             </Text>
           </View>
 
@@ -428,9 +434,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 <Text style={styles.ttsBannerIcon}>🔊</Text>
               </TouchableOpacity>
               <View style={{ flex: 1, marginLeft: 6 }}>
-                <Text style={styles.ttsBannerTitle}>Voice Reading Mode Active</Text>
+                <Text style={styles.ttsBannerTitle}>Prof. Campus AI explaining...</Text>
                 <Text style={styles.ttsBannerText} numberOfLines={1}>
-                  Reading {document.unitCode} - {document.title} aloud
+                  Non-interactive lecture of {document.unitCode}
                 </Text>
               </View>
               {ttsState.voices && ttsState.voices.length > 0 && (
@@ -537,6 +543,15 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 style={styles.nativeViewer}
                 originWhitelist={['*']}
                 javaScriptEnabled
+                injectedJavaScript={`(function(){var sent=false;var started=Date.now();var timer=setInterval(function(){try{var app=window.PDFViewerApplication;var count=app&&(app.pdfDocument&&app.pdfDocument.numPages||app.pagesCount);if(!sent&&Number.isInteger(count)&&count>0&&window.ReactNativeWebView){sent=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'pdfPageCount',count:count}));clearInterval(timer);}else if(Date.now()-started>60000){clearInterval(timer);}}catch(e){}},250);true;})();`}
+                onMessage={(event) => {
+                  try {
+                    const message = JSON.parse(event.nativeEvent.data);
+                    if (message?.type === 'pdfPageCount' && Number.isInteger(message.count) && message.count > 0) {
+                      setActualPageCount(message.count);
+                    }
+                  } catch {}
+                }}
                 domStorageEnabled
                 allowFileAccess
                 allowUniversalAccessFromFileURLs

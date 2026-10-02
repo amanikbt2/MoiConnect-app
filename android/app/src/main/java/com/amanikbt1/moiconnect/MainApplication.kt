@@ -11,6 +11,7 @@ import com.facebook.react.ReactHost
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.soloader.SoLoader
+import com.oney.WebRTCModule.WebRTCModulePackage
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
@@ -23,7 +24,9 @@ class MainApplication : Application(), ReactApplication {
           override fun getPackages(): List<ReactPackage> {
             // Packages that cannot be autolinked yet can be added manually here, for example:
             // packages.add(new MyReactNativePackage());
-            return PackageList(this).packages
+            // Temporarily keep WebRTC from initializing during app startup.
+            // The bundled native library currently crashes on some ARMv7 phones.
+            return PackageList(this).packages.filterNot { it is WebRTCModulePackage }
           }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"

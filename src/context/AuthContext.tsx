@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   userPoints: number;
   addPoints: (amount: number, reason?: string) => void;
+  updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone'>>) => Promise<void>;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
@@ -34,6 +35,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addPoints = (amount: number, reason?: string) => {
     setUserPoints((prev) => prev + amount);
+  };
+
+  const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone'>>) => {
+    if (!user) return;
+    const updatedUser: IUser = {
+      ...user,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    setUser(updatedUser);
+    await setStoredToken('moi_user_profile', JSON.stringify(updatedUser));
   };
 
   useEffect(() => {
@@ -254,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         userPoints,
         addPoints,
+        updateUserProfile,
         login,
         googleLogin,
         register,

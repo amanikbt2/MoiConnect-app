@@ -187,6 +187,8 @@ export default function CatPapersScreen() {
             ? (demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
             : (demoSetting ? INITIAL_CAT_PAPERS_DATA : [])
         ); setInitialLoading(false);
+      } else if (!res.success) {
+        setFetchError(true); setInitialLoading(false);
       } else {
         setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []); setInitialLoading(false);
       }
@@ -281,7 +283,6 @@ export default function CatPapersScreen() {
       school: item.school,
       fileUrl: item.fileUrl,
       ttsTextUrl: item.ttsTextUrl,
-      pages: 'CAT Quiz Paper PDF',
       summary: `Continuous Assessment Test (${item.catType}) paper for ${item.unitCode} (${item.examYear}).`,
       sampleText: `Continuous Assessment Quiz for ${item.unitCode}: ${item.title}. Answer all questions in Section A and Section B.`
     });

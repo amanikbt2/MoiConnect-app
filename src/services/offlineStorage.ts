@@ -21,6 +21,7 @@ export interface OfflinePaper {
   fileUrl: string;
   ttsTextUrl?: string;
   ttsLocalUri?: string;
+  ttsPersonalized?: boolean;
   localUri?: string;
   fileType?: string;
   uploadedBy?: { _id: string; name: string };
@@ -121,7 +122,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
   const existingPaper = existingIndex >= 0 ? papers[existingIndex] : undefined;
 
   if (existingPaper?.status === 'completed' && existingPaper.localUri) {
-    if (existingPaper.ttsLocalUri || !paperInput.ttsTextUrl || Platform.OS === 'web') {
+    if (!paperInput.ttsTextUrl || Platform.OS === 'web' || existingPaper.ttsPersonalized) {
       return existingPaper;
     }
     try {
@@ -129,9 +130,13 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
       await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
       const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
       const ttsLocalPath = `${privateDirectory}moi_material_${safeName}_lecture.txt`;
-      const ttsResult = await FileSystem.downloadAsync(paperInput.ttsTextUrl, ttsLocalPath);
-      await updatePaperDownloadState(targetId, { ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsResult.uri });
-      return { ...existingPaper, ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsResult.uri };
+      const response = await fetch(paperInput.ttsTextUrl);
+      if (!response.ok) throw new Error(`Lecture TXT request failed (${response.status})`);
+      const personalizedText = await personalizeLectureText(await response.text());
+      await FileSystem.writeAsStringAsync(ttsLocalPath, personalizedText);
+      const updatedPaper = { ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsLocalPath, ttsPersonalized: true };
+      await updatePaperDownloadState(targetId, updatedPaper);
+      return { ...existingPaper, ...updatedPaper };
     } catch (ttsError) {
       console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
       return existingPaper;
@@ -151,6 +156,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     fileUrl: paperInput.fileUrl || '',
     ttsTextUrl: paperInput.ttsTextUrl || existingPaper?.ttsTextUrl,
     ttsLocalUri: existingPaper?.ttsLocalUri,
+    ttsPersonalized: false,
     fileType: paperInput.fileType || 'pdf',
     uploadedBy: paperInput.uploadedBy || { _id: 'admin', name: 'Moi Faculty' },
     thumbnail: paperInput.thumbnail || '',
@@ -197,18 +203,23 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     const result = await task.downloadAsync();
     if (!result?.uri) throw new Error('The local file was not created.');
     let ttsLocalUri: string | undefined;
+    let ttsPersonalized = false;
     if (newPaperItem.ttsTextUrl) {
       try {
         const ttsLocalPath = `${privateDirectory}moi_material_${safeName}_lecture.txt`;
-        const ttsResult = await FileSystem.downloadAsync(newPaperItem.ttsTextUrl, ttsLocalPath);
-        ttsLocalUri = ttsResult.uri;
+        const response = await fetch(newPaperItem.ttsTextUrl);
+        if (!response.ok) throw new Error(`Lecture TXT request failed (${response.status})`);
+        const personalizedText = await personalizeLectureText(await response.text());
+        await FileSystem.writeAsStringAsync(ttsLocalPath, personalizedText);
+        ttsLocalUri = ttsLocalPath;
+        ttsPersonalized = true;
       } catch (ttsError) {
         // The material remains usable offline even if its optional lecture recording fails.
         console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
       }
     }
-    await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri } as any);
-    return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri };
+    await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized } as any);
+    return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized };
   } catch (error) {
     await updatePaperDownloadState(targetId, { status: 'failed', progress: 0 });
     throw error;
@@ -409,6 +420,30 @@ export const saveStudentPersonalDetails = async (details: StudentPersonalDetails
 export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetails | null> => {
   const existingStr = await getItem(STUDENT_PROFILE_KEY);
   return existingStr ? JSON.parse(existingStr) : null;
+};
+
+export const personalizeLectureText = async (template: string): Promise<string> => {
+  const details = await getStudentPersonalDetails().catch(() => null);
+  const nameParts = String(details?.fullName || '').trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+  const hour = new Date().getHours();
+  const timeOfDay = hour >= 5 && hour < 12
+    ? 'morning'
+    : hour >= 12 && hour < 17
+      ? 'afternoon'
+      : 'evening';
+
+  return template.replace(/\{\s*(firstname|lastname|nowtime)\s*\}/gi, (_match, field: string) => {
+    switch (field.toLowerCase()) {
+      case 'firstname':
+        return firstName;
+      case 'lastname':
+        return lastName;
+      default:
+        return timeOfDay;
+    }
+  });
 };
 
 const COMMUNITY_MESSAGES_KEY = 'moi_community_messages_cache';

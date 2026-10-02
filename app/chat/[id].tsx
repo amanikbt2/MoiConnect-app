@@ -396,7 +396,6 @@ export default function ChatRoomScreen({ route }: any) {
         unitName: file.unitName || file.school || 'Academic Material',
         school: file.school || 'Moi University',
         fileUrl: file.url,
-        pages: file.pages || '48 pages',
         author: file.author || 'Moi Student',
         summary: `Shared material: ${cleanTitle}`,
         sampleText: `Shared document content for ${file.unitCode || 'course'}: ${cleanTitle}.`

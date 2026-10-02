@@ -204,6 +204,8 @@ export default function AcademicsScreen({ route }: any) {
           ttsTextUrl: (p as any).ttsTextUrl
         }));
         setRealUploadedNotes(mapped); setInitialLoading(false);
+      } else if (!res.success) {
+        setFetchError(true); setInitialLoading(false);
       } else {
         setRealUploadedNotes([]); setInitialLoading(false);
       }
@@ -235,7 +237,6 @@ export default function AcademicsScreen({ route }: any) {
       author: item.author,
       fileUrl: item.fileUrl || '',
       ttsTextUrl: item.ttsTextUrl,
-      pages: '48 pages',
       summary: `Study notes for ${item.unitCode} ${item.unitName || item.title}.`,
       sampleText: `Course notes for ${item.unitCode}: ${item.title}. Includes key concepts, formulas, and revision topics for semester preparation.`
     });

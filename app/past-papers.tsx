@@ -190,6 +190,8 @@ export default function PastPapersScreen() {
             ? (demoSetting ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
             : (demoSetting ? INITIAL_PAST_PAPERS_DATA : [])
         ); setInitialLoading(false);
+      } else if (!res.success) {
+        setFetchError(true); setInitialLoading(false);
       } else {
         setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []); setInitialLoading(false);
       }
@@ -285,7 +287,6 @@ export default function PastPapersScreen() {
       school: item.school,
       fileUrl: item.fileUrl,
       ttsTextUrl: item.ttsTextUrl,
-      pages: 'Official Examination PDF',
       summary: `Official End of Semester Examination Paper for ${item.unitCode} (${item.examYear}, ${item.semester}).`,
       sampleText: `Examination paper for ${item.unitCode}: ${item.title}. Question 1 (20 Marks). Solve all section parts.`
     });

@@ -25,7 +25,7 @@
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS"
       ],
-      "versionCode": 25
+      "versionCode": 27
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

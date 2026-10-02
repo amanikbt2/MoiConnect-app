@@ -60,7 +60,7 @@ const MOI_SCHOOLS_LIST = [
 const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
 export default function ProfileScreen() {
-  const { user, logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount, updateUserProfile } = useAuth();
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
     admissionNumber: 'IS/0012/21',
     school: 'School of Information Sciences',
@@ -162,6 +162,11 @@ export default function ProfileScreen() {
     };
 
     await saveStudentPersonalDetails(updated);
+    await updateUserProfile({
+      name: updated.fullName,
+      phone: updated.phone,
+      ...(updated.avatarUri ? { avatarUrl: updated.avatarUri } : {})
+    });
     setStudentDetails(updated);
     setSavingProfile(false);
     setShowEditModal(false);

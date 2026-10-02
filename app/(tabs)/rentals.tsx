@@ -21,6 +21,7 @@ import { IHouse, PROPERTY_TYPES, MOI_LOCATIONS, RENTAL_AMENITIES } from '@moi/sh
 import { HouseCard } from '../../src/components/HouseCard';
 import { Skeleton } from '../../src/components/Skeleton';
 import { EmptyState } from '../../src/components/EmptyState';
+import { OfflineState } from '../../src/components/OfflineState';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
@@ -175,6 +176,7 @@ export default function RentalsScreen() {
   const [houses, setHouses] = useState<IHouse[]>([]);
   const [myListings, setMyListings] = useState<IHouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Filter States
@@ -234,6 +236,7 @@ export default function RentalsScreen() {
 
   const fetchHouses = async () => {
     setLoading(true);
+    setFetchError(false);
     const showDemo = await getShowDemoMaterialsSetting();
     let url = `/houses?limit=30`;
     if (selectedType) url += `&propertyType=${selectedType}`;
@@ -251,6 +254,14 @@ export default function RentalsScreen() {
     } else {
       if (showDemo) {
         setHouses(filterMockData());
+      } else if (!res.success) {
+        const cached = await getCachedRentals();
+        if (cached.length > 0) {
+          setHouses(cached as IHouse[]);
+        } else {
+          setFetchError(true);
+          setHouses([]);
+        }
       } else {
         setHouses([]);
       }
@@ -260,11 +271,14 @@ export default function RentalsScreen() {
   const fetchMyListings = async () => {
     if (!user) return;
     setLoading(true);
+    setFetchError(false);
     const res: any = await apiRequest<any>('/houses/my-listings');
     setLoading(false);
     setRefreshing(false);
     if (res.success && res.data && Array.isArray(res.data)) {
       setMyListings(res.data as IHouse[]);
+    } else if (!res.success) {
+      setFetchError(true);
     }
   };
 
@@ -433,6 +447,8 @@ export default function RentalsScreen() {
               <Skeleton height={180} />
               <Skeleton height={180} />
             </View>
+          ) : fetchError ? (
+            <OfflineState onRetry={activeTab === 'browse' ? fetchHouses : fetchMyListings} />
           ) : (
             <EmptyState
               title="No Rental Listings Found"

@@ -44,9 +44,6 @@ import {
   VideoIcon,
   BotIcon,
   TransmitterIcon,
-  MicIcon,
-  MicOffIcon,
-  CameraOffIcon
 } from '../src/components/Icons';
 import { getSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
@@ -73,8 +70,6 @@ import { setupNotificationResponseListener, sendWebBrowserNotification } from '.
 import { getAllowCommunityChatSetting, getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
-import { CommunityLiveRoom } from '../src/components/CommunityLiveRoom';
-import { RealCameraView } from '../src/components/RealCameraView';
 import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModal';
 
 export interface FileAttachment {
@@ -367,102 +362,6 @@ export default function CommunityScreen() {
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<CommunityMessage | null>(null);
 
-  // Go Live Broadcast State
-  const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
-  const [isLiveHost, setIsLiveHost] = useState<boolean>(false);
-  const [isLiveJoined, setIsLiveJoined] = useState<boolean>(false);
-  const [liveHostName, setLiveHostName] = useState<string>('Amani');
-  const [liveHostAvatar, setLiveHostAvatar] = useState<string>('');
-  const [liveParticipants, setLiveParticipants] = useState<Array<{ id: string; name: string; avatar?: string }>>([]);
-  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
-  const [isCameraOff, setIsCameraOff] = useState<boolean>(false);
-  const [liveCredentials, setLiveCredentials] = useState<{ url: string; token: string } | null>(null);
-  const [liveTokenLoading, setLiveTokenLoading] = useState(false);
-
-  const requestLiveCredentials = async () => {
-    setLiveTokenLoading(true);
-    const myName = user?.name || myProfile?.fullName || 'Student';
-    const myId = user?._id || Date.now().toString();
-    const response = await apiRequest<{ url: string; token: string }>(
-      `/community/live/token?name=${encodeURIComponent(myName)}&userId=${encodeURIComponent(myId)}`
-    );
-    setLiveTokenLoading(false);
-    if (response.success && response.data?.url && response.data?.token) {
-      setLiveCredentials(response.data);
-      return response.data;
-    }
-    return { url: '', token: 'socket_fallback' };
-  };
-
-  const handleStartLiveStream = async () => {
-    const credentials = await requestLiveCredentials();
-    if (!credentials) return;
-    const hostName = user?.name || myProfile?.fullName || 'Amani';
-    const hostAvatar = (user as any)?.avatarUrl || myProfile?.avatarUri || '';
-    setIsLiveActive(true);
-    setIsLiveHost(true);
-    setIsLiveJoined(true);
-    setLiveHostName(hostName);
-    setLiveHostAvatar(hostAvatar);
-    setLiveParticipants([]);
-
-    const socket = await getSocket();
-    if (socket) {
-      socket.emit('community:live_start', {
-        hostName,
-        hostAvatar,
-        hostId: user?._id || Date.now().toString()
-      });
-    }
-    showIceMessage('Live Started 🔴', 'You are now broadcasting live to Moi Campus!');
-  };
-
-  const handleJoinLiveStream = async () => {
-    const credentials = await requestLiveCredentials();
-    if (!credentials) return;
-    setIsLiveJoined(true);
-    const myId = user?._id || Date.now().toString();
-    const myName = user?.name || myProfile?.fullName || 'Student';
-    const myAvatar = (user as any)?.avatarUrl || myProfile?.avatarUri || '';
-
-    const newParticipant = { id: myId, name: myName, avatar: myAvatar };
-    setLiveParticipants((prev) => {
-      if (prev.some((p) => p.id === myId)) return prev;
-      return [...prev, newParticipant];
-    });
-
-    const socket = await getSocket();
-    if (socket) {
-      socket.emit('community:live_join', newParticipant);
-    }
-  };
-
-  const handleExitLiveStream = async () => {
-    setLiveCredentials(null);
-    setIsLiveJoined(false);
-    const myId = user?._id || Date.now().toString();
-    setLiveParticipants((prev) => prev.filter((p) => p.id !== myId));
-
-    const socket = await getSocket();
-    if (socket) {
-      socket.emit('community:live_leave', { id: myId });
-    }
-  };
-
-  const handleEndLiveStream = async () => {
-    setLiveCredentials(null);
-    setIsLiveActive(false);
-    setIsLiveHost(false);
-    setIsLiveJoined(false);
-    setLiveParticipants([]);
-
-    const socket = await getSocket();
-    if (socket) {
-      socket.emit('community:live_end', {});
-    }
-    showIceMessage('Live Stream Ended', 'The broadcast has ended.');
-  };
-
   useEffect(() => {
     getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
   }, []);
@@ -513,7 +412,6 @@ export default function CommunityScreen() {
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
   const typingDotAnim = useRef(new Animated.Value(0)).current;
-  const livePulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (typingUsers.length > 0 || botTyping) {
@@ -529,24 +427,6 @@ export default function CommunityScreen() {
       typingDotAnim.setValue(0);
     }
   }, [typingUsers.length, botTyping]);
-
-  useEffect(() => {
-    if (!isLiveActive || isLiveHost || isLiveJoined) {
-      livePulseAnim.setValue(0);
-      return;
-    }
-
-    const anim = Animated.loop(
-      Animated.timing(livePulseAnim, {
-        toValue: 1,
-        duration: 1200,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: Platform.OS !== 'web'
-      })
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [isLiveActive, isLiveHost, isLiveJoined]);
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
@@ -950,40 +830,6 @@ export default function CommunityScreen() {
           });
         });
 
-        socket.on('community:live_start', (data: { hostName: string; hostAvatar?: string; hostId?: string }) => {
-          setIsLiveActive(true);
-          setLiveHostName(data.hostName || 'Amani');
-          setLiveHostAvatar(data.hostAvatar || '');
-          if (user?._id && data.hostId === user._id) {
-            setIsLiveHost(true);
-            setIsLiveJoined(true);
-          } else {
-            setIsLiveHost(false);
-            setIsLiveJoined(false);
-          }
-        });
-
-        socket.on('community:live_join', (participant: { id: string; name: string; avatar?: string }) => {
-          if (!participant || !participant.id) return;
-          setLiveParticipants((prev) => {
-            if (prev.some((p) => p.id === participant.id)) return prev;
-            return [...prev, participant];
-          });
-        });
-
-        socket.on('community:live_leave', (data: { id: string }) => {
-          if (!data || !data.id) return;
-          setLiveParticipants((prev) => prev.filter((p) => p.id !== data.id));
-        });
-
-        socket.on('community:live_end', () => {
-          setIsLiveActive(false);
-          setIsLiveHost(false);
-          setIsLiveJoined(false);
-          setLiveCredentials(null);
-          setLiveParticipants([]);
-        });
-
         socket.on('community:message_deleted', (data: { messageId: string }) => {
           if (!data || !data.messageId) return;
           setMessages((prev) => {
@@ -1011,10 +857,6 @@ export default function CommunityScreen() {
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
-        activeSocket.off('community:live_start');
-        activeSocket.off('community:live_join');
-        activeSocket.off('community:live_leave');
-        activeSocket.off('community:live_end');
         activeSocket.off('connect');
         activeSocket.off('connect_error');
         activeSocket.off('disconnect');
@@ -1605,7 +1447,6 @@ export default function CommunityScreen() {
         unitName: file.unitName || file.school || 'Academic Material',
         school: file.school || 'Moi University',
         fileUrl: file.url,
-        pages: file.pages || '48 pages',
         author: file.author || 'Moi Student',
         summary: `Shared material: ${cleanTitle}`,
         sampleText: `Shared document content for ${file.unitCode || 'course'}: ${cleanTitle}.`
@@ -1786,155 +1627,16 @@ export default function CommunityScreen() {
             <View style={styles.onlineSubtitle}><OnlineStatusIcon color="#86efac" size={13} /><Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text></View>
           </View>
 
-          {/* Go Live Action Button */}
           <TouchableOpacity
-            style={[styles.goLiveHeaderBtn, isLiveActive && styles.goLiveHeaderBtnActive]}
-            onPress={() => {
-              if (!isLiveActive) {
-                handleStartLiveStream();
-              }
-            }}
+            style={styles.goLiveHeaderBtn}
+            onPress={() => showIceMessage('Live temporarily unavailable', 'Live streaming is temporarily unavailable right now. Please try again later.')}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Go live"
           >
-            <TransmitterIcon color={isLiveActive ? '#ef4444' : '#ffffff'} size={18} />
-            <Text style={[styles.goLiveHeaderBtnText, isLiveActive && styles.goLiveHeaderBtnTextActive]}>
-              {isLiveActive ? 'LIVE' : 'Go Live'}
-            </Text>
+            <TransmitterIcon color="#ffffff" size={18} />
           </TouchableOpacity>
         </View>
-
-        {/* Full-screen Live Call View */}
-        <Modal
-          visible={isLiveActive && (isLiveHost || isLiveJoined)}
-          animationType="slide"
-          presentationStyle="fullScreen"
-          statusBarTranslucent
-          onRequestClose={() => {
-            if (isLiveHost) {
-              void handleEndLiveStream();
-            } else {
-              void handleExitLiveStream();
-            }
-          }}
-        >
-          <SafeAreaView style={styles.liveFullScreen}>
-          {liveCredentials && liveCredentials.url ? (
-            <CommunityLiveRoom
-              serverUrl={liveCredentials.url}
-              token={liveCredentials.token}
-              isHost={isLiveHost}
-              onClose={isLiveHost ? handleEndLiveStream : handleExitLiveStream}
-            />
-          ) : liveTokenLoading ? (
-            <View style={styles.liveFullScreen}><Text style={styles.liveStageTitle}>Connecting to live room…</Text></View>
-          ) : (
-            <View style={[styles.liveStageContainer, styles.liveFullScreenStage]}>
-            {/* Stage Header Info */}
-            <View style={styles.liveStageHeader}>
-              <TouchableOpacity
-                style={styles.liveBackButton}
-                onPress={isLiveHost ? handleEndLiveStream : handleExitLiveStream}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.liveBackButtonText}>‹</Text>
-              </TouchableOpacity>
-              <View style={styles.liveBadge}>
-                <View style={styles.liveBadgeDot} />
-                <Text style={styles.liveBadgeText}>LIVE</Text>
-              </View>
-              <Text style={styles.liveStageTitle} numberOfLines={1}>
-                {isLiveHost ? 'Your Live Broadcast' : `${liveHostName}'s Live Stream`}
-              </Text>
-              <Text style={styles.liveParticipantCountText}>
-                👥 {liveParticipants.length + 1}
-              </Text>
-            </View>
-
-            {/* Video Grid Stage */}
-            <View style={[styles.liveVideoGrid, styles.liveFullScreenVideoGrid]}>
-              {/* Main Host Big Video Box */}
-              <View style={[styles.hostVideoBox, styles.liveFullScreenHostVideo]}>
-                <RealCameraView
-                  isCameraOff={isCameraOff}
-                  isMicMuted={isMicMuted}
-                  avatarUrl={liveHostAvatar}
-                  userName={liveHostName}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                <View style={styles.hostNameOverlay}>
-                  <Text style={styles.hostNameOverlayText}>
-                    {liveHostName} (Host) {isMicMuted ? '🔇 Muted' : '🎙️ Live'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Guest Small Video Cards (Top/Side Row) */}
-              {liveParticipants.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.guestsScrollView}
-                  contentContainerStyle={styles.guestsContainer}
-                >
-                  {liveParticipants.map((guest) => (
-                    <View key={guest.id} style={styles.guestSmallCard}>
-                      <Image
-                        source={guest.avatar ? { uri: guest.avatar } : require('../assets/moi-uni-logo.png')}
-                        style={styles.guestAvatarImg}
-                      />
-                      <View style={styles.guestNameOverlay}>
-                        <Text style={styles.guestNameText} numberOfLines={1}>
-                          {guest.name}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-
-            {/* Live Controls Bar */}
-            <View style={styles.liveControlsBar}>
-              <TouchableOpacity
-                style={[styles.liveControlBtn, isMicMuted && styles.liveControlBtnActive]}
-                onPress={() => setIsMicMuted(!isMicMuted)}
-                activeOpacity={0.7}
-              >
-                {isMicMuted ? <MicOffIcon color="#ef4444" size={18} /> : <MicIcon color="#ffffff" size={18} />}
-                <Text style={styles.liveControlBtnText}>{isMicMuted ? 'Unmute' : 'Mute'}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.liveControlBtn, isCameraOff && styles.liveControlBtnActive]}
-                onPress={() => setIsCameraOff(!isCameraOff)}
-                activeOpacity={0.7}
-              >
-                {isCameraOff ? <CameraOffIcon color="#ef4444" size={18} /> : <VideoIcon color="#ffffff" size={18} />}
-                <Text style={styles.liveControlBtnText}>{isCameraOff ? 'Start Cam' : 'Stop Cam'}</Text>
-              </TouchableOpacity>
-
-              {isLiveHost ? (
-                <TouchableOpacity
-                  style={styles.liveEndBtn}
-                  onPress={handleEndLiveStream}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.liveEndBtnText}>End Live</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.liveExitBtn}
-                  onPress={handleExitLiveStream}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.liveExitBtnText}>Exit Live</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-          )}
-          </SafeAreaView>
-        </Modal>
 
         {/* WhatsApp-Style Chat Wallpaper */}
         <View style={styles.chatBackground}>
@@ -2217,40 +1919,6 @@ export default function CommunityScreen() {
                 <Text style={styles.floatingMentionBadgeText}>{unreadMentionIds.length}</Text>
               </View>
             </TouchableOpacity>
-          )}
-
-          {/* Live Stream Audience Join Banner Card */}
-          {isLiveActive && !isLiveHost && !isLiveJoined && (
-          <View style={styles.liveAudienceBannerCard}>
-              <View style={styles.liveAudienceInfo}>
-                <View style={styles.livePulseIcon}>
-                  <Animated.View
-                    style={[
-                      styles.livePulseRing,
-                      {
-                        opacity: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }),
-                        transform: [{ scale: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.8] }) }]
-                      }
-                    ]}
-                  />
-                  <View style={styles.livePulseCore} />
-                </View>
-                <View style={styles.liveAudienceCopy}>
-                  <Text style={styles.liveAudienceText} numberOfLines={1}>
-                    <Text style={styles.liveAudienceHostName}>{liveHostName}</Text> is live
-                  </Text>
-                  <Text style={styles.liveAudienceSubtext}>Join the broadcast now</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.joinLiveBannerBtn}
-                onPress={handleJoinLiveStream}
-                activeOpacity={0.85}
-              >
-                <TransmitterIcon color="#ffffff" size={14} />
-                <Text style={styles.joinLiveBannerBtnText}>Join Live</Text>
-              </TouchableOpacity>
-            </View>
           )}
 
           {/* Replying Preview Banner */}
@@ -3838,12 +3506,11 @@ const styles = StyleSheet.create({
     minHeight: 220
   },
   goLiveHeaderBtn: {
-    flexDirection: 'row',
+    width: 32,
+    height: 32,
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
