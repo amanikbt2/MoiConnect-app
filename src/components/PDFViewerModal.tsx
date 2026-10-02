@@ -14,6 +14,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import * as FileSystem from 'expo-file-system';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, VolumeOffIcon } from './Icons';
 import { OfflineState } from './OfflineState';
 import { subscribeToDownloadUpdates, OfflinePaper } from '../services/offlineStorage';
@@ -28,6 +29,7 @@ export interface PDFDocumentItem {
   unitName?: string;
   school?: string;
   fileUrl: string;
+  ttsTextUrl?: string;
   pages?: string;
   author?: string;
   summary?: string;
@@ -110,6 +112,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
   const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null });
   const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
+  const [isPreparingTTS, setIsPreparingTTS] = useState(false);
+  const [isReadingTTS, setIsReadingTTS] = useState(false);
+  const ttsSessionRef = useRef(0);
   const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
   const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
@@ -133,48 +138,89 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!visible) {
+      ttsSessionRef.current += 1;
+      setIsPreparingTTS(false);
+      setIsReadingTTS(false);
+      ttsService.stop();
+    }
+  }, [visible]);
 
-  const handleToggleTTS = () => {
+  useEffect(() => {
+    return () => {
+      ttsSessionRef.current += 1;
+      setIsReadingTTS(false);
+      ttsService.stop();
+    };
+  }, [document?.id]);
+
+  const splitLectureTextIntoChunks = (text: string): string[] => {
+    const lines = text
+      .replace(/([.!?])\s+/g, '$1\n')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const chunks: string[] = [];
+    let current = '';
+    for (const line of lines) {
+      const candidate = current ? `${current} ${line}` : line;
+      if (current && candidate.length > 520) {
+        chunks.push(current);
+        current = line;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current) chunks.push(current);
+    return chunks.length > 0 ? chunks : [text.trim()];
+  };
+
+
+  const handleToggleTTS = async () => {
     if (!document) return;
 
-    if (ttsState.isSpeaking) {
+    if (ttsState.isSpeaking || isReadingTTS) {
       ttsService.stop();
+      setIsReadingTTS(false);
       return;
     }
 
-    const parts: string[] = [];
+    setIsPreparingTTS(true);
+    const sessionId = ++ttsSessionRef.current;
 
-    // 1. Title & Unit Code
-    if (document.title?.trim()) {
-      const code = document.unitCode ? `[${document.unitCode}] ` : '';
-      parts.push(`${code}${document.title.trim()}`);
-    }
+    try {
+      if (!document.ttsTextUrl) throw new Error('No lecture text file is attached');
 
-    // 2. Summary
-    if (document.summary?.trim()) {
-      parts.push(`Summary: ${document.summary.trim()}`);
-    }
-
-    // 3. Document Body Content / Sample Text
-    if (document.sampleText?.trim()) {
-      const sample = document.sampleText.trim();
-      const alreadyHave = parts.some((p) => p.includes(sample.slice(0, 40)));
-      if (!alreadyHave) {
-        parts.push(sample);
+      const lectureTextRaw = document.ttsTextUrl.startsWith('file://')
+        ? await FileSystem.readAsStringAsync(document.ttsTextUrl)
+        : await (async () => {
+            const response = await fetch(document.ttsTextUrl!);
+            if (!response.ok) throw new Error(`TTS text request failed (${response.status})`);
+            return response.text();
+          })();
+      const lectureText = lectureTextRaw.replace(/^\uFEFF/, '').trim();
+      if (!lectureText || /^\s*<(?:!doctype|html|body)\b/i.test(lectureText)) {
+        throw new Error('Lecture text file is empty or invalid');
       }
-    } else {
-      const bodyText = `Key Concepts: Definition and fundamental principles of ${document.unitName || document.unitCode || 'this course'}. Solved Examples: Worked problem steps and formula applications for semester exams. Quick Revision: High yield notes compiled for test evaluation and quick review.`;
-      parts.push(bodyText);
-    }
 
-    if (parts.length === 0) {
-      ttsService.speak(
-        `No readable text content is available for this document. Try downloading it to read offline.`
-      );
-      return;
+      const chunks = splitLectureTextIntoChunks(lectureText);
+      // The file/chunk preparation is complete. From this point onward the
+      // speaker icon represents active speech, including between chunks.
+      setIsPreparingTTS(false);
+      setIsReadingTTS(true);
+      for (let index = 0; index < chunks.length; index += 1) {
+        if (ttsSessionRef.current !== sessionId) return;
+        await ttsService.speakAndWait(chunks[index]);
+      }
+    } catch (error) {
+      console.warn('[TTS] Could not load lecture text:', error);
+      if (ttsSessionRef.current !== sessionId) return;
+      await ttsService.speak('No lecture recording for this document');
+    } finally {
+      setIsPreparingTTS(false);
+      setIsReadingTTS(false);
     }
-
-    ttsService.speak(parts.join('. '));
   };
 
   useEffect(() => {
@@ -327,13 +373,16 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             <TouchableOpacity
               style={[
                 styles.audioIconBtn,
-                ttsState.isSpeaking && styles.audioIconBtnActive
+                (ttsState.isSpeaking || isReadingTTS) && styles.audioIconBtnActive
               ]}
               onPress={handleToggleTTS}
+              disabled={isPreparingTTS}
               activeOpacity={0.8}
-              accessibilityLabel={ttsState.isSpeaking ? 'Stop voice reading' : 'Read document aloud'}
+              accessibilityLabel={ttsState.isSpeaking || isReadingTTS ? 'Stop voice reading' : 'Read document aloud'}
             >
-              {ttsState.isSpeaking ? (
+              {isPreparingTTS ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : ttsState.isSpeaking || isReadingTTS ? (
                 <VolumeOffIcon color="#ffffff" size={20} />
               ) : (
                 <VolumeIcon color="#ffffff" size={20} />

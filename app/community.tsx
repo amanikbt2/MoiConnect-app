@@ -70,7 +70,7 @@ import {
   StudentPersonalDetails
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
-import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { getAllowCommunityChatSetting, getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
 import { CommunityLiveRoom } from '../src/components/CommunityLiveRoom';
@@ -502,6 +502,7 @@ export default function CommunityScreen() {
   const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showUnreadBtn, setShowUnreadBtn] = useState<boolean>(false);
+  const [allowCommunityChat, setAllowCommunityChat] = useState<boolean>(true);
 
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -748,9 +749,10 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(([cachedMsgs, demoSetting, storedCursor, deletedForMeIds]) => {
+    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getAllowCommunityChatSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(([cachedMsgs, demoSetting, allowChat, storedCursor, deletedForMeIds]) => {
       deletedForMeIdsRef.current = new Set(deletedForMeIds);
       setShowDemoMaterials(demoSetting);
+      setAllowCommunityChat(allowChat);
       const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
       const msgsToLoad = rawMsgs
         .filter((m) => !deletedForMeIdsRef.current.has(m.id) && !deletedForMeIdsRef.current.has((m as any)._id))
@@ -1023,9 +1025,14 @@ export default function CommunityScreen() {
   const fetchDeltaSync = async () => {
     try {
       const sinceParam = lastSyncedISO.current ? `?since=${encodeURIComponent(lastSyncedISO.current)}` : '';
-      const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);
-      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-        const fetchedMsgs: CommunityMessage[] = res.data.map((serverMsg: any) => {
+      const res = await apiRequest<{ data: any[]; allowCommunityChat?: boolean; syncedAt: string }>(`/community/messages${sinceParam}`);
+      if (res && res.success) {
+        const responseData = res.data;
+        if (responseData?.allowCommunityChat !== undefined) {
+          setAllowCommunityChat(responseData.allowCommunityChat);
+        }
+        if (Array.isArray(responseData?.data) && responseData.data.length > 0) {
+        const fetchedMsgs: CommunityMessage[] = responseData.data.map((serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
           return {
             id: serverMsg._id || serverMsg.id,
@@ -1081,9 +1088,10 @@ export default function CommunityScreen() {
         });
 
       }
-      if ((res as any).syncedAt) {
-        lastSyncedISO.current = (res as any).syncedAt;
-        await saveCommunitySyncCursor((res as any).syncedAt);
+      if (responseData?.syncedAt) {
+        lastSyncedISO.current = responseData.syncedAt;
+        await saveCommunitySyncCursor(responseData.syncedAt);
+      }
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
@@ -1275,9 +1283,15 @@ export default function CommunityScreen() {
       if (socket?.connected) {
         // Mark delivery as sent immediately so retry timer doesn't duplicate
         updateMessageDelivery(clientMsgId, 'delivered');
-        socket.emit('community:send_message', payload, (ack: { success?: boolean }) => {
+        socket.emit('community:send_message', payload, (ack: { success?: boolean; error?: string }) => {
           retryingMessageIdsRef.current.delete(clientMsgId);
-          if (ack?.success) updateMessageDelivery(clientMsgId, 'sent');
+          if (ack?.success) {
+            updateMessageDelivery(clientMsgId, 'sent');
+          } else if (ack?.error === 'Community chat disabled by administrator') {
+            setAllowCommunityChat(false);
+            setMessages((prev) => prev.filter((message) => message.clientMsgId !== clientMsgId));
+            showIceMessage('Community chat disabled', ack.error);
+          }
         });
         // Release ref after short timeout if ack callback wasn't returned
         setTimeout(() => {
@@ -1300,6 +1314,10 @@ export default function CommunityScreen() {
             }
           }
           updateMessageDelivery(clientMsgId, 'sent');
+        } else if (result.error === 'Community chat disabled by administrator') {
+          setAllowCommunityChat(false);
+          setMessages((prev) => prev.filter((message) => message.clientMsgId !== clientMsgId));
+          showIceMessage('Community chat disabled', result.error);
         }
       }
     } catch (error) {
@@ -2360,7 +2378,7 @@ export default function CommunityScreen() {
               </ScrollView>
             </View>
           )}
-          <View style={styles.inputContainer}>
+          {allowCommunityChat ? <View style={styles.inputContainer}>
             <View style={styles.inputPill}>
 
 
@@ -2412,7 +2430,11 @@ export default function CommunityScreen() {
             >
               <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
             </TouchableOpacity>
-          </View>
+          </View> : (
+            <View style={styles.chatDisabledNotice}>
+              <Text style={styles.chatDisabledNoticeText}>Community chat disabled by administrator</Text>
+            </View>
+          )}
         </View>
 
         {/* Compact community profile preview */}
@@ -2539,7 +2561,7 @@ export default function CommunityScreen() {
         animationType="fade"
         onRequestClose={() => setSelectedMsgForOptions(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setSelectedMsgForOptions(null)}>
+        <Pressable style={styles.optionsSheetOverlay} onPress={() => setSelectedMsgForOptions(null)}>
           <Pressable style={styles.optionsSheetContainer} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
 
@@ -2608,7 +2630,7 @@ export default function CommunityScreen() {
                 <Text style={styles.optionRowText}>Delete for Me</Text>
               </TouchableOpacity>
 
-              {(selectedMsgForOptions?.isMe || user?.role === 'admin') && (
+              {(selectedMsgForOptions?.isMe || (user as any)?.role === 'admin' || user?.roles?.includes?.('admin')) && (
                 <TouchableOpacity
                   style={styles.optionRowItem}
                   onPress={() => selectedMsgForOptions && handleDeleteForEveryone(selectedMsgForOptions)}
@@ -2650,7 +2672,7 @@ export default function CommunityScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedMsgForReport(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setSelectedMsgForReport(null)}>
+        <Pressable style={styles.optionsSheetOverlay} onPress={() => setSelectedMsgForReport(null)}>
           <Pressable style={styles.reportCardContainer} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.reportTitle}>🚩 Report Inappropriate Content</Text>
             <Text style={styles.reportSubtitle}>Select the reason for reporting this message. Admin team will review and take action.</Text>
@@ -2716,6 +2738,24 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: '#efeae2'
+  },
+  chatDisabledNotice: {
+    marginHorizontal: 12,
+    marginBottom: 10,
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16
+  },
+  chatDisabledNoticeText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center'
   },
   container: {
     flex: 1,
@@ -4138,7 +4178,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700'
   },
-  modalOverlay: {
+  optionsSheetOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'flex-end',

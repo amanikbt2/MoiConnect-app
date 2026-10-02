@@ -19,6 +19,8 @@ export interface OfflinePaper {
   type: string;
   examYear?: number | string;
   fileUrl: string;
+  ttsTextUrl?: string;
+  ttsLocalUri?: string;
   localUri?: string;
   fileType?: string;
   uploadedBy?: { _id: string; name: string };
@@ -119,7 +121,21 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
   const existingPaper = existingIndex >= 0 ? papers[existingIndex] : undefined;
 
   if (existingPaper?.status === 'completed' && existingPaper.localUri) {
-    return existingPaper;
+    if (existingPaper.ttsLocalUri || !paperInput.ttsTextUrl || Platform.OS === 'web') {
+      return existingPaper;
+    }
+    try {
+      const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
+      await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
+      const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const ttsLocalPath = `${privateDirectory}moi_material_${safeName}_lecture.txt`;
+      const ttsResult = await FileSystem.downloadAsync(paperInput.ttsTextUrl, ttsLocalPath);
+      await updatePaperDownloadState(targetId, { ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsResult.uri });
+      return { ...existingPaper, ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsResult.uri };
+    } catch (ttsError) {
+      console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
+      return existingPaper;
+    }
   }
 
   const newPaperItem: OfflinePaper = {
@@ -133,6 +149,8 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     type: paperInput.type || 'study_notes',
     examYear: paperInput.examYear || 2024,
     fileUrl: paperInput.fileUrl || '',
+    ttsTextUrl: paperInput.ttsTextUrl || existingPaper?.ttsTextUrl,
+    ttsLocalUri: existingPaper?.ttsLocalUri,
     fileType: paperInput.fileType || 'pdf',
     uploadedBy: paperInput.uploadedBy || { _id: 'admin', name: 'Moi Faculty' },
     thumbnail: paperInput.thumbnail || '',
@@ -178,8 +196,19 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     );
     const result = await task.downloadAsync();
     if (!result?.uri) throw new Error('The local file was not created.');
-    await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri } as any);
-    return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri };
+    let ttsLocalUri: string | undefined;
+    if (newPaperItem.ttsTextUrl) {
+      try {
+        const ttsLocalPath = `${privateDirectory}moi_material_${safeName}_lecture.txt`;
+        const ttsResult = await FileSystem.downloadAsync(newPaperItem.ttsTextUrl, ttsLocalPath);
+        ttsLocalUri = ttsResult.uri;
+      } catch (ttsError) {
+        // The material remains usable offline even if its optional lecture recording fails.
+        console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
+      }
+    }
+    await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri } as any);
+    return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri };
   } catch (error) {
     await updatePaperDownloadState(targetId, { status: 'failed', progress: 0 });
     throw error;
@@ -194,7 +223,10 @@ export const retryPaperDownload = async (paperId: string) => {
   if (paper.localUri && Platform.OS !== 'web') {
     await FileSystem.deleteAsync(paper.localUri, { idempotent: true }).catch(() => undefined);
   }
-  await savePaperForOffline({ ...paper, localUri: undefined });
+  if (paper.ttsLocalUri && Platform.OS !== 'web') {
+    await FileSystem.deleteAsync(paper.ttsLocalUri, { idempotent: true }).catch(() => undefined);
+  }
+  await savePaperForOffline({ ...paper, localUri: undefined, ttsLocalUri: undefined });
 };
 export const togglePinOfflinePaper = async (paperId: string) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
@@ -234,6 +266,9 @@ export const removeOfflinePaper = async (paperId: string) => {
   const paper = papers.find((item) => item._id === paperId);
   if (paper?.localUri && Platform.OS !== 'web') {
     await FileSystem.deleteAsync(paper.localUri, { idempotent: true }).catch(() => undefined);
+  }
+  if (paper?.ttsLocalUri && Platform.OS !== 'web') {
+    await FileSystem.deleteAsync(paper.ttsLocalUri, { idempotent: true }).catch(() => undefined);
   }
 
   await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers.filter((item) => item._id !== paperId)));

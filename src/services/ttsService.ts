@@ -51,13 +51,19 @@ class TTSService {
             }));
 
             if (!this.selectedVoiceId) {
+              const preferredGoogleUk = this.voices.find(
+                (v) =>
+                  v.name.toLowerCase().includes('google uk english female') ||
+                  (v.language?.toLowerCase() === 'en-gb' && v.name.toLowerCase().includes('female'))
+              );
               const pref = this.voices.find(
                 (v) =>
                   (v.language?.toLowerCase().includes('en') || v.name.toLowerCase().includes('en')) &&
                   (v.quality === 'Enhanced' || v.name.includes('Google') || v.name.includes('Natural'))
               );
               const anyEn = this.voices.find((v) => v.language?.toLowerCase().includes('en'));
-              if (pref) this.selectedVoiceId = pref.id;
+              if (preferredGoogleUk) this.selectedVoiceId = preferredGoogleUk.id;
+              else if (pref) this.selectedVoiceId = pref.id;
               else if (anyEn) this.selectedVoiceId = anyEn.id;
               else if (this.voices[0]) this.selectedVoiceId = this.voices[0].id;
             }
@@ -80,6 +86,11 @@ class TTSService {
             }));
 
             if (!this.selectedVoiceId) {
+              const preferredGoogleUk = this.voices.find(
+                (v) =>
+                  v.name.toLowerCase().includes('google uk english female') ||
+                  (v.language?.toLowerCase() === 'en-gb' && v.name.toLowerCase().includes('female'))
+              );
               const pref = this.voices.find(
                 (v) =>
                   (v.language?.toLowerCase().startsWith('en') || v.name.includes('English')) &&
@@ -90,7 +101,8 @@ class TTSService {
                     v.name.includes('Alex'))
               );
               const anyEn = this.voices.find((v) => v.language?.toLowerCase().startsWith('en'));
-              if (pref) this.selectedVoiceId = pref.id;
+              if (preferredGoogleUk) this.selectedVoiceId = preferredGoogleUk.id;
+              else if (pref) this.selectedVoiceId = pref.id;
               else if (anyEn) this.selectedVoiceId = anyEn.id;
               else if (this.voices[0]) this.selectedVoiceId = this.voices[0].id;
             }
@@ -161,7 +173,7 @@ class TTSService {
         this.notify();
 
         const options: any = {
-          language: 'en-US',
+          language: this.voices.find((v) => v.id === this.selectedVoiceId)?.language || 'en-US',
           pitch: 1.0,
           rate: 0.95,
           onStart: () => {
@@ -254,6 +266,36 @@ class TTSService {
         console.warn('[TTS] Web speech error:', err);
       }
     }
+  }
+
+  /** Speak one chunk and resolve when the native/browser engine finishes it. */
+  public speakAndWait(text: string): Promise<void> {
+    const cleanText = text?.trim();
+    if (!cleanText) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let started = false;
+      let settled = false;
+      const unsubscribe = this.subscribe((state) => {
+        if (state.isSpeaking) started = true;
+        if (started && !state.isSpeaking && !settled) {
+          settled = true;
+          unsubscribe();
+          resolve();
+        }
+      });
+
+      void this.speak(cleanText);
+
+      // If no speech engine is available, do not leave the chunk queue waiting forever.
+      setTimeout(() => {
+        if (!started && !settled) {
+          settled = true;
+          unsubscribe();
+          resolve();
+        }
+      }, 1500);
+    });
   }
 
   public stop(): void {

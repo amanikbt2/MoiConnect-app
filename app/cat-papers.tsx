@@ -54,6 +54,7 @@ export interface CATPaperItem {
   ratingScore: string;
   thumbnail: string;
   fileUrl: string;
+  ttsTextUrl?: string;
   examYear: string;
   tag?: string;
 }
@@ -176,6 +177,7 @@ export default function CatPapersScreen() {
               || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
               || 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
             fileUrl: p.fileUrl,
+            ttsTextUrl: (p as any).ttsTextUrl,
             examYear: String(p.examYear || 2025),
             tag: '🔥 Real CAT'
           }));
@@ -278,6 +280,7 @@ export default function CatPapersScreen() {
       unitName: item.unitName,
       school: item.school,
       fileUrl: item.fileUrl,
+      ttsTextUrl: item.ttsTextUrl,
       pages: 'CAT Quiz Paper PDF',
       summary: `Continuous Assessment Test (${item.catType}) paper for ${item.unitCode} (${item.examYear}).`,
       sampleText: `Continuous Assessment Quiz for ${item.unitCode}: ${item.title}. Answer all questions in Section A and Section B.`
@@ -298,6 +301,7 @@ export default function CatPapersScreen() {
         type: 'cat_paper',
         examYear: 2025,
         fileUrl: item.fileUrl,
+        ttsTextUrl: item.ttsTextUrl,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_faculty', name: 'Moi University Academic Faculty' } as any,
         status: 'approved',

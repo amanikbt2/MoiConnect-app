@@ -80,6 +80,7 @@ export default function DownloadsScreen() {
       unitName: paper.unitName,
       school: paper.school,
       fileUrl: paper.localUri || paper.fileUrl,
+      ttsTextUrl: paper.ttsLocalUri,
       pages: 'PDF Document',
       author: paper.uploadedBy?.name || 'Moi Lecturer',
       summary: paper.title,

@@ -185,6 +185,8 @@ export default function ChatRoomScreen({ route }: any) {
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const { user } = useAuth();
   const flatListRef = useRef<FlatList>(null);
@@ -536,12 +538,27 @@ export default function ChatRoomScreen({ route }: any) {
           renderItem={({ item }) => {
             const sender = typeof item.senderId === 'object' ? (item.senderId as any) : null;
             const isMe = (sender ? sender._id : item.senderId) === user?._id;
+            const isFirstUnread = (item._id || item.id) === firstUnreadMsgId;
             const isPickerOpen = activeReactionMsgId === item._id;
             const hasReactions = item.reactions && Object.keys(item.reactions).length > 0;
 
             return (
-              <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
-                <View style={[styles.bubbleWrapper, isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+              <View style={{ width: '100%' }}>
+                {/* WhatsApp-Style Unread Divider Line */}
+                {isFirstUnread && (
+                  <View style={styles.unreadDividerContainer}>
+                    <View style={styles.unreadDividerLine} />
+                    <View style={styles.unreadDividerPill}>
+                      <Text style={styles.unreadDividerText}>
+                        {unreadCount > 0 ? `${unreadCount} UNREAD ${unreadCount === 1 ? 'MESSAGE' : 'MESSAGES'}` : 'UNREAD MESSAGES'}
+                      </Text>
+                    </View>
+                    <View style={styles.unreadDividerLine} />
+                  </View>
+                )}
+
+                <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
+                  <View style={[styles.bubbleWrapper, isMe ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
                   {/* Floating Emoji Picker Bar */}
                   {isPickerOpen && (
                     <View style={[styles.reactionPickerBar, isMe ? { right: 0 } : { left: 0 }]}>
@@ -663,6 +680,7 @@ export default function ChatRoomScreen({ route }: any) {
                   )}
                 </View>
               </SwipeableMessageItem>
+            </View>
             );
           }}
         />
@@ -818,24 +836,24 @@ export default function ChatRoomScreen({ route }: any) {
           </Pressable>
         </TouchableOpacity>
       </Modal>
-    <PDFViewerModal
-        visible={showPreviewModal}
-        document={previewDoc}
-        onClose={() => setShowPreviewModal(false)}
-        onDownload={(doc: PDFDocumentItem) => handleDownloadFileAttachment({
-          name: doc.title,
-          url: doc.fileUrl,
-          size: '1.8 MB',
-          type: 'pdf',
-          paperId: doc.id,
-          title: doc.title,
-          unitCode: doc.unitCode,
-          unitName: doc.unitName,
-          school: doc.school,
-          author: doc.author
-        })}
-      />
-      </KeyboardAvoidingView>
+      <PDFViewerModal
+          visible={showPreviewModal}
+          document={previewDoc}
+          onClose={() => setShowPreviewModal(false)}
+          onDownload={(doc: PDFDocumentItem) => handleDownloadFileAttachment({
+            name: doc.title,
+            url: doc.fileUrl,
+            size: '1.8 MB',
+            type: 'pdf',
+            paperId: doc.id,
+            title: doc.title,
+            unitCode: doc.unitCode,
+            unitName: doc.unitName,
+            school: doc.school,
+            author: doc.author
+          })}
+        />
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1224,5 +1242,38 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 12,
     fontWeight: '800'
+  },
+  /* WhatsApp-style Unread Divider */
+  unreadDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 12
+  },
+  unreadDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#15803d',
+    opacity: 0.4
+  },
+  unreadDividerPill: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginHorizontal: 8,
+    shadowColor: '#15803d',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  unreadDividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803d',
+    letterSpacing: 0.5
   }
 });

@@ -72,6 +72,7 @@ export interface NoteItem {
   thumbnail: string;
   author: string;
   fileUrl?: string;
+  ttsTextUrl?: string;
 }
 
 // Mock Data Sets
@@ -199,7 +200,8 @@ export default function AcademicsScreen({ route }: any) {
             || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
             || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
           author: typeof p.submittedBy === 'object' && p.submittedBy ? (p.submittedBy as any).name || 'Moi Student' : 'Moi Student',
-          fileUrl: p.fileUrl
+          fileUrl: p.fileUrl,
+          ttsTextUrl: (p as any).ttsTextUrl
         }));
         setRealUploadedNotes(mapped); setInitialLoading(false);
       } else {
@@ -232,6 +234,7 @@ export default function AcademicsScreen({ route }: any) {
       school: item.school,
       author: item.author,
       fileUrl: item.fileUrl || '',
+      ttsTextUrl: item.ttsTextUrl,
       pages: '48 pages',
       summary: `Study notes for ${item.unitCode} ${item.unitName || item.title}.`,
       sampleText: `Course notes for ${item.unitCode}: ${item.title}. Includes key concepts, formulas, and revision topics for semester preparation.`
@@ -251,6 +254,7 @@ export default function AcademicsScreen({ route }: any) {
         type: 'notes',
         examYear: 2025,
         fileUrl: doc.fileUrl,
+        ttsTextUrl: doc.ttsTextUrl,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_lecturer', name: doc.author || 'Moi Faculty' } as any,
         status: 'approved',

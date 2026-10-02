@@ -1,6 +1,7 @@
 import { apiRequest } from './api';
 
 let cachedShowDemo: boolean | null = null;
+let cachedAllowCommunityChat: boolean | null = null;
 
 export const getShowDemoMaterialsSetting = async (): Promise<boolean> => {
   try {
@@ -20,4 +21,21 @@ export const getShowDemoMaterialsSetting = async (): Promise<boolean> => {
   }
   // Fail closed: demo content must never reappear when the setting cannot be verified.
   return false;
+};
+
+export const getAllowCommunityChatSetting = async (): Promise<boolean> => {
+  try {
+    const res: any = await apiRequest('/settings');
+    const allowChat: boolean | undefined =
+      res?.settings?.allowCommunityChat ??
+      res?.data?.settings?.allowCommunityChat ??
+      res?.allowCommunityChat;
+    if (typeof allowChat === 'boolean') {
+      cachedAllowCommunityChat = allowChat;
+      return allowChat;
+    }
+  } catch (err) {
+    console.log('Error fetching community chat setting:', err);
+  }
+  return cachedAllowCommunityChat ?? true;
 };

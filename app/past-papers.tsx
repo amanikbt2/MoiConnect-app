@@ -55,6 +55,7 @@ export interface PastPaperItem {
   ratingScore: string;
   thumbnail: string;
   fileUrl: string;
+  ttsTextUrl?: string;
   hasSolutions: boolean;
   tag?: string;
 }
@@ -179,6 +180,7 @@ export default function PastPapersScreen() {
               || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
               || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
             fileUrl: p.fileUrl,
+            ttsTextUrl: (p as any).ttsTextUrl,
             hasSolutions: p.type === 'solution' || p.title.toLowerCase().includes('solution'),
             tag: '✨ Real Uploaded'
           }));
@@ -282,6 +284,7 @@ export default function PastPapersScreen() {
       unitName: item.unitName,
       school: item.school,
       fileUrl: item.fileUrl,
+      ttsTextUrl: item.ttsTextUrl,
       pages: 'Official Examination PDF',
       summary: `Official End of Semester Examination Paper for ${item.unitCode} (${item.examYear}, ${item.semester}).`,
       sampleText: `Examination paper for ${item.unitCode}: ${item.title}. Question 1 (20 Marks). Solve all section parts.`
@@ -302,6 +305,7 @@ export default function PastPapersScreen() {
         type: 'past_paper',
         examYear: 2024,
         fileUrl: item.fileUrl,
+        ttsTextUrl: item.ttsTextUrl,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_exams', name: 'Moi University Examination Board' } as any,
         status: 'approved',
