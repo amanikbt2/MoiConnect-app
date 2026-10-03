@@ -247,6 +247,7 @@ export default function AcademicsScreen({ route }: any) {
     try {
       await saveDownloadedPaper({
         _id: `note_${doc.id}`,
+        title: doc.title,
         school: doc.school || 'Moi University',
         department: doc.unitName || doc.unitCode,
         courseCode: doc.unitCode,
@@ -963,7 +964,7 @@ export default function AcademicsScreen({ route }: any) {
               <Text style={styles.footerLink}>Support</Text>
             </TouchableOpacity>
             <Text style={styles.footerDivider}>·</Text>
-            <Text style={styles.footerVersion}>MoiConnect v1.0.0</Text>
+            <Text style={styles.footerVersion}>MConnect v1.0.0</Text>
           </View>
 
           <View style={{ height: 40 }} />

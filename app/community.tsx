@@ -648,7 +648,7 @@ export default function CommunityScreen() {
       }, '');
       // New installs start from now instead of downloading the entire server archive.
       // Existing installs retain their previous cache cursor and only request deltas.
-      const initialCursor = storedCursor || latestCachedTimestamp || new Date().toISOString();
+      const initialCursor = latestCachedTimestamp || storedCursor || new Date().toISOString();
       lastSyncedISO.current = initialCursor;
       if (!storedCursor) void saveCommunitySyncCursor(initialCursor);
       if ((!cachedMsgs || cachedMsgs.length === 0) && demoSetting) {
@@ -672,16 +672,8 @@ export default function CommunityScreen() {
         const handleSocketReconnectError = (error: any) => {
           console.warn('[Community] Socket reconnect pending:', error?.message || error);
         };
-        const handleSocketDisconnect = () => {
-          // Mark the start of the offline window so reconnect only requests missed messages.
-          const offlineSince = new Date().toISOString();
-          lastSyncedISO.current = offlineSince;
-          void saveCommunitySyncCursor(offlineSince);
-        };
-
         socket.on('connect', handleSocketConnect);
         socket.on('connect_error', handleSocketReconnectError);
-        socket.on('disconnect', handleSocketDisconnect);
         socket.on('community:online_count', (stats: { totalOnline?: number }) => {
           setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
         });
@@ -859,7 +851,6 @@ export default function CommunityScreen() {
         activeSocket.off('community:online_count');
         activeSocket.off('connect');
         activeSocket.off('connect_error');
-        activeSocket.off('disconnect');
       }
     };
   }, [user]);
@@ -950,7 +941,10 @@ export default function CommunityScreen() {
     try {
       const downloaded = await getDownloadedPapers();
       const converted: FileAttachment[] = downloaded.map((p) => {
-        const cleanTitle = p.title || 'Academic Material';
+        const savedTitle = (p.title || '').trim();
+        const cleanTitle = !savedTitle || /^untitled(?: material)?$/i.test(savedTitle)
+          ? p.unitName || p.department || 'Academic Material'
+          : savedTitle;
         const cleanCode = p.unitCode || p.courseCode || 'MOI';
         const fileName = `${cleanCode}_${cleanTitle.replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`;
         return {

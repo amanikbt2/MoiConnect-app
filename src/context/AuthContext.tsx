@@ -39,11 +39,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone'>>) => {
     if (!user) return;
-    const updatedUser: IUser = {
-      ...user,
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
+    let updatedUser: IUser = { ...user, ...updates, updatedAt: new Date().toISOString() };
+    try {
+      const response = await apiRequest<IUser>('/auth/profile', {
+        method: 'PATCH',
+        body: JSON.stringify(updates)
+      });
+      if (response.success && response.data) updatedUser = response.data;
+    } catch (_) {
+      // Keep local profile updates usable for offline/demo accounts.
+    }
     setUser(updatedUser);
     await setStoredToken('moi_user_profile', JSON.stringify(updatedUser));
   };

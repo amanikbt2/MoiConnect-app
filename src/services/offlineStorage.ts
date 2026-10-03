@@ -673,7 +673,7 @@ export const syncCommunityUnreadBackground = async (): Promise<void> => {
       return ts && ts > latest ? ts : latest;
     }, '');
 
-    const cursor = storedCursor || latestCachedTimestamp || '';
+    const cursor = latestCachedTimestamp || storedCursor || '';
     const sinceParam = cursor ? `?since=${encodeURIComponent(cursor)}` : '';
 
     const res = await apiRequest<{ success: boolean; data: any[]; syncedAt: string }>(`/community/messages${sinceParam}`);

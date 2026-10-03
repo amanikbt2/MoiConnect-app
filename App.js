@@ -41,6 +41,11 @@ import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, 
 import { InAppPopupModal } from './src/components/InAppPopupModal';
 import { checkAppPopups } from './src/services/popupService';
 import { registerForPushNotificationsAsync, setupNotificationResponseListener } from './src/services/notificationService';
+import { apiRequest } from './src/services/api';
+import {
+  getReadNotificationIds,
+  saveReadNotificationIdsBatch
+} from './src/services/offlineStorage';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -49,51 +54,59 @@ const queryClient = new QueryClient();
 
 function HeaderNotificationBell() {
   const [modalVisible, setModalVisible] = React.useState(false);
-  const [notifications, setNotifications] = React.useState([
-    {
-      id: 'welcome_reward',
-      title: '🎉 Account Created Reward',
-      message: "You've been awarded pt5 for creating an account.",
-      time: 'Just now',
-      type: 'reward',
-      read: false
-    },
-    {
-      id: '1',
-      title: 'Exam Timetable Released',
-      message: 'Draft exam timetable for School of Information Sciences is now available.',
-      time: '10 mins ago',
-      type: 'academic',
-      read: false
-    },
-    {
-      id: '2',
-      title: 'New Past Paper Uploaded',
-      message: 'STA 210 Probability & Statistics 2023 exam paper has been added.',
-      time: '1 hr ago',
-      type: 'paper',
-      read: false
-    },
-    {
-      id: '4',
-      title: 'Campus Event',
-      message: 'Moi University Tech & Innovation Hackathon registrations are open.',
-      time: '2 days ago',
-      type: 'event',
-      read: true
+  const [notifications, setNotifications] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+
+  const loadNotifications = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest('/notifications', { method: 'GET' });
+      const list = res.data?.notifications || res.notifications || [];
+      const localReadIds = new Set(await getReadNotificationIds());
+      setNotifications(list.map((item) => ({
+        ...item,
+        id: item._id,
+        message: item.body,
+        read: Boolean(item.isRead || localReadIds.has(item._id))
+      })));
+    } catch (error) {
+      console.warn('Failed to load notifications:', error);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  React.useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
 
-  const markAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
+
+  const markAllRead = async () => {
+    const allIds = notifications.map((notification) => notification.id).filter(Boolean);
+    if (allIds.length > 0) {
+      await saveReadNotificationIdsBatch(allIds);
+    }
+
+    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+    if (allIds.length > 0) {
+      await apiRequest('/notifications/read-all', { method: 'POST' });
+    }
+  };
+
+  const closeModal = async () => {
+    await markAllRead();
+    setModalVisible(false);
   };
 
   return (
     <View style={{ marginRight: 12 }}>
       <TouchableOpacity
-        onPress={() => setModalVisible(true)}
+        onPress={async () => {
+          setModalVisible(true);
+          await loadNotifications();
+        }}
         style={{ padding: 4, position: 'relative' }}
         activeOpacity={0.7}
       >
@@ -124,7 +137,7 @@ function HeaderNotificationBell() {
         visible={modalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closeModal}
       >
         <TouchableOpacity
           style={{
@@ -136,7 +149,7 @@ function HeaderNotificationBell() {
             paddingRight: 16
           }}
           activeOpacity={1}
-          onPress={() => setModalVisible(false)}
+          onPress={closeModal}
         >
           <View
             style={{
@@ -172,7 +185,11 @@ function HeaderNotificationBell() {
             </View>
 
             <ScrollView style={{ maxHeight: 340 }}>
-              {notifications.map((item) => (
+              {loading ? (
+                <Text style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>Loading notifications…</Text>
+              ) : notifications.length === 0 ? (
+                <Text style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>No notifications yet.</Text>
+              ) : notifications.map((item) => (
                 <View
                   key={item.id}
                   style={{
@@ -194,7 +211,7 @@ function HeaderNotificationBell() {
             </ScrollView>
 
             <TouchableOpacity
-              onPress={() => setModalVisible(false)}
+              onPress={closeModal}
               style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', alignItems: 'center' }}
             >
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#64748b' }}>Close</Text>

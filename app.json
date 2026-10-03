@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MoiConnect",
+    "name": "MConnect",
     "slug": "moiconnect",
     "version": "1.2.0",
     "orientation": "portrait",
@@ -14,8 +14,9 @@
       "buildNumber": "23"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/playstore_assets/icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#006400"
       },
       "icon": "./assets/playstore_assets/icon.png",
@@ -25,7 +26,7 @@
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS"
       ],
-      "versionCode": 27
+      "versionCode": 28
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

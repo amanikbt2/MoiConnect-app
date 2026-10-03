@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 let ExpoSpeech: any = null;
 try {
@@ -20,6 +21,8 @@ export interface TTSState {
   activeText?: string;
   voices: VoiceOption[];
   selectedVoiceId: string | null;
+  speechRate: number;
+  speechPitch: number;
 }
 
 type TTSListener = (state: TTSState) => void;
@@ -30,10 +33,61 @@ class TTSService {
   private activeText: string = '';
   private voices: VoiceOption[] = [];
   private selectedVoiceId: string | null = null;
+  private speechRate = 0.9;
+  private speechPitch = 1.08;
   private listeners: Set<TTSListener> = new Set();
 
   constructor() {
-    void this.loadVoices();
+    void this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      const stored = Platform.OS === 'web'
+        ? (typeof localStorage !== 'undefined' ? localStorage.getItem('moi_tts_preferences') : null)
+        : await SecureStore.getItemAsync('moi_tts_preferences');
+      if (stored) {
+        const preferences = JSON.parse(stored);
+        if (typeof preferences.voiceId === 'string') this.selectedVoiceId = preferences.voiceId;
+        if (Number.isFinite(preferences.speechRate)) this.speechRate = this.clamp(preferences.speechRate, 0.7, 1.3);
+        if (Number.isFinite(preferences.speechPitch)) this.speechPitch = this.clamp(preferences.speechPitch, 0.8, 1.3);
+      }
+    } catch (error) {
+      console.warn('[TTS] Could not load speech preferences:', error);
+    }
+    await this.loadVoices();
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private async savePreferences(): Promise<void> {
+    try {
+      const preferences = JSON.stringify({
+        voiceId: this.selectedVoiceId,
+        speechRate: this.speechRate,
+        speechPitch: this.speechPitch
+      });
+      if (Platform.OS === 'web') {
+        if (typeof localStorage !== 'undefined') localStorage.setItem('moi_tts_preferences', preferences);
+      } else {
+        await SecureStore.setItemAsync('moi_tts_preferences', preferences);
+      }
+    } catch (error) {
+      console.warn('[TTS] Could not save speech preferences:', error);
+    }
+  }
+
+  private choosePreferredVoice(): VoiceOption | undefined {
+    const isEnglish = (voice: VoiceOption) => /(^|-)en([_-]|$)/i.test(voice.language || '') || /english/i.test(voice.name);
+    const isBritish = (voice: VoiceOption) => /en[-_]gb/i.test(voice.language || '') || /\b(uk|british)\b/i.test(voice.name);
+    const googleFemale = this.voices.find((voice) => /google.*(uk|united kingdom|en[-_]gb).*female|google uk english female/i.test(`${voice.name} ${voice.language}`));
+    const britishFemale = this.voices.find((voice) => isBritish(voice) && /female|woman/i.test(voice.name));
+    const britishNatural = this.voices.find((voice) => isBritish(voice) && /google|natural|enhanced|network/i.test(`${voice.name} ${voice.quality || ''}`));
+    return googleFemale || britishFemale || britishNatural || this.voices.find(isBritish) ||
+      this.voices.find((voice) => isEnglish(voice) && /google|natural|enhanced/i.test(`${voice.name} ${voice.quality || ''}`)) ||
+      this.voices.find(isEnglish) || this.voices[0];
   }
 
   public async loadVoices(): Promise<VoiceOption[]> {
@@ -50,22 +104,9 @@ class TTSService {
               quality: v.quality
             }));
 
-            if (!this.selectedVoiceId) {
-              const preferredGoogleUk = this.voices.find(
-                (v) =>
-                  v.name.toLowerCase().includes('google uk english female') ||
-                  (v.language?.toLowerCase() === 'en-gb' && v.name.toLowerCase().includes('female'))
-              );
-              const pref = this.voices.find(
-                (v) =>
-                  (v.language?.toLowerCase().includes('en') || v.name.toLowerCase().includes('en')) &&
-                  (v.quality === 'Enhanced' || v.name.includes('Google') || v.name.includes('Natural'))
-              );
-              const anyEn = this.voices.find((v) => v.language?.toLowerCase().includes('en'));
-              if (preferredGoogleUk) this.selectedVoiceId = preferredGoogleUk.id;
-              else if (pref) this.selectedVoiceId = pref.id;
-              else if (anyEn) this.selectedVoiceId = anyEn.id;
-              else if (this.voices[0]) this.selectedVoiceId = this.voices[0].id;
+            if (!this.voices.some((voice) => voice.id === this.selectedVoiceId)) {
+              this.selectedVoiceId = this.choosePreferredVoice()?.id || null;
+              void this.savePreferences();
             }
 
             this.notify();
@@ -85,26 +126,9 @@ class TTSService {
               language: v.lang
             }));
 
-            if (!this.selectedVoiceId) {
-              const preferredGoogleUk = this.voices.find(
-                (v) =>
-                  v.name.toLowerCase().includes('google uk english female') ||
-                  (v.language?.toLowerCase() === 'en-gb' && v.name.toLowerCase().includes('female'))
-              );
-              const pref = this.voices.find(
-                (v) =>
-                  (v.language?.toLowerCase().startsWith('en') || v.name.includes('English')) &&
-                  (v.name.includes('Google') ||
-                    v.name.includes('Natural') ||
-                    v.name.includes('Online') ||
-                    v.name.includes('Samantha') ||
-                    v.name.includes('Alex'))
-              );
-              const anyEn = this.voices.find((v) => v.language?.toLowerCase().startsWith('en'));
-              if (preferredGoogleUk) this.selectedVoiceId = preferredGoogleUk.id;
-              else if (pref) this.selectedVoiceId = pref.id;
-              else if (anyEn) this.selectedVoiceId = anyEn.id;
-              else if (this.voices[0]) this.selectedVoiceId = this.voices[0].id;
+            if (!this.voices.some((voice) => voice.id === this.selectedVoiceId)) {
+              this.selectedVoiceId = this.choosePreferredVoice()?.id || null;
+              void this.savePreferences();
             }
 
             this.notify();
@@ -124,6 +148,7 @@ class TTSService {
 
   public setVoice(voiceId: string): void {
     this.selectedVoiceId = voiceId;
+    void this.savePreferences();
     this.notify();
 
     if (this.isSpeaking && this.activeText) {
@@ -133,6 +158,18 @@ class TTSService {
         void this.speak(currentText);
       }, 150);
     }
+  }
+
+  public setSpeechRate(rate: number): void {
+    this.speechRate = this.clamp(rate, 0.7, 1.3);
+    void this.savePreferences();
+    this.notify();
+  }
+
+  public setSpeechPitch(pitch: number): void {
+    this.speechPitch = this.clamp(pitch, 0.8, 1.3);
+    void this.savePreferences();
+    this.notify();
   }
 
   public subscribe(listener: TTSListener): () => void {
@@ -149,7 +186,9 @@ class TTSService {
       isPaused: this.isPaused,
       activeText: this.activeText,
       voices: this.voices,
-      selectedVoiceId: this.selectedVoiceId
+      selectedVoiceId: this.selectedVoiceId,
+      speechRate: this.speechRate,
+      speechPitch: this.speechPitch
     };
   }
 
@@ -173,9 +212,9 @@ class TTSService {
         this.notify();
 
         const options: any = {
-          language: this.voices.find((v) => v.id === this.selectedVoiceId)?.language || 'en-US',
-          pitch: 1.0,
-          rate: 0.95,
+          language: this.voices.find((v) => v.id === this.selectedVoiceId)?.language || 'en-GB',
+          pitch: this.speechPitch,
+          rate: this.speechRate,
           onStart: () => {
             this.isSpeaking = true;
             this.isPaused = false;
@@ -214,9 +253,9 @@ class TTSService {
       try {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
-        utterance.lang = 'en-US';
+        utterance.rate = this.speechRate;
+        utterance.pitch = this.speechPitch;
+        utterance.lang = this.voices.find((v) => v.id === this.selectedVoiceId)?.language || 'en-GB';
 
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
@@ -315,6 +354,43 @@ class TTSService {
     this.isPaused = false;
     this.activeText = '';
     this.notify();
+  }
+
+  public pause(): void {
+    if (!this.isSpeaking || this.isPaused) return;
+    try {
+      if (ExpoSpeech && Platform.OS !== 'web' && typeof ExpoSpeech.pause === 'function') {
+        ExpoSpeech.pause();
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.pause();
+      }
+      this.isPaused = true;
+      this.notify();
+    } catch (error) {
+      console.warn('[TTS] Could not pause speech:', error);
+    }
+  }
+
+  public resume(): void {
+    if (!this.isSpeaking || !this.isPaused) return;
+    try {
+      if (ExpoSpeech && Platform.OS !== 'web' && typeof ExpoSpeech.resume === 'function') {
+        ExpoSpeech.resume();
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.resume();
+      }
+      this.isPaused = false;
+      this.notify();
+    } catch (error) {
+      console.warn('[TTS] Could not resume speech:', error);
+    }
+  }
+
+  public togglePause(): void {
+    if (this.isPaused) this.resume();
+    else this.pause();
   }
 
   public toggle(text: string): void {

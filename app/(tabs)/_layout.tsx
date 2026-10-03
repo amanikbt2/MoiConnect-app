@@ -28,7 +28,7 @@ function HomeHeaderTitle() {
           }),
         }}
       >
-        <Text style={{ color: '#ffffff' }}>Moi</Text>
+        <Text style={{ color: '#ffffff' }}>M</Text>
         <Text style={{ color: '#a7f3d0' }}>Connect</Text>
       </Text>
     </View>

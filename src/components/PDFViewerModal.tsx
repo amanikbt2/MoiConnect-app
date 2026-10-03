@@ -110,7 +110,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     progress?: number;
   }>({});
 
-  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null });
+  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 0.9, speechPitch: 1.08 });
   const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
   const [isPreparingTTS, setIsPreparingTTS] = useState(false);
   const [isReadingTTS, setIsReadingTTS] = useState(false);
@@ -439,15 +439,25 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   Non-interactive lecture of {document.unitCode}
                 </Text>
               </View>
-              {ttsState.voices && ttsState.voices.length > 0 && (
-                <TouchableOpacity
-                  style={styles.ttsVoiceBtn}
-                  onPress={() => setShowVoicePicker(true)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.ttsVoiceBtnText}>Change Voice</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.ttsVoiceBtn}
+                onPress={() => {
+                  setShowVoicePicker(true);
+                  void ttsService.loadVoices();
+                }}
+                activeOpacity={0.8}
+                accessibilityLabel="Adjust voice, speech speed, and pitch"
+              >
+                <Text style={styles.ttsVoiceBtnText}>Voice & Speed</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.ttsPauseBtn}
+                onPress={() => ttsService.togglePause()}
+                activeOpacity={0.8}
+                accessibilityLabel={ttsState.isPaused ? 'Resume voice reading' : 'Pause voice reading'}
+              >
+                <Text style={styles.ttsPauseBtnText}>{ttsState.isPaused ? '▶' : 'Ⅱ'}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -462,11 +472,51 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             >
               <View style={styles.voicePickerCard}>
                 <View style={styles.voicePickerHeader}>
-                  <Text style={styles.voicePickerTitle}>🎙️ Select Preferred Voice</Text>
+                  <Text style={styles.voicePickerTitle}>🎙️ Voice & Speech</Text>
                   <TouchableOpacity onPress={() => setShowVoicePicker(false)} style={styles.voicePickerCloseBtn}>
                     <Text style={styles.voicePickerCloseText}>✕</Text>
                   </TouchableOpacity>
                 </View>
+
+                <View style={styles.speechControlRow}>
+                  <View style={styles.speechControlCopy}>
+                    <Text style={styles.speechControlLabel}>Speaking speed</Text>
+                    <Text style={styles.speechControlHint}>Adjust how quickly it reads</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.speechStepButton}
+                    onPress={() => ttsService.setSpeechRate(ttsState.speechRate - 0.1)}
+                    accessibilityLabel="Decrease speaking speed"
+                  ><Text style={styles.speechStepText}>−</Text></TouchableOpacity>
+                  <Text style={styles.speechValue}>{ttsState.speechRate.toFixed(1)}×</Text>
+                  <TouchableOpacity
+                    style={styles.speechStepButton}
+                    onPress={() => ttsService.setSpeechRate(ttsState.speechRate + 0.1)}
+                    accessibilityLabel="Increase speaking speed"
+                  ><Text style={styles.speechStepText}>+</Text></TouchableOpacity>
+                </View>
+
+                <View style={styles.speechControlRow}>
+                  <View style={styles.speechControlCopy}>
+                    <Text style={styles.speechControlLabel}>Voice pitch</Text>
+                    <Text style={styles.speechControlHint}>A slightly higher tone is closer to Google UK Female</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.speechStepButton}
+                    onPress={() => ttsService.setSpeechPitch(ttsState.speechPitch - 0.1)}
+                    accessibilityLabel="Lower voice pitch"
+                  ><Text style={styles.speechStepText}>−</Text></TouchableOpacity>
+                  <Text style={styles.speechValue}>{ttsState.speechPitch.toFixed(1)}×</Text>
+                  <TouchableOpacity
+                    style={styles.speechStepButton}
+                    onPress={() => ttsService.setSpeechPitch(ttsState.speechPitch + 0.1)}
+                    accessibilityLabel="Raise voice pitch"
+                  ><Text style={styles.speechStepText}>+</Text></TouchableOpacity>
+                </View>
+
+                <Text style={styles.voicePickerNote}>
+                  Google UK English Female is preferred when your Android speech engine has it installed. Otherwise, the closest available UK English voice is selected.
+                </Text>
 
                 <ScrollView style={styles.voicePickerList} nestedScrollEnabled>
                   {ttsState.voices && ttsState.voices.length > 0 ? (
@@ -543,7 +593,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 style={styles.nativeViewer}
                 originWhitelist={['*']}
                 javaScriptEnabled
-                injectedJavaScript={`(function(){var sent=false;var started=Date.now();var timer=setInterval(function(){try{var app=window.PDFViewerApplication;var count=app&&(app.pdfDocument&&app.pdfDocument.numPages||app.pagesCount);if(!sent&&Number.isInteger(count)&&count>0&&window.ReactNativeWebView){sent=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'pdfPageCount',count:count}));clearInterval(timer);}else if(Date.now()-started>60000){clearInterval(timer);}}catch(e){}},250);true;})();`}
+                injectedJavaScript={`(function(){var style=document.createElement('style');style.textContent='#toolbarContainer,#secondaryToolbar,#sidebarContainer,#sidebarResizer,#findbar,#editorModeButtons,#loadingBar{display:none!important}#mainContainer{margin-left:0!important}#viewerContainer{top:0!important}';document.head.appendChild(style);var sent=false;var started=Date.now();var timer=setInterval(function(){try{var app=window.PDFViewerApplication;var count=app&&(app.pdfDocument&&app.pdfDocument.numPages||app.pagesCount);if(!sent&&Number.isInteger(count)&&count>0&&window.ReactNativeWebView){sent=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'pdfPageCount',count:count}));clearInterval(timer);}else if(Date.now()-started>60000){clearInterval(timer);}}catch(e){}},250);true;})();`}
                 onMessage={(event) => {
                   try {
                     const message = JSON.parse(event.nativeEvent.data);
@@ -1178,6 +1228,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700'
   },
+  ttsPauseBtn: {
+    width: 28,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)'
+  },
+  ttsPauseBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 15
+  },
   voicePickerBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
@@ -1228,6 +1294,54 @@ const styles = StyleSheet.create({
   },
   voicePickerList: {
     maxHeight: 280
+  },
+  speechControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b'
+  },
+  speechControlCopy: {
+    flex: 1,
+    paddingRight: 8
+  },
+  speechControlLabel: {
+    color: '#e2e8f0',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  speechControlHint: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginTop: 2
+  },
+  speechStepButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  speechStepText: {
+    color: '#f8fafc',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22
+  },
+  speechValue: {
+    width: 42,
+    color: '#38bdf8',
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  voicePickerNote: {
+    color: '#94a3b8',
+    fontSize: 10,
+    lineHeight: 14,
+    paddingVertical: 9
   },
   voiceItem: {
     flexDirection: 'row',

@@ -50,30 +50,21 @@ async function registerPushToken() {
       return null;
     }
 
-    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '53c51c41-a1f7-40a0-8111-7b7cd97d968e';
+    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
     let token: string | null = null;
     try {
-      console.log(`[Notifications]: Requesting Expo token for project ${projectId}.`);
-      const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+      console.log(`[Notifications]: Requesting Expo token${projectId ? ` for project ${projectId}` : ''}.`);
+      const pushTokenData = projectId
+        ? await Notifications.getExpoPushTokenAsync({ projectId })
+        : await Notifications.getExpoPushTokenAsync();
       token = pushTokenData.data;
     } catch (tokenErr) {
-      console.warn('[Notifications]: getExpoPushTokenAsync error with projectId, attempting fallback without param:', tokenErr);
-      try {
-        const pushTokenData = await Notifications.getExpoPushTokenAsync();
-        token = pushTokenData.data;
-      } catch (fallbackErr) {
-        try {
-          const nativeToken = await Notifications.getDevicePushTokenAsync();
-          token = typeof nativeToken.data === 'string' ? nativeToken.data : JSON.stringify(nativeToken.data);
-        } catch (nativeErr) {
-          console.error('[Notifications]: Could not fetch native device token:', nativeErr);
-        }
-      }
+      console.error('[Notifications]: Could not fetch an Expo push token. Check the active EAS project ID and notification credentials.', tokenErr);
     }
 
-    if (!token) {
-      console.error('[Notifications]: Android did not return a valid push token.');
+    if (!token || !/^(Expo|Exponent)PushToken\[.+\]$/.test(token)) {
+      console.error('[Notifications]: No compatible Expo push token was returned; device was not registered.');
       return null;
     }
 

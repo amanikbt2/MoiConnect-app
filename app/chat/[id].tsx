@@ -201,7 +201,10 @@ export default function ChatRoomScreen({ route }: any) {
     try {
       const downloaded = await getDownloadedPapers();
       const converted: FileAttachment[] = downloaded.map((p) => {
-        const cleanTitle = p.title || 'Academic Material';
+        const savedTitle = (p.title || '').trim();
+        const cleanTitle = !savedTitle || /^untitled(?: material)?$/i.test(savedTitle)
+          ? p.unitName || p.department || 'Academic Material'
+          : savedTitle;
         const cleanCode = p.unitCode || p.courseCode || 'MOI';
         const fileName = `${cleanCode}_${cleanTitle.replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`;
         return {
