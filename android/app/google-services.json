@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "726429130171",
+    "project_id": "unity-firebase1",
+    "storage_bucket": "unity-firebase1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726429130171:android:db21bbe33290bb4cd7b89e",
+        "android_client_info": {
+          "package_name": "com.amanikbt1.moiconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDje-C0UtRRGVFk__0w27ShQsC8bs2N7ds"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726429130171:android:431aee0cff15e722d7b89e",
+        "android_client_info": {
+          "package_name": "com.amanikbt1.xaylite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDje-C0UtRRGVFk__0w27ShQsC8bs2N7ds"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
