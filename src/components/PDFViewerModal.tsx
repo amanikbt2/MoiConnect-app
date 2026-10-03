@@ -21,6 +21,8 @@ import { subscribeToDownloadUpdates, OfflinePaper, personalizeLectureText } from
 import { ttsService, TTSState } from '../services/ttsService';
 import { config } from '../config';
 
+const HIDE_PDF_TOOLBAR_SCRIPT = `(function(){var css='#toolbarContainer,#toolbarViewer,#toolbarViewerLeft,#toolbarViewerMiddle,#toolbarViewerRight,#secondaryToolbar,#sidebarContainer,#sidebarResizer,#findbar,#editorModeButtons,#loadingBar,.toolbar,[role="toolbar"]{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important}#outerContainer,#mainContainer,#viewerContainer{top:0!important;left:0!important;margin-left:0!important}';function apply(){var root=document.head||document.documentElement;if(!root)return;var style=document.getElementById('mconnect-pdf-toolbar-style');if(!style){style=document.createElement('style');style.id='mconnect-pdf-toolbar-style';style.textContent=css;root.appendChild(style)}}apply();document.addEventListener('DOMContentLoaded',apply,{once:true});true;})();`;
+
 export interface PDFDocumentItem {
   id: string;
   mtid?: string;
@@ -114,6 +116,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
   const [isPreparingTTS, setIsPreparingTTS] = useState(false);
   const [isReadingTTS, setIsReadingTTS] = useState(false);
+  const isTtsBuffering = isPreparingTTS || (isReadingTTS && !ttsState.isSpeaking && !ttsState.isPaused);
   const ttsSessionRef = useRef(0);
   const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
@@ -386,7 +389,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               activeOpacity={0.8}
               accessibilityLabel={ttsState.isSpeaking || isReadingTTS ? 'Stop voice reading' : 'Read document aloud'}
             >
-              {isPreparingTTS ? (
+              {isTtsBuffering ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : ttsState.isSpeaking || isReadingTTS ? (
                 <VolumeOffIcon color="#ffffff" size={20} />
@@ -593,7 +596,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 style={styles.nativeViewer}
                 originWhitelist={['*']}
                 javaScriptEnabled
-                injectedJavaScript={`(function(){var style=document.createElement('style');style.textContent='#toolbarContainer,#secondaryToolbar,#sidebarContainer,#sidebarResizer,#findbar,#editorModeButtons,#loadingBar{display:none!important}#mainContainer{margin-left:0!important}#viewerContainer{top:0!important}';document.head.appendChild(style);var sent=false;var started=Date.now();var timer=setInterval(function(){try{var app=window.PDFViewerApplication;var count=app&&(app.pdfDocument&&app.pdfDocument.numPages||app.pagesCount);if(!sent&&Number.isInteger(count)&&count>0&&window.ReactNativeWebView){sent=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'pdfPageCount',count:count}));clearInterval(timer);}else if(Date.now()-started>60000){clearInterval(timer);}}catch(e){}},250);true;})();`}
+                injectedJavaScriptBeforeContentLoaded={HIDE_PDF_TOOLBAR_SCRIPT}
+                injectedJavaScript={`${HIDE_PDF_TOOLBAR_SCRIPT}(function(){var sent=false;var started=Date.now();var timer=setInterval(function(){try{var app=window.PDFViewerApplication;var count=app&&(app.pdfDocument&&app.pdfDocument.numPages||app.pagesCount);if(!sent&&Number.isInteger(count)&&count>0&&window.ReactNativeWebView){sent=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'pdfPageCount',count:count}));clearInterval(timer);}else if(Date.now()-started>60000){clearInterval(timer);}}catch(e){}},250);true;})();`}
                 onMessage={(event) => {
                   try {
                     const message = JSON.parse(event.nativeEvent.data);

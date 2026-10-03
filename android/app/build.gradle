@@ -115,8 +115,8 @@ android {
         applicationId 'com.amanikbt1.moiconnect'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 27
-        versionName "1.1.6"
+        versionCode 30
+        versionName "1.2.2"
     }
     signingConfigs {
         debug {

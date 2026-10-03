@@ -150,7 +150,13 @@ export default function HomeScreen() {
           title: p.title,
           code: p.unitCode || p.courseCode || 'MOI',
           school: p.school || 'Moi University',
-          paperType: p.type === 'notes' ? 'Notes PDF' : (p.type === 'cat' ? 'CAT Paper' : 'Past Paper'),
+          paperType: p.type === 'cat'
+            ? 'CAT Paper'
+            : p.type === 'past_paper'
+              ? 'Past Paper'
+              : p.type === 'solution'
+                ? 'Exam Solution'
+                : 'Notes PDF',
           downloads: String(p.downloads || 45),
           recommendationTag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
           thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'

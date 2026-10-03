@@ -40,6 +40,10 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       setUnreadMentions(summary.mentions);
     }, user);
 
+    if (user) {
+      void syncCommunityUnreadBackground();
+    }
+
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => setKeyboardVisible(true)

@@ -154,13 +154,7 @@ export default function CatPapersScreen() {
       const res = await apiRequest<{ data: IPaper[] }>(`/papers?refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
-          .filter(
-            (p) =>
-              p.type === 'cat' ||
-              p.title.toLowerCase().includes('cat') ||
-              p.title.toLowerCase().includes('quiz') ||
-              p.title.toLowerCase().includes('test')
-          )
+          .filter((p) => p.type === 'cat')
           .map((p) => ({
             id: p._id || (p as any).id,
             mtid: p.mtid || `C${(p._id || '').substring(0, 4)}`,

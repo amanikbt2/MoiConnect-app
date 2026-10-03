@@ -156,16 +156,12 @@ export default function PastPapersScreen() {
       const res = await apiRequest<{ data: IPaper[] }>(`/papers?refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
-          .filter(
-            (p) =>
-              p.type === 'past_paper' ||
-              p.type === 'solution' ||
-              p.title.toLowerCase().includes('exam') ||
-              p.title.toLowerCase().includes('paper')
-          )
-          .map((p) => ({
+          .filter((p) => p.type === 'past_paper' || p.type === 'solution')
+          .map((p) => {
+            const materialId = p.mtid || `P${(p._id || '').substring(0, 4)}`;
+            return ({
             id: p._id || (p as any).id,
-            mtid: p.mtid || `P${(p._id || '').substring(0, 4)}`,
+            mtid: materialId,
             title: p.title,
             unitCode: p.unitCode || p.courseCode || 'MOI',
             unitName: p.unitName || p.title,
@@ -181,9 +177,10 @@ export default function PastPapersScreen() {
               || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
             fileUrl: p.fileUrl,
             ttsTextUrl: (p as any).ttsTextUrl,
-            hasSolutions: p.type === 'solution' || p.title.toLowerCase().includes('solution'),
-            tag: '✨ Real Uploaded'
-          }));
+            hasSolutions: p.type === 'solution',
+            tag: `MTID: ${materialId}`
+            });
+          });
 
         setPapersData(
           realPastPapers.length > 0

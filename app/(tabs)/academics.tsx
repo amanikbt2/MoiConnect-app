@@ -178,7 +178,10 @@ export default function AcademicsScreen({ route }: any) {
         : `/papers`;
       const res = await apiRequest<{ data: IPaper[] }>(url);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        const mapped: NoteItem[] = res.data.map((p) => ({
+        const noteMaterials = res.data.filter((p) =>
+          ['notes', 'revision', 'lecture_notes'].includes(p.type)
+        );
+        const mapped: NoteItem[] = noteMaterials.map((p) => ({
           id: p._id || (p as any).id,
           mtid: p.mtid || `N${(p._id || '').substring(0, 4)}`,
           title: p.title,
@@ -719,7 +722,15 @@ export default function AcademicsScreen({ route }: any) {
                 <TouchableOpacity
                   key={disc.id}
                   style={[styles.discPill, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
-                  onPress={() => setActiveFilterDisc(disc.id)}
+                  onPress={() => {
+                    if (disc.id === 'past_paper') {
+                      router.push('/past-papers');
+                    } else if (disc.id === 'cat') {
+                      router.push('/cat-papers');
+                    } else {
+                      setActiveFilterDisc(disc.id);
+                    }
+                  }}
                   activeOpacity={0.75}
                 >
                   {renderDiscIcon(disc.iconType, isActive)}

@@ -761,6 +761,7 @@ export default function CommunityScreen() {
               () => router.push('/(tabs)/messages')
             );
           }
+
         });
 
         socket.on('community:user_typing', (data: { userId: string; userName: string; socketId?: string }) => {

@@ -114,13 +114,31 @@ export default function ContributeScreen() {
   };
 
   const handleUploadSubmit = async () => {
+    const validationErrors: string[] = [];
+
     if (pickedFiles.length === 0) {
-      showIceMessage('Missing File(s)', 'Please select at least one document or image from your phone storage to upload.');
-      return;
+      validationErrors.push('Select at least one PDF, DOC, DOCX, or image file.');
     }
 
-    if (!title.trim() || unitCode.trim().length < 2) {
-      setFormError('Enter a title and a unit code with at least 2 characters.');
+    if (title.trim().length < 3) validationErrors.push('Enter a title with at least 3 characters.');
+    if (unitCode.trim().length < 2) validationErrors.push('Enter a unit code with at least 2 characters.');
+    if (department.trim().length < 2) validationErrors.push('Enter the department.');
+    if (!schoolInput.trim() || schoolInput.trim().length < 2) validationErrors.push('Select or enter the school / faculty.');
+    if (examYear.trim() && !/^\d{4}$/.test(examYear.trim())) validationErrors.push('Enter a valid four-digit resource year.');
+
+    const allowedExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp', 'gif'];
+    pickedFiles.forEach((file) => {
+      const extension = file.name.toLowerCase().split('.').pop() || '';
+      if (!allowedExtensions.includes(extension)) {
+        validationErrors.push(`${file.name}: unsupported file type.`);
+      }
+      if (file.size && file.size > 50 * 1024 * 1024) {
+        validationErrors.push(`${file.name}: file is larger than the 50 MB limit.`);
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      setFormError(validationErrors.join('\n'));
       return;
     }
 
@@ -188,14 +206,16 @@ export default function ContributeScreen() {
             body: formData,
           });
 
-          if (uploadRes?.success && uploadRes.data) {
-            uploadedTempFilename = uploadRes.data.tempFilename;
-            uploadedFileUrl = uploadRes.data.fileUrl;
-            uploadedFileSize = uploadRes.data.fileSize || uploadedFileSize;
-            uploadedFileType = uploadRes.data.fileType || uploadedFileType;
+          if (!uploadRes?.success || !uploadRes.data?.fileUrl) {
+            throw new Error(uploadRes?.error || `The file "${item.name}" could not be uploaded.`);
           }
+          uploadedTempFilename = uploadRes.data.tempFilename;
+          uploadedFileUrl = uploadRes.data.fileUrl;
+          uploadedFileSize = uploadRes.data.fileSize || uploadedFileSize;
+          uploadedFileType = uploadRes.data.fileType || uploadedFileType;
         } catch (uploadErr) {
           console.warn('Direct server upload note for file ' + item.name + ':', uploadErr);
+          throw new Error(uploadErr instanceof Error ? uploadErr.message : `The file "${item.name}" could not be uploaded.`);
         }
 
         uploadedAttachments.push({
@@ -237,40 +257,41 @@ export default function ContributeScreen() {
       };
 
       let serverPaperId = `paper_${Date.now()}`;
-      try {
-        const res = await apiRequest<{ paper: any }>('/papers', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        if (res?.data?.paper?._id) {
-          serverPaperId = res.data.paper._id;
-        }
-      } catch (apiErr) {
-        console.log('Submission saved locally:', apiErr);
-      }
-
-      await saveDownloadedPaper({
-        _id: serverPaperId,
-        title: payload.title,
-        school: payload.school,
-        department: payload.department,
-        courseCode: payload.courseCode,
-        unitCode: payload.unitCode,
-        academicYear: payload.academicYear,
-        semester: payload.semester,
-        description: payload.description,
-        unitName: payload.unitName,
-        type: payload.type as any,
-        examYear: payload.examYear,
-        fileUrl: payload.fileUrl,
-        thumbnail: payload.thumbnail,
-        fileType: payload.fileType as any,
-        attachments: payload.attachments as any,
-        uploadedBy: { _id: user?._id || 'guest', name: user?.name || 'Guest Student' } as any,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const res = await apiRequest<any>('/papers', {
+        method: 'POST',
+        body: JSON.stringify(payload)
       });
+      if (!res.success || !res.data?._id) {
+        throw new Error(res.error || 'The material could not be submitted. Please check the highlighted fields and try again.');
+      }
+      serverPaperId = res.data._id;
+
+      try {
+        await saveDownloadedPaper({
+          _id: serverPaperId,
+          title: payload.title,
+          school: payload.school,
+          department: payload.department,
+          courseCode: payload.courseCode,
+          unitCode: payload.unitCode,
+          academicYear: payload.academicYear,
+          semester: payload.semester,
+          description: payload.description,
+          unitName: payload.unitName,
+          type: payload.type as any,
+          examYear: payload.examYear,
+          fileUrl: payload.fileUrl,
+          thumbnail: payload.thumbnail,
+          fileType: payload.fileType as any,
+          attachments: payload.attachments as any,
+          uploadedBy: { _id: user?._id || 'guest', name: user?.name || 'Guest Student' } as any,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      } catch (cacheError) {
+        console.warn('Submission succeeded but local cache could not be updated:', cacheError);
+      }
 
       setUploading(false);
 
@@ -279,12 +300,22 @@ export default function ContributeScreen() {
         ? `"${payload.title}" (${payload.courseCode}) with ${filesCountText} has been submitted successfully for administrator review!`
         : `"${payload.title}" (${payload.courseCode}) with ${filesCountText} has been submitted for review!\n\nNote: You submitted as a guest. Sign in anytime to receive points and approval notifications.`;
 
+      setTitle('');
+      setUnitCode('');
+      setDepartment('');
+      setAcademicLevel('');
+      setSemester('');
+      setDescription('');
+      setSchoolInput(SCHOOL_OPTIONS[0]);
+      setSchool(SCHOOL_OPTIONS[0]);
+      setType('past_paper');
+      setExamYear('2025');
+      setPickedFiles([]);
+      setFormError('');
+      setShowSchoolPicker(false);
+
       const navigateAway = () => {
-        if (router.canGoBack()) {
-          router.back();
-        } else {
-          router.push('/(tabs)/academics');
-        }
+        router.replace('/(tabs)');
       };
 
       if (Platform.OS === 'web') {
@@ -302,7 +333,7 @@ export default function ContributeScreen() {
       }
     } catch (e) {
       setUploading(false);
-      showIceMessage('Upload Error', 'Failed to upload document. Please check your network connection.');
+      setFormError(e instanceof Error ? e.message : 'Failed to upload the material. Please check your connection and try again.');
     }
   };
 

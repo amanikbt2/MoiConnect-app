@@ -52,6 +52,29 @@ const Tab = createBottomTabNavigator();
 
 const queryClient = new QueryClient();
 
+const repairNotificationText = (value) => {
+  if (typeof value !== 'string' || !/[ÃÂâð]/.test(value)) return value || '';
+
+  let repaired = value;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const encodedBytes = Array.from(repaired).map((character) => {
+        const code = character.charCodeAt(0);
+        if (code > 255) throw new Error('Not mojibake');
+        return `%${code.toString(16).padStart(2, '0')}`;
+      }).join('');
+      const decoded = decodeURIComponent(encodedBytes);
+      if (decoded === repaired || decoded.includes('\ufffd')) break;
+      repaired = decoded;
+      if (!/[ÃÂâð]/.test(repaired)) break;
+    } catch (_) {
+      break;
+    }
+  }
+
+  return repaired;
+};
+
 function HeaderNotificationBell() {
   const [modalVisible, setModalVisible] = React.useState(false);
   const [notifications, setNotifications] = React.useState([]);
@@ -66,7 +89,9 @@ function HeaderNotificationBell() {
       setNotifications(list.map((item) => ({
         ...item,
         id: item._id,
-        message: item.body,
+        title: repairNotificationText(item.title),
+        subtitle: repairNotificationText(item.subtitle),
+        message: repairNotificationText(item.body),
         read: Boolean(item.isRead || localReadIds.has(item._id))
       })));
     } catch (error) {

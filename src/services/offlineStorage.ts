@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import { apiRequest } from './api';
+import { apiRequest, getStoredToken } from './api';
 import { scheduleLocalMissedMessagesNotification } from './notificationService';
 
 const OFFLINE_PAPERS_KEY = 'moi_offline_papers';
@@ -424,7 +424,19 @@ export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetail
 
 export const personalizeLectureText = async (template: string): Promise<string> => {
   const details = await getStudentPersonalDetails().catch(() => null);
-  const nameParts = String(details?.fullName || '').trim().split(/\s+/).filter(Boolean);
+  let signedInName = '';
+  try {
+    const storedUser = await getStoredToken('moi_user_profile');
+    signedInName = storedUser ? String(JSON.parse(storedUser)?.name || '').trim() : '';
+  } catch (_) {
+    signedInName = '';
+  }
+
+  const savedName = String(details?.fullName || '').trim();
+  const nameParts = String(signedInName || savedName)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   const firstName = nameParts[0] || '';
   const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
   const hour = new Date().getHours();
@@ -566,10 +578,10 @@ export const getCommunityUnreadCount = async (): Promise<number> => {
   ]);
 
   if (!messages || messages.length === 0) return 0;
-  if (!lastReadId) return 0;
+  if (!lastReadId) return messages.length;
 
   const index = messages.findIndex((m: any) => (m.id || m._id) === lastReadId);
-  if (index === -1) return 0;
+  if (index === -1) return messages.length;
 
   return Math.max(0, messages.length - 1 - index);
 };
@@ -594,7 +606,7 @@ export const getCommunityUnreadSummary = async (user?: { email?: string; name?: 
   } else {
     const lastReadIndex = messages.findIndex((message: any) => (message.id || message._id) === lastReadId);
     if (lastReadIndex === -1) {
-      unreadMessages = [];
+      unreadMessages = messages;
     } else {
       unreadMessages = messages.slice(lastReadIndex + 1);
     }
@@ -727,11 +739,8 @@ export const syncCommunityUnreadBackground = async (): Promise<void> => {
         await saveCommunityMessages(updated);
         await notifyUnreadCountListeners();
 
-        // If new messages arrived while device was offline, alert the user with a system notification
-        const newMessagesFromOthers = payload.data.filter((serverMsg: any) => {
-          return true; // All new messages in delta sync since last online cursor
-        });
-
+        // Keep a compact device alert for community messages received while offline.
+        const newMessagesFromOthers = payload.data;
         if (newMessagesFromOthers.length > 0) {
           try {
             if (newMessagesFromOthers.length === 1) {
@@ -752,6 +761,7 @@ export const syncCommunityUnreadBackground = async (): Promise<void> => {
             }
           } catch (e) {}
         }
+
       }
     } else if (payload && payload.syncedAt) {
       await saveCommunitySyncCursor(payload.syncedAt);
