@@ -21,6 +21,7 @@ import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { rankMaterials } from '../src/utils/materialSearch';
 import { OfflineState } from '../src/components/OfflineState';
 import { IPaper } from '@moi/shared';
 import {
@@ -50,6 +51,10 @@ export interface PastPaperItem {
   school: string;
   examYear: string;
   semester: string;
+  academicYear?: string;
+  department?: string;
+  description?: string;
+  type?: string;
   downloadsCount: number;
   starsCount: number;
   ratingScore: string;
@@ -146,14 +151,15 @@ export default function PastPapersScreen() {
   const [fetchError, setFetchError] = useState(false);
 
   // Fetch real uploaded past papers from Cloudinary / backend API
-  const fetchRealPastPapers = async () => {
+  const fetchRealPastPapers = async (searchTerm = '') => {
     try {
       setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
-      const res = await apiRequest<{ data: IPaper[] }>(`/papers?refresh=${Date.now()}`);
+      const searchParam = searchTerm.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
+      const res = await apiRequest<{ data: IPaper[] }>(`/papers?limit=500${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
           .filter((p) => p.type === 'past_paper' || p.type === 'solution')
@@ -168,6 +174,10 @@ export default function PastPapersScreen() {
             school: p.school || 'Moi University',
             examYear: String(p.examYear || 2025),
             semester: p.semester || 'Semester 1',
+            academicYear: p.academicYear || '',
+            department: p.department || '',
+            description: p.description || '',
+            type: p.type,
             downloadsCount: p.downloads || 4500,
             starsCount: 28,
             ratingScore: p.ratingScore || '4.8',
@@ -198,12 +208,19 @@ export default function PastPapersScreen() {
   };
 
   useEffect(() => {
-    fetchRealPastPapers();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') fetchRealPastPapers();
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisibleCount(4);
+      void fetchRealPastPapers(searchQuery.trim().length > 1 ? searchQuery : '');
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -222,16 +239,7 @@ export default function PastPapersScreen() {
     return () => clearInterval(timer);
   }, [carouselIndex]);
 
-  const filteredPapers = papersData.filter((item) => {
-    const q = searchQuery.toLowerCase();
-    const matchesQuery =
-      item.title.toLowerCase().includes(q) ||
-      item.unitCode.toLowerCase().includes(q) ||
-      item.unitName.toLowerCase().includes(q) ||
-      item.school.toLowerCase().includes(q);
-
-    if (!matchesQuery) return false;
-
+  const filteredPapers = rankMaterials(papersData, searchQuery).filter((item) => {
     if (activeFilterDisc === 'solutions') return item.hasSolutions;
     if (activeFilterDisc === 'hot') return item.downloadsCount > 2500;
     if (activeFilterDisc === '2025') return item.examYear === '2025';

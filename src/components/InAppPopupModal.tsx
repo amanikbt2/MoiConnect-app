@@ -151,7 +151,7 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
                 </View>
               ) : (
                 <View style={styles.normalBadge}>
-                  <Text style={styles.normalBadgeText}>MoiConnect Announcement</Text>
+                  <Text style={styles.normalBadgeText}>MConnect Announcement</Text>
                 </View>
               )}
             </View>

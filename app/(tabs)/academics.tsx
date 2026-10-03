@@ -29,6 +29,7 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
+import { getMaterialSearchScore } from '../../src/utils/materialSearch';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 import {
@@ -174,8 +175,8 @@ export default function AcademicsScreen({ route }: any) {
       setInitialLoading(true);
       setFetchError(false);
       const url = searchQueryParam && searchQueryParam.trim()
-        ? `/papers?search=${encodeURIComponent(searchQueryParam.trim())}`
-        : `/papers`;
+        ? `/papers?limit=500&search=${encodeURIComponent(searchQueryParam.trim())}`
+        : `/papers?limit=500`;
       const res = await apiRequest<{ data: IPaper[] }>(url);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const noteMaterials = res.data.filter((p) =>
@@ -381,51 +382,38 @@ export default function AcademicsScreen({ route }: any) {
       if (seenIds.has(item.id) || !filterByDisc(item)) return;
       seenIds.add(item.id);
 
-      const title = (item.title || '').toLowerCase();
-      const unitCode = (item.unitCode || '').toLowerCase();
-      const unitName = (item.unitName || '').toLowerCase();
-      const school = (item.school || '').toLowerCase();
-      const department = (item.department || '').toLowerCase();
-      const courseCode = (item.courseCode || '').toLowerCase();
-      const semester = (item.semester || '').toLowerCase();
-      const academicYear = (item.academicYear || '').toLowerCase();
-      const paperType = (item.paperType || '').toLowerCase();
-      const mtid = (item.mtid || '').toLowerCase();
-      const examYear = String(item.examYear || '').toLowerCase();
-      const description = (item.description || '').toLowerCase();
-      const author = (item.author || '').toLowerCase();
+      const score = getMaterialSearchScore({
+        mtid: item.mtid,
+        title: item.title,
+        unitCode: item.unitCode,
+        unitName: item.unitName,
+        school: item.school,
+        department: item.department,
+        courseCode: item.courseCode,
+        semester: item.semester,
+        academicYear: item.academicYear,
+        examYear: item.examYear,
+        type: item.paperType,
+        description: item.description,
+        author: item.author
+      }, q);
 
-      // Top Match: direct hit on unitCode, title, courseCode, or mtid
-      const isTopMatch =
-        unitCode.includes(q) ||
-        mtid.includes(q) ||
-        title.includes(q) ||
-        courseCode.includes(q);
-
-      // Related Match: hit on hidden metadata like semester, academicYear, examYear, school, department, paperType, description
-      const isRelatedMatch =
-        !isTopMatch &&
-        (semester.includes(q) ||
-          academicYear.includes(q) ||
-          examYear.includes(q) ||
-          school.includes(q) ||
-          department.includes(q) ||
-          paperType.includes(q) ||
-          description.includes(q) ||
-          author.includes(q) ||
-          unitName.includes(q));
-
-      if (isTopMatch) {
+      if (score !== null && score <= 5) {
         topMatches.push(item);
-      } else if (isRelatedMatch) {
+      } else if (score !== null) {
         relatedMatches.push(item);
       }
     });
 
+    const scoreList = (items: NoteItem[]) => items.sort((a, b) =>
+      (getMaterialSearchScore({ ...a, type: a.paperType }, q) ?? Number.MAX_SAFE_INTEGER) -
+      (getMaterialSearchScore({ ...b, type: b.paperType }, q) ?? Number.MAX_SAFE_INTEGER)
+    );
+
     return {
       isSearching: true,
-      topMatches,
-      relatedMatches
+      topMatches: scoreList(topMatches),
+      relatedMatches: scoreList(relatedMatches)
     };
   }, [searchQuery, realUploadedNotes, activeFilterDisc, showDemoMaterials]);
 

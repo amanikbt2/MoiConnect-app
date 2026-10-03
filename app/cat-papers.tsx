@@ -21,6 +21,7 @@ import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { rankMaterials } from '../src/utils/materialSearch';
 import { OfflineState } from '../src/components/OfflineState';
 import { IPaper } from '@moi/shared';
 import {
@@ -49,6 +50,7 @@ export interface CATPaperItem {
   unitName: string;
   school: string;
   catType: 'CAT 1' | 'CAT 2' | 'Mid-Sem Quiz';
+  type?: string;
   downloadsCount: number;
   starsCount: number;
   ratingScore: string;
@@ -56,6 +58,10 @@ export interface CATPaperItem {
   fileUrl: string;
   ttsTextUrl?: string;
   examYear: string;
+  semester?: string;
+  academicYear?: string;
+  department?: string;
+  description?: string;
   tag?: string;
 }
 
@@ -144,14 +150,15 @@ export default function CatPapersScreen() {
   const [fetchError, setFetchError] = useState(false);
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
-  const fetchRealCatPapers = async () => {
+  const fetchRealCatPapers = async (searchTerm = '') => {
     try {
       setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
-      const res = await apiRequest<{ data: IPaper[] }>(`/papers?refresh=${Date.now()}`);
+      const searchParam = searchTerm.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
+      const res = await apiRequest<{ data: IPaper[] }>(`/papers?limit=500${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
           .filter((p) => p.type === 'cat')
@@ -163,6 +170,7 @@ export default function CatPapersScreen() {
             unitName: p.unitName || p.title,
             school: p.school || 'Moi University',
             catType: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
+            type: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
             downloadsCount: p.downloads || 4500,
             starsCount: 22,
             ratingScore: p.ratingScore || '4.8',
@@ -173,6 +181,10 @@ export default function CatPapersScreen() {
             fileUrl: p.fileUrl,
             ttsTextUrl: (p as any).ttsTextUrl,
             examYear: String(p.examYear || 2025),
+            semester: p.semester || '',
+            academicYear: p.academicYear || '',
+            department: p.department || '',
+            description: p.description || '',
             tag: '🔥 Real CAT'
           }));
 
@@ -192,12 +204,19 @@ export default function CatPapersScreen() {
   };
 
   useEffect(() => {
-    fetchRealCatPapers();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') fetchRealCatPapers();
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisibleCount(4);
+      void fetchRealCatPapers(searchQuery.trim().length > 1 ? searchQuery : '');
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -216,16 +235,7 @@ export default function CatPapersScreen() {
     return () => clearInterval(timer);
   }, [carouselIndex]);
 
-  const filteredCats = catsData.filter((item) => {
-    const q = searchQuery.toLowerCase();
-    const matchesQuery =
-      item.title.toLowerCase().includes(q) ||
-      item.unitCode.toLowerCase().includes(q) ||
-      item.unitName.toLowerCase().includes(q) ||
-      item.school.toLowerCase().includes(q);
-
-    if (!matchesQuery) return false;
-
+  const filteredCats = rankMaterials(catsData, searchQuery).filter((item) => {
     if (activeFilterDisc === 'cat1') return item.catType === 'CAT 1';
     if (activeFilterDisc === 'cat2') return item.catType === 'CAT 2';
     if (activeFilterDisc === 'quiz') return item.catType === 'Mid-Sem Quiz';
