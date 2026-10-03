@@ -15,10 +15,6 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#006400"
-      },
       "icon": "./assets/playstore_assets/icon.png",
       "package": "com.amanikbt1.moiconnect",
       "permissions": [

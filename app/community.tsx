@@ -848,6 +848,7 @@ export default function CommunityScreen() {
         activeSocket.off('community:user_typing');
         activeSocket.off('community:user_stop_typing');
         activeSocket.off('community:reaction_updated');
+        activeSocket.off('community:message_deleted');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
         activeSocket.off('connect');
