@@ -2,7 +2,7 @@
   "expo": {
     "name": "MConnect",
     "slug": "moiconnect",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,7 @@
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS"
       ],
-      "versionCode": 31
+      "versionCode": 32
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
