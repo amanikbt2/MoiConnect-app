@@ -1002,20 +1002,23 @@ export function VolumeOffIcon({ color = '#ffffff', size = 20, style }: IconProps
 export function TransmitterIcon({ color = '#ffffff', size = 18, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      {/* Symmetric broadcast waves */}
       <Path
-        d="M12 2V22M12 4L8 20M12 4L16 20M9 12H15M8 16H16"
+        d="M8 6C5.4 7.5 5.4 10.5 8 12M5 3.5C0.8 6.2 0.8 11.8 5 14.5M16 6C18.6 7.5 18.6 10.5 16 12M19 3.5C23.2 6.2 23.2 11.8 19 14.5"
         stroke={color}
-        strokeWidth="2"
+        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      {/* Lattice antenna mast */}
       <Path
-        d="M5 8A9 9 0 0 1 19 8M8 10A5 5 0 0 1 16 10"
+        d="M12 7V22M12 7L7 21M12 7L17 21M9 14H15M8 18H16M10 12L14 16M14 12L10 16"
         stroke={color}
-        strokeWidth="2"
+        strokeWidth="1.6"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <Circle cx="12" cy="4" r="1.5" fill={color} />
+      <Circle cx="12" cy="5" r="2.1" fill={color} />
     </Svg>
   );
 }
@@ -1068,7 +1071,6 @@ export function CameraOffIcon({ color = '#ffffff', size = 18, style }: IconProps
     </Svg>
   );
 }
-
 
 
 

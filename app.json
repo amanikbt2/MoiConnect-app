@@ -2,7 +2,7 @@
   "expo": {
     "name": "MConnect",
     "slug": "moiconnect",
-    "version": "1.2.4",
+    "version": "1.2.5",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -20,9 +20,17 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK"
       ],
-      "versionCode": 33
+      "versionCode": 34
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
@@ -56,10 +64,10 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "moiconnect",
-    "owner": "sliver4",
+    "owner": "amanikbt1",
     "extra": {
       "eas": {
-        "projectId": "53c51c41-a1f7-40a0-8111-7b7cd97d968e"
+        "projectId": "d071255a-210e-4593-86e6-18d71d434bb4"
       }
     }
   }

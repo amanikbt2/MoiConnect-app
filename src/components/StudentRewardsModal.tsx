@@ -18,11 +18,12 @@ interface RewardMilestone {
 }
 
 const REWARD_MILESTONES: RewardMilestone[] = [
-  { pts: 6, labelPts: '6+ pts', rewardKsh: 'Ksh 5' },
-  { pts: 8, labelPts: '8+ pts', rewardKsh: 'Ksh 1' },
-  { pts: 10, labelPts: '10+ pts', rewardKsh: 'Ksh 1' },
-  { pts: 100, labelPts: '100+ pts', rewardKsh: 'Ksh 450' },
-  { pts: 1000, labelPts: '1000+ pts', rewardKsh: 'Ksh 2,500' }
+  { pts: 0, labelPts: '0–49 pts', rewardKsh: 'Ksh 0' },
+  { pts: 50, labelPts: '50+ pts', rewardKsh: 'Ksh 1' },
+  { pts: 150, labelPts: '150+ pts', rewardKsh: 'Ksh 1' },
+  { pts: 500, labelPts: '500+ pts', rewardKsh: 'Ksh 3' },
+  { pts: 1000, labelPts: '1000+ pts', rewardKsh: 'Ksh 5' },
+  { pts: 1500, labelPts: '1500+ pts', rewardKsh: 'Ksh 7' }
 ];
 
 interface StudentRewardsModalProps {
@@ -56,9 +57,6 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
       const stepProgress = Math.min(1, Math.max(0, (userPoints - currentPts) / (nextPts - currentPts)));
       progressPercent = ((currentStepIndex + stepProgress) / (REWARD_MILESTONES.length - 1)) * 100;
     }
-  } else {
-    // Before first node (0 to 6 pts)
-    progressPercent = Math.min(1, userPoints / REWARD_MILESTONES[0].pts) * (100 / (REWARD_MILESTONES.length - 1)) * 0.5;
   }
 
   return (

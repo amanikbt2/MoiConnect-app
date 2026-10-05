@@ -26,6 +26,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
+import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
 import { STICKERS } from '../src/data/stickers';
@@ -331,10 +332,11 @@ const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [];
 const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(message.isDemo) || INITIAL_COMMUNITY_MESSAGES.some((seed) => seed.id === message.id && seed.senderName === message.senderName);
 
 export default function CommunityScreen() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { selectedUniversity } = useUniversity();
   const campusName = selectedUniversity?.shortName || 'Campus';
   const router = useAppNavigation();
+  const isForumFocused = useIsFocused();
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
@@ -359,6 +361,13 @@ export default function CommunityScreen() {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<CommunityMessage | null>(null);
+  const [showGuestSignInPrompt, setShowGuestSignInPrompt] = useState(false);
+  const [goLiveNotice, setGoLiveNotice] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && isForumFocused) setShowGuestSignInPrompt(!user);
+    if (user) setShowGuestSignInPrompt(false);
+  }, [authLoading, user, isForumFocused]);
 
   useEffect(() => {
     getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
@@ -425,6 +434,30 @@ export default function CommunityScreen() {
       typingDotAnim.setValue(0);
     }
   }, [typingUsers.length, botTyping]);
+
+  const handleGoLivePress = () => {
+    if (!user) {
+      setGoLiveNotice({ title: 'Sign in required', message: 'Please sign in before requesting access to Go Live.' });
+      return;
+    }
+
+    const createdAt = new Date(String((user as any).createdAt || ''));
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    if (!Number.isNaN(createdAt.getTime()) && createdAt > sixMonthsAgo) {
+      setGoLiveNotice({
+        title: 'Go Live eligibility',
+        message: 'You are not eligible to go live yet. Your account must be at least 6 months old.'
+      });
+      return;
+    }
+
+    setGoLiveNotice({
+      title: 'Live temporarily unavailable',
+      message: 'Live streaming is temporarily unavailable right now. Please try again later.'
+    });
+  };
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
@@ -1617,7 +1650,7 @@ export default function CommunityScreen() {
           <View style={styles.headerAvatarContainer}>
             <View style={styles.headerAvatar}>
               <Image
-                source={require('../assets/moi-uni-logo.png')}
+                source={require('../assets/uni-forum-avatar.png')}
                 style={styles.headerAvatarImg}
                 resizeMode="contain"
               />
@@ -1635,7 +1668,7 @@ export default function CommunityScreen() {
 
           <TouchableOpacity
             style={styles.goLiveHeaderBtn}
-            onPress={() => showIceMessage('Live temporarily unavailable', 'Live streaming is temporarily unavailable right now. Please try again later.')}
+            onPress={handleGoLivePress}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Go live"
@@ -2115,6 +2148,60 @@ export default function CommunityScreen() {
             </View>
           )}
         </ImageBackground>
+
+        {/* Signed-out visitors can browse, but are prompted to unlock forum actions. */}
+        <Modal
+          visible={showGuestSignInPrompt && isForumFocused && !authLoading && !user}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.guestPromptOverlay}>
+            <View style={styles.guestPromptCard}>
+              <View style={styles.guestPromptIcon}>
+                <UsersIcon color="#15803d" size={26} />
+              </View>
+              <Text style={styles.guestPromptTitle}>Join Uni Forum</Text>
+              <Text style={styles.guestPromptText}>
+                Sign in to send messages, reply, mention students, share materials, and use all forum features.
+              </Text>
+              <TouchableOpacity
+                style={styles.guestPromptSignInBtn}
+                onPress={() => {
+                  setShowGuestSignInPrompt(false);
+                  router.push('/(auth)/login');
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.guestPromptSignInText}>Sign in</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={Boolean(goLiveNotice)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setGoLiveNotice(null)}
+        >
+          <View style={styles.guestPromptOverlay}>
+            <View style={styles.guestPromptCard}>
+              <View style={styles.guestPromptIcon}>
+                <TransmitterIcon color="#15803d" size={27} />
+              </View>
+              <Text style={styles.guestPromptTitle}>{goLiveNotice?.title}</Text>
+              <Text style={styles.guestPromptText}>{goLiveNotice?.message}</Text>
+              <TouchableOpacity
+                style={styles.guestPromptSignInBtn}
+                onPress={() => setGoLiveNotice(null)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.guestPromptSignInText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Compact community profile preview */}
         <Modal visible={!!selectedProfile} transparent animationType="fade" onRequestClose={() => setSelectedProfile(null)}>
@@ -3026,6 +3113,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24
+  },
+  guestPromptOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.52)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24
+  },
+  guestPromptCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 20,
+    elevation: 10
+  },
+  guestPromptIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14
+  },
+  guestPromptTitle: {
+    color: '#0f172a',
+    fontSize: 21,
+    fontWeight: '900',
+    textAlign: 'center'
+  },
+  guestPromptText: {
+    color: '#64748b',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 20
+  },
+  guestPromptSignInBtn: {
+    width: '100%',
+    backgroundColor: '#15803d',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center'
+  },
+  guestPromptSignInText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900'
   },
   profileModalCard: {
     width: '100%',
