@@ -112,7 +112,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     progress?: number;
   }>({});
 
-  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 0.9, speechPitch: 1.08 });
+  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 0.92, speechPitch: 1.0 });
   const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
   const [isPreparingTTS, setIsPreparingTTS] = useState(false);
   const [isReadingTTS, setIsReadingTTS] = useState(false);
@@ -518,7 +518,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 </View>
 
                 <Text style={styles.voicePickerNote}>
-                  Google UK English Female is preferred when your Android speech engine has it installed. Otherwise, the closest available UK English voice is selected.
+                  A natural English voice with a balanced pitch is preferred when your Android speech engine has it installed. You can choose another voice or adjust the pitch below.
                 </Text>
 
                 <ScrollView style={styles.voicePickerList} nestedScrollEnabled>

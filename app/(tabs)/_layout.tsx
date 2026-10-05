@@ -3,11 +3,10 @@ import { View, Text, Image, TouchableOpacity, Modal, Pressable, Alert, StyleShee
 import { Tabs } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon, MoreVerticalIcon, TrashIcon } from '../../src/components/Icons';
 import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
+import { PointsHeaderButton } from '../../src/components/StudentRewardsModal';
 import { useAuth } from '../../src/context/AuthContext';
 import {
-  subscribeToUnreadCountUpdates,
-  getStoredCommunityMessages,
-  saveLastReadCommunityMsgId
+  subscribeToUnreadCountUpdates
 } from '../../src/services/offlineStorage';
 
 function HomeHeaderTitle() {
@@ -256,7 +255,8 @@ export default function TabLayout() {
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: '800', fontSize: 18 },
         headerRight: () => (
-          <View style={{ marginRight: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 14, gap: 10 }}>
+            <PointsHeaderButton />
             <NotificationCenterModal />
           </View>
         ),
@@ -297,18 +297,8 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="messages"
-        listeners={{
-          tabPress: () => {
-            getStoredCommunityMessages().then((msgs) => {
-              if (msgs && msgs.length > 0) {
-                const latestId = msgs[msgs.length - 1].id || msgs[msgs.length - 1]._id;
-                if (latestId) saveLastReadCommunityMsgId(latestId);
-              }
-            });
-          }
-        }}
         options={{
-          title: 'Community',
+          title: 'Uni Forum',
           headerShown: false,
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
           tabBarBadgeStyle: {

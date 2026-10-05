@@ -9,8 +9,10 @@ import { GlobalBottomBar } from '../src/components/GlobalBottomBar';
 import { IceMessageHost } from '../src/components/IceMessageCard';
 import { InAppPopupModal } from '../src/components/InAppPopupModal';
 import { checkAppPopups } from '../src/services/popupService';
-import { registerForPushNotificationsAsync, setupNotificationResponseListener } from '../src/services/notificationService';
+import { registerForPushNotificationsAsync, setCommunityChatActive, setupNotificationResponseListener } from '../src/services/notificationService';
 import { useAuth } from '../src/context/AuthContext';
+import { UniversityProvider } from '../src/context/UniversityContext';
+import { UniversitySetupModal } from '../src/components/UniversitySetupModal';
 import { syncCommunityUnreadBackground } from '../src/services/offlineStorage';
 
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,6 +26,7 @@ const queryClient = new QueryClient();
 function AppRuntimeServices() {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [activePopup, setActivePopup] = useState<any>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const popupCheckInFlight = useRef(false);
@@ -47,17 +50,20 @@ function AppRuntimeServices() {
       router.push(screenPath as any);
     });
 
-    // 30-second lightweight poll for new community messages and mentions
-    void syncCommunityUnreadBackground();
+    const onCommunityRoute = pathname.toLowerCase().includes('message') || pathname.toLowerCase().includes('community');
+
+    // Keep unread counters fresh while the app is open. Notifications are
+    // suppressed by the sync service while the user is already in the chat.
+    void syncCommunityUnreadBackground({ notify: !onCommunityRoute });
     const communitySyncInterval = setInterval(() => {
-      void syncCommunityUnreadBackground();
-    }, 30000);
+      void syncCommunityUnreadBackground({ notify: !onCommunityRoute });
+    }, 5000);
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void registerForPushNotificationsAsync();
         loadPopup();
-        void syncCommunityUnreadBackground();
+        void syncCommunityUnreadBackground({ notify: !onCommunityRoute });
       }
     });
 
@@ -67,7 +73,7 @@ function AppRuntimeServices() {
       appStateSubscription.remove();
       clearInterval(communitySyncInterval);
     };
-  }, [user?._id]);
+  }, [user?._id, pathname]);
 
   return (
     <InAppPopupModal
@@ -81,6 +87,13 @@ export default function RootLayout() {
   const pathname = usePathname();
   const router = useRouter();
 
+  useEffect(() => {
+    setCommunityChatActive(
+      pathname.toLowerCase().includes('message') || pathname.toLowerCase().includes('community')
+    );
+    return () => setCommunityChatActive(false);
+  }, [pathname]);
+
   const handleNavigate = (tab: 'Home' | 'Downloads' | 'Community') => {
     if (tab === 'Home') router.push('/(tabs)');
     else if (tab === 'Downloads') router.push('/(tabs)/downloads');
@@ -89,6 +102,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     void SplashScreen.hideAsync().catch(() => {});
+    // Request permission and register the device as soon as the installed
+    // app opens, even before authentication is complete. The authenticated
+    // runtime retries after sign-in so the same token becomes linked to the
+    // user's account when available.
+    void registerForPushNotificationsAsync();
     // Automatically initialize socket connection for online status tracking
     initSocket().catch(() => {});
 
@@ -114,8 +132,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <AppRuntimeServices />
+        <UniversityProvider>
+          <UniversitySetupModal />
+          <AuthProvider>
+            <AppRuntimeServices />
           <IceMessageHost />
           <StatusBar style="light" backgroundColor="#15803d" />
           <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
@@ -143,7 +163,8 @@ export default function RootLayout() {
               onMentionNavigate={() => router.push({ pathname: '/(tabs)/messages', params: { focusMention: '1' } })}
             />
           </View>
-        </AuthProvider>
+          </AuthProvider>
+        </UniversityProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   );

@@ -13,8 +13,6 @@ import { HomeIcon, DownloadIcon } from './Icons';
 import {
   subscribeToUnreadCountUpdates,
   subscribeToUnreadSummaryUpdates,
-  getStoredCommunityMessages,
-  saveLastReadCommunityMsgId,
   syncCommunityUnreadBackground
 } from '../services/offlineStorage';
 import { useAuth } from '../context/AuthContext';
@@ -41,7 +39,10 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     }, user);
 
     if (user) {
-      void syncCommunityUnreadBackground();
+      const onCommunityRoute = typeof currentRoute === 'string' && (
+        currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')
+      );
+      void syncCommunityUnreadBackground({ notify: !onCommunityRoute });
     }
 
     const showSub = Keyboard.addListener(
@@ -59,7 +60,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       showSub.remove();
       hideSub.remove();
     };
-  }, [user]);
+  }, [user, currentRoute]);
 
   let bottomInset = 0;
   try {
@@ -104,23 +105,12 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       (currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')));
 
   const handlePress = async (tab: 'Home' | 'Downloads' | 'Community') => {
-    if (tab === 'Community') {
-      const msgs = await getStoredCommunityMessages();
-      if (msgs && msgs.length > 0) {
-        const latestId = msgs[msgs.length - 1].id || msgs[msgs.length - 1]._id;
-        if (latestId) {
-          await saveLastReadCommunityMsgId(latestId);
-        }
-      }
-    }
     if (onNavigate) {
       onNavigate(tab);
     }
   };
 
   const containerPaddingBottom = Math.max(bottomInset, Platform.OS === 'ios' ? 14 : 6);
-  const totalUnreadCount = unreadCount + unreadMentions;
-
   return (
     <View style={[styles.container, { paddingBottom: containerPaddingBottom }]}>
       {/* 1. Home Tab */}
@@ -178,27 +168,29 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
                 accessibilityRole="button"
                 accessibilityLabel="Jump to unread mention"
               >
-                <Text style={styles.mentionBadgeLeftText}>@</Text>
+                <Text style={styles.mentionBadgeLeftText}>
+                  @{unreadMentions > 99 ? '99+' : unreadMentions}
+                </Text>
               </TouchableOpacity>
 
               {/* Right Side: Total Unread Count Badge */}
               <View style={styles.countBadgeRight}>
                 <Text style={styles.badgeText}>
-                  {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </Text>
               </View>
             </>
-          ) : totalUnreadCount > 0 ? (
+          ) : unreadCount > 0 ? (
             /* Center: Normal Red Unread Count Badge */
             <View style={styles.countBadgeCenter}>
               <Text style={styles.badgeText}>
-                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                  {unreadCount > 99 ? '99+' : unreadCount}
               </Text>
             </View>
           ) : null}
         </View>
         <Text style={[styles.tabLabel, isCommunityActive ? styles.tabLabelActive : styles.tabLabelInactive]}>
-          Community
+          Uni Forum
         </Text>
       </TouchableOpacity>
     </View>

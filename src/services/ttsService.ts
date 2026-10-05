@@ -33,8 +33,10 @@ class TTSService {
   private activeText: string = '';
   private voices: VoiceOption[] = [];
   private selectedVoiceId: string | null = null;
-  private speechRate = 0.9;
-  private speechPitch = 1.08;
+  // A centered pitch and slightly relaxed rate give Android's native voice
+  // a natural, balanced tone without leaning strongly male or female.
+  private speechRate = 0.92;
+  private speechPitch = 1.0;
   private listeners: Set<TTSListener> = new Set();
 
   constructor() {
@@ -82,11 +84,9 @@ class TTSService {
   private choosePreferredVoice(): VoiceOption | undefined {
     const isEnglish = (voice: VoiceOption) => /(^|-)en([_-]|$)/i.test(voice.language || '') || /english/i.test(voice.name);
     const isBritish = (voice: VoiceOption) => /en[-_]gb/i.test(voice.language || '') || /\b(uk|british)\b/i.test(voice.name);
-    const googleFemale = this.voices.find((voice) => /google.*(uk|united kingdom|en[-_]gb).*female|google uk english female/i.test(`${voice.name} ${voice.language}`));
-    const britishFemale = this.voices.find((voice) => isBritish(voice) && /female|woman/i.test(voice.name));
     const britishNatural = this.voices.find((voice) => isBritish(voice) && /google|natural|enhanced|network/i.test(`${voice.name} ${voice.quality || ''}`));
-    return googleFemale || britishFemale || britishNatural || this.voices.find(isBritish) ||
-      this.voices.find((voice) => isEnglish(voice) && /google|natural|enhanced/i.test(`${voice.name} ${voice.quality || ''}`)) ||
+    const englishNatural = this.voices.find((voice) => isEnglish(voice) && /google|natural|enhanced|network/i.test(`${voice.name} ${voice.quality || ''}`));
+    return britishNatural || englishNatural || this.voices.find(isBritish) ||
       this.voices.find(isEnglish) || this.voices[0];
   }
 
@@ -403,4 +403,3 @@ class TTSService {
 }
 
 export const ttsService = new TTSService();
-

@@ -51,7 +51,7 @@ const FAQ_DATA: FAQItem[] = [
     id: 'rewards_points',
     category: 'Rewards & Contributions',
     question: 'How do student reward points work?',
-    answer: 'You receive +5 bonus points upon account registration. You can earn +10 points for every approved past paper or study guide you upload. Points can be tracked on your profile and redeemed for campus benefits.',
+    answer: 'You receive +5 bonus points upon account registration. Each approved past paper or study guide earns a random +1 or +2 points. Points can be tracked on your profile and may unlock M-Pesa rewards at the published milestones.',
     iconTag: '🌟'
   },
   {

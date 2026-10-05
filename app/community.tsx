@@ -20,12 +20,15 @@ import {
   Animated,
   Easing,
   Image,
+  ImageBackground,
   AppState
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../src/context/AuthContext';
+import { useUniversity } from '../src/context/UniversityContext';
+import { STICKERS } from '../src/data/stickers';
 import { useAppNavigation } from '../src/utils/navigation';
 import {
   SendIcon,
@@ -148,13 +151,6 @@ const isCampusAIMessage = (message: CommunityMessage) =>
   message.senderName.toLowerCase() === 'campus ai';
 const isCampusAssistantMessage = (message: CommunityMessage) => isCampusBotMessage(message) || isCampusAIMessage(message);
 
-const STICKERS = [
-  { id: 'heart', label: 'Love', source: require('../assets/stickers/heart.png') },
-  { id: 'thumbs-up', label: 'Nice', source: require('../assets/stickers/thumbs-up.png') },
-  { id: 'party', label: 'Celebrate', source: require('../assets/stickers/party.png') },
-  { id: 'laugh', label: 'Laugh', source: require('../assets/stickers/laugh.png') },
-  { id: 'star', label: 'Great', source: require('../assets/stickers/star.png') }
-] as const;
 const STICKER_SOURCES: Record<string, any> = Object.fromEntries(STICKERS.map((sticker) => [sticker.id, sticker.source]));
 
 function SwipeableMessageItem({
@@ -336,6 +332,8 @@ const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(messa
 
 export default function CommunityScreen() {
   const { user } = useAuth();
+  const { selectedUniversity } = useUniversity();
+  const campusName = selectedUniversity?.shortName || 'Campus';
   const router = useAppNavigation();
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
@@ -767,17 +765,27 @@ export default function CommunityScreen() {
         socket.on('community:user_typing', (data: { userId: string; userName: string; socketId?: string }) => {
           if (!data || !data.userId) return;
 
+          // Never show the current user's own indicator on their device.
+          // This also covers another active session using the same account.
+          const currentUserId = user?._id ? String(user._id) : '';
+          if (currentUserId && String(data.userId) === currentUserId) {
+            setTypingUsers((prev) => prev.filter((u) => u.userId !== String(data.userId)));
+            return;
+          }
+
           setTypingUsers((prev) => {
-            if (prev.some((u) => u.userId === data.userId)) return prev;
-            return [...prev, { userId: data.userId, userName: data.userName || 'Moi Student' }];
+            const incomingUserId = String(data.userId);
+            if (prev.some((u) => u.userId === incomingUserId)) return prev;
+            return [...prev, { userId: incomingUserId, userName: data.userName || 'Moi Student' }];
           });
 
-          if (typingTimeoutsRef.current[data.userId]) {
-            clearTimeout(typingTimeoutsRef.current[data.userId]);
+          const incomingUserId = String(data.userId);
+          if (typingTimeoutsRef.current[incomingUserId]) {
+            clearTimeout(typingTimeoutsRef.current[incomingUserId]);
           }
-          typingTimeoutsRef.current[data.userId] = setTimeout(() => {
-            setTypingUsers((prev) => prev.filter((u) => u.userId !== data.userId));
-            delete typingTimeoutsRef.current[data.userId];
+          typingTimeoutsRef.current[incomingUserId] = setTimeout(() => {
+            setTypingUsers((prev) => prev.filter((u) => u.userId !== incomingUserId));
+            delete typingTimeoutsRef.current[incomingUserId];
           }, 3500);
         });
 
@@ -948,9 +956,11 @@ export default function CommunityScreen() {
           ? p.unitName || p.department || 'Academic Material'
           : savedTitle;
         const cleanCode = p.unitCode || p.courseCode || 'MOI';
-        const fileName = `${cleanCode}_${cleanTitle.replace(/[^a-zA-Z0-9_]/g, '_')}.pdf`;
         return {
-          name: fileName,
+          // Keep the human-readable material title as the attachment name.
+          // The attachment type already identifies it as a PDF, so exposing
+          // the generated storage filename here only makes the picker noisy.
+          name: cleanTitle,
           url: p.fileUrl || '',
           size: '1.8 MB',
           type: 'pdf',
@@ -1173,21 +1183,21 @@ export default function CommunityScreen() {
     });
   };
 
-  useEffect(() => {
-    void retryQueuedMessages();
-    const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        void getSocket().then((socket) => {
-          if (socket && !socket.connected) socket.connect();
-        });
-        void fetchDeltaSync();
-        void retryQueuedMessages();
-      } else {
-        const offlineSince = new Date().toISOString();
-        lastSyncedISO.current = offlineSince;
-        void saveCommunitySyncCursor(offlineSince);
-      }
-    });
+    useEffect(() => {
+      void retryQueuedMessages();
+      const appStateSubscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active') {
+          void getSocket().then((socket) => {
+            if (socket && !socket.connected) socket.connect();
+          });
+          // Keep the last cursor that was actually returned by the server.
+          // Advancing it while the app is backgrounded makes messages sent
+          // from web disappear from the next delta sync (the push can still
+          // arrive, but the message itself is then queried after its time).
+          void fetchDeltaSync();
+          void retryQueuedMessages();
+        }
+      });
     const retryTimer = setInterval(retryQueuedMessages, 15000);
     return () => {
       appStateSubscription.remove();
@@ -1617,8 +1627,8 @@ export default function CommunityScreen() {
 
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>
-              <Text style={{ color: '#ffffff' }}>Moi Campus </Text>
-              <Text style={{ color: '#a7f3d0' }}>Community</Text>
+              <Text style={{ color: '#ffffff' }}>Uni </Text>
+              <Text style={{ color: '#a7f3d0' }}>Forum</Text>
             </Text>
             <View style={styles.onlineSubtitle}><OnlineStatusIcon color="#86efac" size={13} /><Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text></View>
           </View>
@@ -1635,7 +1645,12 @@ export default function CommunityScreen() {
         </View>
 
         {/* WhatsApp-Style Chat Wallpaper */}
-        <View style={styles.chatBackground}>
+        <ImageBackground
+          source={require('../assets/uni-space-wallpaper.png')}
+          style={styles.chatBackground}
+          imageStyle={styles.chatWallpaperImage}
+          resizeMode="cover"
+        >
           <FlatList
             ref={flatListRef}
             data={displayMessages}
@@ -2099,7 +2114,7 @@ export default function CommunityScreen() {
               <Text style={styles.chatDisabledNoticeText}>Community chat disabled by administrator</Text>
             </View>
           )}
-        </View>
+        </ImageBackground>
 
         {/* Compact community profile preview */}
         <Modal visible={!!selectedProfile} transparent animationType="fade" onRequestClose={() => setSelectedProfile(null)}>
@@ -2188,7 +2203,7 @@ export default function CommunityScreen() {
                       <FileTextIcon color="#15803d" size={22} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sampleFileName}>{file.name}</Text>
+                      <Text style={styles.sampleFileName}>{file.title || file.name}</Text>
                       <Text style={styles.sampleFileMeta}>{file.size} • Ready to share</Text>
                     </View>
                     <Text style={styles.attachLabel}>+ Attach</Text>
@@ -2499,7 +2514,14 @@ const styles = StyleSheet.create({
   },
   chatBackground: {
     flex: 1,
+    width: '100%',
+    minHeight: 0,
     backgroundColor: '#efeae2'
+  },
+  chatWallpaperImage: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.92
   },
   messageList: {
     padding: 12,
@@ -2940,7 +2962,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 8,
-    backgroundColor: '#efeae2',
+    // Let the wallpaper continue behind the composer until the bottom bar.
+    backgroundColor: 'transparent',
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#e9edef'

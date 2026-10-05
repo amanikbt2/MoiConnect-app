@@ -100,18 +100,33 @@ export default function DownloadsScreen() {
 
   const handleRemoveCompletely = (paper: OfflinePaper) => {
     setMenuPaper(null);
+    const deletePaper = async () => {
+      try {
+        await removeOfflinePaper(paper._id);
+        setDownloadedPapers((current) => current.filter((item) => item._id !== paper._id));
+        showIceMessage('Deleted', 'The material and its saved device files were removed.');
+      } catch (error) {
+        showIceMessage('Delete failed', 'The saved material could not be removed completely. Please try again.');
+      }
+    };
+
+    // React Native's nested Modal confirmation is unreliable on web because
+    // the downloads action sheet can remain above the confirmation layer.
+    // Use the browser's native confirmation, then perform the same storage
+    // cleanup and state refresh.
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm(`Delete "${paper.title}" from downloads?`)) {
+        void deletePaper();
+      }
+      return;
+    }
+
     showIceMessage(
       'Delete',
       `Are you sure you want to permanently delete "${paper.title}" from your phone? This frees up device storage immediately.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await removeOfflinePaper(paper._id);
-          }
-        }
+        { text: 'Delete', style: 'destructive', onPress: deletePaper }
       ]
     );
   };

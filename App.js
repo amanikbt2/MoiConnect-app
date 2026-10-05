@@ -6,6 +6,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/context/AuthContext';
+import { UniversityProvider } from './src/context/UniversityContext';
+import { UniversitySetupModal } from './src/components/UniversitySetupModal';
 import { NetworkProvider } from './src/context/NetworkContext';
 import { StatusBar } from 'expo-status-bar';
 import { GlobalBottomBar } from './src/components/GlobalBottomBar';
@@ -316,25 +318,88 @@ function HeaderPointsBadge() {
             </View>
 
             <View style={{ backgroundColor: '#f0fdf4', borderRadius: 14, padding: 14, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#bbf7d0' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#166534', textTransform: 'uppercase' }}>Your Balance</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#166634', textTransform: 'uppercase' }}>Your Points</Text>
               <Text style={{ fontSize: 28, fontWeight: '900', color: '#15803d', marginVertical: 2 }}>{userPoints} pts</Text>
               <Text style={{ fontSize: 11, color: '#15803d' }}>Earn points by contributing study materials!</Text>
             </View>
 
-            <View style={{ gap: 8, marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f8fafc', padding: 10, borderRadius: 12 }}>
-                <Text style={{ fontSize: 16 }}>🎉</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#0f172a' }}>Account Welcome Bonus</Text>
-                  <Text style={{ fontSize: 11, color: '#15803d', fontWeight: '600' }}>+5 pts awarded on registration</Text>
-                </View>
-              </View>
+            {/* Progress Section Container */}
+            <View style={{ width: '100%', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 16 }}>
+              <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600', marginBottom: 16 }}>
+                {userPoints >= 1000
+                  ? '🎉 Max level reached!'
+                  : userPoints >= 100
+                  ? 'Reach 1000+ pts to unlock Ksh 2,500'
+                  : userPoints >= 10
+                  ? 'Reach 100+ pts to unlock Ksh 450'
+                  : userPoints >= 8
+                  ? 'Reach 10+ pts to unlock Ksh 1'
+                  : userPoints >= 6
+                  ? 'Reach 8+ pts to unlock Ksh 1'
+                  : 'Reach 6+ pts to unlock Ksh 5'}
+              </Text>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f8fafc', padding: 10, borderRadius: 12 }}>
-                <Text style={{ fontSize: 16 }}>📚</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#0f172a' }}>Material Contribution</Text>
-                  <Text style={{ fontSize: 11, color: '#15803d', fontWeight: '600' }}>+10 pts per approved upload</Text>
+              {/* Progress Line Component */}
+              <View style={{ position: 'relative', paddingVertical: 6, marginBottom: 4 }}>
+                {/* Connecting Line */}
+                <View style={{ position: 'absolute', top: 26, left: 16, right: 16, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2 }}>
+                  <View
+                    style={{
+                      height: '100%',
+                      backgroundColor: '#16a34a',
+                      borderRadius: 2,
+                      width: `${
+                        userPoints >= 1000
+                          ? 100
+                          : userPoints >= 100
+                          ? 75 + Math.min(25, ((userPoints - 100) / 900) * 25)
+                          : userPoints >= 10
+                          ? 50 + Math.min(25, ((userPoints - 10) / 90) * 25)
+                          : userPoints >= 8
+                          ? 25 + Math.min(25, ((userPoints - 8) / 2) * 25)
+                          : userPoints >= 6
+                          ? Math.min(25, ((userPoints - 6) / 2) * 25)
+                          : 0
+                      }%`
+                    }}
+                  />
+                </View>
+
+                {/* Nodes Row */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {[
+                    { pts: 6, label: '6+ pts', reward: 'Ksh 5' },
+                    { pts: 8, label: '8+ pts', reward: 'Ksh 1' },
+                    { pts: 10, label: '10+ pts', reward: 'Ksh 1' },
+                    { pts: 100, label: '100+ pts', reward: 'Ksh 450' },
+                    { pts: 1000, label: '1000+ pts', reward: 'Ksh 2.5k' }
+                  ].map((m) => {
+                    const isReached = userPoints >= m.pts;
+                    return (
+                      <View key={m.pts} style={{ alignItems: 'center', width: 48 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: isReached ? '#15803d' : '#94a3b8', marginBottom: 6 }}>
+                          {m.label}
+                        </Text>
+                        <View
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 9,
+                            backgroundColor: isReached ? '#16a34a' : '#ffffff',
+                            borderWidth: 2,
+                            borderColor: isReached ? '#15803d' : '#cbd5e1',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {isReached && <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '900' }}>✓</Text>}
+                        </View>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: isReached ? '#15803d' : '#64748b', marginTop: 6 }}>
+                          {m.reward}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             </View>
@@ -662,23 +727,26 @@ export default function App() {
     <SafeAreaProvider>
       <NetworkProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <StatusBar style="light" />
-            <NavigationContainer
-              ref={navigationRef}
-              linking={linking}
-              onReady={() => {
-                const route = navigationRef.getCurrentRoute();
-                if (route) setCurrentRoute(route.name);
-              }}
-              onStateChange={() => {
-                const route = navigationRef.getCurrentRoute();
-                if (route) setCurrentRoute(route.name);
-              }}
-            >
-              <AppNavigator currentRoute={currentRoute} />
-            </NavigationContainer>
-          </AuthProvider>
+          <UniversityProvider>
+            <UniversitySetupModal />
+            <AuthProvider>
+              <StatusBar style="light" />
+              <NavigationContainer
+                ref={navigationRef}
+                linking={linking}
+                onReady={() => {
+                  const route = navigationRef.getCurrentRoute();
+                  if (route) setCurrentRoute(route.name);
+                }}
+                onStateChange={() => {
+                  const route = navigationRef.getCurrentRoute();
+                  if (route) setCurrentRoute(route.name);
+                }}
+              >
+                <AppNavigator currentRoute={currentRoute} />
+              </NavigationContainer>
+            </AuthProvider>
+          </UniversityProvider>
         </QueryClientProvider>
       </NetworkProvider>
     </SafeAreaProvider>

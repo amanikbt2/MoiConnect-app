@@ -529,7 +529,7 @@ export default function AcademicsScreen({ route }: any) {
     if (res.success) {
       showIceMessage(
         'Submission Received',
-        'Your academic paper has been submitted for review. You will receive +10 reward points after administrator approval.',
+        'Your academic paper has been submitted for review. You will receive a random +1 or +2 reward points after administrator approval.',
         [{ text: 'OK', onPress: () => {
           setShowUploadModal(false);
           setActiveTab('submissions');

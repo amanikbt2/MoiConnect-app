@@ -1,15 +1,36 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { apiRequest } from './api';
+
+let communityChatActive = false;
+
+export const setCommunityChatActive = (active: boolean) => {
+  communityChatActive = active;
+};
 
 // Configure foreground push notification presentation handler
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data as any;
+    const isCommunityMessage = data?.screen === 'community' || data?.channelId === 'community_chat';
+
+    // A user already looking at the community chat should only see the live
+    // message there, not a duplicate Android push banner.
+    if (isCommunityMessage && communityChatActive && AppState.currentState === 'active') {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+
+    return {
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
-  }),
+    };
+  },
 });
 
 let registrationInFlight: Promise<string | null> | null = null;

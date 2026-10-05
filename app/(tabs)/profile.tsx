@@ -66,7 +66,7 @@ export default function ProfileScreen() {
     school: 'School of Information Sciences',
     course: 'BSc. Computer Science',
     yearOfStudy: 'Year 3',
-    phone: '0712 345 678',
+    phone: '',
     fullName: user?.name || 'Moi Student'
   });
 
@@ -101,7 +101,7 @@ export default function ProfileScreen() {
         school: 'School of Information Sciences',
         course: 'BSc. Computer Science',
         yearOfStudy: 'Year 3',
-        phone: '0712 345 678',
+        phone: '',
         fullName: user.name || 'Moi Student'
       });
     }
@@ -897,4 +897,3 @@ const styles = StyleSheet.create({
     color: '#dc2626'
   }
 });
-

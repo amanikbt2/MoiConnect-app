@@ -78,6 +78,7 @@ const notifyDownloadListeners = async () => {
 };
 
 const activeDownloadIntervals: Record<string, any> = {};
+const activeDownloadTasks: Record<string, FileSystem.DownloadResumable> = {};
 
 const runSimulatedDownload = (paperId: string) => {
   if (activeDownloadIntervals[paperId]) {
@@ -200,7 +201,9 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
         updatePaperDownloadState(targetId, { progress });
       }
     );
+    activeDownloadTasks[targetId] = task;
     const result = await task.downloadAsync();
+    delete activeDownloadTasks[targetId];
     if (!result?.uri) throw new Error('The local file was not created.');
     let ttsLocalUri: string | undefined;
     let ttsPersonalized = false;
@@ -221,6 +224,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized } as any);
     return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized };
   } catch (error) {
+    delete activeDownloadTasks[targetId];
     await updatePaperDownloadState(targetId, { status: 'failed', progress: 0 });
     throw error;
   }
@@ -271,15 +275,28 @@ export const removeOfflinePaper = async (paperId: string) => {
     clearInterval(activeDownloadIntervals[paperId]);
     delete activeDownloadIntervals[paperId];
   }
+  const activeTask = activeDownloadTasks[paperId];
+  if (activeTask) {
+    await activeTask.cancelAsync().catch(() => undefined);
+    delete activeDownloadTasks[paperId];
+  }
   if (!existingStr) return;
 
   const papers: OfflinePaper[] = JSON.parse(existingStr);
   const paper = papers.find((item) => item._id === paperId);
-  if (paper?.localUri && Platform.OS !== 'web') {
-    await FileSystem.deleteAsync(paper.localUri, { idempotent: true }).catch(() => undefined);
-  }
-  if (paper?.ttsLocalUri && Platform.OS !== 'web') {
-    await FileSystem.deleteAsync(paper.ttsLocalUri, { idempotent: true }).catch(() => undefined);
+  if (Platform.OS !== 'web') {
+    const safeName = `${paperId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const extension = paper?.fileType === 'pdf' ? 'pdf' : (paper?.fileType || 'bin').replace(/[^a-zA-Z0-9]/g, '');
+    const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
+    const knownUris = [
+      paper?.localUri,
+      paper?.ttsLocalUri,
+      `${privateDirectory}moi_material_${safeName}.${extension}`,
+      `${privateDirectory}moi_material_${safeName}_lecture.txt`
+    ].filter(Boolean) as string[];
+    for (const uri of Array.from(new Set(knownUris))) {
+      await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+    }
   }
 
   await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers.filter((item) => item._id !== paperId)));
@@ -673,7 +690,7 @@ export const notifyUnreadCountListeners = async () => {
 
 let backgroundSyncInFlight = false;
 
-export const syncCommunityUnreadBackground = async (): Promise<void> => {
+export const syncCommunityUnreadBackground = async (options: { notify?: boolean } = {}): Promise<void> => {
   if (backgroundSyncInFlight) return;
   backgroundSyncInFlight = true;
   try {
@@ -741,7 +758,7 @@ export const syncCommunityUnreadBackground = async (): Promise<void> => {
 
         // Keep a compact device alert for community messages received while offline.
         const newMessagesFromOthers = payload.data;
-        if (newMessagesFromOthers.length > 0) {
+        if (options.notify !== false && newMessagesFromOthers.length > 0) {
           try {
             if (newMessagesFromOthers.length === 1) {
               const single = newMessagesFromOthers[0];

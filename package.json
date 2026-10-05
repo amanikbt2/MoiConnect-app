@@ -3,10 +3,11 @@
   "version": "1.1.9",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --offline",
-    "build": "npm --prefix packages/shared run build && npx expo export -p web -c",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "start": "npm run generate:stickers && expo start --offline",
+    "generate:stickers": "node scripts/generate-sticker-manifest.js",
+    "build": "npm run generate:stickers && npm --prefix packages/shared run build && npx expo export -p web -c",
+    "android": "npm run generate:stickers && expo run:android",
+    "ios": "npm run generate:stickers && expo run:ios",
     "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js",
     "web": "expo start --web --offline --port 8082"
   },
