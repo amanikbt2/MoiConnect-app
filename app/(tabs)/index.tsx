@@ -19,7 +19,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
-import { rankMaterialsForProfile } from '../../src/utils/materialSearch';
+import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 
 import {
   SearchIcon,
@@ -100,6 +100,13 @@ export default function HomeScreen() {
     }
     setActivePortal(config);
     setShowPortalModal(true);
+  };
+
+  const handleGlobalSearch = () => {
+    const query = searchQuery.trim();
+    if (!query) return;
+    router.push(getGlobalSearchDestination(query));
+    setSearchQuery('');
   };
 
   const flatListRef = useRef<FlatList>(null);
@@ -274,21 +281,13 @@ export default function HomeScreen() {
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onSubmitEditing={() => {
-              if (searchQuery.trim()) {
-                router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`);
-                setSearchQuery('');
-              }
-            }}
+            onSubmitEditing={handleGlobalSearch}
             style={styles.searchInput}
           />
           {searchQuery.trim().length > 0 && (
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => {
-                router.push(`/(tabs)/academics?search=${encodeURIComponent(searchQuery)}`);
-                setSearchQuery('');
-              }}
+              onPress={handleGlobalSearch}
               style={styles.searchSendBtn}
             >
               <SendIcon color="#ffffff" size={14} />

@@ -17,6 +17,23 @@ export interface MaterialSearchFields {
 const normalize = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase();
 const normalizeId = (value: unknown) => normalize(value).replace(/[^a-z0-9]/g, '');
 
+export function getGlobalSearchDestination(query: string): string {
+  const value = normalize(query);
+  const encodedQuery = encodeURIComponent(query.trim());
+  const hasAny = (words: string[]) => words.some((word) => value.includes(word));
+
+  if (hasAny(['cat', 'continuous assessment', 'quiz', 'test'])) {
+    return `/cat-papers?search=${encodedQuery}`;
+  }
+  if (hasAny(['rent', 'rental', 'house', 'hostel', 'accommodation', 'room', 'bedsitter', 'apartment', 'housing', 'landlord'])) {
+    return `/rentals?search=${encodedQuery}`;
+  }
+  if (hasAny(['exam', 'past paper', 'pastpaper', 'revision', 'semester exam', 'final paper'])) {
+    return `/past-papers?search=${encodedQuery}`;
+  }
+  return `/(tabs)/academics?search=${encodedQuery}`;
+}
+
 /** Lower scores are better. Exact MTID is always ranked ahead of ordinary text matches. */
 export function getMaterialSearchScore(item: MaterialSearchFields, query: string): number | null {
   const q = normalize(query);
