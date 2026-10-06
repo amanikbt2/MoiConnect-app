@@ -21,7 +21,24 @@ import { subscribeToDownloadUpdates, OfflinePaper, personalizeLectureText } from
 import { ttsService, TTSState } from '../services/ttsService';
 import { config } from '../config';
 
-const HIDE_PDF_TOOLBAR_SCRIPT = `(function(){var css='#toolbarContainer,#toolbarViewer,#toolbarViewerLeft,#toolbarViewerMiddle,#toolbarViewerRight,#secondaryToolbar,#sidebarContainer,#sidebarResizer,#findbar,#editorModeButtons,#loadingBar,.toolbar,[role="toolbar"]{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important}#outerContainer,#mainContainer,#viewerContainer{top:0!important;left:0!important;margin-left:0!important}';function apply(){var root=document.head||document.documentElement;if(!root)return;var style=document.getElementById('mconnect-pdf-toolbar-style');if(!style){style=document.createElement('style');style.id='mconnect-pdf-toolbar-style';style.textContent=css;root.appendChild(style)}}apply();document.addEventListener('DOMContentLoaded',apply,{once:true});true;})();`;
+const HIDE_PDF_TOOLBAR_SCRIPT = `(function(){
+  var css='#toolbarContainer,#toolbarViewer,#toolbarViewerLeft,#toolbarViewerMiddle,#toolbarViewerRight,#secondaryToolbar,#sidebarContainer,#sidebarResizer,#findbar,#editorModeButtons,#loadingBar,.toolbar,.findbar,.doorHanger,[role="toolbar"]{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important}#outerContainer,#mainContainer,#viewerContainer{top:0!important;left:0!important;margin-left:0!important;height:100%!important}';
+  function apply(){
+    var root=document.head||document.documentElement;
+    if(!root)return;
+    var style=document.getElementById('mconnect-pdf-toolbar-style');
+    if(!style){style=document.createElement('style');style.id='mconnect-pdf-toolbar-style';root.appendChild(style)}
+    if(style.textContent!==css)style.textContent=css;
+    ['toolbarContainer','toolbarViewer','secondaryToolbar','sidebarContainer','findbar'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.display='none';el.style.visibility='hidden';el.style.height='0px'}});
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded',apply);
+  window.addEventListener('load',apply);
+  var observer=new MutationObserver(apply);
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  setInterval(apply,1000);
+  true;
+})();`;
 
 export interface PDFDocumentItem {
   id: string;

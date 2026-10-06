@@ -18,18 +18,23 @@ import {
 export type UserRole = 'student' | 'landlord' | 'admin';
 export type LandlordStatus = 'none' | 'pending' | 'approved' | 'rejected';
 export type AccountStatus = 'active' | 'suspended';
+export type UserBadge = 'blue' | 'red' | 'green';
 
 export interface IUser {
   _id: string;
   name: string;
   email: string;
   phone?: string;
+  school?: string;
+  course?: string;
+  yearOfStudy?: string;
   avatarUrl?: string;
   roles: UserRole[];
   activeRole: UserRole;
   landlordStatus: LandlordStatus;
   accountStatus: AccountStatus;
   points?: number;
+  badge?: UserBadge;
   createdAt: string;
   updatedAt: string;
 }

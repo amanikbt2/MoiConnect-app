@@ -16,6 +16,7 @@ import {
   syncCommunityUnreadBackground
 } from '../services/offlineStorage';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export interface GlobalBottomBarProps {
   currentRoute?: string;
@@ -25,6 +26,7 @@ export interface GlobalBottomBarProps {
 
 export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentionNavigate }: GlobalBottomBarProps) {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [unreadMentions, setUnreadMentions] = useState<number>(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
@@ -112,7 +114,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
 
   const containerPaddingBottom = Math.max(bottomInset, Platform.OS === 'ios' ? 14 : 6);
   return (
-    <View style={[styles.container, { paddingBottom: containerPaddingBottom }]}>
+    <View style={[styles.container, isDark && styles.darkContainer, { paddingBottom: containerPaddingBottom }]}>
       {/* 1. Home Tab */}
       <TouchableOpacity
         style={styles.tabBtn}
@@ -122,7 +124,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
         <View style={styles.iconWrapper}>
           <HomeIcon color={isHomeActive ? '#15803d' : '#64748b'} size={22} />
         </View>
-        <Text style={[styles.tabLabel, isHomeActive ? styles.tabLabelActive : styles.tabLabelInactive]}>
+        <Text style={[styles.tabLabel, isHomeActive ? styles.tabLabelActive : (isDark ? styles.darkTabLabel : styles.tabLabelInactive)]}>
           Home
         </Text>
       </TouchableOpacity>
@@ -136,7 +138,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
         <View style={styles.iconWrapper}>
           <DownloadIcon color={isDownloadsActive ? '#15803d' : '#64748b'} size={22} />
         </View>
-        <Text style={[styles.tabLabel, isDownloadsActive ? styles.tabLabelActive : styles.tabLabelInactive]}>
+        <Text style={[styles.tabLabel, isDownloadsActive ? styles.tabLabelActive : (isDark ? styles.darkTabLabel : styles.tabLabelInactive)]}>
           Downloads
         </Text>
       </TouchableOpacity>
@@ -189,7 +191,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
             </View>
           ) : null}
         </View>
-        <Text style={[styles.tabLabel, isCommunityActive ? styles.tabLabelActive : styles.tabLabelInactive]}>
+        <Text style={[styles.tabLabel, isCommunityActive ? styles.tabLabelActive : (isDark ? styles.darkTabLabel : styles.tabLabelInactive)]}>
           Uni Forum
         </Text>
       </TouchableOpacity>
@@ -218,6 +220,10 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 9999,
   },
+  darkContainer: {
+    backgroundColor: '#111827',
+    borderTopColor: '#334155'
+  },
   tabBtn: {
     flex: 1,
     alignItems: 'center',
@@ -241,6 +247,10 @@ const styles = StyleSheet.create({
   },
   tabLabelInactive: {
     color: '#64748b',
+    fontWeight: '500',
+  },
+  darkTabLabel: {
+    color: '#cbd5e1',
     fontWeight: '500',
   },
   mentionBadgeLeft: {

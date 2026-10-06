@@ -19,6 +19,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
+import { rankMaterialsForProfile } from '../../src/utils/materialSearch';
 
 import {
   SearchIcon,
@@ -106,6 +107,11 @@ export default function HomeScreen() {
 
   const { user } = useAuth();
   const router = useAppNavigation();
+  const profileComplete = Boolean(
+    user?.course && user.course !== 'Unset' &&
+    user?.school && user.school !== 'Unset' &&
+    user?.yearOfStudy && user.yearOfStudy !== 'Unset'
+  );
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [realSuggestedMaterials, setRealSuggestedMaterials] = useState<SuggestedMaterial[]>([]);
@@ -116,7 +122,7 @@ export default function HomeScreen() {
       if (state === 'active') fetchDashboardData();
     });
     return () => subscription.remove();
-  }, []);
+  }, [user]);
 
   const displaySuggestedMaterials = realSuggestedMaterials.length > 0
     ? realSuggestedMaterials
@@ -161,7 +167,7 @@ export default function HomeScreen() {
           recommendationTag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
           thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'
         }));
-        setRealSuggestedMaterials(mapped);
+        setRealSuggestedMaterials(rankMaterialsForProfile(mapped, user));
       } else {
         setRealSuggestedMaterials([]);
       }
@@ -418,7 +424,26 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {user ? (
+        {user && !profileComplete ? (
+          <View style={styles.loginPromptCard}>
+            <View style={styles.loginPromptIconContainer}>
+              <SparklesIcon color="#15803d" size={24} />
+            </View>
+            <View style={styles.loginPromptTextGroup}>
+              <Text style={styles.loginPromptTitle}>Complete profile to get suggested material</Text>
+              <Text style={styles.loginPromptSub}>
+                Add your course, school/faculty, and year so we can show your best matches.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.loginPromptBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/profile?complete=1')}
+            >
+              <Text style={styles.loginPromptBtnText}>Complete Profile</Text>
+            </TouchableOpacity>
+          </View>
+        ) : user ? (
           displaySuggestedMaterials.length > 0 ? (
             <>
               <FlatList

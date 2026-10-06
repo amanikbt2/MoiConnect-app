@@ -17,11 +17,12 @@ import {
   AppState
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
-import { saveDownloadedPaper } from '../src/services/offlineStorage';
+import { useAuth } from '../src/context/AuthContext';
+import { saveDownloadedPaper, getMaterialSearchHistory, saveMaterialSearchQuery } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
-import { rankMaterials } from '../src/utils/materialSearch';
+import { rankMaterials, rankMaterialsForProfile } from '../src/utils/materialSearch';
 import { OfflineState } from '../src/components/OfflineState';
 import { IPaper } from '@moi/shared';
 import {
@@ -144,10 +145,16 @@ export default function CatPapersScreen() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const router = useAppNavigation();
+  const { user } = useAuth();
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  useEffect(() => {
+    getMaterialSearchHistory().then(setSearchHistory);
+  }, []);
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
   const fetchRealCatPapers = async (searchTerm = '') => {
@@ -190,7 +197,7 @@ export default function CatPapersScreen() {
 
         setCatsData(
           realCatPapers.length > 0
-            ? (demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
+            ? rankMaterialsForProfile(demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers, user, searchHistory)
             : (demoSetting ? INITIAL_CAT_PAPERS_DATA : [])
         ); setInitialLoading(false);
       } else if (!res.success) {
@@ -216,7 +223,7 @@ export default function CatPapersScreen() {
       void fetchRealCatPapers(searchQuery.trim().length > 1 ? searchQuery : '');
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, user, searchHistory]);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -357,6 +364,8 @@ export default function CatPapersScreen() {
               placeholderTextColor="#94a3b8"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery).then(setSearchHistory)}
+              returnKeyType="search"
               style={styles.searchInput}
             />
             {searchQuery.length > 0 && (

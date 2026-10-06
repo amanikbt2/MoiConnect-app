@@ -2,7 +2,7 @@
   "expo": {
     "name": "MConnect",
     "slug": "moiconnect",
-    "version": "1.2.5",
+    "version": "1.2.6",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "24"
+      "buildNumber": "25"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -30,7 +30,7 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WAKE_LOCK"
       ],
-      "versionCode": 34
+      "versionCode": 35
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

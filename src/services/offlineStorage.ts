@@ -419,9 +419,33 @@ export const clearOfflineMessageQueue = async () => {
 };
 
 const STUDENT_PROFILE_KEY = 'moi_student_profile_details';
+const MATERIAL_SEARCH_HISTORY_KEY = 'moi_material_search_history';
+
+export const getMaterialSearchHistory = async (): Promise<string[]> => {
+  try {
+    const stored = await getItem(MATERIAL_SEARCH_HISTORY_KEY);
+    const history = stored ? JSON.parse(stored) : [];
+    return Array.isArray(history) ? history.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveMaterialSearchQuery = async (query: string): Promise<string[]> => {
+  const cleanQuery = query.trim().replace(/\s+/g, ' ');
+  if (!cleanQuery) return getMaterialSearchHistory();
+  const existing = await getMaterialSearchHistory();
+  const next = [cleanQuery, ...existing.filter((item) => item.toLowerCase() !== cleanQuery.toLowerCase())].slice(0, 12);
+  await setItem(MATERIAL_SEARCH_HISTORY_KEY, JSON.stringify(next));
+  return next;
+};
+
+export const clearMaterialSearchHistory = async (): Promise<void> => {
+  await setItem(MATERIAL_SEARCH_HISTORY_KEY, JSON.stringify([]));
+};
 
 export interface StudentPersonalDetails {
-  admissionNumber: string;
+  admissionNumber?: string;
   school: string;
   course: string;
   yearOfStudy: string;

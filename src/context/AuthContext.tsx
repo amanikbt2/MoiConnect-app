@@ -9,7 +9,7 @@ interface AuthContextType {
   loading: boolean;
   userPoints: number;
   addPoints: (amount: number, reason?: string) => void;
-  updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone'>>) => Promise<void>;
+  updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy'>>) => Promise<void>;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserPoints((prev) => prev + amount);
   };
 
-  const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone'>>) => {
+  const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy'>>) => {
     if (!user) return;
     let updatedUser: IUser = { ...user, ...updates, updatedAt: new Date().toISOString() };
     try {
@@ -45,9 +45,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: 'PATCH',
         body: JSON.stringify(updates)
       });
-      if (response.success && response.data) updatedUser = response.data;
-    } catch (_) {
-      // Keep local profile updates usable for offline/demo accounts.
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Profile update failed.');
+      }
+      updatedUser = response.data;
+    } catch (error) {
+      // Do not keep a local-only name that other clients and the dashboard
+      // cannot see; profile changes must be confirmed by the API.
+      throw error;
     }
     setUser(updatedUser);
     await setStoredToken('moi_user_profile', JSON.stringify(updatedUser));

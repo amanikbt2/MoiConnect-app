@@ -34,6 +34,31 @@ Notifications.setNotificationHandler({
 });
 
 let registrationInFlight: Promise<string | null> | null = null;
+const COMMUNITY_MESSAGE_CATEGORY = 'community_message';
+
+async function configureNotificationCategories() {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationCategoryAsync(COMMUNITY_MESSAGE_CATEGORY, [
+      {
+        identifier: 'reply',
+        buttonTitle: 'Reply',
+        textInput: {
+          submitButtonTitle: 'Send',
+          placeholder: 'Reply to message...'
+        },
+        options: { opensAppToForeground: true }
+      },
+      {
+        identifier: 'mark_read',
+        buttonTitle: 'Mark as read',
+        options: { opensAppToForeground: true }
+      }
+    ]);
+  } catch (error) {
+    console.warn('[Notifications]: Could not configure message actions:', error);
+  }
+}
 
 export async function registerForPushNotificationsAsync() {
   if (registrationInFlight) return registrationInFlight;
@@ -51,6 +76,7 @@ async function registerPushToken() {
   }
 
   try {
+    await configureNotificationCategories();
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'MoiConnect Notifications',
@@ -209,6 +235,7 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
       if (response?.notification) {
         const data = response.notification.request.content.data;
         if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
+          void handleCommunityNotificationAction(response);
           onNavigate('/(tabs)/messages');
         } else if (data && data.screen === 'chat' && data.conversationId) {
           onNavigate(`/chat/${data.conversationId}`);
@@ -221,6 +248,7 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
     if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
+      void handleCommunityNotificationAction(response);
       onNavigate('/(tabs)/messages');
     } else if (data && data.screen === 'chat' && data.conversationId) {
       onNavigate(`/chat/${data.conversationId}`);
@@ -230,6 +258,36 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
   return () => {
     subscription.remove();
   };
+}
+
+async function handleCommunityNotificationAction(response: Notifications.NotificationResponse) {
+  const action = response.actionIdentifier;
+  if (action === Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+
+  const data = response.notification.request.content.data as any;
+  const messageId = data?.messageId ? String(data.messageId) : '';
+  try {
+    if (action === 'mark_read' && messageId) {
+      await apiRequest(`/community/messages/${encodeURIComponent(messageId)}/read`, { method: 'POST' });
+      return;
+    }
+
+    if (action === 'reply' && response.userText?.trim()) {
+      await apiRequest('/community/messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          text: response.userText.trim(),
+          replyTo: messageId ? {
+            id: messageId,
+            senderName: data?.senderName || 'Student',
+            text: data?.messagePreview || ''
+          } : undefined
+        })
+      });
+    }
+  } catch (error) {
+    console.warn('[Notifications]: Message action failed:', error);
+  }
 }
 
 export function sendWebBrowserNotification(title: string, body: string, onClick?: () => void) {

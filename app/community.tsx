@@ -21,7 +21,8 @@ import {
   Easing,
   Image,
   ImageBackground,
-  AppState
+  AppState,
+  AppStateStatus
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -75,6 +76,7 @@ import { getAllowCommunityChatSetting, getShowDemoMaterialsSetting } from '../sr
 import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
 import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModal';
+import { UserBadge } from '../src/components/UserBadge';
 
 export interface FileAttachment {
   name: string;
@@ -102,6 +104,7 @@ export interface CommunityMessage {
   senderCourse?: string;
   senderPhone?: string;
   senderAvatarUrl?: string;
+  senderBadge?: 'blue' | 'red' | 'green';
   avatarBg: string;
   text: string;
   timestamp: string;
@@ -134,6 +137,8 @@ const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥']
 const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
 const CAMPUS_AI_AVATAR = require('../assets/campus-ai-avatar.png');
 const MENTION_DIRECTORY_KEY = 'moi_community_mention_directory_v1';
+const COMMUNITY_MESSAGE_PAGE_SIZE = 30;
+const COMMUNITY_CACHE_WINDOW = 60;
 const MENTION_ASSISTANTS: Array<MentionUser & { avatar: any }> = [
   { id: 'campus-bot', name: 'Campus Bot', avatar: CAMPUS_BOT_AVATAR },
   { id: 'campus-ai', name: 'Campus AI', avatar: CAMPUS_AI_AVATAR }
@@ -260,13 +265,24 @@ function SwipeableMessageItem({
 interface TypingUser {
   userId: string;
   userName: string;
+  avatarUrl?: string;
+  avatarBg?: string;
+}
+
+function getPresenceFirstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || 'Someone';
 }
 
 function formatTypingText(users: TypingUser[]): string {
   if (users.length === 0) return '';
-  if (users.length === 1) return `${users[0].userName} is typing...`;
-  if (users.length === 2) return `${users[0].userName} & ${users[1].userName} are typing...`;
-  return 'Several people are typing...';
+  if (users.length === 1) return `${getPresenceFirstName(users[0].userName)} is typing...`;
+  return `${getPresenceFirstName(users[0].userName)} & ${users.length - 1} ${users.length - 1 === 1 ? 'other' : 'others'} are typing...`;
+}
+
+function formatDeletingText(users: TypingUser[]): string {
+  if (users.length === 0) return '';
+  if (users.length === 1) return `${getPresenceFirstName(users[0].userName)} is deleting...`;
+  return `${getPresenceFirstName(users[0].userName)} & ${users.length - 1} ${users.length - 1 === 1 ? 'other' : 'others'} are deleting...`;
 }
 
 export function formatStudentSubtitle(
@@ -340,6 +356,8 @@ export default function CommunityScreen() {
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(true);
   const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
@@ -412,16 +430,19 @@ export default function CommunityScreen() {
 
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [deletingUsers, setDeletingUsers] = useState<TypingUser[]>([]);
   const [botTyping, setBotTyping] = useState(false);
   const [botTypingName, setBotTypingName] = useState('Campus Bot');
   const [onlineCount, setOnlineCount] = useState(0);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const deletingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const myDeletingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
   const typingDotAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (typingUsers.length > 0 || botTyping) {
+    if (typingUsers.length > 0 || deletingUsers.length > 0 || botTyping) {
       const anim = Animated.loop(
         Animated.sequence([
           Animated.timing(typingDotAnim, { toValue: 1, duration: 400, easing: Easing.ease, useNativeDriver: Platform.OS !== 'web' }),
@@ -433,7 +454,7 @@ export default function CommunityScreen() {
     } else {
       typingDotAnim.setValue(0);
     }
-  }, [typingUsers.length, botTyping]);
+  }, [typingUsers.length, deletingUsers.length, botTyping]);
 
   const handleGoLivePress = () => {
     if (!user) {
@@ -462,9 +483,31 @@ export default function CommunityScreen() {
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
   const isNearBottomRef = useRef<boolean>(true);
+  const isForumFocusedRef = useRef<boolean>(isForumFocused);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const initialScrollDoneRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
   const userScrolledRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    isForumFocusedRef.current = isForumFocused;
+    if (isForumFocused) {
+      // Clear the numeric badge when the forum is opened. Keep the divider
+      // until the user reaches the latest message.
+      setUnreadCount(0);
+    }
+  }, [isForumFocused]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      appStateRef.current = state;
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const isChatVisible = () => isForumFocusedRef.current && appStateRef.current === 'active';
+  const activePresenceUser = deletingUsers[0] || typingUsers[0];
+  const activePresenceUsers = deletingUsers.length > 0 ? deletingUsers : typingUsers;
   const evalIsMe = (msgSenderId?: any, msgSenderEmail?: string, msgSenderName?: string, msgClientMsgId?: string): boolean => {
     if (msgClientMsgId && tempSentIdsRef.current.has(msgClientMsgId)) {
       return true;
@@ -486,6 +529,33 @@ export default function CommunityScreen() {
     }
 
     return false;
+  };
+
+  const mapCommunityServerMessage = (serverMsg: any): CommunityMessage => {
+    const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
+    return {
+      id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
+      clientMsgId: serverMsg.clientMsgId,
+      deliveryStatus: isMyMsg ? 'delivered' : undefined,
+      senderId: serverMsg.senderId,
+      senderEmail: serverMsg.senderEmail,
+      senderName: serverMsg.senderName || 'Moi Student',
+      senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+      senderCourse: serverMsg.senderCourse,
+      senderPhone: serverMsg.senderPhone,
+      senderAvatarUrl: serverMsg.senderAvatarUrl,
+      senderBadge: serverMsg.senderBadge,
+      avatarBg: serverMsg.avatarBg || '#15803d',
+      text: serverMsg.text || '',
+      timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isoDate: serverMsg.createdAt,
+      updatedAt: serverMsg.updatedAt,
+      isMe: isMyMsg,
+      fileAttachment: serverMsg.fileAttachment,
+      stickerId: serverMsg.stickerId,
+      replyTo: serverMsg.replyTo,
+      reactions: serverMsg.reactions || {}
+    };
   };
 
   const checkIsMentionOrReply = (msg: CommunityMessage, currUser: any, allMsgs: CommunityMessage[]): boolean => {
@@ -645,11 +715,7 @@ export default function CommunityScreen() {
 
     if (isBottom && userScrolledRef.current && messages.length > 0) {
       const latestId = messages[messages.length - 1].id;
-      saveLastReadCommunityMsgId(latestId);
-      if (unreadCount > 0 || showUnreadBtn) {
-        setUnreadCount(0);
-        setShowUnreadBtn(false);
-      }
+      void markAsRead(latestId);
     }
   };
 
@@ -660,11 +726,14 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getAllowCommunityChatSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(([cachedMsgs, demoSetting, allowChat, storedCursor, deletedForMeIds]) => {
+    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getAllowCommunityChatSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(async ([cachedMsgs, demoSetting, allowChat, storedCursor, deletedForMeIds]) => {
       deletedForMeIdsRef.current = new Set(deletedForMeIds);
       setShowDemoMaterials(demoSetting);
       setAllowCommunityChat(allowChat);
-      const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
+      let rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
+      if (rawMsgs.length > COMMUNITY_CACHE_WINDOW) {
+        rawMsgs = rawMsgs.slice(-COMMUNITY_CACHE_WINDOW);
+      }
       const msgsToLoad = rawMsgs
         .filter((m) => !deletedForMeIdsRef.current.has(m.id) && !deletedForMeIdsRef.current.has((m as any)._id))
         .filter((m) => demoSetting || !isHardcodedCommunityMessage(m))
@@ -672,21 +741,40 @@ export default function CommunityScreen() {
           ...m,
           isMe: evalIsMe(m.senderId, m.senderEmail, m.senderName, m.clientMsgId)
         }));
-      setMessages(msgsToLoad);
-      const latestCachedTimestamp = msgsToLoad.reduce((latest, message) => {
+      let initialMessages = msgsToLoad;
+      let didInitialSync = false;
+      if ((!cachedMsgs || cachedMsgs.length === 0) && !demoSetting) {
+        try {
+          const initialResponse = await apiRequest<{ data: any[]; hasMore?: boolean; syncedAt?: string }>(`/community/messages?limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`);
+          const initialPayload = initialResponse.data;
+          if (initialResponse.success && Array.isArray(initialPayload?.data)) {
+            initialMessages = initialPayload.data.map(mapCommunityServerMessage);
+            didInitialSync = true;
+            setHasOlderMessages(initialPayload.hasMore !== false && initialMessages.length === COMMUNITY_MESSAGE_PAGE_SIZE);
+            if (initialPayload.syncedAt) {
+              lastSyncedISO.current = initialPayload.syncedAt;
+              await saveCommunitySyncCursor(initialPayload.syncedAt);
+            }
+          }
+        } catch (error) {
+          console.warn('[Community] Initial message load failed:', error);
+        }
+      }
+      setMessages(initialMessages);
+      const latestCachedTimestamp = initialMessages.reduce((latest, message) => {
         const timestamp = message.updatedAt || message.isoDate;
         return timestamp && timestamp > latest ? timestamp : latest;
       }, '');
       // New installs start from now instead of downloading the entire server archive.
       // Existing installs retain their previous cache cursor and only request deltas.
       const initialCursor = latestCachedTimestamp || storedCursor || new Date().toISOString();
-      lastSyncedISO.current = initialCursor;
-      if (!storedCursor) void saveCommunitySyncCursor(initialCursor);
+      if (!lastSyncedISO.current) lastSyncedISO.current = initialCursor;
+      if (!storedCursor && !didInitialSync) void saveCommunitySyncCursor(initialCursor);
       if ((!cachedMsgs || cachedMsgs.length === 0) && demoSetting) {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
       }
-      initReadStateAndScroll(msgsToLoad);
-      return msgsToLoad;
+      initReadStateAndScroll(initialMessages);
+      return initialMessages;
     });
 
     // 3. Connect Real-time WebSocket Listeners
@@ -724,6 +812,7 @@ export default function CommunityScreen() {
             senderCourse: serverMsg.senderCourse,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
+            senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -766,13 +855,15 @@ export default function CommunityScreen() {
             }
             saveCommunityMessages(updated);
 
-            if (formattedMsg.isMe || isNearBottomRef.current) {
+            if (formattedMsg.isMe || (isChatVisible() && isNearBottomRef.current)) {
               markAsRead(formattedMsg.id);
               if (formattedMsg.isMe) {
                 scrollToLatestWhenReady(true);
               }
             } else {
-              setUnreadCount((c) => c + 1);
+              if (!isChatVisible()) {
+                setUnreadCount((c) => c + 1);
+              }
               setShowUnreadBtn(true);
               setFirstUnreadMsgId((prevUnread) => prevUnread || formattedMsg.id);
             }
@@ -783,6 +874,7 @@ export default function CommunityScreen() {
           if (serverMsg.senderId) {
             const sId = typeof serverMsg.senderId === 'object' ? serverMsg.senderId._id : serverMsg.senderId;
             setTypingUsers((prev) => prev.filter((u) => u.userId !== sId));
+            setDeletingUsers((prev) => prev.filter((u) => u.userId !== sId));
           }
 
           if (!formattedMsg.isMe && Platform.OS === 'web') {
@@ -795,7 +887,7 @@ export default function CommunityScreen() {
 
         });
 
-        socket.on('community:user_typing', (data: { userId: string; userName: string; socketId?: string }) => {
+        socket.on('community:user_typing', (data: { userId: string; userName: string; avatarUrl?: string; avatarBg?: string; socketId?: string }) => {
           if (!data || !data.userId) return;
 
           // Never show the current user's own indicator on their device.
@@ -808,11 +900,16 @@ export default function CommunityScreen() {
 
           setTypingUsers((prev) => {
             const incomingUserId = String(data.userId);
-            if (prev.some((u) => u.userId === incomingUserId)) return prev;
-            return [...prev, { userId: incomingUserId, userName: data.userName || 'Moi Student' }];
+            if (prev.some((u) => u.userId === incomingUserId)) {
+              return prev.map((u) => u.userId === incomingUserId
+                ? { ...u, userName: data.userName || u.userName, avatarUrl: data.avatarUrl || u.avatarUrl, avatarBg: data.avatarBg || u.avatarBg }
+                : u);
+            }
+            return [...prev, { userId: incomingUserId, userName: data.userName || 'Moi Student', avatarUrl: data.avatarUrl, avatarBg: data.avatarBg }];
           });
 
           const incomingUserId = String(data.userId);
+          setDeletingUsers((prev) => prev.filter((u) => u.userId !== incomingUserId));
           if (typingTimeoutsRef.current[incomingUserId]) {
             clearTimeout(typingTimeoutsRef.current[incomingUserId]);
           }
@@ -832,6 +929,64 @@ export default function CommunityScreen() {
           }
         });
 
+        socket.on('community:user_deleting', (data: { userId: string; userName: string; avatarUrl?: string; avatarBg?: string; socketId?: string }) => {
+          if (!data || !data.userId) return;
+          const incomingUserId = String(data.userId);
+          const currentUserId = user?._id ? String(user._id) : '';
+          if (currentUserId && incomingUserId === currentUserId) return;
+
+          setTypingUsers((prev) => prev.filter((u) => u.userId !== incomingUserId));
+          setDeletingUsers((prev) => prev.some((u) => u.userId === incomingUserId)
+            ? prev.map((u) => u.userId === incomingUserId ? { ...u, userName: data.userName || u.userName, avatarUrl: data.avatarUrl || u.avatarUrl, avatarBg: data.avatarBg || u.avatarBg } : u)
+            : [...prev, { userId: incomingUserId, userName: data.userName || 'Moi Student', avatarUrl: data.avatarUrl, avatarBg: data.avatarBg }]);
+
+          if (deletingTimeoutsRef.current[incomingUserId]) clearTimeout(deletingTimeoutsRef.current[incomingUserId]);
+          deletingTimeoutsRef.current[incomingUserId] = setTimeout(() => {
+            setDeletingUsers((prev) => prev.filter((u) => u.userId !== incomingUserId));
+            delete deletingTimeoutsRef.current[incomingUserId];
+          }, 3500);
+        });
+
+        socket.on('community:user_stop_deleting', (data: { userId: string }) => {
+          if (!data || !data.userId) return;
+          const incomingUserId = String(data.userId);
+          setDeletingUsers((prev) => prev.filter((u) => u.userId !== incomingUserId));
+          if (deletingTimeoutsRef.current[incomingUserId]) {
+            clearTimeout(deletingTimeoutsRef.current[incomingUserId]);
+            delete deletingTimeoutsRef.current[incomingUserId];
+          }
+        });
+
+        socket.on('community:user_updated', (data: { userId?: string; email?: string; name?: string; avatarUrl?: string; badge?: 'blue' | 'red' | 'green' | null }) => {
+          if (!data?.userId && !data?.email) return;
+          const normalizedId = data.userId ? String(data.userId) : '';
+          const normalizedEmail = data.email?.trim().toLowerCase() || '';
+          setMessages((prev) => {
+            const updated = prev.map((message) => {
+              const sameId = normalizedId && String(message.senderId || '') === normalizedId;
+              const sameEmail = normalizedEmail && message.senderEmail?.trim().toLowerCase() === normalizedEmail;
+              const replyMatches = normalizedEmail && message.replyTo?.senderEmail?.trim().toLowerCase() === normalizedEmail;
+              if (!sameId && !sameEmail && !replyMatches) return message;
+              return {
+                ...message,
+                ...(sameId || sameEmail ? {
+                  senderName: data.name || message.senderName,
+                  senderAvatarUrl: data.avatarUrl || message.senderAvatarUrl,
+                  senderBadge: data.badge || undefined
+                } : {}),
+                ...(replyMatches ? {
+                  replyTo: message.replyTo
+                    ? { ...message.replyTo, senderName: data.name || message.replyTo.senderName }
+                    : message.replyTo
+                } : {})
+              };
+            });
+            if (JSON.stringify(updated) === JSON.stringify(prev)) return prev;
+            saveCommunityMessages(updated);
+            return updated;
+          });
+        });
+
         socket.on('community:reaction_updated', (data: { messageId: string; reactions: any; actorId?: string; myReaction?: string }) => {
           const isMine = !!data.actorId && (data.actorId === user?._id || data.actorId === reactorIdRef.current);
           setMessages((prev) => {
@@ -849,7 +1004,7 @@ export default function CommunityScreen() {
             senderName: 'System',
             senderFaculty: '',
             avatarBg: '#64748b',
-            text: eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MoiConnect' : 'went offline'}`,
+            text: eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MConnect' : 'went offline'}`,
             timestamp: new Date(eventData.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: eventData.timestamp || new Date().toISOString(),
             isMe: false,
@@ -888,6 +1043,9 @@ export default function CommunityScreen() {
         activeSocket.off('community:receive_message');
         activeSocket.off('community:user_typing');
         activeSocket.off('community:user_stop_typing');
+        activeSocket.off('community:user_deleting');
+        activeSocket.off('community:user_stop_deleting');
+        activeSocket.off('community:user_updated');
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:message_deleted');
         activeSocket.off('community:system_event');
@@ -921,6 +1079,7 @@ export default function CommunityScreen() {
             senderCourse: serverMsg.senderCourse,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
+            senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -971,6 +1130,44 @@ export default function CommunityScreen() {
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (isLoadingOlderMessages || !hasOlderMessages || messages.length === 0) return;
+    const oldestLoaded = messages.find((message) => message.isoDate);
+    if (!oldestLoaded?.isoDate) {
+      setHasOlderMessages(false);
+      return;
+    }
+
+    setIsLoadingOlderMessages(true);
+    try {
+      const before = encodeURIComponent(oldestLoaded.isoDate);
+      const response = await apiRequest<{ data: any[]; hasMore?: boolean }>(
+        `/community/messages?before=${before}&limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`
+      );
+      const olderPayload = response.data;
+      if (response.success && Array.isArray(olderPayload?.data)) {
+        const olderMessages = olderPayload.data.map(mapCommunityServerMessage);
+        setHasOlderMessages(olderPayload.hasMore !== false && olderMessages.length === COMMUNITY_MESSAGE_PAGE_SIZE);
+        if (olderMessages.length > 0) {
+          setMessages((previous) => {
+            const existingIds = new Set(previous.map((message) => message.id));
+            const uniqueOlder = olderMessages.filter((message) => !existingIds.has(message.id));
+            if (uniqueOlder.length === 0) return previous;
+            const merged = [...uniqueOlder, ...previous];
+            void saveCommunityMessages(merged.slice(-COMMUNITY_CACHE_WINDOW));
+            return merged;
+          });
+        }
+      } else {
+        setHasOlderMessages(false);
+      }
+    } catch (error) {
+      console.warn('[Community] Older message load failed:', error);
+    } finally {
+      setIsLoadingOlderMessages(false);
     }
   };
 
@@ -1086,6 +1283,7 @@ export default function CommunityScreen() {
   };
 
   const handleInputChange = (text: string) => {
+    const wasDeleting = text.length < inputText.length;
     setInputText(text);
 
     const activeMention = text.match(/(^|\s)@([^\s@]*)$/);
@@ -1103,14 +1301,48 @@ export default function CommunityScreen() {
       setShowMentionSuggestions(false);
     }
 
-    if (text.trim().length > 0) {
+    if (wasDeleting && text.trim().length > 0) {
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
+        getSocket().then((s) => s?.emit('community:stop_typing', {
+          userName: user?.name || 'Moi Student',
+          userId: user?._id
+        }));
+      }
+
+      getSocket().then((s) => s?.emit('community:start_deleting', {
+        userName: user?.name || 'Moi Student',
+        userId: user?._id,
+        avatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+        avatarBg: '#15803d'
+      }));
+      if (myDeletingTimeoutRef.current) clearTimeout(myDeletingTimeoutRef.current);
+      myDeletingTimeoutRef.current = setTimeout(() => {
+        getSocket().then((s) => s?.emit('community:stop_deleting', {
+          userName: user?.name || 'Moi Student',
+          userId: user?._id
+        }));
+        myDeletingTimeoutRef.current = null;
+      }, 2500);
+    } else if (text.trim().length > 0) {
+      if (myDeletingTimeoutRef.current) {
+        clearTimeout(myDeletingTimeoutRef.current);
+        myDeletingTimeoutRef.current = null;
+        getSocket().then((s) => s?.emit('community:stop_deleting', {
+          userName: user?.name || 'Moi Student',
+          userId: user?._id
+        }));
+      }
       if (!isTypingRef.current) {
         isTypingRef.current = true;
         getSocket().then((s) => {
           if (s) {
             s.emit('community:start_typing', {
               userName: user?.name || 'Moi Student',
-              userId: user?._id
+              userId: user?._id,
+              avatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+              avatarBg: '#15803d'
             });
           }
         });
@@ -1129,6 +1361,14 @@ export default function CommunityScreen() {
         });
       }, 2500);
     } else {
+      if (myDeletingTimeoutRef.current) {
+        clearTimeout(myDeletingTimeoutRef.current);
+        myDeletingTimeoutRef.current = null;
+      }
+      getSocket().then((s) => s?.emit('community:stop_deleting', {
+        userName: user?.name || 'Moi Student',
+        userId: user?._id
+      }));
       if (isTypingRef.current) {
         isTypingRef.current = false;
         if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
@@ -1219,6 +1459,7 @@ export default function CommunityScreen() {
     useEffect(() => {
       void retryQueuedMessages();
       const appStateSubscription = AppState.addEventListener('change', (state) => {
+        appStateRef.current = state;
         if (state === 'active') {
           void getSocket().then((socket) => {
             if (socket && !socket.connected) socket.connect();
@@ -1252,6 +1493,15 @@ export default function CommunityScreen() {
         }
       });
     }
+
+    if (myDeletingTimeoutRef.current) {
+      clearTimeout(myDeletingTimeoutRef.current);
+      myDeletingTimeoutRef.current = null;
+    }
+    getSocket().then((s) => s?.emit('community:stop_deleting', {
+      userName: user?.name || 'Moi Student',
+      userId: user?._id
+    }));
 
     const sentText = inputText.trim();
     const isStopCommand = /^\s*@(bot|campusbot|campus\s+bot|ai|campusai|campus\s+ai)\s+stop\b/i.test(sentText);
@@ -1302,6 +1552,7 @@ export default function CommunityScreen() {
       senderCourse: myProfile?.course,
       senderPhone: myProfile?.phone || user?.phone,
       senderAvatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+      senderBadge: user?.badge,
       waitForBot: isBotMentioned,
       avatarBg: '#15803d'
     };
@@ -1318,6 +1569,7 @@ export default function CommunityScreen() {
       senderCourse: payload.senderCourse,
       senderPhone: payload.senderPhone,
       senderAvatarUrl: payload.senderAvatarUrl,
+      senderBadge: payload.senderBadge,
       avatarBg: payload.avatarBg,
       text: sentText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1690,8 +1942,11 @@ export default function CommunityScreen() {
             inverted={true}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messageList}
+            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
             onScroll={handleScroll}
             scrollEventThrottle={16}
+            onEndReached={loadOlderMessages}
+            onEndReachedThreshold={0.25}
 
 
             onScrollBeginDrag={() => {
@@ -1713,8 +1968,15 @@ export default function CommunityScreen() {
               }, 450);
             }}
             ListFooterComponent={
-              <View style={styles.dateDivider}>
-                <Text style={styles.dateDividerText}>TODAY • CAMPUS DISCUSSION</Text>
+              <View>
+                {isLoadingOlderMessages && (
+                  <View style={styles.olderMessagesLoader}>
+                    <Text style={styles.olderMessagesLoaderText}>Loading older messages…</Text>
+                  </View>
+                )}
+                <View style={styles.dateDivider}>
+                  <Text style={styles.dateDividerText}>TODAY • CAMPUS DISCUSSION</Text>
+                </View>
               </View>
             }
             renderItem={({ item }) => {
@@ -1807,6 +2069,7 @@ export default function CommunityScreen() {
                             <View style={styles.senderHeader}>
                               <View style={styles.senderNameRow}>
                                 <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
+                                <UserBadge badge={item.senderBadge} />
                               </View>
                               <Text style={styles.senderFaculty}>{formatStudentSubtitle(undefined, undefined, undefined, item.senderFaculty)}</Text>
                             </View>
@@ -2011,27 +2274,41 @@ export default function CommunityScreen() {
           )}
 
           {/* WhatsApp Style Live Typing Indicator Banner */}
-          {(typingUsers.length > 0 || botTyping) && (
+          {(typingUsers.length > 0 || deletingUsers.length > 0 || botTyping) && (
             <View style={styles.typingIndicatorBanner}>
-              <View style={styles.typingDotsContainer}>
-                <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
-                <Animated.View
-                  style={[
-                    styles.typingDot,
-                    {
-                      opacity: typingDotAnim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0.3, 1, 0.3]
-                      })
-                    }
-                  ]}
-                />
-                <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
+              <View style={styles.typingIndicatorAvatarStack}>
+                {botTyping && !activePresenceUser ? (
+                  <View style={styles.typingIndicatorAvatar}>
+                    <BotIcon color="#6366f1" size={16} />
+                  </View>
+                ) : (
+                  activePresenceUsers.slice(0, 3).map((presenceUser, index) => (
+                    <View
+                      key={presenceUser.userId}
+                      style={[
+                        styles.typingIndicatorAvatar,
+                        index > 0 && styles.typingIndicatorAvatarOverlap,
+                        { backgroundColor: presenceUser.avatarBg || '#e2e8f0' }
+                      ]}
+                    >
+                      {presenceUser.avatarUrl ? (
+                        <Image source={{ uri: presenceUser.avatarUrl }} style={styles.typingIndicatorAvatarImage} />
+                      ) : (
+                        <Text style={styles.typingIndicatorAvatarText}>
+                          {presenceUser.userName.trim().charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                  ))
+                )}
               </View>
               <View style={styles.typingIndicatorContent}>
-                {botTyping && typingUsers.length === 0 ? (
+                {deletingUsers.length > 0 ? (
+                  <Text style={styles.typingIndicatorText} numberOfLines={1}>
+                    {formatDeletingText(deletingUsers)}
+                  </Text>
+                ) : botTyping && typingUsers.length === 0 ? (
                   <View style={styles.typingBotLabel}>
-                    <BotIcon color="#6366f1" size={14} />
                     <Text style={styles.typingIndicatorText} numberOfLines={1}>{botTypingName} is typing...</Text>
                   </View>
                 ) : (
@@ -2039,6 +2316,21 @@ export default function CommunityScreen() {
                     {formatTypingText(typingUsers)}
                   </Text>
                 )}
+                <View style={styles.typingDotsContainer}>
+                  <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
+                  <Animated.View
+                    style={[
+                      styles.typingDot,
+                      {
+                        opacity: typingDotAnim.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [0.3, 1, 0.3]
+                        })
+                      }
+                    ]}
+                  />
+                  <Animated.View style={[styles.typingDot, { opacity: typingDotAnim }]} />
+                </View>
               </View>
             </View>
           )}
@@ -2223,7 +2515,10 @@ export default function CommunityScreen() {
                       <Text style={styles.profileModalAvatarText}>{selectedProfile.senderName[0]?.toUpperCase()}</Text>
                     )}
                   </View>
-                  <Text style={styles.profileModalName}>{selectedProfile.senderName}</Text>
+                  <View style={styles.profileModalNameRow}>
+                    <Text style={styles.profileModalName}>{selectedProfile.senderName}</Text>
+                    <UserBadge badge={selectedProfile.senderBadge} size={18} />
+                  </View>
                   <Text style={styles.profileModalRole}>MoiConnect community member</Text>
                   <View style={styles.profileInfoList}>
                     <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Faculty</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderFaculty || 'Not provided'}</Text></View>
@@ -2613,6 +2908,20 @@ const styles = StyleSheet.create({
   messageList: {
     padding: 12,
     paddingBottom: 20
+  },
+  olderMessagesLoader: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 4,
+    marginBottom: 2,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.86)'
+  },
+  olderMessagesLoaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b'
   },
   dateDivider: {
     alignSelf: 'center',
@@ -3217,6 +3526,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center'
   },
+  profileModalNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   profileModalRole: {
     color: '#94a3b8',
     fontSize: 11,
@@ -3614,12 +3928,50 @@ const styles = StyleSheet.create({
   typingIndicatorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+    marginLeft: 10,
+    marginVertical: 5,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    gap: 8
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#dbe5ee',
+    gap: 8,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2
+  },
+  typingIndicatorAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e2e8f0'
+  },
+  typingIndicatorAvatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 2
+  },
+  typingIndicatorAvatarOverlap: {
+    marginLeft: -9,
+    borderWidth: 2,
+    borderColor: '#ffffff'
+  },
+  typingIndicatorAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14
+  },
+  typingIndicatorAvatarText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748b'
   },
   typingDotsContainer: {
     flexDirection: 'row',
@@ -3638,8 +3990,9 @@ const styles = StyleSheet.create({
     color: '#15803d'
   },
   typingIndicatorContent: {
-    flex: 1,
-    minWidth: 0
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 2
   },
   typingBotLabel: {
     flexDirection: 'row',

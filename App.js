@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { UniversityProvider } from './src/context/UniversityContext';
 import { UniversitySetupModal } from './src/components/UniversitySetupModal';
 import { NetworkProvider } from './src/context/NetworkContext';
@@ -595,6 +596,7 @@ function MainTabs({ navigation }) {
 
 function AppNavigator({ currentRoute }) {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const [activePopup, setActivePopup] = React.useState(null);
   const [popupVisible, setPopupVisible] = React.useState(false);
 
@@ -643,7 +645,7 @@ function AppNavigator({ currentRoute }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+    <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
       <View style={{ flex: 1 }}>
         <Stack.Navigator
           screenOptions={{
@@ -730,7 +732,8 @@ export default function App() {
           <UniversityProvider>
             <UniversitySetupModal />
             <AuthProvider>
-              <StatusBar style="light" />
+              <ThemeProvider>
+              <StatusBar style="light" backgroundColor="#15803d" />
               <NavigationContainer
                 ref={navigationRef}
                 linking={linking}
@@ -745,6 +748,7 @@ export default function App() {
               >
                 <AppNavigator currentRoute={currentRoute} />
               </NavigationContainer>
+              </ThemeProvider>
             </AuthProvider>
           </UniversityProvider>
         </QueryClientProvider>

@@ -57,3 +57,55 @@ export function rankMaterials<T extends MaterialSearchFields>(items: T[], query:
     .sort((a, b) => a.score - b.score || a.index - b.index)
     .map(({ item }) => item);
 }
+
+/** Rank every material for a student profile, keeping unmatched materials as a useful fallback. */
+export function rankMaterialsForProfile<T extends MaterialSearchFields>(
+  items: T[],
+  profile?: { school?: string; course?: string; yearOfStudy?: string } | null,
+  searchHistory: string[] = []
+): T[] {
+  const school = normalize(profile?.school);
+  const courseTokens = normalize(profile?.course).split(/\s+/).filter((token) => token && token !== 'unset');
+  const yearTokens = normalize(profile?.yearOfStudy).match(/\d+/g) || [];
+
+  return items
+    .map((item, index) => {
+      const itemSchool = normalize(item.school || item.department);
+      const itemCourseText = [item.courseCode, item.unitCode, item.unitName, item.department, item.title]
+        .map(normalize)
+        .join(' ');
+      const itemYearText = [item.academicYear, item.examYear].map(normalize).join(' ');
+      let score = 1000;
+      let matched = 0;
+
+      if (school && school !== 'unset' && itemSchool && (itemSchool === school || itemSchool.includes(school) || school.includes(itemSchool))) {
+        score -= 450;
+        matched++;
+      }
+      if (courseTokens.length > 0 && courseTokens.every((token) => itemCourseText.includes(token))) {
+        score -= 420;
+        matched++;
+      } else if (courseTokens.some((token) => itemCourseText.includes(token))) {
+        score -= 180;
+        matched++;
+      }
+      if (yearTokens.length > 0 && yearTokens.some((token) => itemYearText.includes(token))) {
+        score -= 160;
+        matched++;
+      }
+
+      const historyMatchIndex = searchHistory.findIndex((query) => {
+        const tokens = normalize(query).split(/\s+/).filter(Boolean);
+        return tokens.length > 0 && tokens.every((token) => itemCourseText.includes(token) || itemSchool.includes(token) || itemYearText.includes(token));
+      });
+      if (historyMatchIndex >= 0) {
+        score -= Math.max(40, 150 - historyMatchIndex * 10);
+        matched++;
+      }
+
+      const downloads = Number((item as any).downloads || (item as any).downloadsCount || 0);
+      return { item, index, score, matched, downloads };
+    })
+    .sort((a, b) => b.matched - a.matched || a.score - b.score || b.downloads - a.downloads || a.index - b.index)
+    .map(({ item }) => item);
+}

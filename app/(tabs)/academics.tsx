@@ -27,9 +27,9 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
-import { getDownloadedPapers, saveDownloadedPaper } from '../../src/services/offlineStorage';
+import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistory, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
-import { getMaterialSearchScore } from '../../src/utils/materialSearch';
+import { getMaterialSearchScore, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 import {
@@ -87,13 +87,11 @@ const GRID_SECTION_2: NoteItem[] = [];
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All Resources', iconType: 'all' },
-  { id: 'hot', label: 'Hot Now', iconType: 'flame' },
   { id: 'profile', label: 'For You', iconType: 'sparkles' },
   { id: 'new', label: 'New Releases', iconType: 'zap' },
   { id: 'trending', label: 'Trending', iconType: 'trending' },
-  { id: 'past_paper', label: 'Past Papers', iconType: 'document' },
-  { id: 'cat', label: 'CAT Papers', iconType: 'edit' },
   { id: 'date', label: 'Filter by Date', iconType: 'calendar' },
+  { id: 'hot', label: 'Hot Now', iconType: 'flame' },
 ];
 
 function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
@@ -142,8 +140,10 @@ function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: numbe
 
 export default function AcademicsScreen({ route }: any) {
   const router = useAppNavigation();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
+  const [filterShuffleSeed, setFilterShuffleSeed] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [papers, setPapers] = useState<IPaper[]>([]);
   const [mySubmissions, setMySubmissions] = useState<IPaper[]>([]);
@@ -169,6 +169,11 @@ export default function AcademicsScreen({ route }: any) {
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  useEffect(() => {
+    getMaterialSearchHistory().then(setSearchHistory);
+  }, []);
 
   const fetchRealAcademicPapers = async (searchQueryParam?: string) => {
     try {
@@ -207,7 +212,7 @@ export default function AcademicsScreen({ route }: any) {
           fileUrl: p.fileUrl,
           ttsTextUrl: (p as any).ttsTextUrl
         }));
-        setRealUploadedNotes(mapped); setInitialLoading(false);
+        setRealUploadedNotes(rankMaterialsForProfile(mapped, user, searchHistory)); setInitialLoading(false);
       } else if (!res.success) {
         setFetchError(true); setInitialLoading(false);
       } else {
@@ -228,7 +233,7 @@ export default function AcademicsScreen({ route }: any) {
       }
     });
     return () => subscription.remove();
-  }, []);
+  }, [user, searchHistory]);
 
   const handleOpenPreview = (item: NoteItem) => {
     setPreviewDoc({
@@ -326,8 +331,6 @@ export default function AcademicsScreen({ route }: any) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState('');
 
-  const { user } = useAuth();
-
   useEffect(() => {
     if (route?.params?.upload === 'true' || route?.params?.upload === true) {
       router.push('/contribute');
@@ -417,26 +420,64 @@ export default function AcademicsScreen({ route }: any) {
     };
   }, [searchQuery, realUploadedNotes, activeFilterDisc, showDemoMaterials]);
 
-  const combinedForYou = realUploadedNotes.length > 0
+  const allBrowseNotes = React.useMemo(() => {
+    const seen = new Set<string>();
+    return [
+      ...realUploadedNotes,
+      ...(showDemoMaterials ? FOR_YOU_CAROUSEL : []),
+      ...(showDemoMaterials ? GRID_SECTION_1 : []),
+      ...(showDemoMaterials ? TRENDING_CAROUSEL : []),
+      ...(showDemoMaterials ? GRID_SECTION_2 : [])
+    ].filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [realUploadedNotes, showDemoMaterials]);
+
+  const isRandomFilter = ['hot', 'profile', 'new', 'trending'].includes(activeFilterDisc);
+  const randomizedFilterNotes = React.useMemo(() => {
+    if (!isRandomFilter) return [];
+    const shuffled = [...allBrowseNotes].sort((a, b) => {
+      const hash = (item: NoteItem) => {
+        let value = filterShuffleSeed + item.id.length;
+        for (let i = 0; i < item.id.length; i += 1) value = (value * 31 + item.id.charCodeAt(i)) % 1000003;
+        return value;
+      };
+      return hash(a) - hash(b);
+    });
+    return shuffled.slice(0, Math.min(8, shuffled.length));
+  }, [allBrowseNotes, filterShuffleSeed, isRandomFilter]);
+
+  const activeFilterLabel = FILTER_DISCS.find((disc) => disc.id === activeFilterDisc)?.label || 'Selected';
+
+  const combinedForYou = isRandomFilter
+    ? []
+    : realUploadedNotes.length > 0
     ? realUploadedNotes
     : (showDemoMaterials ? FOR_YOU_CAROUSEL : []);
 
-  const combinedGrid1 = realUploadedNotes.length > 0
+  const combinedGrid1 = isRandomFilter
+    ? randomizedFilterNotes
+    : realUploadedNotes.length > 0
     ? realUploadedNotes
     : (showDemoMaterials ? GRID_SECTION_1 : []);
 
-  const combinedGrid2 = realUploadedNotes.length > 3
+  const combinedGrid2 = isRandomFilter
+    ? []
+    : realUploadedNotes.length > 3
     ? realUploadedNotes.slice(3)
     : (showDemoMaterials ? GRID_SECTION_2 : []);
 
   const combinedTrending = React.useMemo(() => {
+    if (isRandomFilter) return [];
     if (realUploadedNotes.length > 0) {
       return [...realUploadedNotes]
         .sort((a, b) => (parseInt(String(b.downloads).replace(/,/g, '')) || 0) - (parseInt(String(a.downloads).replace(/,/g, '')) || 0))
         .slice(0, 6);
     }
     return TRENDING_CAROUSEL;
-  }, [realUploadedNotes]);
+  }, [realUploadedNotes, isRandomFilter]);
 
   // Auto Scroll For You Carousel
   useEffect(() => {
@@ -686,7 +727,9 @@ export default function AcademicsScreen({ route }: any) {
                 placeholder="Search notes, unit codes (e.g. COM 310, STA 210)..."
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
-                onChangeText={setSearchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery).then(setSearchHistory)}
+              returnKeyType="search"
                 style={styles.searchInput}
               />
               {searchQuery.length > 0 && (
@@ -717,6 +760,9 @@ export default function AcademicsScreen({ route }: any) {
                       router.push('/cat-papers');
                     } else {
                       setActiveFilterDisc(disc.id);
+                      if (['hot', 'profile', 'new', 'trending'].includes(disc.id)) {
+                        setFilterShuffleSeed(Date.now());
+                      }
                     }
                   }}
                   activeOpacity={0.75}
@@ -862,8 +908,8 @@ export default function AcademicsScreen({ route }: any) {
                   <BookIcon color="#15803d" size={18} />
                 </View>
                 <View>
-                  <Text style={styles.sectionTitle}>Essential Course Notes & Papers</Text>
-                  <Text style={styles.sectionSub}>Top rated revision materials</Text>
+                    <Text style={styles.sectionTitle}>{isRandomFilter ? `${activeFilterLabel} Materials` : 'Essential Course Notes & Papers'}</Text>
+                    <Text style={styles.sectionSub}>{isRandomFilter ? 'A fresh selection for you' : 'Top rated revision materials'}</Text>
                 </View>
               </View>
 
@@ -1299,10 +1345,12 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12
+    justifyContent: 'space-between',
+    columnGap: 0,
+    rowGap: 12
   },
   gridCard: {
-    width: GRID_CARD_WIDTH,
+    width: '48%',
     backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
@@ -1502,7 +1550,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2
   },
   shimmerCard: {
-    width: GRID_CARD_WIDTH,
+    width: '48%',
     backgroundColor: '#ffffff',
     borderRadius: 16,
     borderWidth: 1,

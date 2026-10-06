@@ -97,7 +97,13 @@ class TTSService {
         if (typeof ExpoSpeech.getAvailableVoicesAsync === 'function') {
           const rawVoices = await ExpoSpeech.getAvailableVoicesAsync();
           if (Array.isArray(rawVoices) && rawVoices.length > 0) {
-            this.voices = rawVoices.map((v: any) => ({
+            // Android exposes both installed voices and downloadable network
+            // voices. Keep only voices that are already available on-device.
+            const localVoices = rawVoices.filter((v: any) => {
+              const voiceInfo = `${v.identifier || ''} ${v.name || ''} ${v.quality || ''}`.toLowerCase();
+              return !/(?:network|online|remote|cloud|stream)/i.test(voiceInfo);
+            });
+            this.voices = localVoices.map((v: any) => ({
               id: v.identifier || v.name,
               name: v.name || v.identifier || 'Default Voice',
               language: v.language || 'en',
@@ -116,7 +122,7 @@ class TTSService {
       }
 
       // 2. Web & Browser Fallback via Web Speech API
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
         const fetchWebVoices = () => {
           const webVoices = window.speechSynthesis.getVoices();
           if (Array.isArray(webVoices) && webVoices.length > 0) {
@@ -151,25 +157,30 @@ class TTSService {
     void this.savePreferences();
     this.notify();
 
-    if (this.isSpeaking && this.activeText) {
-      const currentText = this.activeText;
-      this.stop();
-      setTimeout(() => {
-        void this.speak(currentText);
-      }, 150);
-    }
+    this.restartActiveSpeech();
   }
 
   public setSpeechRate(rate: number): void {
     this.speechRate = this.clamp(rate, 0.7, 1.3);
     void this.savePreferences();
     this.notify();
+    this.restartActiveSpeech();
   }
 
   public setSpeechPitch(pitch: number): void {
     this.speechPitch = this.clamp(pitch, 0.8, 1.3);
     void this.savePreferences();
     this.notify();
+    this.restartActiveSpeech();
+  }
+
+  private restartActiveSpeech(): void {
+    if (!this.isSpeaking || !this.activeText) return;
+    const currentText = this.activeText;
+    this.stop();
+    setTimeout(() => {
+      void this.speak(currentText);
+    }, 120);
   }
 
   public subscribe(listener: TTSListener): () => void {
@@ -249,7 +260,7 @@ class TTSService {
     }
 
     // 2. Web & Browser Fallback via Web Speech API (window.speechSynthesis)
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -315,12 +326,26 @@ class TTSService {
     return new Promise((resolve) => {
       let started = false;
       let settled = false;
+      let finishTimer: ReturnType<typeof setTimeout> | null = null;
       const unsubscribe = this.subscribe((state) => {
-        if (state.isSpeaking) started = true;
-        if (started && !state.isSpeaking && !settled) {
-          settled = true;
-          unsubscribe();
-          resolve();
+        if (state.isSpeaking) {
+          started = true;
+          if (finishTimer) {
+            clearTimeout(finishTimer);
+            finishTimer = null;
+          }
+        } else if (started && !settled && !finishTimer) {
+          // Android briefly reports stopped while an utterance is being
+          // restarted after a rate/pitch change. Wait before advancing to
+          // the next chunk so the restarted speech is not interrupted.
+          finishTimer = setTimeout(() => {
+            finishTimer = null;
+            if (started && !settled && !this.isSpeaking) {
+              settled = true;
+              unsubscribe();
+              resolve();
+            }
+          }, 260);
         }
       });
 
@@ -344,7 +369,7 @@ class TTSService {
       } catch (e) {}
     }
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
       } catch (e) {}
@@ -362,7 +387,7 @@ class TTSService {
       if (ExpoSpeech && Platform.OS !== 'web' && typeof ExpoSpeech.pause === 'function') {
         ExpoSpeech.pause();
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.pause();
       }
       this.isPaused = true;
@@ -378,7 +403,7 @@ class TTSService {
       if (ExpoSpeech && Platform.OS !== 'web' && typeof ExpoSpeech.resume === 'function') {
         ExpoSpeech.resume();
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.resume();
       }
       this.isPaused = false;

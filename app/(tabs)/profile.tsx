@@ -1,5 +1,6 @@
 import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
@@ -12,7 +13,8 @@ import {
   Modal,
   TextInput,
   Platform,
-  Image
+  Image,
+  Switch
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppNavigation } from '../../src/utils/navigation';
@@ -21,10 +23,13 @@ import { apiRequest } from '../../src/services/api';
 import {
   getStudentPersonalDetails,
   saveStudentPersonalDetails,
-  StudentPersonalDetails
+  StudentPersonalDetails,
+  clearMaterialSearchHistory
 } from '../../src/services/offlineStorage';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
+import { UserBadge } from '../../src/components/UserBadge';
 import { EmptyState } from '../../src/components/EmptyState';
 import {
   HouseIcon,
@@ -32,7 +37,6 @@ import {
   EditIcon,
   CameraIcon,
   AcademicCapIcon,
-  IdCardIcon,
   CalendarIcon,
   CloseIcon,
   PhoneIcon,
@@ -61,19 +65,19 @@ const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
 export default function ProfileScreen() {
   const { user, logout, deleteAccount, updateUserProfile } = useAuth();
+  const { isDark, toggleDarkTheme } = useTheme();
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
-    admissionNumber: 'IS/0012/21',
-    school: 'School of Information Sciences',
-    course: 'BSc. Computer Science',
-    yearOfStudy: 'Year 3',
+    school: 'Unset',
+    course: 'Unset',
+    yearOfStudy: 'Unset',
     phone: '',
     fullName: user?.name || 'Moi Student'
   });
 
   // Edit Profile Modal State
   const [showEditModal, setShowEditModal] = useState(false);
+  const [profileCompletionRequired, setProfileCompletionRequired] = useState(false);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
-  const [editAdmNo, setEditAdmNo] = useState('');
   const [editSchool, setEditSchool] = useState('');
   const [editCourse, setEditCourse] = useState('');
   const [editYear, setEditYear] = useState('');
@@ -82,6 +86,7 @@ export default function ProfileScreen() {
   const [editAvatarUri, setEditAvatarUri] = useState<string | undefined>(undefined);
   const [savingProfile, setSavingProfile] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const { complete } = useLocalSearchParams<{ complete?: string }>();
 
   const router = useAppNavigation();
 
@@ -95,12 +100,17 @@ export default function ProfileScreen() {
     const saved = await getStudentPersonalDetails();
     if (saved) {
       setStudentDetails(saved);
+      const savedSchool = saved.school || 'Unset';
+      const savedCourse = saved.course || 'Unset';
+      const savedYear = saved.yearOfStudy || 'Unset';
+      if ((!user?.school || user?.school === 'Unset') && savedSchool !== 'Unset' && savedCourse !== 'Unset' && savedYear !== 'Unset') {
+        await updateUserProfile({ school: savedSchool, course: savedCourse, yearOfStudy: savedYear }).catch(() => undefined);
+      }
     } else if (user) {
       setStudentDetails({
-        admissionNumber: 'IS/0012/21',
-        school: 'School of Information Sciences',
-        course: 'BSc. Computer Science',
-        yearOfStudy: 'Year 3',
+        school: user?.school || 'Unset',
+        course: user?.course || 'Unset',
+        yearOfStudy: user?.yearOfStudy || 'Unset',
         phone: '',
         fullName: user.name || 'Moi Student'
       });
@@ -133,10 +143,9 @@ export default function ProfileScreen() {
   };
 
   const handleOpenEditModal = () => {
-    setEditAdmNo(studentDetails.admissionNumber);
-    setEditSchool(studentDetails.school);
-    setEditCourse(studentDetails.course);
-    setEditYear(studentDetails.yearOfStudy);
+    setEditSchool(studentDetails.school || user?.school || 'Unset');
+    setEditCourse(studentDetails.course || user?.course || 'Unset');
+    setEditYear(studentDetails.yearOfStudy || user?.yearOfStudy || 'Unset');
     setEditPhone(studentDetails.phone);
     setEditName(studentDetails.fullName || user?.name || '');
     setEditAvatarUri(studentDetails.avatarUri);
@@ -144,33 +153,48 @@ export default function ProfileScreen() {
     setShowEditModal(true);
   };
 
+  useEffect(() => {
+    if (complete === '1' && user && (user.course === 'Unset' || user.school === 'Unset' || user.yearOfStudy === 'Unset' || !user.course || !user.school || !user.yearOfStudy)) {
+      setProfileCompletionRequired(true);
+      handleOpenEditModal();
+    }
+  }, [complete, user]);
+
   const handleSaveProfileSubmit = async () => {
-    if (!editAdmNo.trim() || !editCourse.trim()) {
-      showIceMessage('Incomplete Details', 'Please provide at least your Admission Number and Course of Study.');
+    if (!editCourse.trim() || editCourse.trim() === 'Unset' || !editSchool.trim() || editSchool.trim() === 'Unset' || !editYear.trim() || editYear.trim() === 'Unset') {
+      showIceMessage('Incomplete Details', 'Please fill in your course, school/faculty, and year of study before saving.');
       return;
     }
 
     setSavingProfile(true);
     const updated: StudentPersonalDetails = {
-      admissionNumber: editAdmNo.trim(),
-      school: editSchool || MOI_SCHOOLS_LIST[0],
+      school: editSchool.trim(),
       course: editCourse.trim(),
-      yearOfStudy: editYear || YEARS_LIST[2],
+      yearOfStudy: editYear.trim(),
       phone: editPhone.trim(),
       fullName: editName.trim() || user?.name || 'Moi Student',
       avatarUri: editAvatarUri
     };
 
-    await saveStudentPersonalDetails(updated);
-    await updateUserProfile({
-      name: updated.fullName,
-      phone: updated.phone,
-      ...(updated.avatarUri ? { avatarUrl: updated.avatarUri } : {})
-    });
-    setStudentDetails(updated);
-    setSavingProfile(false);
-    setShowEditModal(false);
-    showIceMessage('Profile Updated', 'Your personal student academic details have been updated successfully.');
+    try {
+      await updateUserProfile({
+        name: updated.fullName,
+        phone: updated.phone,
+        school: updated.school,
+        course: updated.course,
+        yearOfStudy: updated.yearOfStudy,
+        ...(updated.avatarUri ? { avatarUrl: updated.avatarUri } : {})
+      });
+      await saveStudentPersonalDetails(updated);
+      setStudentDetails(updated);
+      setProfileCompletionRequired(false);
+      setShowEditModal(false);
+      showIceMessage('Profile Updated', 'Your name and profile details were saved to your account and chat.');
+    } catch (error: any) {
+      showIceMessage('Profile Update Failed', error?.message || 'Could not save your profile changes. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const confirmDeleteAccount = () => {
@@ -185,6 +209,11 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleResetAlgorithm = async () => {
+    await clearMaterialSearchHistory();
+    showIceMessage('Algorithm Reset', 'Your saved material searches were cleared. Suggestions will now learn from fresh searches.');
+  };
+
   if (!user) {
     return (
       <View style={styles.container}>
@@ -195,7 +224,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, isDark && styles.darkContainer]} contentContainerStyle={styles.content}>
       {/* Profile Avatar & Header Card */}
       <View style={styles.userCard}>
         <TouchableOpacity
@@ -216,7 +245,10 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{studentDetails.fullName || user.name}</Text>
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName}>{studentDetails.fullName || user.name}</Text>
+            <UserBadge badge={user.badge} size={18} />
+          </View>
           <Text style={styles.userEmail}>{user.email}</Text>
           <View style={styles.userBadgeRow}>
             <Badge label="Moi Student" variant="success" />
@@ -251,7 +283,7 @@ export default function ProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-      {/* Student Personal Details Card (Admission No, School, Year, Course) */}
+      {/* Student Personal Details Card */}
       <View style={styles.studentProfileCard}>
         <View style={styles.cardHeaderRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -264,19 +296,6 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.detailsList}>
-          {/* Admission Number */}
-          <View style={styles.detailItem}>
-            <View style={styles.detailIconBox}>
-              <IdCardIcon color="#15803d" size={18} />
-            </View>
-            <View style={styles.detailTextContainer}>
-              <Text style={styles.detailLabelHeader}>ADMISSION NUMBER</Text>
-              <Text style={styles.detailValueBold}>{studentDetails.admissionNumber || 'Not set'}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailItemDivider} />
-
           {/* School / Faculty */}
           <View style={styles.detailItem}>
             <View style={styles.detailIconBox}>
@@ -284,7 +303,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>SCHOOL / FACULTY</Text>
-              <Text style={styles.detailValueText}>{studentDetails.school || 'Not set'}</Text>
+              <Text style={styles.detailValueText}>{studentDetails.school || 'Unset'}</Text>
             </View>
           </View>
 
@@ -297,7 +316,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>COURSE / PROGRAM</Text>
-              <Text style={styles.detailValueBold}>{studentDetails.course || 'Not set'}</Text>
+              <Text style={styles.detailValueBold}>{studentDetails.course || 'Unset'}</Text>
             </View>
           </View>
 
@@ -310,7 +329,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>YEAR OF STUDY</Text>
-              <Text style={styles.detailValueText}>{studentDetails.yearOfStudy || 'Not set'}</Text>
+              <Text style={styles.detailValueText}>{studentDetails.yearOfStudy || 'Unset'}</Text>
             </View>
           </View>
 
@@ -323,21 +342,44 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>PHONE CONTACT</Text>
-              <Text style={styles.detailValueText}>{studentDetails.phone || 'Not set'}</Text>
+              <Text style={styles.detailValueText}>{studentDetails.phone || ''}</Text>
             </View>
           </View>
         </View>
       </View>
 
+      <View style={[styles.settingsCard, isDark && styles.darkCard]}>
+        <View style={styles.settingsHeaderRow}>
+          <View style={styles.settingsIcon}><Text style={styles.settingsIconText}>⚙</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingsTitle, isDark && styles.darkText]}>App Settings</Text>
+            <Text style={[styles.settingsSubtitle, isDark && styles.darkMutedText]}>Make MConnect feel right for you</Text>
+          </View>
+        </View>
+        <View style={[styles.settingsRow, isDark && styles.darkRow]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingsRowTitle, isDark && styles.darkText]}>Dark theme</Text>
+            <Text style={[styles.settingsRowSubtitle, isDark && styles.darkMutedText]}>Use a comfortable dark appearance across the app</Text>
+          </View>
+          <Switch value={isDark} onValueChange={toggleDarkTheme} trackColor={{ false: '#cbd5e1', true: '#15803d' }} thumbColor="#ffffff" />
+        </View>
+        <TouchableOpacity style={[styles.resetAlgorithmButton, isDark && styles.darkResetButton]} onPress={handleResetAlgorithm} activeOpacity={0.8}>
+          <Text style={styles.resetAlgorithmText}>Reset recommendation algorithm</Text>
+          <Text style={styles.resetAlgorithmHint}>Clear saved search interests and start fresh</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Edit Student Personal Details Modal */}
-      <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+      <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => { if (!profileCompletionRequired) setShowEditModal(false); }}>
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Complete Student Profile</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <CloseIcon color="#ef4444" size={20} />
-              </TouchableOpacity>
+              {!profileCompletionRequired && (
+                <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                  <CloseIcon color="#ef4444" size={20} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.formGroup}>
@@ -369,18 +411,6 @@ export default function ProfileScreen() {
                 placeholderTextColor="#94a3b8"
                 value={editName}
                 onChangeText={setEditName}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Admission Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. IS/0012/21 or COM/0042/22"
-                placeholderTextColor="#94a3b8"
-                value={editAdmNo}
-                onChangeText={setEditAdmNo}
-                autoCapitalize="characters"
               />
             </View>
 
@@ -895,5 +925,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#dc2626'
-  }
+  },
+  settingsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+    marginBottom: 16
+  },
+  settingsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  settingsIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' },
+  settingsIconText: { color: '#15803d', fontSize: 18 },
+  settingsTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
+  settingsSubtitle: { fontSize: 11, color: '#64748b', marginTop: 2 },
+  settingsRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
+  settingsRowTitle: { fontSize: 13, fontWeight: '800', color: '#0f172a' },
+  settingsRowSubtitle: { fontSize: 11, color: '#64748b', marginTop: 3, paddingRight: 12 },
+  resetAlgorithmButton: { marginTop: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, padding: 11 },
+  resetAlgorithmText: { color: '#15803d', fontSize: 12, fontWeight: '800' },
+  resetAlgorithmHint: { color: '#64748b', fontSize: 10, marginTop: 3 },
+  darkContainer: { backgroundColor: '#0f172a' },
+  darkCard: { backgroundColor: '#172033', borderColor: '#334155' },
+  darkRow: { borderTopColor: '#334155' },
+  darkText: { color: '#f8fafc' },
+  darkMutedText: { color: '#cbd5e1' },
+  darkResetButton: { backgroundColor: '#1e293b', borderColor: '#475569' }
 });

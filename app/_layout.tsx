@@ -17,6 +17,7 @@ import { syncCommunityUnreadBackground } from '../src/services/offlineStorage';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { initSocket } from '../src/services/socket';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 
 // Hide splash screen immediately when JS bundle executes
 void SplashScreen.hideAsync().catch(() => {});
@@ -83,7 +84,8 @@ function AppRuntimeServices() {
     />
   );
 }
-export default function RootLayout() {
+function RootLayoutContent() {
+  const { isDark } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -137,8 +139,8 @@ export default function RootLayout() {
           <AuthProvider>
             <AppRuntimeServices />
           <IceMessageHost />
-          <StatusBar style="light" backgroundColor="#15803d" />
-          <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+          <StatusBar style="light" backgroundColor={isDark ? '#020617' : '#15803d'} />
+          <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
             <View style={{ flex: 1 }}>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -167,5 +169,13 @@ export default function RootLayout() {
         </UniversityProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutContent />
+    </ThemeProvider>
   );
 }
