@@ -79,11 +79,13 @@ export default function DownloadsScreen() {
       unitCode: paper.unitCode,
       unitName: paper.unitName,
       school: paper.school,
+      // Always prefer the downloaded app-private file. The remote URL is only
+      // retained as a retry/source URL and must never replace the local copy.
       fileUrl: paper.localUri || paper.fileUrl,
       ttsTextUrl: paper.ttsLocalUri,
       author: paper.uploadedBy?.name || 'Moi Lecturer',
       summary: paper.title,
-      sampleText: `Offline Saved Examination Document for ${paper.unitCode} (${paper.unitName || paper.title}). All sections available for offline reading.`
+      sampleText: undefined
     });
     setShowPreviewModal(true);
   };

@@ -1,6 +1,7 @@
 import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect } from 'react';
 import { useLocalSearchParams } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -31,6 +32,7 @@ import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { UserBadge } from '../../src/components/UserBadge';
 import { EmptyState } from '../../src/components/EmptyState';
+import { MOI_SCHOOLS } from '@moi/shared';
 import {
   HouseIcon,
   ShieldCheckIcon,
@@ -46,20 +48,6 @@ import {
   TrashIcon,
 
 } from '../../src/components/Icons';
-
-const MOI_SCHOOLS_LIST = [
-  'School of Information Sciences',
-  'School of Science',
-  'School of Engineering',
-  'School of Law',
-  'School of Business & Economics',
-  'School of Education',
-  'School of Arts & Social Sciences',
-  'School of Medicine',
-  'School of Nursing',
-  'School of Public Health',
-  'School of Agriculture'
-];
 
 const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
@@ -85,8 +73,11 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [editAvatarUri, setEditAvatarUri] = useState<string | undefined>(undefined);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [profileValidationMessage, setProfileValidationMessage] = useState('');
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
   const { complete } = useLocalSearchParams<{ complete?: string }>();
+  const route = useRoute<any>();
+  const completeParam = complete || route.params?.complete;
 
   const router = useAppNavigation();
 
@@ -149,23 +140,34 @@ export default function ProfileScreen() {
     setEditPhone(studentDetails.phone);
     setEditName(studentDetails.fullName || user?.name || '');
     setEditAvatarUri(studentDetails.avatarUri);
+    setProfileValidationMessage('');
     setShowSchoolDropdown(false);
     setShowEditModal(true);
   };
 
   useEffect(() => {
-    if (complete === '1' && user && (user.course === 'Unset' || user.school === 'Unset' || user.yearOfStudy === 'Unset' || !user.course || !user.school || !user.yearOfStudy)) {
+    if (completeParam === '1' && user && (user.course === 'Unset' || user.school === 'Unset' || user.yearOfStudy === 'Unset' || !user.course || !user.school || !user.yearOfStudy)) {
       setProfileCompletionRequired(true);
       handleOpenEditModal();
     }
-  }, [complete, user]);
+  }, [completeParam, user]);
 
   const handleSaveProfileSubmit = async () => {
-    if (!editCourse.trim() || editCourse.trim() === 'Unset' || !editSchool.trim() || editSchool.trim() === 'Unset' || !editYear.trim() || editYear.trim() === 'Unset') {
-      showIceMessage('Incomplete Details', 'Please fill in your course, school/faculty, and year of study before saving.');
+    const missingFields = [
+      (!editCourse.trim() || editCourse.trim().toLowerCase() === 'unset') ? 'course / degree program' : '',
+      (!editSchool.trim() || editSchool.trim().toLowerCase() === 'unset') ? 'school / faculty' : '',
+      (!editYear.trim() || editYear.trim().toLowerCase() === 'unset') ? 'year of study' : ''
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      const missingText = missingFields.length === 1
+        ? missingFields[0]
+        : `${missingFields.slice(0, -1).join(', ')} and ${missingFields[missingFields.length - 1]}`;
+      setProfileValidationMessage(`Please set your ${missingText} before saving your profile.`);
       return;
     }
 
+    setProfileValidationMessage('');
     setSavingProfile(true);
     const updated: StudentPersonalDetails = {
       school: editSchool.trim(),
@@ -421,7 +423,10 @@ export default function ProfileScreen() {
                 placeholder="e.g. BSc. Computer Science"
                 placeholderTextColor="#94a3b8"
                 value={editCourse}
-                onChangeText={setEditCourse}
+                onChangeText={(value) => {
+                  setEditCourse(value);
+                  if (profileValidationMessage) setProfileValidationMessage('');
+                }}
               />
             </View>
 
@@ -440,14 +445,15 @@ export default function ProfileScreen() {
 
               {showSchoolDropdown && (
                 <View style={styles.dropdownMenu}>
-                  {MOI_SCHOOLS_LIST.map((sch) => {
+                  {MOI_SCHOOLS.map((sch) => {
                     const isSelected = editSchool === sch;
                     return (
                       <TouchableOpacity
                         key={sch}
                         style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
                         onPress={() => {
-                          setEditSchool(sch);
+                           setEditSchool(sch);
+                           if (profileValidationMessage) setProfileValidationMessage('');
                           setShowSchoolDropdown(false);
                         }}
                       >
@@ -469,7 +475,10 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     key={yr}
                     style={[styles.chip, editYear === yr && styles.chipActive]}
-                    onPress={() => setEditYear(yr)}
+                     onPress={() => {
+                       setEditYear(yr);
+                       if (profileValidationMessage) setProfileValidationMessage('');
+                     }}
                   >
                     <Text style={[styles.chipText, editYear === yr && styles.chipTextActive]}>{yr}</Text>
                   </TouchableOpacity>
@@ -488,6 +497,12 @@ export default function ProfileScreen() {
                 keyboardType="phone-pad"
               />
             </View>
+
+            {profileValidationMessage ? (
+              <View style={styles.profileValidationBox}>
+                <Text style={styles.profileValidationText}>{profileValidationMessage}</Text>
+              </View>
+            ) : null}
 
             <Button
               title="Save Student Profile"
@@ -819,6 +834,21 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
   } as any,
+  profileValidationBox: {
+    backgroundColor: '#fff1f2',
+    borderColor: '#fecdd3',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 14
+  },
+  profileValidationText: {
+    color: '#be123c',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17
+  },
   dropdownSelector: {
     flexDirection: 'row',
     alignItems: 'center',

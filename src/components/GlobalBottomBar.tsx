@@ -6,12 +6,13 @@ import {
   TouchableOpacity,
   Image,
   Platform,
-  Keyboard
+  Keyboard,
+  AppState,
+  InteractionManager
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, DownloadIcon } from './Icons';
 import {
-  subscribeToUnreadCountUpdates,
   subscribeToUnreadSummaryUpdates,
   syncCommunityUnreadBackground
 } from '../services/offlineStorage';
@@ -32,20 +33,32 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = subscribeToUnreadCountUpdates((count) => {
-      setUnreadCount(count);
-    });
     const unsubscribeSummary = subscribeToUnreadSummaryUpdates((summary) => {
       setUnreadCount(summary.general);
       setUnreadMentions(summary.mentions);
     }, user);
 
-    if (user) {
-      const onCommunityRoute = typeof currentRoute === 'string' && (
-        currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')
-      );
-      void syncCommunityUnreadBackground({ notify: !onCommunityRoute });
+    let backgroundInterval: ReturnType<typeof setInterval> | undefined;
+    let delayedSync: ReturnType<typeof setTimeout> | undefined;
+    let interactionTask: { cancel?: () => void } | undefined;
+    const onCommunityRoute = typeof currentRoute === 'string' && (
+      currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')
+    );
+    const scheduleSilentSync = () => {
+      if (!user || onCommunityRoute || AppState.currentState !== 'active') return;
+      interactionTask = InteractionManager.runAfterInteractions(() => {
+        delayedSync = setTimeout(() => {
+          void syncCommunityUnreadBackground({ notify: true });
+        }, 1200);
+      }) as any;
+    };
+    if (user && !onCommunityRoute) {
+      scheduleSilentSync();
+      backgroundInterval = setInterval(scheduleSilentSync, 30000);
     }
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') scheduleSilentSync();
+    });
 
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
@@ -57,10 +70,13 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     );
 
     return () => {
-      unsubscribe();
       unsubscribeSummary();
       showSub.remove();
       hideSub.remove();
+      appStateSubscription.remove();
+      if (backgroundInterval) clearInterval(backgroundInterval);
+      if (delayedSync) clearTimeout(delayedSync);
+      interactionTask?.cancel?.();
     };
   }, [user, currentRoute]);
 
@@ -78,6 +94,9 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     'Register',
     'RequestLandlord',
     'ChatRoom',
+    'MessagesTab',
+    'Community',
+    'AgentScreen',
     '/(auth)/login',
     '/(auth)/register',
     '/(auth)/request-landlord',
@@ -259,8 +278,8 @@ const styles = StyleSheet.create({
     left: -12,
     backgroundColor: '#0f172a',
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+     minWidth: 15,
+     height: 15,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
@@ -288,13 +307,13 @@ const styles = StyleSheet.create({
     top: -7,
     right: -12,
     backgroundColor: '#ef4444',
-    borderRadius: 10,
+     borderRadius: 8,
     minWidth: 18,
     height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
+     paddingHorizontal: 3,
+     borderWidth: 1,
     borderColor: '#ffffff',
     zIndex: 2,
     ...Platform.select({
@@ -333,8 +352,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#ffffff',
-    fontSize: 9,
+     fontSize: 8,
     fontWeight: '900',
-    lineHeight: 11,
+     lineHeight: 9,
   },
 });

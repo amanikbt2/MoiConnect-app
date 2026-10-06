@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
-import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, VolumeOffIcon } from './Icons';
+import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon } from './Icons';
 import { OfflineState } from './OfflineState';
 import { subscribeToDownloadUpdates, OfflinePaper, personalizeLectureText } from '../services/offlineStorage';
 import { ttsService, TTSState } from '../services/ttsService';
@@ -129,18 +129,26 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     progress?: number;
   }>({});
 
-  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 0.92, speechPitch: 1.0 });
+  const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 1.0, speechPitch: 0.8 });
   const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
   const [isPreparingTTS, setIsPreparingTTS] = useState(false);
   const [isReadingTTS, setIsReadingTTS] = useState(false);
   const isTtsBuffering = isPreparingTTS || (isReadingTTS && !ttsState.isSpeaking && !ttsState.isPaused);
   const ttsSessionRef = useRef(0);
   const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
+  const [isPdfLoading, setIsPdfLoading] = useState<boolean>(true);
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
   const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
 
   useEffect(() => {
     setActualPageCount(null);
+    setIsPdfLoading(Boolean(visible && document?.fileUrl));
+    if (!visible || !document?.fileUrl) return;
+    const timeout = setTimeout(() => {
+      setIsPdfLoading(false);
+      setHasPdfLoadError(true);
+    }, 20000);
+    return () => clearTimeout(timeout);
   }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
 
   const handleRetryPdfLoad = () => {
@@ -358,7 +366,19 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     ? config.apiUrl.replace(/\/api\/v1\/?$/, '') + document.fileUrl
     : document.fileUrl;
   const fileUrl = getCleanPdfUrl(rawFileUrl);
-  const hasRealDocument = /^https?:\/\//i.test(fileUrl || '') || /^\/\/[^/]/.test(fileUrl || '');
+  // Downloaded Android files use file:// URIs inside the app-private
+  // document directory. Treat those as real documents so the reader opens
+  // the saved PDF instead of falling back to the decorative sample page.
+  // Android can return a file URI, a content URI, or an absolute path from
+  // the app-private document directory. All of these are real saved files.
+  // Do not fall through to the decorative sample-page reader for any of them.
+  const hasRealDocument = Boolean(
+    fileUrl && (
+      /^(https?:|file:|content:)/i.test(fileUrl) ||
+      /^\/\/[^/]/.test(fileUrl) ||
+      fileUrl.startsWith('/')
+    )
+  );
   const embeddedFileUrl = fileUrl
     ? fileUrl + (fileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     : fileUrl;
@@ -399,7 +419,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             <TouchableOpacity
               style={[
                 styles.audioIconBtn,
-                (ttsState.isSpeaking || isReadingTTS) && styles.audioIconBtnActive
+                (ttsState.isSpeaking || isReadingTTS || isPreparingTTS) && styles.audioIconBtnActive
               ]}
               onPress={handleToggleTTS}
               disabled={isPreparingTTS}
@@ -409,7 +429,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               {isTtsBuffering ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : ttsState.isSpeaking || isReadingTTS ? (
-                <VolumeOffIcon color="#ffffff" size={20} />
+                <VolumeIcon color="#ffffff" size={20} />
               ) : (
                 <VolumeIcon color="#ffffff" size={20} />
               )}
@@ -620,11 +640,13 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     const message = JSON.parse(event.nativeEvent.data);
                     if (message?.type === 'pdfPageCount' && Number.isInteger(message.count) && message.count > 0) {
                       setActualPageCount(message.count);
+                      setIsPdfLoading(false);
                     }
                   } catch {}
                 }}
                 domStorageEnabled
                 allowFileAccess
+                allowFileAccessFromFileURLs
                 allowUniversalAccessFromFileURLs
                 mixedContentMode="always"
                 startInLoadingState
@@ -634,14 +656,22 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
                   </View>
                 )}
-                onError={() => setHasPdfLoadError(true)}
+                onLoadStart={() => { setIsPdfLoading(true); setHasPdfLoadError(false); }}
+                onError={() => { setIsPdfLoading(false); setHasPdfLoadError(true); }}
                 onHttpError={(syntheticEvent) => {
                   const { nativeEvent } = syntheticEvent;
                   if (nativeEvent.statusCode >= 400) {
+                    setIsPdfLoading(false);
                     setHasPdfLoadError(true);
                   }
                 }}
               />
+              {isPdfLoading && (
+                <View style={styles.nativeLoadingOverlay} pointerEvents="none">
+                  <ActivityIndicator color="#15803d" size="large" />
+                  <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
+                </View>
+              )}
             </View>
           ) : (
             <ScrollView
@@ -931,7 +961,8 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    position: 'relative'
   },
   nativeViewer: {
     flex: 1,
@@ -948,6 +979,13 @@ const styles = StyleSheet.create({
     color: '#475569',
     fontSize: 13,
     fontWeight: '700'
+  },
+  nativeLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#ffffff'
   },
   readerScroll: {
     flex: 1

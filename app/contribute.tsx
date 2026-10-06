@@ -57,7 +57,7 @@ export interface PickedFileItem {
   file?: any;
 }
 
-export default function ContributeScreen() {
+export default function ContributeScreen({ agentMode = false }: { agentMode?: boolean }) {
   const router = useAppNavigation();
   const { user } = useAuth();
 
@@ -78,6 +78,8 @@ export default function ContributeScreen() {
 
   // Selected files state from Phone Storage (Supports multiple files & combinations of images/PDFs/DOCs)
   const [pickedFiles, setPickedFiles] = useState<PickedFileItem[]>([]);
+  const [customThumbnail, setCustomThumbnail] = useState<PickedFileItem | null>(null);
+  const [ttsFile, setTtsFile] = useState<PickedFileItem | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -113,8 +115,59 @@ export default function ContributeScreen() {
     setPickedFiles((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const handlePickOptionalFile = async (kind: 'thumbnail' | 'tts') => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: kind === 'thumbnail' ? ['image/*'] : ['text/plain'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const file = result.assets[0];
+        const item: PickedFileItem = {
+          id: `${Date.now()}_${kind}`,
+          name: file.name,
+          size: file.size,
+          uri: file.uri,
+          mimeType: file.mimeType || (kind === 'thumbnail' ? 'image/*' : 'text/plain'),
+          file: (file as any).file,
+        };
+        if (kind === 'thumbnail') setCustomThumbnail(item);
+        else setTtsFile(item);
+      }
+    } catch (err) {
+      console.warn('Optional file picker error:', err);
+      showIceMessage('File Selection Error', 'Could not open phone storage to select that file.');
+    }
+  };
+
+  const uploadPickedFile = async (item: PickedFileItem) => {
+    const formData = new FormData();
+    if (Platform.OS === 'web') {
+      const rawFile = item.file || (item as any).output?.[0];
+      if (rawFile && (rawFile instanceof File || rawFile instanceof Blob)) {
+        formData.append('file', rawFile, item.name);
+      } else {
+        const res = await fetch(item.uri);
+        formData.append('file', await res.blob(), item.name);
+      }
+    } else {
+      formData.append('file', { uri: item.uri, name: item.name, type: item.mimeType || 'application/octet-stream' } as any);
+    }
+    const uploadRes = await apiRequest<any>('/papers/upload', { method: 'POST', body: formData });
+    if (!uploadRes?.success || !uploadRes.data?.fileUrl) {
+      throw new Error(uploadRes?.error || `The file "${item.name}" could not be uploaded.`);
+    }
+    return uploadRes.data;
+  };
+
   const handleUploadSubmit = async () => {
     const validationErrors: string[] = [];
+
+    if (agentMode && !user) {
+      setFormError('Sign in with the contributor account before submitting agent materials.');
+      return;
+    }
 
     if (pickedFiles.length === 0) {
       validationErrors.push('Select at least one PDF, DOC, DOCX, or image file.');
@@ -158,33 +211,6 @@ export default function ContributeScreen() {
       }> = [];
 
       for (const item of pickedFiles) {
-        const formData = new FormData();
-        if (Platform.OS === 'web') {
-          const rawFile = item.file || (item as any).output?.[0];
-          if (rawFile && (rawFile instanceof File || rawFile instanceof Blob)) {
-            formData.append('file', rawFile, item.name);
-          } else {
-            try {
-              const res = await fetch(item.uri);
-              const fileBlob = await res.blob();
-              formData.append('file', fileBlob, item.name || 'document.pdf');
-            } catch (blobErr) {
-              console.warn('Web blob conversion fallback:', blobErr);
-              formData.append('file', {
-                uri: item.uri,
-                name: item.name,
-                type: item.mimeType || 'application/pdf',
-              } as any);
-            }
-          }
-        } else {
-          formData.append('file', {
-            uri: item.uri,
-            name: item.name,
-            type: item.mimeType || 'application/pdf',
-          } as any);
-        }
-
         let uploadedTempFilename: string | undefined = undefined;
         let uploadedFileUrl = item.uri;
         let uploadedFileSize = item.size || 1258291;
@@ -194,25 +220,11 @@ export default function ContributeScreen() {
           : (['docx', 'doc'].includes(ext) ? 'doc' : (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? 'image' : 'pdf'));
 
         try {
-          const uploadRes = await apiRequest<{
-            tempFilename: string;
-            originalName: string;
-            fileUrl: string;
-            relativeUrl: string;
-            fileSize: number;
-            fileType: 'pdf' | 'doc' | 'image' | 'text';
-          }>('/papers/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!uploadRes?.success || !uploadRes.data?.fileUrl) {
-            throw new Error(uploadRes?.error || `The file "${item.name}" could not be uploaded.`);
-          }
-          uploadedTempFilename = uploadRes.data.tempFilename;
-          uploadedFileUrl = uploadRes.data.fileUrl;
-          uploadedFileSize = uploadRes.data.fileSize || uploadedFileSize;
-          uploadedFileType = uploadRes.data.fileType || uploadedFileType;
+          const uploadRes = await uploadPickedFile(item);
+          uploadedTempFilename = uploadRes.tempFilename;
+          uploadedFileUrl = uploadRes.fileUrl;
+          uploadedFileSize = uploadRes.fileSize || uploadedFileSize;
+          uploadedFileType = uploadRes.fileType || uploadedFileType;
         } catch (uploadErr) {
           console.warn('Direct server upload note for file ' + item.name + ':', uploadErr);
           throw new Error(uploadErr instanceof Error ? uploadErr.message : `The file "${item.name}" could not be uploaded.`);
@@ -226,6 +238,11 @@ export default function ContributeScreen() {
           originalName: item.name,
         });
       }
+
+      let customThumbnailUrl: string | undefined;
+      let ttsTextUrl: string | undefined;
+      if (agentMode && customThumbnail) customThumbnailUrl = (await uploadPickedFile(customThumbnail)).fileUrl;
+      if (agentMode && ttsFile) ttsTextUrl = (await uploadPickedFile(ttsFile)).fileUrl;
 
       const primary = uploadedAttachments[0];
       const imageAttachment = uploadedAttachments.find(
@@ -249,7 +266,8 @@ export default function ContributeScreen() {
         semester: semester.trim() || undefined,
         description: description.trim() || undefined,
         fileUrl: primary.fileUrl,
-        thumbnail: calculatedThumbnail,
+        thumbnail: customThumbnailUrl || calculatedThumbnail,
+        ttsTextUrl,
         tempFilename: primary.tempFilename,
         fileType: primary.fileType,
         fileSize: primary.fileSize,
@@ -311,11 +329,13 @@ export default function ContributeScreen() {
       setType('past_paper');
       setExamYear('2025');
       setPickedFiles([]);
+      setCustomThumbnail(null);
+      setTtsFile(null);
       setFormError('');
       setShowSchoolPicker(false);
 
       const navigateAway = () => {
-        router.replace('/(tabs)');
+        if (!agentMode) router.replace('/(tabs)');
       };
 
       if (Platform.OS === 'web') {
@@ -350,9 +370,9 @@ export default function ContributeScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <ArrowLeftIcon color="#ffffff" size={20} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          <Text style={{ color: '#ffffff' }}>Contribute </Text>
-          <Text style={{ color: '#a7f3d0' }}>Material</Text>
+          <Text style={styles.headerTitle}>
+          <Text style={{ color: '#ffffff' }}>{agentMode ? 'Agent ' : 'Contribute '}</Text>
+          <Text style={{ color: '#a7f3d0' }}>{agentMode ? 'Submission' : 'Material'}</Text>
         </Text>
         <View style={{ width: 36 }} />
       </View>
@@ -364,9 +384,11 @@ export default function ContributeScreen() {
             <UploadIcon color="#15803d" size={26} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Share with Campus Community</Text>
+            <Text style={styles.bannerTitle}>{agentMode ? 'Agent Material Workspace' : 'Share with Campus Community'}</Text>
             <Text style={styles.bannerSub}>
-              Upload past papers, CATs, or notes directly from your phone storage to help fellow Moi University students.
+              {agentMode
+                ? 'Prepare and submit a polished PDF, thumbnail, and TTS material for administrator review.'
+                : 'Upload past papers, CATs, or notes directly from your phone storage to help fellow Moi University students.'}
             </Text>
           </View>
         </View>
@@ -532,6 +554,29 @@ export default function ContributeScreen() {
           </View>
         </View>
 
+        {agentMode && (
+          <View style={styles.formSection}>
+            <Text style={styles.fieldLabel}>Optional AI Assets</Text>
+            <Text style={styles.agentHint}>Add a polished cover and reading text for local TTS. Both files are sent with this submission for administrator review.</Text>
+            <TouchableOpacity style={styles.optionalFileRow} onPress={() => handlePickOptionalFile('thumbnail')} activeOpacity={0.8}>
+              <View style={styles.optionalFileIcon}><UploadIcon color="#15803d" size={18} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.optionalFileTitle}>Custom Cover Thumbnail <Text style={styles.optional}>(Optional)</Text></Text>
+                <Text style={styles.optionalFileMeta} numberOfLines={1}>{customThumbnail?.name || 'Choose an image file'}</Text>
+              </View>
+              {customThumbnail ? <Text style={styles.clearOptional} onPress={() => setCustomThumbnail(null)}>Remove</Text> : <Text style={styles.chooseOptional}>Choose</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.optionalFileRow} onPress={() => handlePickOptionalFile('tts')} activeOpacity={0.8}>
+              <View style={styles.optionalFileIcon}><FileTextIcon color="#15803d" size={18} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.optionalFileTitle}>Lecture Reading Text File <Text style={styles.optional}>(Optional)</Text></Text>
+                <Text style={styles.optionalFileMeta} numberOfLines={1}>{ttsFile?.name || 'Choose a .txt file for local TTS'}</Text>
+              </View>
+              {ttsFile ? <Text style={styles.clearOptional} onPress={() => setTtsFile(null)}>Remove</Text> : <Text style={styles.chooseOptional}>Choose</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
         {/* Submit Button */}
@@ -651,6 +696,13 @@ const styles = StyleSheet.create({
     color: '#ef4444'
   },
   optional: { color: '#94a3b8', fontWeight: '500' },
+  agentHint: { color: '#64748b', fontSize: 12, lineHeight: 17, marginBottom: 12 },
+  optionalFileRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, marginTop: 10, backgroundColor: '#f8fafc' },
+  optionalFileIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' },
+  optionalFileTitle: { color: '#0f172a', fontSize: 12, fontWeight: '800' },
+  optionalFileMeta: { color: '#64748b', fontSize: 11, marginTop: 3 },
+  chooseOptional: { color: '#15803d', fontSize: 12, fontWeight: '800' },
+  clearOptional: { color: '#dc2626', fontSize: 11, fontWeight: '800' },
   textArea: { minHeight: 92, paddingTop: 12 },
   dropzoneCard: {
     backgroundColor: '#f8fafc',

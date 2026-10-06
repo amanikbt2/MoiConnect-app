@@ -82,7 +82,7 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
                 <Text style={{ fontSize: 24 }}>🌟</Text>
               </View>
               <Text style={styles.mainTitle}>Student Rewards</Text>
-              <Text style={styles.subTitle}>MoiConnect Points System</Text>
+              <Text style={styles.subTitle}>MConnect Points System</Text>
             </View>
 
             {/* Balance Card */}

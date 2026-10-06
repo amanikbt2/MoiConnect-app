@@ -33,10 +33,10 @@ class TTSService {
   private activeText: string = '';
   private voices: VoiceOption[] = [];
   private selectedVoiceId: string | null = null;
-  // A centered pitch and slightly relaxed rate give Android's native voice
-  // a natural, balanced tone without leaning strongly male or female.
-  private speechRate = 0.92;
-  private speechPitch = 1.0;
+  // Android defaults: normal speaking speed with a slightly lower pitch.
+  // User adjustments are still restored from the device preference store.
+  private speechRate = 1.0;
+  private speechPitch = 0.8;
   private listeners: Set<TTSListener> = new Set();
 
   constructor() {
@@ -51,8 +51,18 @@ class TTSService {
       if (stored) {
         const preferences = JSON.parse(stored);
         if (typeof preferences.voiceId === 'string') this.selectedVoiceId = preferences.voiceId;
-        if (Number.isFinite(preferences.speechRate)) this.speechRate = this.clamp(preferences.speechRate, 0.7, 1.3);
-        if (Number.isFinite(preferences.speechPitch)) this.speechPitch = this.clamp(preferences.speechPitch, 0.8, 1.3);
+        if (Number.isFinite(preferences.speechRate)) {
+          // Migrate the previous built-in defaults once; preserve any real
+          // user adjustment made through Voice & Speech.
+          this.speechRate = Platform.OS === 'android' && preferences.speechRate === 0.92
+            ? 1.0
+            : this.clamp(preferences.speechRate, 0.7, 1.3);
+        }
+        if (Number.isFinite(preferences.speechPitch)) {
+          this.speechPitch = Platform.OS === 'android' && preferences.speechPitch === 1.0 && preferences.speechRate === 0.92
+            ? 0.8
+            : this.clamp(preferences.speechPitch, 0.8, 1.3);
+        }
       }
     } catch (error) {
       console.warn('[TTS] Could not load speech preferences:', error);

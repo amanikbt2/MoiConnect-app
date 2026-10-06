@@ -9,7 +9,7 @@ import { GlobalBottomBar } from '../src/components/GlobalBottomBar';
 import { IceMessageHost } from '../src/components/IceMessageCard';
 import { InAppPopupModal } from '../src/components/InAppPopupModal';
 import { checkAppPopups } from '../src/services/popupService';
-import { registerForPushNotificationsAsync, setCommunityChatActive, setupNotificationResponseListener } from '../src/services/notificationService';
+import { setCommunityChatActive, setupNotificationResponseListener } from '../src/services/notificationService';
 import { useAuth } from '../src/context/AuthContext';
 import { UniversityProvider } from '../src/context/UniversityContext';
 import { UniversitySetupModal } from '../src/components/UniversitySetupModal';
@@ -46,7 +46,6 @@ function AppRuntimeServices() {
   };
 
   useEffect(() => {
-    void registerForPushNotificationsAsync();
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       router.push(screenPath as any);
     });
@@ -62,7 +61,6 @@ function AppRuntimeServices() {
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void registerForPushNotificationsAsync();
         loadPopup();
         void syncCommunityUnreadBackground({ notify: !onCommunityRoute });
       }
@@ -104,11 +102,6 @@ function RootLayoutContent() {
 
   useEffect(() => {
     void SplashScreen.hideAsync().catch(() => {});
-    // Request permission and register the device as soon as the installed
-    // app opens, even before authentication is complete. The authenticated
-    // runtime retries after sign-in so the same token becomes linked to the
-    // user's account when available.
-    void registerForPushNotificationsAsync();
     // Automatically initialize socket connection for online status tracking
     initSocket().catch(() => {});
 

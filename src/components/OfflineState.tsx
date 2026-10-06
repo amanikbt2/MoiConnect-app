@@ -41,6 +41,8 @@ export const OfflineState: React.FC<OfflineStateProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    width: '100%',
     paddingVertical: 32,
     paddingHorizontal: 16,
     alignItems: 'center',

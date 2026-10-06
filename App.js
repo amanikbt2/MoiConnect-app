@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Platform, Modal, ScrollView, Image, AppState } from 'react-native';
+import { View, Text, Platform, Modal, ScrollView, Image } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -28,6 +28,7 @@ import FAQScreen from './app/faq';
 import PastPapersScreen from './app/past-papers';
 import CatPapersScreen from './app/cat-papers';
 import ContributeScreen from './app/contribute';
+import AgentScreen from './app/agent-screen';
 import LandlordPortalScreen from './app/landlord-portal';
 
 import LoginScreen from './app/(auth)/login';
@@ -43,7 +44,7 @@ import { useAuth } from './src/context/AuthContext';
 import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon } from './src/components/Icons';
 import { InAppPopupModal } from './src/components/InAppPopupModal';
 import { checkAppPopups } from './src/services/popupService';
-import { registerForPushNotificationsAsync, setupNotificationResponseListener } from './src/services/notificationService';
+import { setupNotificationResponseListener } from './src/services/notificationService';
 import { apiRequest } from './src/services/api';
 import {
   getReadNotificationIds,
@@ -601,18 +602,13 @@ function AppNavigator({ currentRoute }) {
   const [popupVisible, setPopupVisible] = React.useState(false);
 
   React.useEffect(() => {
-    if (user) void registerForPushNotificationsAsync();
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       if (screenPath === '/(tabs)/messages' && navigationRef.isReady()) {
         navigationRef.navigate('MainTabs', { screen: 'MessagesTab' });
       }
     });
-    const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') if (user) void registerForPushNotificationsAsync();
-    });
     return () => {
       removeNotificationListener();
-      appStateSubscription.remove();
     };
   }, [user]);
 
@@ -663,6 +659,7 @@ function AppNavigator({ currentRoute }) {
           <Stack.Screen name="PastPapers" component={PastPapersScreen} options={{ title: 'Past Exam Papers', headerShown: true }} />
           <Stack.Screen name="CatPapers" component={CatPapersScreen} options={{ title: 'CAT Papers', headerShown: true }} />
           <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AgentScreen" component={AgentScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LandlordPortal" component={LandlordPortalScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
           <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
@@ -708,6 +705,7 @@ const linking = {
       PastPapers: 'past-papers',
       CatPapers: 'cat-papers',
       Contribute: 'contribute',
+      AgentScreen: 'agent-screen',
       Community: 'community',
       LandlordPortal: 'landlord-portal',
       Academics: 'academics',

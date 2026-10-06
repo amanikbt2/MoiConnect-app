@@ -17,6 +17,7 @@
       "googleServicesFile": "./google-services.json",
       "icon": "./assets/playstore_assets/icon.png",
       "package": "com.amanikbt1.moiconnect",
+      "allowBackup": false,
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",

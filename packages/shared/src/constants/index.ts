@@ -5,6 +5,7 @@ export const MOI_SCHOOLS = [
   'School of Education',
   'School of Medicine',
   'School of Arts & Social Sciences',
+  'School of Science and Aerospace Studies',
   'School of Biological & Physical Sciences',
   'School of Law',
   'School of Nursing',

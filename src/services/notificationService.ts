@@ -35,6 +35,30 @@ Notifications.setNotificationHandler({
 
 let registrationInFlight: Promise<string | null> | null = null;
 const COMMUNITY_MESSAGE_CATEGORY = 'community_message';
+let registrationEnabled = false;
+let registrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let registrationRetryAttempt = 0;
+let permissionPrompted = false;
+const MAX_REGISTRATION_RETRY_DELAY_MS = 5 * 60 * 1000;
+
+function schedulePushRegistrationRetry() {
+  if (!registrationEnabled || registrationRetryTimer) return;
+  const delay = Math.min(5000 * (2 ** registrationRetryAttempt), MAX_REGISTRATION_RETRY_DELAY_MS);
+  registrationRetryAttempt += 1;
+  registrationRetryTimer = setTimeout(() => {
+    registrationRetryTimer = null;
+    void registerForPushNotificationsAsync();
+  }, delay);
+}
+
+AppState.addEventListener('change', (state) => {
+  if (state !== 'active' || !registrationEnabled) return;
+  if (registrationRetryTimer) {
+    clearTimeout(registrationRetryTimer);
+    registrationRetryTimer = null;
+  }
+  void registerForPushNotificationsAsync();
+});
 
 async function configureNotificationCategories() {
   if (Platform.OS !== 'android') return;
@@ -61,16 +85,42 @@ async function configureNotificationCategories() {
 }
 
 export async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'web') return null;
+  registrationEnabled = true;
   if (registrationInFlight) return registrationInFlight;
   registrationInFlight = registerPushToken();
   try {
     return await registrationInFlight;
   } finally {
     registrationInFlight = null;
+    if (registrationEnabled) {
+      if (lastPushRegistrationSucceeded) {
+        registrationRetryAttempt = 0;
+        if (registrationRetryTimer) {
+          clearTimeout(registrationRetryTimer);
+          registrationRetryTimer = null;
+        }
+      } else {
+        schedulePushRegistrationRetry();
+      }
+    }
+  }
+}
+
+let lastPushRegistrationSucceeded = false;
+
+export function stopPushTokenRegistrationRetries() {
+  registrationEnabled = false;
+  registrationRetryAttempt = 0;
+  lastPushRegistrationSucceeded = false;
+  if (registrationRetryTimer) {
+    clearTimeout(registrationRetryTimer);
+    registrationRetryTimer = null;
   }
 }
 
 async function registerPushToken() {
+  lastPushRegistrationSucceeded = false;
   if (Platform.OS === 'web') {
     return null;
   }
@@ -88,7 +138,8 @@ async function registerPushToken() {
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
+    if (existingStatus !== 'granted' && !permissionPrompted) {
+      permissionPrompted = true;
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
@@ -138,6 +189,7 @@ async function registerPushToken() {
     }
 
     console.log('[Notifications]: Push token registered successfully with backend.');
+    lastPushRegistrationSucceeded = true;
     return token;
   } catch (error) {
     console.error('[Notifications]: Error registering push token:', error instanceof Error ? error.message : error);

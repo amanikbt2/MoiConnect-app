@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Pressable,
   KeyboardAvoidingView,
+  ActivityIndicator,
   Platform,
   SafeAreaView,
   StatusBar,
@@ -137,12 +138,19 @@ const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥']
 const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
 const CAMPUS_AI_AVATAR = require('../assets/campus-ai-avatar.png');
 const MENTION_DIRECTORY_KEY = 'moi_community_mention_directory_v1';
-const COMMUNITY_MESSAGE_PAGE_SIZE = 30;
+const COMMUNITY_MESSAGE_PAGE_SIZE = 50;
 const COMMUNITY_CACHE_WINDOW = 60;
 const MENTION_ASSISTANTS: Array<MentionUser & { avatar: any }> = [
   { id: 'campus-bot', name: 'Campus Bot', avatar: CAMPUS_BOT_AVATAR },
   { id: 'campus-ai', name: 'Campus AI', avatar: CAMPUS_AI_AVATAR }
 ];
+const matchesMentionEntry = (entry: MentionUser, query: string): boolean => {
+  const normalizedQuery = query.trim().toLowerCase().replace(/[\s_]+/g, ' ');
+  const normalizedName = entry.name.trim().toLowerCase().replace(/[\s_]+/g, ' ');
+  return normalizedName.includes(normalizedQuery) ||
+    (normalizedQuery === 'bot' && entry.id === 'campus-bot') ||
+    (normalizedQuery === 'ai' && entry.id === 'campus-ai');
+};
 const getCloudinaryVideoPreviewUrl = (url: string): string => {
   if (!url.includes('/video/upload/')) return url;
   const [path, query] = url.split('?');
@@ -156,6 +164,10 @@ const isCampusAIMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusai@moiconnect.app' ||
   message.senderName.toLowerCase() === 'campus ai';
 const isCampusAssistantMessage = (message: CommunityMessage) => isCampusBotMessage(message) || isCampusAIMessage(message);
+const getCommunitySenderSubtitle = (message: CommunityMessage): string =>
+  isCampusAssistantMessage(message)
+    ? 'AI Assistant'
+    : formatStudentSubtitle(undefined, undefined, undefined, message.senderFaculty);
 
 const STICKER_SOURCES: Record<string, any> = Object.fromEntries(STICKERS.map((sticker) => [sticker.id, sticker.source]));
 
@@ -356,9 +368,13 @@ export default function CommunityScreen() {
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const [isForumLoading, setIsForumLoading] = useState(true);
+  const [hasForumListLayout, setHasForumListLayout] = useState(false);
+  const [isForumLayoutReady, setIsForumLayoutReady] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [hasOlderMessages, setHasOlderMessages] = useState(true);
   const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
+  const showForumLoading = isForumLoading || !isForumLayoutReady;
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -390,6 +406,12 @@ export default function CommunityScreen() {
   useEffect(() => {
     getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
   }, []);
+
+  useEffect(() => {
+    if (isForumLoading || !hasForumListLayout) return;
+    const frame = requestAnimationFrame(() => setIsForumLayoutReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, [isForumLoading, hasForumListLayout]);
 
   useEffect(() => {
     getStudentPersonalDetails().then((details) => {
@@ -441,6 +463,16 @@ export default function CommunityScreen() {
   const isTypingRef = useRef<boolean>(false);
   const typingDotAnim = useRef(new Animated.Value(0)).current;
 
+  const clearTypingIndicators = () => {
+    setBotTyping(false);
+    setTypingUsers([]);
+    setDeletingUsers([]);
+    Object.values(typingTimeoutsRef.current).forEach((timeout) => clearTimeout(timeout));
+    Object.values(deletingTimeoutsRef.current).forEach((timeout) => clearTimeout(timeout));
+    typingTimeoutsRef.current = {};
+    deletingTimeoutsRef.current = {};
+  };
+
   useEffect(() => {
     if (typingUsers.length > 0 || deletingUsers.length > 0 || botTyping) {
       const anim = Animated.loop(
@@ -488,6 +520,24 @@ export default function CommunityScreen() {
   const initialScrollDoneRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
   const userScrolledRef = useRef<boolean>(false);
+  const socketPresenceRef = useRef(false);
+
+  const addLocalPresenceNotice = (event: 'user_connected' | 'user_disconnected') => {
+    const isConnected = event === 'user_connected';
+    const notice: CommunityMessage = {
+      id: `local_presence_${event}_${Date.now()}`,
+      senderName: 'System',
+      senderFaculty: '',
+      avatarBg: '#64748b',
+      text: isConnected ? 'You came online' : 'You went offline',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isoDate: new Date().toISOString(),
+      isMe: false,
+      isSystemNotice: true,
+      eventType: event
+    };
+    setMessages((previous) => [...previous, notice]);
+  };
 
   useEffect(() => {
     isForumFocusedRef.current = isForumFocused;
@@ -501,6 +551,9 @@ export default function CommunityScreen() {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       appStateRef.current = state;
+      if (state !== 'active') {
+        clearTypingIndicators();
+      }
     });
     return () => subscription.remove();
   }, []);
@@ -533,8 +586,16 @@ export default function CommunityScreen() {
 
   const mapCommunityServerMessage = (serverMsg: any): CommunityMessage => {
     const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
+    // A persisted Mongo message should always have _id. Keep the fallback
+    // deterministic so reconnects cannot create duplicate FlatList keys.
+    const stableFallbackId = [
+      serverMsg.clientMsgId,
+      serverMsg.senderId?._id || serverMsg.senderId,
+      serverMsg.createdAt,
+      serverMsg.text,
+    ].filter(Boolean).join(':');
     return {
-      id: serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now().toString(),
+      id: String(serverMsg._id || serverMsg.id || stableFallbackId || 'community-message-unknown'),
       clientMsgId: serverMsg.clientMsgId,
       deliveryStatus: isMyMsg ? 'delivered' : undefined,
       senderId: serverMsg.senderId,
@@ -743,17 +804,31 @@ export default function CommunityScreen() {
         }));
       let initialMessages = msgsToLoad;
       let didInitialSync = false;
-      if ((!cachedMsgs || cachedMsgs.length === 0) && !demoSetting) {
+      // Always refresh the initial real-message window when demo content is
+      // disabled. Cached messages remain the offline fallback, but the forum
+      // should not present them as the final initial state while a fresh
+      // latest-50 request is still available.
+      if (!demoSetting) {
         try {
-          const initialResponse = await apiRequest<{ data: any[]; hasMore?: boolean; syncedAt?: string }>(`/community/messages?limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`);
-          const initialPayload = initialResponse.data;
-          if (initialResponse.success && Array.isArray(initialPayload?.data)) {
-            initialMessages = initialPayload.data.map(mapCommunityServerMessage);
+          let timeoutId: ReturnType<typeof setTimeout> | undefined;
+          const initialResponse: any = await Promise.race([
+            apiRequest<any>(`/community/messages?limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`),
+            new Promise<{ success: false }>((resolve) => {
+              timeoutId = setTimeout(() => resolve({ success: false }), 8000);
+            })
+          ]).finally(() => {
+            if (timeoutId) clearTimeout(timeoutId);
+          });
+          const initialData = Array.isArray(initialResponse.data)
+            ? initialResponse.data
+            : Array.isArray(initialResponse.data?.data) ? initialResponse.data.data : [];
+          if (initialResponse.success && Array.isArray(initialData)) {
+            initialMessages = initialData.map(mapCommunityServerMessage);
             didInitialSync = true;
-            setHasOlderMessages(initialPayload.hasMore !== false && initialMessages.length === COMMUNITY_MESSAGE_PAGE_SIZE);
-            if (initialPayload.syncedAt) {
-              lastSyncedISO.current = initialPayload.syncedAt;
-              await saveCommunitySyncCursor(initialPayload.syncedAt);
+            setHasOlderMessages((initialResponse as any).hasMore !== false && initialMessages.length === COMMUNITY_MESSAGE_PAGE_SIZE);
+            if ((initialResponse as any).syncedAt) {
+              lastSyncedISO.current = (initialResponse as any).syncedAt;
+              await saveCommunitySyncCursor((initialResponse as any).syncedAt);
             }
           }
         } catch (error) {
@@ -767,14 +842,22 @@ export default function CommunityScreen() {
       }, '');
       // New installs start from now instead of downloading the entire server archive.
       // Existing installs retain their previous cache cursor and only request deltas.
-      const initialCursor = latestCachedTimestamp || storedCursor || new Date().toISOString();
+      // Never advance the cursor to "now" just because the device has no
+      // cache. On a fresh install or after a long offline period the next
+      // successful request must fetch the server's latest messages.
+      const initialCursor = storedCursor || latestCachedTimestamp || '';
       if (!lastSyncedISO.current) lastSyncedISO.current = initialCursor;
-      if (!storedCursor && !didInitialSync) void saveCommunitySyncCursor(initialCursor);
+      if (!storedCursor && !didInitialSync && initialCursor) void saveCommunitySyncCursor(initialCursor);
       if ((!cachedMsgs || cachedMsgs.length === 0) && demoSetting) {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
       }
       initReadStateAndScroll(initialMessages);
       return initialMessages;
+    }).catch((error) => {
+      console.warn('[Community] Forum initialization failed:', error);
+      return [];
+    }).finally(() => {
+      setIsForumLoading(false);
     });
 
     // 3. Connect Real-time WebSocket Listeners
@@ -783,6 +866,8 @@ export default function CommunityScreen() {
       if (socket) {
         activeSocket = socket;
         const handleSocketConnect = () => {
+          if (socketPresenceRef.current) addLocalPresenceNotice('user_connected');
+          socketPresenceRef.current = true;
           socket.emit('community:request_online_count');
           socket.emit('join_community');
           void fetchDeltaSync();
@@ -791,8 +876,14 @@ export default function CommunityScreen() {
         const handleSocketReconnectError = (error: any) => {
           console.warn('[Community] Socket reconnect pending:', error?.message || error);
         };
+        const handleSocketDisconnect = () => {
+          if (socketPresenceRef.current) addLocalPresenceNotice('user_disconnected');
+          socketPresenceRef.current = false;
+          clearTypingIndicators();
+        };
         socket.on('connect', handleSocketConnect);
         socket.on('connect_error', handleSocketReconnectError);
+        socket.on('disconnect', handleSocketDisconnect);
         socket.on('community:online_count', (stats: { totalOnline?: number }) => {
           setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
         });
@@ -1004,7 +1095,9 @@ export default function CommunityScreen() {
             senderName: 'System',
             senderFaculty: '',
             avatarBg: '#64748b',
-            text: eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MConnect' : 'went offline'}`,
+            text: eventData.userId && user?._id && String(eventData.userId) === String(user._id)
+              ? (eventData.event === 'user_connected' ? 'You came online' : 'You went offline')
+              : (eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MConnect' : 'went offline'}`),
             timestamp: new Date(eventData.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: eventData.timestamp || new Date().toISOString(),
             isMe: false,
@@ -1039,6 +1132,7 @@ export default function CommunityScreen() {
     return () => {
       cancelled = true;
       cleanupNotif();
+      clearTypingIndicators();
       if (activeSocket) {
         activeSocket.off('community:receive_message');
         activeSocket.off('community:user_typing');
@@ -1052,21 +1146,48 @@ export default function CommunityScreen() {
         activeSocket.off('community:online_count');
         activeSocket.off('connect');
         activeSocket.off('connect_error');
+        activeSocket.off('disconnect');
       }
     };
   }, [user]);
 
   const fetchDeltaSync = async () => {
     try {
-      const sinceParam = lastSyncedISO.current ? `?since=${encodeURIComponent(lastSyncedISO.current)}` : '';
-      const res = await apiRequest<{ data: any[]; allowCommunityChat?: boolean; syncedAt: string }>(`/community/messages${sinceParam}`);
-      if (res && res.success) {
-        const responseData = res.data;
-        if (responseData?.allowCommunityChat !== undefined) {
-          setAllowCommunityChat(responseData.allowCommunityChat);
+      let syncCursor = lastSyncedISO.current || '';
+      let responseMessages: any[] = [];
+      let allowCommunityChat: boolean | undefined;
+      let hasMore = true;
+      let page = 0;
+
+      while (hasMore && page < 100) {
+        const sinceParam = syncCursor
+          ? `?since=${encodeURIComponent(syncCursor)}&limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`
+          : `?limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`;
+        const res = await apiRequest<any>(`/community/messages${sinceParam}`);
+        if (!res || !res.success) break;
+        const anyRes: any = res;
+        const pageMessages = Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.data) ? res.data.data : []);
+        responseMessages = [...responseMessages, ...pageMessages];
+        allowCommunityChat = anyRes.allowCommunityChat ?? anyRes.data?.allowCommunityChat ?? allowCommunityChat;
+        hasMore = (anyRes.hasMore ?? anyRes.data?.hasMore) === true;
+        page += 1;
+        const serverSyncedAt = anyRes.syncedAt || anyRes.data?.syncedAt || syncCursor;
+        if (pageMessages.length > 0) {
+          const lastMessage = pageMessages[pageMessages.length - 1];
+          syncCursor = hasMore
+            ? (lastMessage.updatedAt || lastMessage.createdAt || serverSyncedAt)
+            : serverSyncedAt;
+        } else {
+          hasMore = false;
+          syncCursor = serverSyncedAt;
         }
-        if (Array.isArray(responseData?.data) && responseData.data.length > 0) {
-        const fetchedMsgs: CommunityMessage[] = responseData.data.map((serverMsg: any) => {
+      }
+
+      if (allowCommunityChat !== undefined) {
+        setAllowCommunityChat(allowCommunityChat);
+      }
+      if (responseMessages.length > 0) {
+        const fetchedMsgs: CommunityMessage[] = responseMessages.map((serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
           return {
             id: serverMsg._id || serverMsg.id,
@@ -1123,10 +1244,9 @@ export default function CommunityScreen() {
         });
 
       }
-      if (responseData?.syncedAt) {
-        lastSyncedISO.current = responseData.syncedAt;
-        await saveCommunitySyncCursor(responseData.syncedAt);
-      }
+      if (syncCursor) {
+        lastSyncedISO.current = syncCursor;
+        await saveCommunitySyncCursor(syncCursor);
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
@@ -1134,7 +1254,7 @@ export default function CommunityScreen() {
   };
 
   const loadOlderMessages = async () => {
-    if (isLoadingOlderMessages || !hasOlderMessages || messages.length === 0) return;
+    if (isForumLoading || !isForumLayoutReady || isLoadingOlderMessages || !hasOlderMessages || messages.length === 0) return;
     const oldestLoaded = messages.find((message) => message.isoDate);
     if (!oldestLoaded?.isoDate) {
       setHasOlderMessages(false);
@@ -1275,7 +1395,12 @@ export default function CommunityScreen() {
   }, []);
 
   const selectMention = (entry: MentionUser) => {
-    const mentionToken = entry.id === 'campus-bot' ? 'bot' : entry.id === 'campus-ai' ? 'ai' : entry.name.trim().replace(/\s+/g, '_');
+    const normalizedName = entry.name.trim().toLowerCase().replace(/[\s_]+/g, ' ');
+    const mentionToken = entry.id === 'campus-bot' || normalizedName === 'campus bot'
+      ? 'campus_bot'
+      : entry.id === 'campus-ai' || normalizedName === 'campus ai'
+        ? 'campus_ai'
+        : entry.name.trim().replace(/\s+/g, '_');
     const nextText = inputText.replace(/(^|\s)@[^\s@]*$/, `$1@${mentionToken} `);
     setInputText(nextText);
     setMentionQuery('');
@@ -1472,9 +1597,24 @@ export default function CommunityScreen() {
           void retryQueuedMessages();
         }
       });
+      let browserOnlineHandler: (() => void) | undefined;
+      let browserOfflineHandler: (() => void) | undefined;
+      if (typeof window !== 'undefined' && window.addEventListener) {
+        browserOnlineHandler = () => {
+          void fetchDeltaSync();
+          void getSocket().then((socket) => {
+            if (socket && !socket.connected) socket.connect();
+          });
+        };
+        browserOfflineHandler = () => clearTypingIndicators();
+        window.addEventListener('online', browserOnlineHandler);
+        window.addEventListener('offline', browserOfflineHandler);
+      }
     const retryTimer = setInterval(retryQueuedMessages, 15000);
     return () => {
       appStateSubscription.remove();
+      if (browserOnlineHandler && typeof window !== 'undefined') window.removeEventListener('online', browserOnlineHandler);
+      if (browserOfflineHandler && typeof window !== 'undefined') window.removeEventListener('offline', browserOfflineHandler);
       clearInterval(retryTimer);
     };
   }, []);
@@ -1504,8 +1644,8 @@ export default function CommunityScreen() {
     }));
 
     const sentText = inputText.trim();
-    const isStopCommand = /^\s*@(bot|campusbot|campus\s+bot|ai|campusai|campus\s+ai)\s+stop\b/i.test(sentText);
-    const mentionMatch = sentText.match(/(^|\s)@(bot|campusbot|campus\s+bot|ai|campusai|campus\s+ai)\b/i);
+    const isStopCommand = /^\s*@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\s+stop\b/i.test(sentText);
+    const mentionMatch = sentText.match(/(^|\s)@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\b/i);
     const isDirectBotMention = !!mentionMatch && !isStopCommand;
     const isReplyToBot = Boolean(replyingTo && isCampusAssistantMessage(replyingTo) && !isStopCommand);
     const isBotMentioned = isDirectBotMention || isReplyToBot;
@@ -1513,7 +1653,7 @@ export default function CommunityScreen() {
     // Start the bot indicator before any network work so it is visible immediately.
     if (isBotMentioned) {
       setBotTyping(true);
-      const target = mentionMatch?.[2]?.toLowerCase() || '';
+      const target = mentionMatch?.[2]?.toLowerCase().replace('_', ' ') || '';
       setBotTypingName(target === 'ai' || target === 'campusai' || target.includes('ai') || (!!replyingTo && isCampusAIMessage(replyingTo)) ? 'Campus AI' : 'Campus Bot');
     } else if (isStopCommand) {
       setBotTyping(false);
@@ -1645,6 +1785,12 @@ export default function CommunityScreen() {
   const handleDeleteForMe = async (msg: CommunityMessage) => {
     try {
       const msgId = msg.id;
+      if (user) {
+        const serverDelete = await apiRequest(`/community/messages/${encodeURIComponent(msgId)}/delete-for-me`, { method: 'POST' });
+        if (!serverDelete.success) {
+          throw new Error(serverDelete.error || 'Could not save this deletion to your account.');
+        }
+      }
       deletedForMeIdsRef.current.add(msgId);
       await saveDeletedForMeMessageId(msgId);
       setMessages((prev) => {
@@ -1939,8 +2085,10 @@ export default function CommunityScreen() {
           <FlatList
             ref={flatListRef}
             data={displayMessages}
+            onLayout={() => setHasForumListLayout(true)}
+            onContentSizeChange={() => setHasForumListLayout(true)}
             inverted={true}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item, index) => String(item.id || `community-message-${index}`)}
             contentContainerStyle={styles.messageList}
             maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
             onScroll={handleScroll}
@@ -1975,7 +2123,7 @@ export default function CommunityScreen() {
                   </View>
                 )}
                 <View style={styles.dateDivider}>
-                  <Text style={styles.dateDividerText}>TODAY • CAMPUS DISCUSSION</Text>
+                  <Text style={styles.dateDividerText}>TODAY • FORUM DISCUSSION</Text>
                 </View>
               </View>
             }
@@ -2069,9 +2217,9 @@ export default function CommunityScreen() {
                             <View style={styles.senderHeader}>
                               <View style={styles.senderNameRow}>
                                 <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
-                                <UserBadge badge={item.senderBadge} />
+                                <UserBadge badge={item.senderBadge} size={11} />
                               </View>
-                              <Text style={styles.senderFaculty}>{formatStudentSubtitle(undefined, undefined, undefined, item.senderFaculty)}</Text>
+                              <Text style={styles.senderFaculty}>{getCommunitySenderSubtitle(item)}</Text>
                             </View>
                           )}
 
@@ -2354,7 +2502,7 @@ export default function CommunityScreen() {
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={styles.mentionSuggestionsList}>
                 {MENTION_ASSISTANTS
-                  .filter((entry) => entry.name.toLowerCase().includes(mentionQuery.toLowerCase()) || (mentionQuery.toLowerCase() === 'bot' && entry.id === 'campus-bot') || (mentionQuery.toLowerCase() === 'ai' && entry.id === 'campus-ai'))
+                  .filter((entry) => matchesMentionEntry(entry, mentionQuery))
                   .map((entry) => (
                     <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
                       <Image source={entry.avatar} style={styles.mentionAvatar} />
@@ -2365,7 +2513,7 @@ export default function CommunityScreen() {
                     </TouchableOpacity>
                   ))}
                 {mentionDirectory
-                  .filter((entry) => entry.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+                  .filter((entry) => matchesMentionEntry(entry, mentionQuery))
                   .slice(0, 8)
                   .map((entry) => (
                     <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
@@ -2376,7 +2524,7 @@ export default function CommunityScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
-                {!mentionLoading && MENTION_ASSISTANTS.every((entry) => !entry.name.toLowerCase().includes(mentionQuery.toLowerCase())) && mentionDirectory.filter((entry) => entry.name.toLowerCase().includes(mentionQuery.toLowerCase())).length === 0 && (
+                {!mentionLoading && MENTION_ASSISTANTS.every((entry) => !matchesMentionEntry(entry, mentionQuery)) && mentionDirectory.filter((entry) => matchesMentionEntry(entry, mentionQuery)).length === 0 && (
                   <Text style={styles.mentionEmptyText}>No matching users yet</Text>
                 )}
               </ScrollView>
@@ -2440,6 +2588,15 @@ export default function CommunityScreen() {
             </View>
           )}
         </ImageBackground>
+
+        {showForumLoading && (
+          <View style={styles.forumLoadingOverlay} pointerEvents="auto">
+            <View style={styles.forumLoadingCard}>
+              <ActivityIndicator color="#15803d" size="small" />
+              <Text style={styles.forumLoadingText}>Logging you into forum…</Text>
+            </View>
+          </View>
+        )}
 
         {/* Signed-out visitors can browse, but are prompted to unlock forum actions. */}
         <Modal
@@ -2821,6 +2978,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#e2e8f0'
+  },
+  forumLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    top: 56,
+    backgroundColor: 'rgba(248, 250, 252, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20
+  },
+  forumLoadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  forumLoadingText: {
+    color: '#15803d',
+    fontSize: 12,
+    fontWeight: '800'
   },
   header: {
     flexDirection: 'row',

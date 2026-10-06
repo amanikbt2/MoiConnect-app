@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { IUser, RegisterInput, LoginInput, RequestLandlordInput } from '@moi/shared';
 import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken, setStoredToken, removeStoredToken } from '../services/api';
 import { disconnectSocket } from '../services/socket';
-import { notifyLoginSuccess, registerForPushNotificationsAsync } from '../services/notificationService';
+import { notifyLoginSuccess, registerForPushNotificationsAsync, stopPushTokenRegistrationRetries } from '../services/notificationService';
 
 interface AuthContextType {
   user: IUser | null;
@@ -167,6 +167,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const token = await getStoredToken('moi_access_token');
     if (token) {
+      if (cachedUser) {
+        void registerForPushNotificationsAsync();
+      }
       if (token === 'demo_google_access_token' || token.startsWith('demo_')) {
         if (!cachedUser) {
           const defaultDemoUser: IUser = {
@@ -243,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    stopPushTokenRegistrationRetries();
     const refreshToken = await getStoredToken('moi_refresh_token');
     await apiRequest('/auth/logout', {
       method: 'POST',
@@ -254,6 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteAccount = async () => {
+    stopPushTokenRegistrationRetries();
     try {
       await apiRequest('/auth/delete-account', { method: 'DELETE' });
     } catch (e) {
