@@ -111,6 +111,15 @@ export function getCleanPdfUrl(rawUrl?: string): string {
   return url;
 }
 
+const resolveRawPdfUrl = (rawUrl: string): string => rawUrl.startsWith('/')
+  ? config.apiUrl.replace(/\/api\/v1\/?$/, '') + rawUrl
+  : rawUrl;
+
+const getPdfCacheName = (documentId: string, url: string): string => {
+  const safeId = `${documentId}-${url}`.replace(/[^a-z0-9._-]/gi, '_').slice(-150);
+  return `mconnect-current-${safeId}.pdf`;
+};
+
 export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   visible,
   document,
@@ -138,6 +147,44 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(true);
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
+  const [cachedPdfUrl, setCachedPdfUrl] = useState<string | null>(null);
+  const pdfReadyRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let cachedPath: string | null = null;
+    const sourceUrl = document?.fileUrl
+      ? getCleanPdfUrl(resolveRawPdfUrl(document.fileUrl))
+      : '';
+
+    pdfReadyRef.current = false;
+    setCachedPdfUrl(null);
+    if (!visible || !sourceUrl || /^(file|content):/i.test(sourceUrl)) return () => { cancelled = true; };
+
+    const cacheCurrentPdf = async () => {
+      try {
+        const cacheDirectory = FileSystem.cacheDirectory;
+        if (!cacheDirectory) return;
+        cachedPath = `${cacheDirectory}${getPdfCacheName(document?.id || 'document', sourceUrl)}`;
+        const existing = await FileSystem.getInfoAsync(cachedPath);
+        if (!existing.exists) {
+          const result = await FileSystem.downloadAsync(sourceUrl, cachedPath);
+          if (result.status < 200 || result.status >= 300) throw new Error(`PDF request failed (${result.status})`);
+        }
+        if (!cancelled) setCachedPdfUrl(cachedPath);
+      } catch (error) {
+        // The online source remains available as a fallback. If the network
+        // drops after this point, the already-loaded WebView is still kept.
+        console.warn('[PDF] Current-document cache unavailable:', error);
+      }
+    };
+
+    void cacheCurrentPdf();
+    return () => {
+      cancelled = true;
+      if (cachedPath) void FileSystem.deleteAsync(cachedPath, { idempotent: true }).catch(() => undefined);
+    };
+  }, [document?.id, document?.fileUrl, visible]);
   const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
 
   useEffect(() => {
@@ -145,8 +192,10 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     setIsPdfLoading(Boolean(visible && document?.fileUrl));
     if (!visible || !document?.fileUrl) return;
     const timeout = setTimeout(() => {
-      setIsPdfLoading(false);
-      setHasPdfLoadError(true);
+      if (!pdfReadyRef.current) {
+        setIsPdfLoading(false);
+        setHasPdfLoadError(true);
+      }
     }, 20000);
     return () => clearTimeout(timeout);
   }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
@@ -362,10 +411,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
   const isDownloading = downloadInfo.status === 'downloading';
   const isCompleted = downloadInfo.status === 'completed';
-  const rawFileUrl = document.fileUrl?.startsWith('/')
-    ? config.apiUrl.replace(/\/api\/v1\/?$/, '') + document.fileUrl
-    : document.fileUrl;
+  const rawFileUrl = resolveRawPdfUrl(document.fileUrl);
   const fileUrl = getCleanPdfUrl(rawFileUrl);
+  const readerFileUrl = cachedPdfUrl || fileUrl;
   // Downloaded Android files use file:// URIs inside the app-private
   // document directory. Treat those as real documents so the reader opens
   // the saved PDF instead of falling back to the decorative sample page.
@@ -379,12 +427,12 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       fileUrl.startsWith('/')
     )
   );
-  const embeddedFileUrl = fileUrl
-    ? fileUrl + (fileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
-    : fileUrl;
+  const embeddedFileUrl = readerFileUrl
+    ? readerFileUrl + (readerFileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
+    : readerFileUrl;
   const nativeReaderUrl = hasRealDocument && Platform.OS !== 'web'
-    ? 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(fileUrl)
-    : fileUrl;
+    ? 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(readerFileUrl)
+    : readerFileUrl;
 
   return (
     <Modal
@@ -622,7 +670,14 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 src={embeddedFileUrl}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title={document.title}
-                onError={() => setHasPdfLoadError(true)}
+                  onLoad={() => {
+                    pdfReadyRef.current = true;
+                    setIsPdfLoading(false);
+                    setHasPdfLoadError(false);
+                  }}
+                  onError={() => {
+                    if (!pdfReadyRef.current) setHasPdfLoadError(true);
+                  }}
               />
             </View>
           ) : Platform.OS !== 'web' && hasRealDocument ? (
@@ -639,7 +694,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   try {
                     const message = JSON.parse(event.nativeEvent.data);
                     if (message?.type === 'pdfPageCount' && Number.isInteger(message.count) && message.count > 0) {
-                      setActualPageCount(message.count);
+                       pdfReadyRef.current = true;
+                       setActualPageCount(message.count);
                       setIsPdfLoading(false);
                     }
                   } catch {}
@@ -657,10 +713,15 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   </View>
                 )}
                 onLoadStart={() => { setIsPdfLoading(true); setHasPdfLoadError(false); }}
-                onError={() => { setIsPdfLoading(false); setHasPdfLoadError(true); }}
+                 onError={() => {
+                   if (!pdfReadyRef.current) {
+                     setIsPdfLoading(false);
+                     setHasPdfLoadError(true);
+                   }
+                 }}
                 onHttpError={(syntheticEvent) => {
                   const { nativeEvent } = syntheticEvent;
-                  if (nativeEvent.statusCode >= 400) {
+                   if (nativeEvent.statusCode >= 400 && !pdfReadyRef.current) {
                     setIsPdfLoading(false);
                     setHasPdfLoadError(true);
                   }

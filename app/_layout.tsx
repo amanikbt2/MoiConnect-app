@@ -142,6 +142,7 @@ function RootLayoutContent() {
                 <Stack.Screen name="past-papers" options={{ headerShown: false }} />
                 <Stack.Screen name="cat-papers" options={{ headerShown: false }} />
                 <Stack.Screen name="contribute" options={{ headerShown: false }} />
+                <Stack.Screen name="admin2" options={{ headerShown: false }} />
                 <Stack.Screen name="community" options={{ headerShown: false }} />
                 <Stack.Screen name="landlord-portal" options={{ headerShown: false }} />
                 <Stack.Screen name="(auth)/login" options={{ presentation: 'modal' }} />
@@ -152,11 +153,13 @@ function RootLayoutContent() {
                 <Stack.Screen name="chat/[id]" options={{ title: 'Chat Conversation', headerShown: true }} />
               </Stack>
             </View>
-            <GlobalBottomBar
-              currentRoute={pathname}
-              onNavigate={handleNavigate}
-              onMentionNavigate={() => router.push({ pathname: '/(tabs)/messages', params: { focusMention: '1' } })}
-            />
+            {!pathname.toLowerCase().includes('admin2') ? (
+              <GlobalBottomBar
+                currentRoute={pathname}
+                onNavigate={handleNavigate}
+                onMentionNavigate={() => router.push({ pathname: '/(tabs)/messages', params: { focusMention: '1' } })}
+              />
+            ) : null}
           </View>
           </AuthProvider>
         </UniversityProvider>

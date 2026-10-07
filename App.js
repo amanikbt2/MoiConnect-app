@@ -30,6 +30,7 @@ import CatPapersScreen from './app/cat-papers';
 import ContributeScreen from './app/contribute';
 import AgentScreen from './app/agent-screen';
 import LandlordPortalScreen from './app/landlord-portal';
+import Admin2Screen from './app/admin2';
 
 import LoginScreen from './app/(auth)/login';
 import RegisterScreen from './app/(auth)/register';
@@ -661,6 +662,7 @@ function AppNavigator({ currentRoute }) {
           <Stack.Screen name="Contribute" component={ContributeScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AgentScreen" component={AgentScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LandlordPortal" component={LandlordPortalScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Admin2" component={Admin2Screen} options={{ headerShown: false }} />
           <Stack.Screen name="Academics" component={AcademicsScreen} options={{ title: 'Notes PDF', headerShown: true }} />
           <Stack.Screen name="Rentals" component={RentalsScreen} options={{ title: 'Student Rental Marketplace', headerShown: true }} />
           <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: 'modal' }} />
@@ -708,6 +710,7 @@ const linking = {
       AgentScreen: 'agent-screen',
       Community: 'community',
       LandlordPortal: 'landlord-portal',
+      Admin2: 'admin2',
       Academics: 'academics',
       Rentals: 'rentals',
       Login: 'login',

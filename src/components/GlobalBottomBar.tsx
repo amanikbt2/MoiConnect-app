@@ -88,7 +88,6 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     bottomInset = 0;
   }
 
-  // Hide on modal authentication screens and live chat keyboards
   const HIDDEN_ROUTES = [
     'Login',
     'Register',
@@ -97,12 +96,15 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     'MessagesTab',
     'Community',
     'AgentScreen',
+    'admin2',
+    'Admin2',
+    '/admin2',
     '/(auth)/login',
     '/(auth)/register',
     '/(auth)/request-landlord',
   ];
 
-  if (isKeyboardVisible || (currentRoute && HIDDEN_ROUTES.includes(currentRoute))) {
+  if (isKeyboardVisible || (currentRoute && (HIDDEN_ROUTES.includes(currentRoute) || currentRoute.toLowerCase().includes('admin2')))) {
     return null;
   }
 

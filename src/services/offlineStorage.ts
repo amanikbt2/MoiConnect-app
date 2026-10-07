@@ -559,9 +559,11 @@ export const saveCommunityMessages = async (messages: any[]) => {
   const queued = compacted.filter((message) => message.deliveryStatus === 'queued' && message.pendingPayload);
   const history = compacted.filter((message) => !(message.deliveryStatus === 'queued' && message.pendingPayload));
 
+  let persisted = false;
   communityCacheWrite = communityCacheWrite.catch(() => undefined).then(async () => {
     let lastError: unknown;
-    for (const keepCount of [MAX_CACHED_COMMUNITY_MESSAGES, 80, 40, 20, 0]) {
+    const fallbackCounts = [MAX_CACHED_COMMUNITY_MESSAGES, 80, 40, 20, 0].filter((count) => count < history.length);
+    for (const keepCount of [history.length, ...fallbackCounts]) {
       const retained = [...history.slice(keepCount > 0 ? -keepCount : history.length), ...queued]
         .sort((a, b) => String(a.isoDate || '').localeCompare(String(b.isoDate || '')));
       const serialized = JSON.stringify(retained);
@@ -573,6 +575,7 @@ export const saveCommunityMessages = async (messages: any[]) => {
         } else {
           await setItem(COMMUNITY_MESSAGES_KEY, serialized);
         }
+        persisted = true;
         lastError = undefined;
         break;
       } catch (error) {
@@ -586,6 +589,7 @@ export const saveCommunityMessages = async (messages: any[]) => {
     await notifyUnreadCountListeners().catch(() => undefined);
   }).catch(() => console.warn('[Community cache] Message cache update was skipped.'));
   await communityCacheWrite;
+  return persisted;
 };
 
 export const getCommunitySyncCursor = async (): Promise<string | null> => {
@@ -595,6 +599,32 @@ export const getCommunitySyncCursor = async (): Promise<string | null> => {
 
 export const saveCommunitySyncCursor = async (cursor: string): Promise<void> => {
   if (cursor) await setItem(COMMUNITY_SYNC_CURSOR_KEY, cursor);
+};
+
+let communityCursorInitialization: Promise<string> | null = null;
+
+export const ensureCommunitySyncCursor = async (): Promise<string> => {
+  const existing = await getCommunitySyncCursor();
+  if (existing) return existing;
+  if (!communityCursorInitialization) {
+    communityCursorInitialization = (async () => {
+      const current = await getCommunitySyncCursor();
+      if (current) return current;
+      const cachedMessages = await getStoredCommunityMessages();
+      const latestCachedTimestamp = cachedMessages.reduce((latest: string, message: any) => {
+        const timestamp = message.updatedAt || message.isoDate || message.createdAt || '';
+        return timestamp > latest ? timestamp : latest;
+      }, '');
+      const cursor = latestCachedTimestamp || new Date().toISOString();
+      await saveCommunitySyncCursor(cursor);
+      return cursor;
+    })();
+  }
+  try {
+    return await communityCursorInitialization;
+  } finally {
+    communityCursorInitialization = null;
+  }
 };
 
 const READ_COMMUNITY_MENTIONS_KEY = 'moi_community_read_mention_ids';
@@ -731,7 +761,7 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
   if (backgroundSyncInFlight) return;
   backgroundSyncInFlight = true;
   try {
-    let storedCursor = await getCommunitySyncCursor();
+    let storedCursor = await ensureCommunitySyncCursor();
     const cachedMsgs = await getStoredCommunityMessages();
     let updated = [...cachedMsgs];
     let changed = false;
@@ -739,15 +769,16 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
     const newServerMessages: any[] = [];
     let hasMore = true;
     let page = 0;
+    let syncWatermark = '';
+    let syncAfterId = '';
 
     // Consume every delta page before committing the final cursor. This prevents
     // a busy community from losing messages beyond the first 50 results.
     while (hasMore && page < 100) {
-      const query = storedCursor
-        ? `?since=${encodeURIComponent(storedCursor)}&limit=50`
-        : '?limit=50';
+      const query = `?since=${encodeURIComponent(storedCursor)}&limit=50${syncWatermark ? `&until=${encodeURIComponent(syncWatermark)}` : ''}${syncAfterId ? `&sinceId=${encodeURIComponent(syncAfterId)}` : ''}`;
       const res = await apiRequest<any>(`/community/messages${query}`);
       const anyRes: any = res;
+      syncWatermark = syncWatermark || anyRes.syncedAt || anyRes.data?.syncedAt || '';
       const responseMessages = Array.isArray(res?.data)
         ? res.data
         : Array.isArray(res?.data?.data) ? res.data.data : [];
@@ -797,12 +828,15 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
 
       hasMore = anyRes.hasMore === true || anyRes.data?.hasMore === true;
       page += 1;
-      const serverSyncedAt = anyRes.syncedAt || anyRes.data?.syncedAt || storedCursor;
+      const serverSyncedAt = syncWatermark || anyRes.syncedAt || anyRes.data?.syncedAt || storedCursor;
       if (responseMessages.length > 0) {
         const lastMessage = responseMessages[responseMessages.length - 1];
-        storedCursor = hasMore
-          ? (lastMessage.updatedAt || lastMessage.createdAt || serverSyncedAt)
-          : serverSyncedAt;
+        if (hasMore) {
+          storedCursor = lastMessage.updatedAt || lastMessage.createdAt || serverSyncedAt;
+          syncAfterId = String(lastMessage._id || lastMessage.id || '');
+        } else {
+          storedCursor = serverSyncedAt;
+        }
       } else {
         hasMore = false;
         storedCursor = serverSyncedAt;
@@ -810,7 +844,8 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
     }
 
     if (changed) {
-      await saveCommunityMessages(updated);
+      const saved = await saveCommunityMessages(updated);
+      if (!saved) return;
 
         // Keep a compact device alert for community messages received while offline.
       const newMessagesFromOthers = newServerMessages;
@@ -835,6 +870,7 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
           } catch (e) {}
       }
     }
+    if (hasMore) return;
     if (storedCursor) await saveCommunitySyncCursor(storedCursor);
   } catch {
     // Silent catch for background unread poll

@@ -77,6 +77,9 @@ export function useAppNavigation() {
       case '/landlord-portal':
       case 'LandlordPortal':
         return { screen: 'LandlordPortal', params };
+      case '/admin2':
+      case 'Admin2':
+        return { screen: 'Admin2', params };
       case '/':
       case '/(tabs)':
       case '/(tabs)/index':

@@ -248,6 +248,119 @@ export function ShieldCheckIcon({ color = '#15803d', size = 20, style }: IconPro
   );
 }
 
+export function PendingApprovalsIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 8C21 10.2091 16.9706 12 12 12C7.02944 12 3 10.2091 3 8M21 8C21 5.79086 16.9706 4 12 4C7.02944 4 3 5.79086 3 8M21 8V16C21 18.2091 16.9706 20 12 20C7.02944 20 3 18.2091 3 16V8M21 12C21 14.2091 16.9706 16 12 16C7.02944 16 3 14.2091 3 12" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function GridIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Rect x="3" y="3" width="7" height="7" rx="1.5" stroke={color} strokeWidth="2" />
+      <Rect x="14" y="3" width="7" height="7" rx="1.5" stroke={color} strokeWidth="2" />
+      <Rect x="14" y="14" width="7" height="7" rx="1.5" stroke={color} strokeWidth="2" />
+      <Rect x="3" y="14" width="7" height="7" rx="1.5" stroke={color} strokeWidth="2" />
+    </Svg>
+  );
+}
+
+export function TrayUploadIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function HexagonIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 16V8C21 7.26 20.6 6.57 20 6.22L13 2.22C12.38 1.86 11.62 1.86 11 2.22L4 6.22C3.4 6.57 3 7.26 3 8V16C3 16.74 3.4 17.43 4 17.78L11 21.78C11.62 22.14 12.38 22.14 13 21.78L20 17.78C20.6 17.43 21 16.74 21 16Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function SquareChatIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 15C21 16.1046 20.1046 17 19 17H7L3 21V5C3 3.89543 3.89543 3 5 3H19C20.1046 3 21 3.89543 21 5V15Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function FeedbackChatIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M21 11.5C21 16.1944 16.9706 20 12 20C10.5 20 9.1 19.6 7.8 18.9L3 20L4.3 16.1C3.5 14.8 3 13.2 3 11.5C3 6.80558 7.02944 3 12 3C16.9706 3 21 6.80558 21 11.5Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function BarChartIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M18 20V10M12 20V4M6 20V14" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function CreditCardIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Rect x="2" y="5" width="20" height="14" rx="2" stroke={color} strokeWidth="2" />
+      <Path d="M2 10H22" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function HostelHomeIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M3 9L12 2L21 9V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V9Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9 21V12H15V21" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function ZapLightningIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function BellOutlineIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M18 8A6 6 0 0 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M13.73 21A2 2 0 0 1 10.27 21" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function GlobeMeshIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+      <Path d="M3.6 9H20.4M3.6 15H20.4" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <Path d="M12 3C14.5 6 16 9 16 12C16 15 14.5 18 12 21C9.5 18 8 15 8 12C8 9 9.5 6 12 3Z" stroke={color} strokeWidth="2" />
+    </Svg>
+  );
+}
+
+export function GearSettingsIcon({ color = '#475569', size = 16, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2" />
+      <Path d="M19.4 15A1.65 1.65 0 0 0 19.73 16.82L19.79 16.88A2 2 0 0 1 16.96 19.71L16.9 19.65A1.65 1.65 0 0 0 15.08 19.32A1.65 1.65 0 0 0 14.08 20.83V20.91A2 2 0 0 1 10.08 20.91V20.83A1.65 1.65 0 0 0 9.08 19.32A1.65 1.65 0 0 0 7.26 19.65L7.2 19.71A2 2 0 0 1 4.37 16.88L4.43 16.82A1.65 1.65 0 0 0 4.76 15A1.65 1.65 0 0 0 3.25 14H3.17A2 2 0 0 1 3.17 10H3.25A1.65 1.65 0 0 0 4.76 9A1.65 1.65 0 0 0 4.43 7.18L4.37 7.12A2 2 0 0 1 7.2 4.29L7.26 4.35A1.65 1.65 0 0 0 9.08 4.68H9.16A1.65 1.65 0 0 0 10.08 3.17V3.09A2 2 0 0 1 14.08 3.09V3.17A1.65 1.65 0 0 0 15.08 4.68H15.16A1.65 1.65 0 0 0 16.98 4.35L17.04 4.29A2 2 0 0 1 19.87 7.12L19.81 7.18A1.65 1.65 0 0 0 19.48 9A1.65 1.65 0 0 0 20.99 10H21.07A2 2 0 0 1 21.07 14H20.99A1.65 1.65 0 0 0 19.4 15Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function StarIcon({ color = '#eab308', size = 18, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={style}>

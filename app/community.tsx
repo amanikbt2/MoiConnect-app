@@ -62,6 +62,7 @@ import {
   getCommunityReactorId,
   getCommunitySyncCursor,
   saveCommunitySyncCursor,
+  ensureCommunitySyncCursor,
   getLastReadCommunityMsgId,
   saveLastReadCommunityMsgId,
   getReadCommunityMentionIds,
@@ -138,8 +139,7 @@ const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥']
 const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
 const CAMPUS_AI_AVATAR = require('../assets/campus-ai-avatar.png');
 const MENTION_DIRECTORY_KEY = 'moi_community_mention_directory_v1';
-const COMMUNITY_MESSAGE_PAGE_SIZE = 50;
-const COMMUNITY_CACHE_WINDOW = 60;
+const COMMUNITY_MESSAGE_PAGE_SIZE = 30;
 const MENTION_ASSISTANTS: Array<MentionUser & { avatar: any }> = [
   { id: 'campus-bot', name: 'Campus Bot', avatar: CAMPUS_BOT_AVATAR },
   { id: 'campus-ai', name: 'Campus AI', avatar: CAMPUS_AI_AVATAR }
@@ -369,10 +369,9 @@ export default function CommunityScreen() {
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const [isForumLoading, setIsForumLoading] = useState(true);
+  const [forumHeaderHeight, setForumHeaderHeight] = useState(0);
   const [hasForumListLayout, setHasForumListLayout] = useState(false);
   const [isForumLayoutReady, setIsForumLayoutReady] = useState(false);
-  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
-  const [hasOlderMessages, setHasOlderMessages] = useState(true);
   const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
   const showForumLoading = isForumLoading || !isForumLayoutReady;
   const reactorIdRef = useRef('');
@@ -520,6 +519,7 @@ export default function CommunityScreen() {
   const initialScrollDoneRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
   const userScrolledRef = useRef<boolean>(false);
+  const scrollLatestAfterLayoutRef = useRef<boolean>(false);
   const socketPresenceRef = useRef(false);
 
   const addLocalPresenceNotice = (event: 'user_connected' | 'user_disconnected') => {
@@ -582,41 +582,6 @@ export default function CommunityScreen() {
     }
 
     return false;
-  };
-
-  const mapCommunityServerMessage = (serverMsg: any): CommunityMessage => {
-    const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
-    // A persisted Mongo message should always have _id. Keep the fallback
-    // deterministic so reconnects cannot create duplicate FlatList keys.
-    const stableFallbackId = [
-      serverMsg.clientMsgId,
-      serverMsg.senderId?._id || serverMsg.senderId,
-      serverMsg.createdAt,
-      serverMsg.text,
-    ].filter(Boolean).join(':');
-    return {
-      id: String(serverMsg._id || serverMsg.id || stableFallbackId || 'community-message-unknown'),
-      clientMsgId: serverMsg.clientMsgId,
-      deliveryStatus: isMyMsg ? 'delivered' : undefined,
-      senderId: serverMsg.senderId,
-      senderEmail: serverMsg.senderEmail,
-      senderName: serverMsg.senderName || 'Moi Student',
-      senderFaculty: serverMsg.senderFaculty || 'Main Campus',
-      senderCourse: serverMsg.senderCourse,
-      senderPhone: serverMsg.senderPhone,
-      senderAvatarUrl: serverMsg.senderAvatarUrl,
-      senderBadge: serverMsg.senderBadge,
-      avatarBg: serverMsg.avatarBg || '#15803d',
-      text: serverMsg.text || '',
-      timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isoDate: serverMsg.createdAt,
-      updatedAt: serverMsg.updatedAt,
-      isMe: isMyMsg,
-      fileAttachment: serverMsg.fileAttachment,
-      stickerId: serverMsg.stickerId,
-      replyTo: serverMsg.replyTo,
-      reactions: serverMsg.reactions || {}
-    };
   };
 
   const checkIsMentionOrReply = (msg: CommunityMessage, currUser: any, allMsgs: CommunityMessage[]): boolean => {
@@ -791,10 +756,7 @@ export default function CommunityScreen() {
       deletedForMeIdsRef.current = new Set(deletedForMeIds);
       setShowDemoMaterials(demoSetting);
       setAllowCommunityChat(allowChat);
-      let rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
-      if (rawMsgs.length > COMMUNITY_CACHE_WINDOW) {
-        rawMsgs = rawMsgs.slice(-COMMUNITY_CACHE_WINDOW);
-      }
+      const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
       const msgsToLoad = rawMsgs
         .filter((m) => !deletedForMeIdsRef.current.has(m.id) && !deletedForMeIdsRef.current.has((m as any)._id))
         .filter((m) => demoSetting || !isHardcodedCommunityMessage(m))
@@ -802,52 +764,10 @@ export default function CommunityScreen() {
           ...m,
           isMe: evalIsMe(m.senderId, m.senderEmail, m.senderName, m.clientMsgId)
         }));
-      let initialMessages = msgsToLoad;
-      let didInitialSync = false;
-      // Always refresh the initial real-message window when demo content is
-      // disabled. Cached messages remain the offline fallback, but the forum
-      // should not present them as the final initial state while a fresh
-      // latest-50 request is still available.
-      if (!demoSetting) {
-        try {
-          let timeoutId: ReturnType<typeof setTimeout> | undefined;
-          const initialResponse: any = await Promise.race([
-            apiRequest<any>(`/community/messages?limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`),
-            new Promise<{ success: false }>((resolve) => {
-              timeoutId = setTimeout(() => resolve({ success: false }), 8000);
-            })
-          ]).finally(() => {
-            if (timeoutId) clearTimeout(timeoutId);
-          });
-          const initialData = Array.isArray(initialResponse.data)
-            ? initialResponse.data
-            : Array.isArray(initialResponse.data?.data) ? initialResponse.data.data : [];
-          if (initialResponse.success && Array.isArray(initialData)) {
-            initialMessages = initialData.map(mapCommunityServerMessage);
-            didInitialSync = true;
-            setHasOlderMessages((initialResponse as any).hasMore !== false && initialMessages.length === COMMUNITY_MESSAGE_PAGE_SIZE);
-            if ((initialResponse as any).syncedAt) {
-              lastSyncedISO.current = (initialResponse as any).syncedAt;
-              await saveCommunitySyncCursor((initialResponse as any).syncedAt);
-            }
-          }
-        } catch (error) {
-          console.warn('[Community] Initial message load failed:', error);
-        }
-      }
+      const initialMessages = msgsToLoad;
       setMessages(initialMessages);
-      const latestCachedTimestamp = initialMessages.reduce((latest, message) => {
-        const timestamp = message.updatedAt || message.isoDate;
-        return timestamp && timestamp > latest ? timestamp : latest;
-      }, '');
-      // New installs start from now instead of downloading the entire server archive.
-      // Existing installs retain their previous cache cursor and only request deltas.
-      // Never advance the cursor to "now" just because the device has no
-      // cache. On a fresh install or after a long offline period the next
-      // successful request must fetch the server's latest messages.
-      const initialCursor = storedCursor || latestCachedTimestamp || '';
-      if (!lastSyncedISO.current) lastSyncedISO.current = initialCursor;
-      if (!storedCursor && !didInitialSync && initialCursor) void saveCommunitySyncCursor(initialCursor);
+      const initialCursor = storedCursor || await ensureCommunitySyncCursor();
+      lastSyncedISO.current = initialCursor;
       if ((!cachedMsgs || cachedMsgs.length === 0) && demoSetting) {
         saveCommunityMessages(INITIAL_COMMUNITY_MESSAGES);
       }
@@ -1153,30 +1073,34 @@ export default function CommunityScreen() {
 
   const fetchDeltaSync = async () => {
     try {
-      let syncCursor = lastSyncedISO.current || '';
+      let syncCursor = lastSyncedISO.current || await ensureCommunitySyncCursor();
       let responseMessages: any[] = [];
       let allowCommunityChat: boolean | undefined;
       let hasMore = true;
       let page = 0;
+      let syncWatermark = '';
+      let syncAfterId = '';
 
       while (hasMore && page < 100) {
-        const sinceParam = syncCursor
-          ? `?since=${encodeURIComponent(syncCursor)}&limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`
-          : `?limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`;
+        const sinceParam = `?since=${encodeURIComponent(syncCursor)}&limit=${COMMUNITY_MESSAGE_PAGE_SIZE}${syncWatermark ? `&until=${encodeURIComponent(syncWatermark)}` : ''}${syncAfterId ? `&sinceId=${encodeURIComponent(syncAfterId)}` : ''}`;
         const res = await apiRequest<any>(`/community/messages${sinceParam}`);
         if (!res || !res.success) break;
         const anyRes: any = res;
+        syncWatermark = syncWatermark || anyRes.syncedAt || anyRes.data?.syncedAt || '';
         const pageMessages = Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.data) ? res.data.data : []);
         responseMessages = [...responseMessages, ...pageMessages];
         allowCommunityChat = anyRes.allowCommunityChat ?? anyRes.data?.allowCommunityChat ?? allowCommunityChat;
         hasMore = (anyRes.hasMore ?? anyRes.data?.hasMore) === true;
         page += 1;
-        const serverSyncedAt = anyRes.syncedAt || anyRes.data?.syncedAt || syncCursor;
+        const serverSyncedAt = syncWatermark || anyRes.syncedAt || anyRes.data?.syncedAt || syncCursor;
         if (pageMessages.length > 0) {
           const lastMessage = pageMessages[pageMessages.length - 1];
-          syncCursor = hasMore
-            ? (lastMessage.updatedAt || lastMessage.createdAt || serverSyncedAt)
-            : serverSyncedAt;
+          if (hasMore) {
+            syncCursor = lastMessage.updatedAt || lastMessage.createdAt || serverSyncedAt;
+            syncAfterId = String(lastMessage._id || lastMessage.id || '');
+          } else {
+            syncCursor = serverSyncedAt;
+          }
         } else {
           hasMore = false;
           syncCursor = serverSyncedAt;
@@ -1216,10 +1140,9 @@ export default function CommunityScreen() {
 
         });
 
-        setMessages((prev) => {
-          let updated = [...prev];
+        const mergeFetchedMessages = (baseMessages: CommunityMessage[]) => {
+          const updated = [...baseMessages];
           let changed = false;
-
           for (const msg of fetchedMsgs) {
             const existingIdx = updated.findIndex((m) =>
               (msg.clientMsgId && m.clientMsgId === msg.clientMsgId) ||
@@ -1237,57 +1160,22 @@ export default function CommunityScreen() {
               changed = true;
             }
           }
-
-          if (!changed) return prev;
-          saveCommunityMessages(updated);
-          return updated;
-        });
-
+          return { updated, changed };
+        };
+        const mergedForStorage = mergeFetchedMessages(messages);
+        if (mergedForStorage.changed) {
+          setMessages((previous) => mergeFetchedMessages(previous).updated);
+          const saved = await saveCommunityMessages(mergedForStorage.updated);
+          if (!saved) return;
+        }
       }
+      if (hasMore) return;
       if (syncCursor) {
         lastSyncedISO.current = syncCursor;
         await saveCommunitySyncCursor(syncCursor);
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
-    }
-  };
-
-  const loadOlderMessages = async () => {
-    if (isForumLoading || !isForumLayoutReady || isLoadingOlderMessages || !hasOlderMessages || messages.length === 0) return;
-    const oldestLoaded = messages.find((message) => message.isoDate);
-    if (!oldestLoaded?.isoDate) {
-      setHasOlderMessages(false);
-      return;
-    }
-
-    setIsLoadingOlderMessages(true);
-    try {
-      const before = encodeURIComponent(oldestLoaded.isoDate);
-      const response = await apiRequest<{ data: any[]; hasMore?: boolean }>(
-        `/community/messages?before=${before}&limit=${COMMUNITY_MESSAGE_PAGE_SIZE}`
-      );
-      const olderPayload = response.data;
-      if (response.success && Array.isArray(olderPayload?.data)) {
-        const olderMessages = olderPayload.data.map(mapCommunityServerMessage);
-        setHasOlderMessages(olderPayload.hasMore !== false && olderMessages.length === COMMUNITY_MESSAGE_PAGE_SIZE);
-        if (olderMessages.length > 0) {
-          setMessages((previous) => {
-            const existingIds = new Set(previous.map((message) => message.id));
-            const uniqueOlder = olderMessages.filter((message) => !existingIds.has(message.id));
-            if (uniqueOlder.length === 0) return previous;
-            const merged = [...uniqueOlder, ...previous];
-            void saveCommunityMessages(merged.slice(-COMMUNITY_CACHE_WINDOW));
-            return merged;
-          });
-        }
-      } else {
-        setHasOlderMessages(false);
-      }
-    } catch (error) {
-      console.warn('[Community] Older message load failed:', error);
-    } finally {
-      setIsLoadingOlderMessages(false);
     }
   };
 
@@ -1722,6 +1610,7 @@ export default function CommunityScreen() {
     };
 
     // 1. Instant Optimistic Render & Save to Local Phone Storage
+    scrollLatestAfterLayoutRef.current = true;
     setMessages((prev) => {
       const updated = [...prev, newMessage];
       saveCommunityMessages(updated);
@@ -2040,7 +1929,7 @@ export default function CommunityScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Top Header Banner */}
-        <View style={styles.header}>
+        <View style={styles.header} onLayout={(event) => setForumHeaderHeight(event.nativeEvent.layout.height)}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
@@ -2086,17 +1975,21 @@ export default function CommunityScreen() {
             ref={flatListRef}
             data={displayMessages}
             onLayout={() => setHasForumListLayout(true)}
-            onContentSizeChange={() => setHasForumListLayout(true)}
+            onContentSizeChange={() => {
+              setHasForumListLayout(true);
+              if (scrollLatestAfterLayoutRef.current) {
+                scrollLatestAfterLayoutRef.current = false;
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }));
+                });
+              }
+            }}
             inverted={true}
             keyExtractor={(item, index) => String(item.id || `community-message-${index}`)}
             contentContainerStyle={styles.messageList}
             maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            onEndReached={loadOlderMessages}
-            onEndReachedThreshold={0.25}
-
-
             onScrollBeginDrag={() => {
               isDraggingRef.current = true;
               userScrolledRef.current = true;
@@ -2116,15 +2009,8 @@ export default function CommunityScreen() {
               }, 450);
             }}
             ListFooterComponent={
-              <View>
-                {isLoadingOlderMessages && (
-                  <View style={styles.olderMessagesLoader}>
-                    <Text style={styles.olderMessagesLoaderText}>Loading older messages…</Text>
-                  </View>
-                )}
-                <View style={styles.dateDivider}>
-                  <Text style={styles.dateDividerText}>TODAY • FORUM DISCUSSION</Text>
-                </View>
+              <View style={styles.dateDivider}>
+                <Text style={styles.dateDividerText}>TODAY • FORUM DISCUSSION</Text>
               </View>
             }
             renderItem={({ item }) => {
@@ -2590,10 +2476,13 @@ export default function CommunityScreen() {
         </ImageBackground>
 
         {showForumLoading && (
-          <View style={styles.forumLoadingOverlay} pointerEvents="auto">
+          <View
+            style={[styles.forumLoadingOverlay, forumHeaderHeight > 0 && { top: forumHeaderHeight }]}
+            pointerEvents="auto"
+          >
             <View style={styles.forumLoadingCard}>
               <ActivityIndicator color="#15803d" size="small" />
-              <Text style={styles.forumLoadingText}>Logging you into forum…</Text>
+              <Text style={styles.forumLoadingText}>Logging you into Forum…</Text>
             </View>
           </View>
         )}
