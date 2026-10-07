@@ -129,10 +129,33 @@ async function registerPushToken() {
     await configureNotificationCategories();
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'MoiConnect Notifications',
+        name: 'MoiConnect General Notifications',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#15803d'
+        lightColor: '#15803d',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+
+      await Notifications.setNotificationChannelAsync('community_chat', {
+        name: 'MoiConnect Community & Messages',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#15803d',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+
+      await Notifications.setNotificationChannelAsync('academic', {
+        name: 'MoiConnect Academic Approvals',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#15803d',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
       });
     }
 

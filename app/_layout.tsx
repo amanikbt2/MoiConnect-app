@@ -9,7 +9,7 @@ import { GlobalBottomBar } from '../src/components/GlobalBottomBar';
 import { IceMessageHost } from '../src/components/IceMessageCard';
 import { InAppPopupModal } from '../src/components/InAppPopupModal';
 import { checkAppPopups } from '../src/services/popupService';
-import { setCommunityChatActive, setupNotificationResponseListener } from '../src/services/notificationService';
+import { registerForPushNotificationsAsync, setCommunityChatActive, setupNotificationResponseListener } from '../src/services/notificationService';
 import { useAuth } from '../src/context/AuthContext';
 import { UniversityProvider } from '../src/context/UniversityContext';
 import { UniversitySetupModal } from '../src/components/UniversitySetupModal';
@@ -46,6 +46,8 @@ function AppRuntimeServices() {
   };
 
   useEffect(() => {
+    void registerForPushNotificationsAsync();
+
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       router.push(screenPath as any);
     });

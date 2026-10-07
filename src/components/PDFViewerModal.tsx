@@ -148,43 +148,101 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(true);
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
   const [cachedPdfUrl, setCachedPdfUrl] = useState<string | null>(null);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const pdfReadyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    let cachedPath: string | null = null;
+    let currentCachedPath: string | null = null;
+    pdfReadyRef.current = false;
+    setCachedPdfUrl(null);
+    setPdfBase64(null);
+
+    const cleanupCache = async () => {
+      if (currentCachedPath) {
+        try {
+          await FileSystem.deleteAsync(currentCachedPath, { idempotent: true });
+        } catch {}
+      }
+      try {
+        const cacheDir = FileSystem.cacheDirectory;
+        if (cacheDir) {
+          const files = await FileSystem.readDirectoryAsync(cacheDir);
+          for (const f of files) {
+            if (f.startsWith('mconnect-current-')) {
+              await FileSystem.deleteAsync(`${cacheDir}${f}`, { idempotent: true }).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+    };
+
+    if (!visible || !document?.fileUrl) {
+      void cleanupCache();
+      return;
+    }
+
     const sourceUrl = document?.fileUrl
       ? getCleanPdfUrl(resolveRawPdfUrl(document.fileUrl))
       : '';
 
-    pdfReadyRef.current = false;
-    setCachedPdfUrl(null);
-    if (!visible || !sourceUrl || /^(file|content):/i.test(sourceUrl)) return () => { cancelled = true; };
+    if (!sourceUrl || /^(file|content):/i.test(sourceUrl)) return;
 
-    const cacheCurrentPdf = async () => {
+    const cacheAndPreparePdf = async () => {
       try {
         const cacheDirectory = FileSystem.cacheDirectory;
         if (!cacheDirectory) return;
-        cachedPath = `${cacheDirectory}${getPdfCacheName(document?.id || 'document', sourceUrl)}`;
-        const existing = await FileSystem.getInfoAsync(cachedPath);
-        if (!existing.exists) {
-          const result = await FileSystem.downloadAsync(sourceUrl, cachedPath);
-          if (result.status < 200 || result.status >= 300) throw new Error(`PDF request failed (${result.status})`);
+        currentCachedPath = `${cacheDirectory}${getPdfCacheName(document?.id || 'document', sourceUrl)}`;
+
+        let downloaded = false;
+        // Fast Auto-Retry Downloader (up to 3 tries for spotty/slow network)
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          if (cancelled) return;
+          try {
+            const existing = await FileSystem.getInfoAsync(currentCachedPath);
+            if (existing.exists && existing.size && existing.size > 0) {
+              downloaded = true;
+              break;
+            }
+            const result = await FileSystem.downloadAsync(sourceUrl, currentCachedPath);
+            if (result.status >= 200 && result.status < 300) {
+              downloaded = true;
+              break;
+            }
+          } catch (error) {
+            console.warn(`[PDF Cache] Download attempt ${attempt}/3 failed:`, error);
+            if (attempt < 3 && !cancelled) {
+              await new Promise((res) => setTimeout(res, 500));
+            }
+          }
         }
-        if (!cancelled) setCachedPdfUrl(cachedPath);
+
+        if (downloaded && !cancelled && currentCachedPath) {
+          setCachedPdfUrl(currentCachedPath);
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(currentCachedPath);
+            if (fileInfo.exists && fileInfo.size && fileInfo.size < 35 * 1024 * 1024) {
+              const b64 = await FileSystem.readAsStringAsync(currentCachedPath, { encoding: 'base64' });
+              if (b64 && !cancelled) {
+                setPdfBase64(b64);
+              }
+            }
+          } catch (b64Err) {
+            console.warn('[PDF Cache] Base64 conversion skipped:', b64Err);
+          }
+        }
       } catch (error) {
-        // The online source remains available as a fallback. If the network
-        // drops after this point, the already-loaded WebView is still kept.
-        console.warn('[PDF] Current-document cache unavailable:', error);
+        console.warn('[PDF Cache] Cache unavailable:', error);
       }
     };
 
-    void cacheCurrentPdf();
+    void cacheAndPreparePdf();
+
     return () => {
       cancelled = true;
-      if (cachedPath) void FileSystem.deleteAsync(cachedPath, { idempotent: true }).catch(() => undefined);
+      void cleanupCache();
     };
-  }, [document?.id, document?.fileUrl, visible]);
+  }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
   const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
 
   useEffect(() => {
@@ -430,9 +488,70 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const embeddedFileUrl = readerFileUrl
     ? readerFileUrl + (readerFileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     : readerFileUrl;
-  const nativeReaderUrl = hasRealDocument && Platform.OS !== 'web'
-    ? 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(readerFileUrl)
-    : readerFileUrl;
+
+  const googleDocsViewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fileUrl)}`;
+
+  const pdfJsBase64Html = pdfBase64
+    ? `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=4.0, user-scalable=yes">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: #525659; display: flex; flex-direction: column; align-items: center; padding: 8px 0; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
+    .pdf-page { margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.35); background: white; max-width: 98vw; height: auto!important; }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <script>
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const b64 = "${pdfBase64}";
+      const raw = atob(b64);
+      const uint8 = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) uint8[i] = raw.charCodeAt(i);
+
+      pdfjsLib.getDocument({ data: uint8 }).promise.then(function(pdf) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pdfPageCount', count: pdf.numPages }));
+        }
+        const container = document.getElementById('container');
+        let renderPage = function(num) {
+          if (num > pdf.numPages) return;
+          pdf.getPage(num).then(function(page) {
+            const viewport = page.getViewport({ scale: 1.4 });
+            const canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page';
+            const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            container.appendChild(canvas);
+            page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+              renderPage(num + 1);
+            });
+          });
+        };
+        renderPage(1);
+      }).catch(function(err) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pdfError', error: String(err) }));
+        }
+      });
+    } catch(e) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pdfError', error: String(e) }));
+      }
+    }
+  </script>
+</body>
+</html>`
+    : null;
+
+  const nativeWebViewSource = pdfJsBase64Html
+    ? { html: pdfJsBase64Html }
+    : { uri: googleDocsViewerUrl };
 
   return (
     <Modal
@@ -683,23 +802,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           ) : Platform.OS !== 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>
               <WebView
-                key={pdfRetryKey}
-                source={{ uri: nativeReaderUrl }}
+                key={pdfRetryKey + (pdfBase64 ? '_b64' : '_gdoc')}
+                source={nativeWebViewSource}
                 style={styles.nativeViewer}
                 originWhitelist={['*']}
                 javaScriptEnabled
-                injectedJavaScriptBeforeContentLoaded={HIDE_PDF_TOOLBAR_SCRIPT}
-                injectedJavaScript={`${HIDE_PDF_TOOLBAR_SCRIPT}(function(){var sent=false;var started=Date.now();var timer=setInterval(function(){try{var app=window.PDFViewerApplication;var count=app&&(app.pdfDocument&&app.pdfDocument.numPages||app.pagesCount);if(!sent&&Number.isInteger(count)&&count>0&&window.ReactNativeWebView){sent=true;window.ReactNativeWebView.postMessage(JSON.stringify({type:'pdfPageCount',count:count}));clearInterval(timer);}else if(Date.now()-started>60000){clearInterval(timer);}}catch(e){}},250);true;})();`}
-                onMessage={(event) => {
-                  try {
-                    const message = JSON.parse(event.nativeEvent.data);
-                    if (message?.type === 'pdfPageCount' && Number.isInteger(message.count) && message.count > 0) {
-                       pdfReadyRef.current = true;
-                       setActualPageCount(message.count);
-                      setIsPdfLoading(false);
-                    }
-                  } catch {}
-                }}
                 domStorageEnabled
                 allowFileAccess
                 allowFileAccessFromFileURLs
@@ -708,20 +815,36 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 startInLoadingState
                 renderLoading={() => (
                   <View style={styles.viewerLoading}>
-                    <ActivityIndicator color='#15803d' size='large' />
+                    <ActivityIndicator color="#15803d" size="large" />
                     <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
                   </View>
                 )}
                 onLoadStart={() => { setIsPdfLoading(true); setHasPdfLoadError(false); }}
-                 onError={() => {
-                   if (!pdfReadyRef.current) {
-                     setIsPdfLoading(false);
-                     setHasPdfLoadError(true);
-                   }
-                 }}
+                onLoadEnd={() => {
+                  pdfReadyRef.current = true;
+                  setIsPdfLoading(false);
+                  setHasPdfLoadError(false);
+                }}
+                onMessage={(event) => {
+                  try {
+                    const message = JSON.parse(event.nativeEvent.data);
+                    if (message?.type === 'pdfPageCount' && Number.isInteger(message.count) && message.count > 0) {
+                      pdfReadyRef.current = true;
+                      setActualPageCount(message.count);
+                      setIsPdfLoading(false);
+                      setHasPdfLoadError(false);
+                    }
+                  } catch {}
+                }}
+                onError={() => {
+                  if (!pdfReadyRef.current && !pdfBase64) {
+                    setIsPdfLoading(false);
+                    setHasPdfLoadError(true);
+                  }
+                }}
                 onHttpError={(syntheticEvent) => {
                   const { nativeEvent } = syntheticEvent;
-                   if (nativeEvent.statusCode >= 400 && !pdfReadyRef.current) {
+                  if (nativeEvent.statusCode >= 400 && !pdfReadyRef.current && !pdfBase64) {
                     setIsPdfLoading(false);
                     setHasPdfLoadError(true);
                   }

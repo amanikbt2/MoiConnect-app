@@ -775,9 +775,6 @@ export default function CommunityScreen() {
       return initialMessages;
     }).catch((error) => {
       console.warn('[Community] Forum initialization failed:', error);
-      return [];
-    }).finally(() => {
-      setIsForumLoading(false);
     });
 
     // 3. Connect Real-time WebSocket Listeners
@@ -1043,10 +1040,18 @@ export default function CommunityScreen() {
       }
     });
 
-    // 4. Trigger Incremental Delta Sync (Fetch new un-synced messages since timestamp)
-    cacheReady.then(() => {
-      if (!cancelled) fetchDeltaSync();
-    });
+    // 4. Trigger Incremental Delta Sync & set forum loading ready
+    cacheReady
+      .then(async () => {
+        if (!cancelled) {
+          await fetchDeltaSync();
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsForumLoading(false);
+        }
+      });
 
     let cancelled = false;
     return () => {
@@ -1073,7 +1078,17 @@ export default function CommunityScreen() {
 
   const fetchDeltaSync = async () => {
     try {
-      let syncCursor = lastSyncedISO.current || await ensureCommunitySyncCursor();
+      let syncCursor: string = lastSyncedISO.current || '';
+      if (!syncCursor && messages.length > 0) {
+        const latestTimestamp = messages.reduce((latest: string, message: any) => {
+          const timestamp = message.updatedAt || message.isoDate || message.createdAt || '';
+          return timestamp > latest ? timestamp : latest;
+        }, '');
+        if (latestTimestamp) syncCursor = latestTimestamp;
+      }
+      if (!syncCursor) {
+        syncCursor = await ensureCommunitySyncCursor();
+      }
       let responseMessages: any[] = [];
       let allowCommunityChat: boolean | undefined;
       let hasMore = true;
@@ -3958,44 +3973,44 @@ const styles = StyleSheet.create({
   systemNoticeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 3,
-    paddingHorizontal: 10
+    marginVertical: 1.5,
+    paddingHorizontal: 8
   },
   systemNoticePill: {
-    maxWidth: '94%',
+    maxWidth: '88%',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    gap: 5,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    gap: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 1,
     elevation: 1
   },
   systemNoticeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4
+    width: 5,
+    height: 5,
+    borderRadius: 2.5
   },
   systemNoticeConnected: { backgroundColor: '#22c55e' },
   systemNoticeDisconnected: { backgroundColor: '#c4b5fd' },
   systemNoticeSecurity: { backgroundColor: '#f59e0b' },
   systemNoticeText: {
     flexShrink: 1,
-    fontSize: 10.5,
-    lineHeight: 13,
+    fontSize: 9,
+    lineHeight: 11,
     fontWeight: '600',
     color: '#475569'
   },
   systemNoticeTime: {
     flexShrink: 0,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '500',
     color: '#94a3b8'
   },  /* WhatsApp-style Live Typing Indicator Banner */
