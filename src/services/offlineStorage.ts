@@ -744,12 +744,23 @@ export const ensureCommunitySyncCursor = async (): Promise<string> => {
       if (current) return current;
       const cachedMessages = await getStoredCommunityMessages();
       const latestCachedTimestamp = cachedMessages.reduce((latest: string, message: any) => {
+        if (message.deliveryStatus === 'queued' || message.pendingPayload) return latest;
         const timestamp = message.updatedAt || message.isoDate || message.createdAt || '';
         return timestamp > latest ? timestamp : latest;
       }, '');
-      const cursor = latestCachedTimestamp || new Date().toISOString();
-      await saveCommunitySyncCursor(cursor);
-      return cursor;
+      if (latestCachedTimestamp) {
+        await saveCommunitySyncCursor(latestCachedTimestamp);
+        return latestCachedTimestamp;
+      }
+
+      const baseline = await apiRequest<any>('/community/messages?limit=1');
+      const serverCursor = baseline?.success ? String(baseline.syncedAt || baseline.data?.syncedAt || '') : '';
+      if (serverCursor && !Number.isNaN(Date.parse(serverCursor))) {
+        await saveCommunitySyncCursor(serverCursor);
+        return serverCursor;
+      }
+
+      return '';
     })();
   }
   try {
@@ -894,6 +905,7 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
   backgroundSyncInFlight = true;
   try {
     let storedCursor = await ensureCommunitySyncCursor();
+    if (!storedCursor) return;
     const cachedMsgs = await getStoredCommunityMessages();
     let updated = [...cachedMsgs];
     let changed = false;

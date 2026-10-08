@@ -109,6 +109,13 @@ export default function HomeScreen() {
     setSearchQuery('');
   };
 
+  const handleSearchKeyPress = (event: any) => {
+    if (Platform.OS === 'web' && event?.nativeEvent?.key === 'Enter') {
+      event.preventDefault?.();
+      handleGlobalSearch();
+    }
+  };
+
   const flatListRef = useRef<FlatList>(null);
   const isInteracting = useRef(false);
 
@@ -282,6 +289,9 @@ export default function HomeScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={handleGlobalSearch}
+            onKeyPress={handleSearchKeyPress}
+            returnKeyType="search"
+            blurOnSubmit={false}
             style={styles.searchInput}
           />
           {searchQuery.trim().length > 0 && (

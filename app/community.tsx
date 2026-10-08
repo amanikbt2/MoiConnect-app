@@ -1096,6 +1096,7 @@ export default function CommunityScreen() {
       if (!syncCursor) {
         syncCursor = await ensureCommunitySyncCursor();
       }
+      if (!syncCursor) return;
       let responseMessages: any[] = [];
       let allowCommunityChat: boolean | undefined;
       let hasMore = true;
