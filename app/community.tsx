@@ -782,12 +782,19 @@ export default function CommunityScreen() {
     getSocket().then((socket) => {
       if (socket) {
         activeSocket = socket;
-        const handleSocketConnect = () => {
+        const handleSocketConnect = async () => {
           if (socketPresenceRef.current) addLocalPresenceNotice('user_connected');
           socketPresenceRef.current = true;
           socket.emit('community:request_online_count');
           socket.emit('join_community');
-          void fetchDeltaSync();
+          setIsForumLoading(true);
+          try {
+            await fetchDeltaSync();
+          } catch (syncErr) {
+            console.warn('[Community] Reconnect delta sync error:', syncErr);
+          } finally {
+            if (!cancelled) setIsForumLoading(false);
+          }
           retryQueuedMessages();
         };
         const handleSocketReconnectError = (error: any) => {
