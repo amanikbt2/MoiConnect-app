@@ -2,7 +2,7 @@
   "expo": {
     "name": "MConnect",
     "slug": "moiconnect",
-    "version": "1.2.6",
+    "version": "1.2.7",
     "orientation": "portrait",
     "icon": "./assets/playstore_assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -31,7 +31,7 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WAKE_LOCK"
       ],
-      "versionCode": 35
+      "versionCode": 36
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",

@@ -24,7 +24,7 @@ export function UniversitySetupModal() {
         <View style={styles.card}>
           <View style={styles.brandMark}><Text style={styles.brandMarkText}>M</Text></View>
           <Text style={styles.title}>Choose your university</Text>
-          <Text style={styles.subtitle}>Select your campus community to personalize MoiConnect.</Text>
+          <Text style={styles.subtitle}>Select your campus community to personalize MConnect.</Text>
           <View style={styles.requiredPill}><Text style={styles.requiredText}>Required on first setup</Text></View>
           <TextInput value={query} onChangeText={setQuery} placeholder="Search university..." placeholderTextColor="#94a3b8" style={styles.search} autoCapitalize="words" />
           <FlatList

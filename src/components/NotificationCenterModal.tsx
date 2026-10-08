@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  AppState
 } from 'react-native';
 import { apiRequest } from '../services/api';
+import { getSocket } from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 import {
   getReadNotificationIds,
   saveReadNotificationId,
@@ -34,21 +37,43 @@ export interface INotificationItem {
 }
 
 export function NotificationCenterModal() {
+  const { user } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [notifications, setNotifications] = useState<INotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     fetchNotifications();
 
     // Refresh notification count periodically without interrupting app speed
     const interval = setInterval(() => {
       fetchNotificationsSilently();
     }, 30000);
+    const appStateListener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void fetchNotificationsSilently();
+    });
+    let activeSocket: any = null;
+    let isMounted = true;
+    const handleNewNotification = () => void fetchNotificationsSilently();
+    void getSocket().then((socket) => {
+      if (!isMounted || !socket) return;
+      activeSocket = socket;
+      socket.on('new_notification', handleNewNotification);
+    });
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      isMounted = false;
+      activeSocket?.off('new_notification', handleNewNotification);
+      clearInterval(interval);
+      appStateListener.remove();
+    };
+  }, [user?._id]);
 
   const fetchNotifications = async (): Promise<INotificationItem[] | null> => {
     try {

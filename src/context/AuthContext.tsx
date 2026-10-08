@@ -30,7 +30,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
     setUserPoints(userData.points ?? 5);
     await setStoredToken('moi_user_profile', JSON.stringify(userData));
-    void registerForPushNotificationsAsync();
+    const accessToken = await getStoredToken('moi_access_token');
+    if (accessToken && !accessToken.startsWith('demo_')) {
+      void registerForPushNotificationsAsync();
+    }
   };
 
   const addPoints = (amount: number, reason?: string) => {
@@ -167,9 +170,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const token = await getStoredToken('moi_access_token');
     if (token) {
-      if (cachedUser) {
-        void registerForPushNotificationsAsync();
-      }
       if (token === 'demo_google_access_token' || token.startsWith('demo_')) {
         if (!cachedUser) {
           const defaultDemoUser: IUser = {

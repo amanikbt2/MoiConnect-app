@@ -73,30 +73,77 @@ export const subscribeToDownloadUpdates = (listener: DownloadListener) => {
 };
 
 const notifyDownloadListeners = async () => {
-  const papers = await getDownloadedPapers();
+  const papers = await getDownloadedPapers(false);
   listeners.forEach((fn) => fn(papers));
 };
 
-const activeDownloadIntervals: Record<string, any> = {};
 const activeDownloadTasks: Record<string, FileSystem.DownloadResumable> = {};
+const OFFLINE_PDF_DB = 'mconnect-offline-materials';
+const OFFLINE_PDF_STORE = 'pdf-files';
 
-const runSimulatedDownload = (paperId: string) => {
-  if (activeDownloadIntervals[paperId]) {
-    clearInterval(activeDownloadIntervals[paperId]);
+const openOfflinePdfDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+  if (typeof indexedDB === 'undefined') {
+    reject(new Error('Offline file storage is unavailable in this browser.'));
+    return;
   }
-
-  let progress = 5;
-  activeDownloadIntervals[paperId] = setInterval(async () => {
-    progress += Math.floor(Math.random() * 18) + 12;
-    if (progress >= 100) {
-      progress = 100;
-      clearInterval(activeDownloadIntervals[paperId]);
-      delete activeDownloadIntervals[paperId];
-      await updatePaperDownloadState(paperId, { status: 'completed', progress: 100 });
-    } else {
-      await updatePaperDownloadState(paperId, { status: 'downloading', progress });
+  const request = indexedDB.open(OFFLINE_PDF_DB, 1);
+  request.onupgradeneeded = () => {
+    if (!request.result.objectStoreNames.contains(OFFLINE_PDF_STORE)) {
+      request.result.createObjectStore(OFFLINE_PDF_STORE);
     }
-  }, 220);
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error || new Error('Could not open offline file storage.'));
+});
+
+const saveOfflineWebPdf = async (paperId: string, blob: Blob): Promise<void> => {
+  const database = await openOfflinePdfDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(OFFLINE_PDF_STORE, 'readwrite');
+    transaction.objectStore(OFFLINE_PDF_STORE).put(blob, paperId);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error('Could not save PDF offline.'));
+    transaction.onabort = () => reject(transaction.error || new Error('Saving PDF offline was interrupted.'));
+  });
+  database.close();
+};
+
+const getOfflineWebPdf = async (paperId: string): Promise<Blob | null> => {
+  const database = await openOfflinePdfDatabase();
+  const blob = await new Promise<Blob | null>((resolve, reject) => {
+    const request = database.transaction(OFFLINE_PDF_STORE, 'readonly').objectStore(OFFLINE_PDF_STORE).get(paperId);
+    request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null);
+    request.onerror = () => reject(request.error || new Error('Could not read saved PDF.'));
+  });
+  database.close();
+  return blob;
+};
+
+const removeOfflineWebPdf = async (paperId: string): Promise<void> => {
+  const database = await openOfflinePdfDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(OFFLINE_PDF_STORE, 'readwrite');
+    transaction.objectStore(OFFLINE_PDF_STORE).delete(paperId);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error('Could not delete saved PDF.'));
+  });
+  database.close();
+};
+
+export const readOfflineWebPdfBase64 = async (paperId: string): Promise<string> => {
+  const blob = await getOfflineWebPdf(paperId);
+  if (!blob) throw new Error('The saved PDF is missing from offline storage.');
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const separator = result.indexOf(',');
+      if (separator < 0) reject(new Error('Could not read the saved PDF.'));
+      else resolve(result.slice(separator + 1));
+    };
+    reader.onerror = () => reject(reader.error || new Error('Could not read the saved PDF.'));
+    reader.readAsDataURL(blob);
+  });
 };
 
 export const updatePaperDownloadState = async (
@@ -120,28 +167,43 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
   const papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
   const targetId = paperInput._id || `paper_${Date.now()}`;
   const existingIndex = papers.findIndex((paper) => paper._id === targetId);
-  const existingPaper = existingIndex >= 0 ? papers[existingIndex] : undefined;
+  let existingPaper = existingIndex >= 0 ? papers[existingIndex] : undefined;
 
   if (existingPaper?.status === 'completed' && existingPaper.localUri) {
-    if (!paperInput.ttsTextUrl || Platform.OS === 'web' || existingPaper.ttsPersonalized) {
-      return existingPaper;
+    let savedFileIsValid = false;
+    if (Platform.OS === 'web' && existingPaper.localUri === `offline-web:${targetId}`) {
+      savedFileIsValid = Boolean(await getOfflineWebPdf(targetId).catch(() => null));
+    } else if (Platform.OS !== 'web') {
+      const fileInfo = await FileSystem.getInfoAsync(existingPaper.localUri).catch(() => null);
+      savedFileIsValid = Boolean(fileInfo?.exists && fileInfo.size && fileInfo.size > 0);
     }
-    try {
-      const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
-      await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
-      const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const ttsLocalPath = `${privateDirectory}moi_material_${safeName}_lecture.txt`;
-      const response = await fetch(paperInput.ttsTextUrl);
-      if (!response.ok) throw new Error(`Lecture TXT request failed (${response.status})`);
-      const personalizedText = await personalizeLectureText(await response.text());
-      await FileSystem.writeAsStringAsync(ttsLocalPath, personalizedText);
-      const updatedPaper = { ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsLocalPath, ttsPersonalized: true };
-      await updatePaperDownloadState(targetId, updatedPaper);
-      return { ...existingPaper, ...updatedPaper };
-    } catch (ttsError) {
-      console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
-      return existingPaper;
+    if (savedFileIsValid) {
+      if (!paperInput.ttsTextUrl || Platform.OS === 'web' || existingPaper.ttsPersonalized) {
+        return existingPaper;
+      }
+      try {
+        const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
+        await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
+        const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const ttsLocalPath = `${privateDirectory}moi_material_${safeName}_lecture.txt`;
+        const response = await fetch(paperInput.ttsTextUrl);
+        if (!response.ok) throw new Error(`Lecture TXT request failed (${response.status})`);
+        const personalizedText = await personalizeLectureText(await response.text());
+        await FileSystem.writeAsStringAsync(ttsLocalPath, personalizedText);
+        const updatedPaper = { ttsTextUrl: paperInput.ttsTextUrl, ttsLocalUri: ttsLocalPath, ttsPersonalized: true };
+        await updatePaperDownloadState(targetId, updatedPaper);
+        return { ...existingPaper, ...updatedPaper };
+      } catch (ttsError) {
+        console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
+        return existingPaper;
+      }
     }
+    if (Platform.OS === 'web' && existingPaper.localUri === `offline-web:${targetId}`) {
+      await removeOfflineWebPdf(targetId).catch(() => undefined);
+    } else if (Platform.OS !== 'web') {
+      await FileSystem.deleteAsync(existingPaper.localUri, { idempotent: true }).catch(() => undefined);
+    }
+    existingPaper = undefined;
   }
 
   const newPaperItem: OfflinePaper = {
@@ -170,6 +232,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     hasSolutions: paperInput.hasSolutions ?? true,
     createdAt: paperInput.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    localUri: undefined,
     status: 'downloading',
     progress: 0,
     pinned: existingPaper?.pinned || false
@@ -181,8 +244,23 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
   await notifyDownloadListeners();
 
   if (Platform.OS === 'web') {
-    runSimulatedDownload(targetId);
-    return newPaperItem;
+    try {
+      if (!newPaperItem.fileUrl) throw new Error('This material has no downloadable file URL.');
+      const response = await fetch(newPaperItem.fileUrl);
+      if (!response.ok) throw new Error(`PDF download failed (${response.status}).`);
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('The downloaded PDF is empty.');
+      if (newPaperItem.fileType === 'pdf' && (await blob.slice(0, 5).text()) !== '%PDF-') {
+        throw new Error('The server response is not a valid PDF file.');
+      }
+      await saveOfflineWebPdf(targetId, blob);
+      const localUri = `offline-web:${targetId}`;
+      await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri });
+      return { ...newPaperItem, status: 'completed', progress: 100, localUri };
+    } catch (error) {
+      await updatePaperDownloadState(targetId, { status: 'failed', progress: 0, localUri: undefined });
+      throw error;
+    }
   }
 
   try {
@@ -192,19 +270,37 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
     await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
     const localUri = `${privateDirectory}moi_material_${safeName}.${extension}`;
+    await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
+    let lastProgress = 0;
+    let lastProgressAt = 0;
     const task = FileSystem.createDownloadResumable(
       newPaperItem.fileUrl,
       localUri,
       {},
       ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
         const progress = totalBytesExpectedToWrite > 0 ? Math.round((totalBytesWritten / totalBytesExpectedToWrite) * 100) : 0;
-        updatePaperDownloadState(targetId, { progress });
+        const now = Date.now();
+        if (progress === 100 || progress - lastProgress >= 5 || now - lastProgressAt >= 500) {
+          lastProgress = progress;
+          lastProgressAt = now;
+          void updatePaperDownloadState(targetId, { progress });
+        }
       }
     );
     activeDownloadTasks[targetId] = task;
     const result = await task.downloadAsync();
     delete activeDownloadTasks[targetId];
-    if (!result?.uri) throw new Error('The local file was not created.');
+    if (!result?.uri || result.status < 200 || result.status >= 300) {
+      throw new Error(`PDF download did not complete successfully${result?.status ? ` (${result.status})` : ''}.`);
+    }
+    const downloadedFile = await FileSystem.getInfoAsync(result.uri);
+    if (!downloadedFile.exists || !downloadedFile.size || downloadedFile.size <= 0) {
+      throw new Error('The downloaded PDF file is missing or empty.');
+    }
+    const contentType = Object.entries(result.headers || {}).find(([key]) => key.toLowerCase() === 'content-type')?.[1]?.toLowerCase();
+    if (newPaperItem.fileType === 'pdf' && contentType && !contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+      throw new Error('The server returned a non-PDF file instead of the requested material.');
+    }
     let ttsLocalUri: string | undefined;
     let ttsPersonalized = false;
     if (newPaperItem.ttsTextUrl) {
@@ -225,7 +321,10 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized };
   } catch (error) {
     delete activeDownloadTasks[targetId];
-    await updatePaperDownloadState(targetId, { status: 'failed', progress: 0 });
+    const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const extension = newPaperItem.fileType === 'pdf' ? 'pdf' : (newPaperItem.fileType || 'bin').replace(/[^a-zA-Z0-9]/g, '');
+    await FileSystem.deleteAsync(`${FileSystem.documentDirectory}offline-materials/moi_material_${safeName}.${extension}`, { idempotent: true }).catch(() => undefined);
+    await updatePaperDownloadState(targetId, { status: 'failed', progress: 0, localUri: undefined });
     throw error;
   }
 };
@@ -256,12 +355,37 @@ export const togglePinOfflinePaper = async (paperId: string) => {
   await notifyDownloadListeners();
 };
 
-export const getDownloadedPapers = async (): Promise<OfflinePaper[]> => {
+export const getDownloadedPapers = async (validateFiles = true): Promise<OfflinePaper[]> => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
   let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
   if (!existingStr || papers.length === 0) {
     papers = [];
   }
+  let repairedMetadata = false;
+  if (validateFiles && Platform.OS === 'web') {
+    for (const paper of papers) {
+      if (paper.status !== 'completed') continue;
+      const valid = paper.localUri === `offline-web:${paper._id}` && Boolean(await getOfflineWebPdf(paper._id).catch(() => null));
+      if (!valid) {
+        paper.status = 'failed';
+        paper.progress = 0;
+        delete paper.localUri;
+        repairedMetadata = true;
+      }
+    }
+  } else if (validateFiles) {
+    for (const paper of papers) {
+      if (paper.status !== 'completed') continue;
+      const fileInfo = paper.localUri ? await FileSystem.getInfoAsync(paper.localUri).catch(() => null) : null;
+      if (!fileInfo?.exists || !fileInfo.size || fileInfo.size <= 0) {
+        paper.status = 'failed';
+        paper.progress = 0;
+        delete paper.localUri;
+        repairedMetadata = true;
+      }
+    }
+  }
+  if (repairedMetadata) await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers));
   return papers.sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -271,10 +395,6 @@ export const getDownloadedPapers = async (): Promise<OfflinePaper[]> => {
 
 export const removeOfflinePaper = async (paperId: string) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
-  if (activeDownloadIntervals[paperId]) {
-    clearInterval(activeDownloadIntervals[paperId]);
-    delete activeDownloadIntervals[paperId];
-  }
   const activeTask = activeDownloadTasks[paperId];
   if (activeTask) {
     await activeTask.cancelAsync().catch(() => undefined);
@@ -284,7 +404,11 @@ export const removeOfflinePaper = async (paperId: string) => {
 
   const papers: OfflinePaper[] = JSON.parse(existingStr);
   const paper = papers.find((item) => item._id === paperId);
-  if (Platform.OS !== 'web') {
+  if (Platform.OS === 'web') {
+    if (paper?.localUri === `offline-web:${paperId}`) {
+      await removeOfflineWebPdf(paperId).catch(() => undefined);
+    }
+  } else {
     const safeName = `${paperId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
     const extension = paper?.fileType === 'pdf' ? 'pdf' : (paper?.fileType || 'bin').replace(/[^a-zA-Z0-9]/g, '');
     const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
@@ -308,7 +432,15 @@ export const isPaperDownloaded = async (paperId: string): Promise<boolean> => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
   if (!existingStr) return false;
   const papers: OfflinePaper[] = JSON.parse(existingStr);
-  return papers.some((p) => (p._id === paperId || p._id === `note_${paperId}` || p._id === `paper_${paperId}`) && p.status === 'completed');
+  const paper = papers.find((item) =>
+    (item._id === paperId || item._id === `note_${paperId}` || item._id === `paper_${paperId}`) && item.status === 'completed'
+  );
+  if (!paper?.localUri) return false;
+  if (Platform.OS === 'web') {
+    return paper.localUri === `offline-web:${paper._id}` && Boolean(await getOfflineWebPdf(paper._id).catch(() => null));
+  }
+  const fileInfo = await FileSystem.getInfoAsync(paper.localUri).catch(() => null);
+  return Boolean(fileInfo?.exists && fileInfo.size && fileInfo.size > 0);
 };
 
 

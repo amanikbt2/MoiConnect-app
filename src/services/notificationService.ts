@@ -3,42 +3,27 @@ import Constants from 'expo-constants';
 import { AppState, Platform } from 'react-native';
 import { apiRequest } from './api';
 
-let communityChatActive = false;
-
-export const setCommunityChatActive = (active: boolean) => {
-  communityChatActive = active;
-};
-
 // Configure foreground push notification presentation handler
 Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    const data = notification.request.content.data as any;
-    const isCommunityMessage = data?.screen === 'community' || data?.channelId === 'community_chat';
-
-    // A user already looking at the community chat should only see the live
-    // message there, not a duplicate Android push banner.
-    if (isCommunityMessage && communityChatActive && AppState.currentState === 'active') {
-      return {
-        shouldShowAlert: false,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      };
-    }
-
+  handleNotification: async () => {
     return {
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
     };
   },
 });
 
 let registrationInFlight: Promise<string | null> | null = null;
+export const GENERAL_NOTIFICATION_CHANNEL_ID = 'mconnect_general_v2';
+export const COMMUNITY_NOTIFICATION_CHANNEL_ID = 'mconnect_messages_v2';
+const LOGIN_NOTIFICATION_CHANNEL_ID = 'mconnect_login_v2';
 const COMMUNITY_MESSAGE_CATEGORY = 'community_message';
 let registrationEnabled = false;
 let registrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let registrationRetryAttempt = 0;
 let permissionPrompted = false;
+let notificationPermissionRequest: Promise<boolean> | null = null;
 const MAX_REGISTRATION_RETRY_DELAY_MS = 5 * 60 * 1000;
 
 function schedulePushRegistrationRetry() {
@@ -82,6 +67,48 @@ async function configureNotificationCategories() {
   } catch (error) {
     console.warn('[Notifications]: Could not configure message actions:', error);
   }
+}
+
+async function ensureNotificationPermission(): Promise<boolean> {
+  if (!notificationPermissionRequest) {
+    notificationPermissionRequest = (async () => {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      if (existingStatus === 'granted') return true;
+      if (permissionPrompted) return false;
+      permissionPrompted = true;
+      const { status } = await Notifications.requestPermissionsAsync();
+      return status === 'granted';
+    })().finally(() => {
+      notificationPermissionRequest = null;
+    });
+  }
+  return notificationPermissionRequest;
+}
+
+async function configureAndroidChannels() {
+  if (Platform.OS !== 'android') return;
+  const common = {
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#15803d',
+    sound: 'default' as const,
+    enableVibrate: true,
+    showBadge: true,
+  };
+  await Promise.all([
+    Notifications.setNotificationChannelAsync(GENERAL_NOTIFICATION_CHANNEL_ID, {
+      ...common,
+      name: 'MConnect Notifications',
+    }),
+    Notifications.setNotificationChannelAsync(COMMUNITY_NOTIFICATION_CHANNEL_ID, {
+      ...common,
+      name: 'MConnect Messages',
+    }),
+    Notifications.setNotificationChannelAsync(LOGIN_NOTIFICATION_CHANNEL_ID, {
+      ...common,
+      name: 'MConnect Sign-in Alerts',
+    }),
+  ]);
 }
 
 export async function registerForPushNotificationsAsync() {
@@ -128,26 +155,7 @@ async function registerPushToken() {
   try {
     await configureNotificationCategories();
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'MoiConnect General Notifications',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#15803d',
-        sound: 'default',
-        enableVibrate: true,
-        showBadge: true,
-      });
-
-      await Notifications.setNotificationChannelAsync('community_chat', {
-        name: 'MoiConnect Community & Messages',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#15803d',
-        sound: 'default',
-        enableVibrate: true,
-        showBadge: true,
-      });
-
+      await configureAndroidChannels();
       await Notifications.setNotificationChannelAsync('academic', {
         name: 'MoiConnect Academic Approvals',
         importance: Notifications.AndroidImportance.MAX,
@@ -159,14 +167,7 @@ async function registerPushToken() {
       });
     }
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted' && !permissionPrompted) {
-      permissionPrompted = true;
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
+    if (!await ensureNotificationPermission()) {
       console.log('[Notifications]: Permission not granted for push notifications.');
       return null;
     }
@@ -226,22 +227,8 @@ export async function notifyLoginSuccess(userName: string) {
   }
 
   try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      return;
-    }
-
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'MoiConnect Notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#15803d'
-    });
+    await configureAndroidChannels();
+    if (!await ensureNotificationPermission()) return;
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -250,7 +237,7 @@ export async function notifyLoginSuccess(userName: string) {
         sound: 'default',
         data: { screen: 'home', channelId: 'login_success' }
       },
-      trigger: null
+      trigger: { channelId: LOGIN_NOTIFICATION_CHANNEL_ID }
     });
   } catch (error) {
     console.warn('[Notifications]: Could not show login success notification:', error);
@@ -269,15 +256,8 @@ export async function scheduleLocalMissedMessagesNotification(
   }
 
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
-
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'MoiConnect Notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#15803d'
-    });
+    await configureAndroidChannels();
+    if (!await ensureNotificationPermission()) return;
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -290,7 +270,9 @@ export async function scheduleLocalMissedMessagesNotification(
           conversationId
         }
       },
-      trigger: null
+      trigger: {
+        channelId: screen === 'community' ? COMMUNITY_NOTIFICATION_CHANNEL_ID : GENERAL_NOTIFICATION_CHANNEL_ID
+      }
     });
   } catch (error) {
     console.warn('[Notifications]: Could not schedule local notification:', error);

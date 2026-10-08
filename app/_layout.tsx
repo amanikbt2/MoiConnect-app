@@ -9,7 +9,7 @@ import { GlobalBottomBar } from '../src/components/GlobalBottomBar';
 import { IceMessageHost } from '../src/components/IceMessageCard';
 import { InAppPopupModal } from '../src/components/InAppPopupModal';
 import { checkAppPopups } from '../src/services/popupService';
-import { registerForPushNotificationsAsync, setCommunityChatActive, setupNotificationResponseListener } from '../src/services/notificationService';
+import { setupNotificationResponseListener } from '../src/services/notificationService';
 import { useAuth } from '../src/context/AuthContext';
 import { UniversityProvider } from '../src/context/UniversityContext';
 import { UniversitySetupModal } from '../src/components/UniversitySetupModal';
@@ -46,8 +46,6 @@ function AppRuntimeServices() {
   };
 
   useEffect(() => {
-    void registerForPushNotificationsAsync();
-
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {
       router.push(screenPath as any);
     });
@@ -88,13 +86,6 @@ function RootLayoutContent() {
   const { isDark } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-
-  useEffect(() => {
-    setCommunityChatActive(
-      pathname.toLowerCase().includes('message') || pathname.toLowerCase().includes('community')
-    );
-    return () => setCommunityChatActive(false);
-  }, [pathname]);
 
   const handleNavigate = (tab: 'Home' | 'Downloads' | 'Community') => {
     if (tab === 'Home') router.push('/(tabs)');
