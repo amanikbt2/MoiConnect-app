@@ -16,6 +16,13 @@ module.exports = {
     ios: {
       ...baseConfig.ios,
       buildNumber: String(process.env.MCONNECT_IOS_BUILD_NUMBER || baseConfig.ios.buildNumber)
+    },
+    extra: {
+      ...(baseConfig.extra || {}),
+      eas: {
+        ...(baseConfig.extra?.eas || {}),
+        projectId: process.env.EAS_PROJECT_ID || 'b2e599b0-7be8-4fad-bdaf-330db9d6c1a5'
+      }
     }
   }
 };
