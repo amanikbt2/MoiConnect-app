@@ -17,10 +17,28 @@ export interface MaterialSearchFields {
 const normalize = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase();
 const normalizeId = (value: unknown) => normalize(value).replace(/[^a-z0-9]/g, '');
 
+/**
+ * Material IDs are deliberately category-prefixed by the backend:
+ * P = past paper, N = notes, C = CAT. Keep this detection strict so a
+ * normal keyword such as "physics" is never redirected unexpectedly.
+ */
+export function getMaterialCategoryFromId(query: string): 'past_paper' | 'notes' | 'cat' | null {
+  const id = normalizeId(query);
+  if (/^p\d+$/.test(id) || /^past(?:paper)?\d+$/.test(id)) return 'past_paper';
+  if (/^n\d+$/.test(id) || /^notes?\d+$/.test(id)) return 'notes';
+  if (/^c\d+$/.test(id) || /^cat\d+$/.test(id)) return 'cat';
+  return null;
+}
+
 export function getGlobalSearchDestination(query: string): string {
   const value = normalize(query);
   const encodedQuery = encodeURIComponent(query.trim());
   const hasAny = (words: string[]) => words.some((word) => value.includes(word));
+
+  const idCategory = getMaterialCategoryFromId(query);
+  if (idCategory === 'past_paper') return `/past-papers?search=${encodedQuery}`;
+  if (idCategory === 'notes') return `/(tabs)/academics?search=${encodedQuery}`;
+  if (idCategory === 'cat') return `/cat-papers?search=${encodedQuery}`;
 
   if (hasAny(['cat', 'continuous assessment', 'quiz', 'test'])) {
     return `/cat-papers?search=${encodedQuery}`;
@@ -49,6 +67,13 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
     item.type, item.description, item.author
   ].map(normalize).filter(Boolean);
 
+  const primaryFields = [item.title, item.unitCode, item.unitName, item.courseCode]
+    .map(normalize)
+    .filter(Boolean);
+  const queryTokens = q.split(/\s+/).filter((token) => token.length > 1);
+  const matchedTokens = queryTokens.filter((token) => fields.some((field) => field.includes(token)));
+  const primaryMatchedTokens = queryTokens.filter((token) => primaryFields.some((field) => field.includes(token)));
+
   const idText = normalize(item.mtid);
   if (idText && idText.startsWith(q)) return 1;
   if (id && normalizedQueryId && id.includes(normalizedQueryId)) return 2;
@@ -59,11 +84,20 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   if (title === q || unitCode === q || unitName === q) return 3;
   if ([title, unitCode, unitName].some((field) => field.startsWith(q))) return 4;
   if ([title, unitCode, unitName].some((field) => field.includes(q))) return 5;
-  if (fields.some((field) => field.includes(q))) return 6;
 
-  const tokens = q.split(/\s+/).filter(Boolean);
-  const allTokensFound = tokens.every((token) => fields.some((field) => field.includes(token)));
-  return allTokensFound ? 7 : null;
+  // Search by meaningful words, not only by the exact sentence/order. A query
+  // such as "language automata theory" therefore matches "Formal Language
+  // and Automata Theory" strongly even though the full phrase is different.
+  if (queryTokens.length > 0 && matchedTokens.length === queryTokens.length) {
+    return primaryMatchedTokens.length === queryTokens.length ? 5 : 6;
+  }
+
+  // Keep partial word matches as related material instead of dropping them.
+  // This is useful for course initials, a unit keyword, semester, or year.
+  if (matchedTokens.length >= Math.max(1, Math.ceil(queryTokens.length / 2))) return 8;
+  if (matchedTokens.length > 0) return 9;
+
+  return fields.some((field) => field.includes(q)) ? 10 : null;
 }
 
 export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string): T[] {

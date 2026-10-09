@@ -824,7 +824,7 @@ export default function AcademicsScreen({ route }: any) {
                   <BookIcon color="#2563eb" size={18} />
                 </View>
                 <View>
-                  <Text style={styles.sectionTitle}>Related Materials & Hidden Metadata</Text>
+                  <Text style={styles.sectionTitle}>Related Materials</Text>
                   <Text style={styles.sectionSub}>Matched by semester, year level, department or category</Text>
                 </View>
               </View>

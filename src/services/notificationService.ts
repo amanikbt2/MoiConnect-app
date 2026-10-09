@@ -50,6 +50,11 @@ async function configureNotificationCategories() {
   try {
     await Notifications.setNotificationCategoryAsync(COMMUNITY_MESSAGE_CATEGORY, [
       {
+        identifier: 'open_forum',
+        buttonTitle: 'Open Forum',
+        options: { opensAppToForeground: true }
+      },
+      {
         identifier: 'reply',
         buttonTitle: 'Reply',
         textInput: {
@@ -319,7 +324,7 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
 
 async function handleCommunityNotificationAction(response: Notifications.NotificationResponse) {
   const action = response.actionIdentifier;
-  if (action === Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+  if (action === Notifications.DEFAULT_ACTION_IDENTIFIER || action === 'open_forum') return;
 
   const data = response.notification.request.content.data as any;
   const messageId = data?.messageId ? String(data.messageId) : '';

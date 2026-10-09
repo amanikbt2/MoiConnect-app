@@ -171,7 +171,10 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    if (!visible) return;
+    // Web uses the browser's native PDF iframe below. The bundled PDF.js
+    // engine is only needed by the native WebView path; expo-file-system's
+    // readAsStringAsync is not available in the browser.
+    if (!visible || Platform.OS === 'web') return;
     loadPdfJsSources().then((sources) => {
       if (!cancelled) setPdfEngineSources(sources);
     }).catch((error) => {
@@ -294,13 +297,18 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     return chunks.length > 0 ? chunks : [text.trim()];
   };
 
+  const stopTTSReading = () => {
+    ttsSessionRef.current += 1;
+    ttsService.stop();
+    setIsPreparingTTS(false);
+    setIsReadingTTS(false);
+  };
 
   const handleToggleTTS = async () => {
     if (!document) return;
 
     if (ttsState.isSpeaking || isReadingTTS) {
-      ttsService.stop();
-      setIsReadingTTS(false);
+      stopTTSReading();
       return;
     }
 
@@ -554,7 +562,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               {isTtsBuffering ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : ttsState.isSpeaking || isReadingTTS ? (
-                <VolumeIcon color="#ffffff" size={20} />
+                <View style={styles.ttsStopIcon} />
               ) : (
                 <VolumeIcon color="#ffffff" size={20} />
               )}
@@ -587,11 +595,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
         </View>
 
         {/* Voice Reading Mode Active Banner */}
-        {ttsState.isSpeaking && (
+        {(ttsState.isSpeaking || isReadingTTS) && (
           <View style={styles.ttsBanner}>
             <View style={styles.ttsBannerContent}>
               <TouchableOpacity
-                onPress={() => ttsService.stop()}
+                onPress={stopTTSReading}
                 activeOpacity={0.7}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Stop voice reading"
@@ -1378,6 +1386,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 4,
     elevation: 3
+  },
+  ttsStopIcon: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+    backgroundColor: '#ffffff'
   },
   ttsBanner: {
     backgroundColor: '#0284c7',

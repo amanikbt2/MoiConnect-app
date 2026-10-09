@@ -754,7 +754,7 @@ export const ensureCommunitySyncCursor = async (): Promise<string> => {
       }
 
       const baseline = await apiRequest<any>('/community/messages?limit=1');
-      const serverCursor = baseline?.success ? String(baseline.syncedAt || baseline.data?.syncedAt || '') : '';
+      const serverCursor = baseline?.success ? String((baseline as any).syncedAt || (baseline as any).data?.syncedAt || '') : '';
       if (serverCursor && !Number.isNaN(Date.parse(serverCursor))) {
         await saveCommunitySyncCursor(serverCursor);
         return serverCursor;

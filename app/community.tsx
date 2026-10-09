@@ -1203,6 +1203,48 @@ export default function CommunityScreen() {
   };
 
   useEffect(() => {
+    if (!isForumFocused || !user) return;
+    let cancelled = false;
+
+    const refreshForumFromOfflineCache = async () => {
+      const [cachedMessages, storedCursor] = await Promise.all([
+        getStoredCommunityMessages(),
+        getCommunitySyncCursor()
+      ]);
+      if (cancelled) return;
+
+      if (storedCursor) lastSyncedISO.current = storedCursor;
+      if (cachedMessages.length > 0) {
+        const cachedById = new Map<string, CommunityMessage>();
+        for (const cached of cachedMessages) {
+          const id = String(cached.clientMsgId || cached.id || cached._id || '');
+          if (id) cachedById.set(id, { ...cached, isMe: evalIsMe(cached.senderId, cached.senderEmail, cached.senderName, cached.clientMsgId) });
+        }
+        setMessages((current) => {
+          const merged = new Map<string, CommunityMessage>();
+          for (const message of current) {
+            const id = String(message.clientMsgId || message.id || (message as any)._id || '');
+            if (id) merged.set(id, message);
+          }
+          for (const [id, cached] of cachedById) {
+            merged.set(id, { ...merged.get(id), ...cached });
+          }
+          return Array.from(merged.values()).sort((a, b) =>
+            String(a.isoDate || '').localeCompare(String(b.isoDate || ''))
+          );
+        });
+      }
+
+      await fetchDeltaSync();
+    };
+
+    void refreshForumFromOfflineCache().catch((error) => {
+      console.warn('[Community] Could not refresh forum from offline cache:', error);
+    });
+    return () => { cancelled = true; };
+  }, [isForumFocused, user?._id]);
+
+  useEffect(() => {
     if (showFileModal) {
       loadFiles();
     }

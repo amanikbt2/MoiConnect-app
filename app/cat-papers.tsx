@@ -124,8 +124,8 @@ function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: numbe
   );
 }
 
-export default function CatPapersScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+export default function CatPapersScreen({ route }: any) {
+  const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [catsData, setCatsData] = useState<CATPaperItem[]>([]);
@@ -151,6 +151,10 @@ export default function CatPapersScreen() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (typeof route?.params?.search === 'string') setSearchQuery(route.params.search);
+  }, [route?.params?.search]);
 
   useEffect(() => {
     getMaterialSearchHistory().then(setSearchHistory);
