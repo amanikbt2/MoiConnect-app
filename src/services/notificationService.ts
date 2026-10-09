@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 import { apiRequest } from './api';
 
@@ -25,6 +26,20 @@ let registrationRetryAttempt = 0;
 let permissionPrompted = false;
 let notificationPermissionRequest: Promise<boolean> | null = null;
 const MAX_REGISTRATION_RETRY_DELAY_MS = 5 * 60 * 1000;
+const PUSH_INSTALLATION_ID_KEY = 'mconnect_push_installation_id';
+
+async function getPushInstallationId(): Promise<string> {
+  try {
+    const existing = await SecureStore.getItemAsync(PUSH_INSTALLATION_ID_KEY);
+    if (existing) return existing;
+    const generated = `${Platform.OS}_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+    await SecureStore.setItemAsync(PUSH_INSTALLATION_ID_KEY, generated);
+    return generated;
+  } catch (_) {
+    // Registration still works if secure storage is temporarily unavailable.
+    return `${Platform.OS}_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+  }
+}
 
 function schedulePushRegistrationRetry() {
   if (!registrationEnabled || registrationRetryTimer) return;
@@ -196,13 +211,15 @@ async function registerPushToken() {
     }
 
     let registration: any = { success: false };
+    const installationId = await getPushInstallationId();
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         registration = await apiRequest('/notifications/register-token', {
           method: 'POST',
           body: JSON.stringify({
             token,
-            platform: Platform.OS
+            platform: Platform.OS,
+            installationId
           })
         });
         if (registration.success) break;

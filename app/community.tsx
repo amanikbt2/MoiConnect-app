@@ -50,6 +50,7 @@ import {
   VideoIcon,
   BotIcon,
   TransmitterIcon,
+  WifiOffIcon,
 } from '../src/components/Icons';
 import { getSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
@@ -79,6 +80,7 @@ import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
 import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { UserBadge } from '../src/components/UserBadge';
+import { useNetwork } from '../src/context/NetworkContext';
 
 export interface FileAttachment {
   name: string;
@@ -365,6 +367,7 @@ export default function CommunityScreen() {
   const campusName = selectedUniversity?.shortName || 'Campus';
   const router = useAppNavigation();
   const isForumFocused = useIsFocused();
+  const { isOnline: networkOnline } = useNetwork();
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
@@ -455,6 +458,7 @@ export default function CommunityScreen() {
   const [botTyping, setBotTyping] = useState(false);
   const [botTypingName, setBotTypingName] = useState('Campus Bot');
   const [onlineCount, setOnlineCount] = useState(0);
+  const [socketOnline, setSocketOnline] = useState(false);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const deletingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -513,6 +517,7 @@ export default function CommunityScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const lastSyncedISO = useRef<string | null>(null);
+  const deltaSyncInFlightRef = useRef(false);
   const isNearBottomRef = useRef<boolean>(true);
   const isForumFocusedRef = useRef<boolean>(isForumFocused);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -783,6 +788,7 @@ export default function CommunityScreen() {
       if (socket) {
         activeSocket = socket;
         const handleSocketConnect = async () => {
+          setSocketOnline(true);
           if (socketPresenceRef.current) addLocalPresenceNotice('user_connected');
           socketPresenceRef.current = true;
           socket.emit('community:request_online_count');
@@ -801,6 +807,7 @@ export default function CommunityScreen() {
           console.warn('[Community] Socket reconnect pending:', error?.message || error);
         };
         const handleSocketDisconnect = () => {
+          setSocketOnline(false);
           if (socketPresenceRef.current) addLocalPresenceNotice('user_disconnected');
           socketPresenceRef.current = false;
           clearTypingIndicators();
@@ -1080,10 +1087,13 @@ export default function CommunityScreen() {
         activeSocket.off('connect_error');
         activeSocket.off('disconnect');
       }
+      setSocketOnline(false);
     };
   }, [user]);
 
   const fetchDeltaSync = async () => {
+    if (deltaSyncInFlightRef.current) return;
+    deltaSyncInFlightRef.current = true;
     try {
       let syncCursor: string = lastSyncedISO.current || '';
       if (!syncCursor && messages.length > 0) {
@@ -1185,7 +1195,14 @@ export default function CommunityScreen() {
           }
           return { updated, changed };
         };
-        const mergedForStorage = mergeFetchedMessages(messages);
+        // Read the latest persisted cache before writing. Socket messages can
+        // arrive while this HTTP sync is in flight; using the render's older
+        // `messages` snapshot could otherwise overwrite those messages and
+        // advance the cursor past them.
+        const persistedMessages = await getStoredCommunityMessages();
+        const mergedForStorage = mergeFetchedMessages(
+          persistedMessages.length > 0 ? persistedMessages : messages
+        );
         if (mergedForStorage.changed) {
           setMessages((previous) => mergeFetchedMessages(previous).updated);
           const saved = await saveCommunityMessages(mergedForStorage.updated);
@@ -1199,6 +1216,8 @@ export default function CommunityScreen() {
       }
     } catch (err) {
       console.log('Delta sync fallback:', err);
+    } finally {
+      deltaSyncInFlightRef.current = false;
     }
   };
 
@@ -2015,7 +2034,19 @@ export default function CommunityScreen() {
               <Text style={{ color: '#ffffff' }}>Uni </Text>
               <Text style={{ color: '#a7f3d0' }}>Forum</Text>
             </Text>
-            <View style={styles.onlineSubtitle}><OnlineStatusIcon color="#86efac" size={13} /><Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text></View>
+            <View style={styles.onlineSubtitle}>
+              {networkOnline && socketOnline ? (
+                <>
+                  <OnlineStatusIcon color="#86efac" size={13} />
+                  <Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text>
+                </>
+              ) : (
+                <>
+                  <WifiOffIcon color="#fca5a5" size={13} />
+                  <Text style={styles.offlineHeaderSubtitle}>You're offline</Text>
+                </>
+              )}
+            </View>
           </View>
 
           <TouchableOpacity
@@ -3032,6 +3063,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#dcfce7',
     fontWeight: '500'
+  },
+  offlineHeaderSubtitle: {
+    fontSize: 12,
+    color: '#fecaca',
+    fontWeight: '700'
   },
   chatBackground: {
     flex: 1,

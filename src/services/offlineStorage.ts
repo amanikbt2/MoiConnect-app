@@ -730,7 +730,14 @@ export const getCommunitySyncCursor = async (): Promise<string | null> => {
 };
 
 export const saveCommunitySyncCursor = async (cursor: string): Promise<void> => {
-  if (cursor) await setItem(COMMUNITY_SYNC_CURSOR_KEY, cursor);
+  if (!cursor) return;
+  const current = await getItem(COMMUNITY_SYNC_CURSOR_KEY);
+  const currentTime = current ? Date.parse(current) : NaN;
+  const nextTime = Date.parse(cursor);
+  // Multiple reconnect/background syncs can finish out of order. Never let
+  // an older response move the durable cursor backwards and hide later posts.
+  if (Number.isFinite(currentTime) && Number.isFinite(nextTime) && nextTime < currentTime) return;
+  await setItem(COMMUNITY_SYNC_CURSOR_KEY, cursor);
 };
 
 let communityCursorInitialization: Promise<string> | null = null;
