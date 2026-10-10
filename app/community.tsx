@@ -1689,6 +1689,7 @@ export default function CommunityScreen() {
     };
   }, []);
   const handleSendMessage = (stickerId?: string) => {
+    if (isUploadingMedia) return;
     if (!inputText.trim() && !selectedFile && !stickerId) return;
 
     if (isTypingRef.current) {

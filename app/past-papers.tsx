@@ -153,7 +153,7 @@ function PastPaperCarouselSection({
     return () => clearInterval(timer);
   }, [activeIndex, items.length]);
 
-  if (items.length < 2) return null;
+  if (!items || items.length === 0) return null;
 
   return (
     <View style={styles.discoverySection}>
@@ -332,7 +332,7 @@ export default function PastPapersScreen({ route }: any) {
   };
 
   const carouselPapers = papersData.length > 0
-    ? papersData.slice(0, 5)
+    ? (papersData.length <= 3 ? papersData.slice(0, Math.min(2, papersData.length)) : papersData.slice(0, 4))
     : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : []);
 
   useEffect(() => {
@@ -460,7 +460,7 @@ export default function PastPapersScreen({ route }: any) {
     }
   };
 
-  const feedItems = filteredPapers.slice(carouselPapers.length);
+  const feedItems = filteredPapers.length <= 3 ? filteredPapers : filteredPapers.slice(carouselPapers.length);
   const carouselTitles = [
     ['Recently Uploaded', 'Fresh examination materials from students and departments'],
     ['Most Downloaded', 'Popular papers students are revising now'],
@@ -718,34 +718,52 @@ export default function PastPapersScreen({ route }: any) {
     )}
 
         {/* MAIN FEED: FACEBOOK STYLE LAZY LOADED CONTINUOUS SCROLL */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
-          <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
-            <BookIcon color="#15803d" size={18} />
-          </View>
-          <View>
-            <Text style={styles.sectionTitle}>Full Exam Revision Feed</Text>
-            <Text style={styles.sectionSub}>Past papers & model solutions from all departments</Text>
-          </View>
-        </View>
+
+
+
+
+
+
+
+
+
 
         {initialLoading ? (
           <ShimmerGridLoader title="loading more resources" count={6} />
         ) : fetchError && papersData.length === 0 && !showDemoMaterials ? (
           <OfflineState onRetry={fetchRealPastPapers} />
         ) : (
-          feedBlocks.map((block, index) => block.kind === 'carousel' ? (
-            <PastPaperCarouselSection
-              key={`carousel-${block.title}-${index}`}
-              title={block.title || ''}
-              subtitle={block.subtitle || ''}
-              items={block.items}
-              onOpenPreview={handleOpenPreview}
-            />
-          ) : (
-            <React.Fragment key={`grid-${index}`}>
-              {renderGridItems(block.items)}
-            </React.Fragment>
-          ))
+          feedBlocks.map((block, index) => {
+            if (!block.items || block.items.length === 0) return null;
+            if (block.kind === 'carousel') {
+              return (
+                <PastPaperCarouselSection
+                  key={`carousel-${block.title}-${index}`}
+                  title={block.title || ''}
+                  subtitle={block.subtitle || ''}
+                  items={block.items}
+                  onOpenPreview={handleOpenPreview}
+                />
+              );
+            }
+            const isFirstGrid = feedBlocks.findIndex((b) => b.kind === 'grid' && b.items && b.items.length > 0) === index;
+            return (
+              <React.Fragment key={`grid-${index}`}>
+                {isFirstGrid && (
+                  <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                      <BookIcon color="#15803d" size={18} />
+                    </View>
+                    <View>
+                      <Text style={styles.sectionTitle}>Full Exam Revision Feed</Text>
+                      <Text style={styles.sectionSub}>Past papers & model solutions from all departments</Text>
+                    </View>
+                  </View>
+                )}
+                {renderGridItems(block.items)}
+              </React.Fragment>
+            );
+          })
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}

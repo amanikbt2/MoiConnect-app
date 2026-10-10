@@ -41,7 +41,7 @@ export const OfflineState: React.FC<OfflineStateProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    minHeight: 300,
     width: '100%',
     paddingVertical: 32,
     paddingHorizontal: 16,
@@ -112,3 +112,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2
   }
 });
+

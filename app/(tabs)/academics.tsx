@@ -451,23 +451,34 @@ export default function AcademicsScreen({ route }: any) {
   const activeFilterLabel = FILTER_DISCS.find((disc) => disc.id === activeFilterDisc)?.label || 'Selected';
   const noteFeed = isRandomFilter ? randomizedFilterNotes : allBrowseNotes;
 
-  const combinedForYou = isRandomFilter
-    ? []
-    : noteFeed.slice(0, 6);
+  const combinedForYou = React.useMemo(() => {
+    if (isRandomFilter) return [];
+    if (noteFeed.length <= 3) return noteFeed.slice(0, Math.min(2, noteFeed.length));
+    return noteFeed.slice(0, 4);
+  }, [noteFeed, isRandomFilter]);
 
-  const combinedGrid1 = isRandomFilter
-    ? noteFeed.slice(0, 6)
-    : noteFeed.slice(6, 12);
-
-  const combinedGrid2 = isRandomFilter
-    ? []
-    : noteFeed.slice(18, 24);
-
-  const topRatedNotes = isRandomFilter ? [] : noteFeed.slice(24, 30);
+  const combinedGrid1 = React.useMemo(() => {
+    if (isRandomFilter) return noteFeed.slice(0, 6);
+    if (noteFeed.length <= 4) return noteFeed;
+    return noteFeed.slice(4, 10);
+  }, [noteFeed, isRandomFilter]);
 
   const combinedTrending = React.useMemo(() => {
     if (isRandomFilter) return [];
-    return noteFeed.slice(12, 18);
+    if (noteFeed.length <= 4) return [];
+    return noteFeed.slice(10, 16);
+  }, [noteFeed, isRandomFilter]);
+
+  const combinedGrid2 = React.useMemo(() => {
+    if (isRandomFilter) return [];
+    if (noteFeed.length <= 10) return noteFeed.length > 4 ? noteFeed.slice(4) : [];
+    return noteFeed.slice(16, 24);
+  }, [noteFeed, isRandomFilter]);
+
+  const topRatedNotes = React.useMemo(() => {
+    if (isRandomFilter) return [];
+    if (noteFeed.length <= 16) return [];
+    return noteFeed.slice(24, 30);
   }, [noteFeed, isRandomFilter]);
 
   // Auto Scroll For You Carousel
@@ -870,7 +881,9 @@ export default function AcademicsScreen({ route }: any) {
           ) : (
             <>
               {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
-              <View style={[styles.sectionHeaderRow, combinedForYou.length === 0 && { display: 'none' }]}>
+              {combinedForYou.length > 0 && (
+                <>
+                  <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionIconCircle}>
                   <SparklesIcon color="#15803d" size={18} />
                 </View>
@@ -914,9 +927,13 @@ export default function AcademicsScreen({ route }: any) {
                   />
                 ))}
               </View>
+                </>
+              )}
 
               {/* SECTION 2: GRID SECTION 1 (LAZY LOADED 2 LINES AT A TIME) */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 24 }, combinedGrid1.length === 0 && { display: 'none' }]}>
+              {combinedGrid1.length > 0 && (
+                <>
+                  <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
                   <BookIcon color="#15803d" size={18} />
                 </View>
@@ -934,11 +951,15 @@ export default function AcademicsScreen({ route }: any) {
               {loadingMoreSection1 && (
                 <ShimmerGridLoader title="loading more resources" count={4} />
               )}
+                </>
+              )}
 
 
 
               {/* SECTION 3: TRENDING NOW CAROUSEL */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, combinedTrending.length === 0 && { display: 'none' }]}>
+              {combinedTrending.length > 0 && (
+                <>
+                  <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#ffedd5' }]}>
                   <FlameIcon color="#ea580c" size={18} />
                 </View>
@@ -982,12 +1003,16 @@ export default function AcademicsScreen({ route }: any) {
                   />
                 ))}
               </View>
+                </>
+              )}
 
 
 
 
               {/* SECTION 4: GRID SECTION 2 (LAZY LOADED 2 LINES AT A TIME) */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, combinedGrid2.length === 0 && { display: 'none' }]}>
+              {combinedGrid2.length > 0 && (
+                <>
+                  <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#dbeafe' }]}>
                   <FileTextIcon color="#2563eb" size={18} />
                 </View>
@@ -1005,9 +1030,13 @@ export default function AcademicsScreen({ route }: any) {
               {loadingMoreSection2 && (
                 <ShimmerGridLoader title="loading more resources" count={4} />
               )}
+                </>
+              )}
 
               {/* SECTION 5: TOP RATED CAROUSEL */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, topRatedNotes.length === 0 && { display: 'none' }]}>
+              {topRatedNotes.length > 0 && (
+                <>
+                  <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
                 <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
                   <StarIcon color="#d97706" size={18} />
                 </View>
@@ -1045,6 +1074,8 @@ export default function AcademicsScreen({ route }: any) {
                   <View key={i} style={[styles.dot, i === topRatedIndex ? styles.activeDot : styles.inactiveDot]} />
                 ))}
               </View>
+                </>
+              )}
             </>
           )}
 
@@ -1173,13 +1204,13 @@ const styles = StyleSheet.create({
 
   /* Filter Discs */
   discScroll: {
-    flexDirection: 'row',
-    marginBottom: 16
-  },
+      marginBottom: 16
+    },
   discContent: {
-    gap: 8,
-    paddingRight: 16
-  },
+      gap: 8,
+      paddingRight: 16,
+      alignItems: 'center'
+    },
   discPill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1668,4 +1699,6 @@ const styles = StyleSheet.create({
     fontWeight: '500'
   }
 });
+
+
 
