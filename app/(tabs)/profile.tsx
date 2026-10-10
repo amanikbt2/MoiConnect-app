@@ -179,16 +179,35 @@ export default function ProfileScreen() {
     };
 
     try {
+      let persistedAvatarUri = updated.avatarUri;
+      if (persistedAvatarUri && !/^https?:\/\//i.test(persistedAvatarUri)) {
+        const avatarFormData = new FormData();
+        avatarFormData.append('file', {
+          uri: persistedAvatarUri,
+          name: 'profile-avatar.jpg',
+          type: 'image/jpeg'
+        } as any);
+        const avatarUpload = await apiRequest<{ avatarUrl: string }>('/auth/profile/avatar', {
+          method: 'POST',
+          body: avatarFormData
+        });
+        if (!avatarUpload.success || !avatarUpload.data?.avatarUrl) {
+          throw new Error(avatarUpload.error || 'Could not upload your profile picture.');
+        }
+        persistedAvatarUri = avatarUpload.data.avatarUrl;
+      }
+
       await updateUserProfile({
         name: updated.fullName,
         phone: updated.phone,
         school: updated.school,
         course: updated.course,
         yearOfStudy: updated.yearOfStudy,
-        ...(updated.avatarUri ? { avatarUrl: updated.avatarUri } : {})
+        ...(persistedAvatarUri ? { avatarUrl: persistedAvatarUri } : {})
       });
-      await saveStudentPersonalDetails(updated);
-      setStudentDetails(updated);
+      const savedProfile = { ...updated, avatarUri: persistedAvatarUri };
+      await saveStudentPersonalDetails(savedProfile);
+      setStudentDetails(savedProfile);
       setProfileCompletionRequired(false);
       setShowEditModal(false);
       showIceMessage('Profile Updated', 'Your name and profile details were saved to your account and chat.');

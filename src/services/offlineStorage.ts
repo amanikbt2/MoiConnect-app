@@ -6,6 +6,7 @@ import { scheduleLocalMissedMessagesNotification } from './notificationService';
 
 const OFFLINE_PAPERS_KEY = 'moi_offline_papers';
 const OFFLINE_MSG_QUEUE_KEY = 'moi_offline_msg_queue';
+const UNREAD_DOWNLOAD_BADGE_KEY = 'moi_unread_download_badge';
 
 export interface OfflinePaper {
   _id: string;
@@ -63,6 +64,36 @@ const setItem = async (key: string, value: string): Promise<void> => {
 // Subscriber mechanism for real-time progress updates across screens
 type DownloadListener = (papers: OfflinePaper[]) => void;
 const listeners = new Set<DownloadListener>();
+
+type DownloadBadgeListener = (count: number) => void;
+const downloadBadgeListeners = new Set<DownloadBadgeListener>();
+
+export const getUnreadDownloadBadgeCount = async (): Promise<number> => {
+  const storedCount = Number(await getItem(UNREAD_DOWNLOAD_BADGE_KEY) || 0);
+  return Number.isFinite(storedCount) && storedCount > 0 ? Math.floor(storedCount) : 0;
+};
+
+export const subscribeToDownloadBadgeUpdates = (listener: DownloadBadgeListener) => {
+  downloadBadgeListeners.add(listener);
+  getUnreadDownloadBadgeCount().then(listener).catch(() => listener(0));
+  return () => downloadBadgeListeners.delete(listener);
+};
+
+const notifyDownloadBadgeListeners = async () => {
+  const count = await getUnreadDownloadBadgeCount();
+  downloadBadgeListeners.forEach((listener) => listener(count));
+};
+
+const incrementUnreadDownloadBadge = async () => {
+  const count = await getUnreadDownloadBadgeCount();
+  await setItem(UNREAD_DOWNLOAD_BADGE_KEY, String(count + 1));
+  await notifyDownloadBadgeListeners();
+};
+
+export const clearUnreadDownloadBadge = async () => {
+  await setItem(UNREAD_DOWNLOAD_BADGE_KEY, '0');
+  await notifyDownloadBadgeListeners();
+};
 
 export const subscribeToDownloadUpdates = (listener: DownloadListener) => {
   listeners.add(listener);
@@ -152,6 +183,7 @@ export const updatePaperDownloadState = async (
 ) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
   let papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
+  const existingPaper = papers.find((paper) => paper._id === paperId);
   papers = papers.map((p) => {
     if (p._id === paperId) {
       return { ...p, ...updates };
@@ -159,10 +191,16 @@ export const updatePaperDownloadState = async (
     return p;
   });
   await setItem(OFFLINE_PAPERS_KEY, JSON.stringify(papers));
+  if (updates.status === 'completed' && existingPaper?.status !== 'completed') {
+    await incrementUnreadDownloadBadge();
+  }
   await notifyDownloadListeners();
 };
 
 export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper> => {
+  const reportProgress = (progress: number) => {
+    if (typeof paperInput?.onProgress === 'function') paperInput.onProgress(progress);
+  };
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
   const papers: OfflinePaper[] = existingStr ? JSON.parse(existingStr) : [];
   const targetId = paperInput._id || `paper_${Date.now()}`;
@@ -255,6 +293,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
       }
       await saveOfflineWebPdf(targetId, blob);
       const localUri = `offline-web:${targetId}`;
+      reportProgress(100);
       await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri });
       return { ...newPaperItem, status: 'completed', progress: 100, localUri };
     } catch (error) {
@@ -283,6 +322,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
         if (progress === 100 || progress - lastProgress >= 5 || now - lastProgressAt >= 500) {
           lastProgress = progress;
           lastProgressAt = now;
+          reportProgress(progress);
           void updatePaperDownloadState(targetId, { progress });
         }
       }
@@ -318,6 +358,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
       }
     }
     await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized } as any);
+    reportProgress(100);
     return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized };
   } catch (error) {
     delete activeDownloadTasks[targetId];

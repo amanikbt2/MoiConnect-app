@@ -14,7 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, DownloadIcon } from './Icons';
 import {
   subscribeToUnreadSummaryUpdates,
-  syncCommunityUnreadBackground
+  syncCommunityUnreadBackground,
+  subscribeToDownloadBadgeUpdates,
+  clearUnreadDownloadBadge
 } from '../services/offlineStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -30,6 +32,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
   const { isDark } = useTheme();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [unreadMentions, setUnreadMentions] = useState<number>(0);
+  const [unreadDownloads, setUnreadDownloads] = useState<number>(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -37,6 +40,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       setUnreadCount(summary.general);
       setUnreadMentions(summary.mentions);
     }, user);
+    const unsubscribeDownloadBadge = subscribeToDownloadBadgeUpdates(setUnreadDownloads);
 
     let backgroundInterval: ReturnType<typeof setInterval> | undefined;
     let delayedSync: ReturnType<typeof setTimeout> | undefined;
@@ -71,6 +75,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
 
     return () => {
       unsubscribeSummary();
+      unsubscribeDownloadBadge();
       showSub.remove();
       hideSub.remove();
       appStateSubscription.remove();
@@ -128,6 +133,9 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       (currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')));
 
   const handlePress = async (tab: 'Home' | 'Downloads' | 'Community') => {
+    if (tab === 'Downloads') {
+      void clearUnreadDownloadBadge();
+    }
     if (onNavigate) {
       onNavigate(tab);
     }
@@ -158,6 +166,13 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       >
         <View style={styles.iconWrapper}>
           <DownloadIcon color={isDownloadsActive ? '#15803d' : '#64748b'} size={22} />
+          {unreadDownloads > 0 ? (
+            <View style={styles.downloadBadge}>
+              <Text style={styles.badgeText}>
+                {unreadDownloads > 99 ? '99+' : unreadDownloads}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <Text style={[styles.tabLabel, isDownloadsActive ? styles.tabLabelActive : (isDark ? styles.darkTabLabel : styles.tabLabelInactive)]}>
           Downloads
@@ -351,6 +366,21 @@ const styles = StyleSheet.create({
         shadowRadius: 2
       }
     }),
+  },
+  downloadBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 17,
+    height: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1,
+    borderColor: '#ffffff',
+    zIndex: 2,
   },
   badgeText: {
     color: '#ffffff',

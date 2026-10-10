@@ -3,13 +3,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  ActivityIndicator,
   StyleSheet,
   FlatList,
   TextInput,
   TouchableOpacity,
   Pressable,
   KeyboardAvoidingView,
-  ActivityIndicator,
   Platform,
   SafeAreaView,
   StatusBar,
@@ -28,6 +28,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
+import { WebView } from 'react-native-webview';
 import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
@@ -158,6 +159,10 @@ const getCloudinaryVideoPreviewUrl = (url: string): string => {
   const [path, query] = url.split('?');
   const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
   return query ? `${previewPath}?${query}` : previewPath;
+};
+const getVideoPlayerHtml = (url: string): string => {
+  const safeUrl = url.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{margin:0;width:100%;height:100%;background:#020617;overflow:hidden}video{width:100%;height:100%;object-fit:contain;background:#020617}</style></head><body><video controls autoplay playsinline src="${safeUrl}"></video></body></html>`;
 };
 const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
@@ -390,6 +395,9 @@ export default function CommunityScreen() {
   const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [mediaPreview, setMediaPreview] = useState<FileAttachment | null>(null);
+  const [downloadingAttachmentKey, setDownloadingAttachmentKey] = useState<string | null>(null);
+  const [downloadAttachmentProgress, setDownloadAttachmentProgress] = useState(0);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>([]);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
@@ -1223,11 +1231,19 @@ export default function CommunityScreen() {
 
   const reconcileRecentCommunityHistory = async (baseMessages: CommunityMessage[]) => {
     try {
-      const res = await apiRequest<any>('/community/messages?limit=50');
+      let res: any = null;
+      let serverMessages: any[] = [];
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        res = await apiRequest<any>(`/community/messages?limit=50&historyRefresh=${Date.now()}_${attempt}`, {
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        serverMessages = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.data?.data) ? res.data.data : [];
+        if (res?.success && serverMessages.length > 0) break;
+        if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 600));
+      }
       if (!res?.success) return baseMessages;
-      const serverMessages = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data?.data) ? res.data.data : [];
       if (serverMessages.length === 0) return baseMessages;
 
       const recentMessages: CommunityMessage[] = serverMessages.map((serverMsg: any) => {
@@ -1493,7 +1509,7 @@ export default function CommunityScreen() {
       getSocket().then((s) => s?.emit('community:start_deleting', {
         userName: user?.name || 'Moi Student',
         userId: user?._id,
-        avatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+        avatarUrl: user?.avatarUrl || myProfile?.avatarUri,
         avatarBg: '#15803d'
       }));
       if (myDeletingTimeoutRef.current) clearTimeout(myDeletingTimeoutRef.current);
@@ -1520,7 +1536,7 @@ export default function CommunityScreen() {
             s.emit('community:start_typing', {
               userName: user?.name || 'Moi Student',
               userId: user?._id,
-              avatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+              avatarUrl: user?.avatarUrl || myProfile?.avatarUri,
               avatarBg: '#15803d'
             });
           }
@@ -1745,7 +1761,7 @@ export default function CommunityScreen() {
       senderFaculty: facultySubtitle,
       senderCourse: myProfile?.course,
       senderPhone: myProfile?.phone || user?.phone,
-      senderAvatarUrl: myProfile?.avatarUri || user?.avatarUrl,
+      senderAvatarUrl: user?.avatarUrl || myProfile?.avatarUri,
       senderBadge: user?.badge,
       waitForBot: isBotMentioned,
       avatarBg: '#15803d'
@@ -1946,11 +1962,14 @@ export default function CommunityScreen() {
       setPreviewDoc(docItem);
       setShowPreviewModal(true);
     } else {
-      Linking.openURL(file.url);
+      setMediaPreview(file);
     }
   };
 
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
+    const downloadKey = file.paperId || file.url;
+    setDownloadingAttachmentKey(downloadKey);
+    setDownloadAttachmentProgress(0);
     try {
       const paperId = file.paperId || `att_${Date.now()}`;
       const title = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
@@ -1969,7 +1988,8 @@ export default function CommunityScreen() {
         uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
         status: 'approved',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        onProgress: (progress: number) => setDownloadAttachmentProgress(progress)
       });
 
       showIceMessage(
@@ -1982,6 +2002,9 @@ export default function CommunityScreen() {
       );
     } catch (e) {
       showIceMessage('Download Error', 'Could not save attachment offline.');
+    } finally {
+      setDownloadingAttachmentKey(null);
+      setDownloadAttachmentProgress(0);
     }
   };
 
@@ -1996,6 +2019,13 @@ export default function CommunityScreen() {
       });
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
+        setSelectedFile({
+          name: asset.fileName || `${kind} attachment`,
+          url: asset.uri,
+          size: 'Uploading…',
+          type: kind
+        });
+        setShowFileModal(false);
         setIsUploadingMedia(true);
         const formData = new FormData();
         formData.append('file', { uri: asset.uri, name: asset.fileName || `${kind}_${Date.now()}`, type: asset.mimeType || (kind === 'image' ? 'image/jpeg' : 'video/mp4') } as any);
@@ -2005,11 +2035,13 @@ export default function CommunityScreen() {
           setSelectedFile({ name: res.data.name || `${kind} attachment`, url: res.data.url, size: res.data.size || 'Media file', type: kind });
           setShowFileModal(false);
         } else {
+          setSelectedFile(null);
           showIceMessage('Upload Failed', res.error || 'Failed to upload media.');
         }
       }
     } catch (err) {
       setIsUploadingMedia(false);
+      setSelectedFile(null);
       showIceMessage('Upload Error', 'Could not select or upload media.');
     }
   };
@@ -2025,6 +2057,13 @@ export default function CommunityScreen() {
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
         const type = asset.type === 'video' ? 'video' : 'image';
+        setSelectedFile({
+          name: asset.fileName || `camera ${type}`,
+          url: asset.uri,
+          size: 'Uploading…',
+          type
+        });
+        setShowFileModal(false);
         setIsUploadingMedia(true);
         const formData = new FormData();
         formData.append('file', { uri: asset.uri, name: asset.fileName || `camera_${Date.now()}`, type: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg') } as any);
@@ -2034,11 +2073,13 @@ export default function CommunityScreen() {
           setSelectedFile({ name: res.data.name || `camera ${type}`, url: res.data.url, size: res.data.size || 'Media file', type });
           setShowFileModal(false);
         } else {
+          setSelectedFile(null);
           showIceMessage('Upload Failed', res.error || 'Failed to upload camera media.');
         }
       }
     } catch (err) {
       setIsUploadingMedia(false);
+      setSelectedFile(null);
       showIceMessage('Camera Error', 'Could not capture or upload media.');
     }
   };
@@ -2050,6 +2091,18 @@ export default function CommunityScreen() {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        const attachmentType = asset.mimeType?.startsWith('image/')
+          ? 'image'
+          : asset.mimeType?.startsWith('video/')
+            ? 'video'
+            : 'pdf';
+        setSelectedFile({
+          name: asset.name || 'chat_attachment',
+          url: asset.uri,
+          size: 'Uploading…',
+          type: attachmentType
+        });
+        setShowFileModal(false);
         setIsUploadingMedia(true);
 
         const formData = new FormData();
@@ -2077,11 +2130,13 @@ export default function CommunityScreen() {
           setShowFileModal(false);
           showIceMessage('Cloudinary Upload Complete ☁️', `"${asset.name}" uploaded to Cloudinary (folder: moiconnect/chat_media). Ready to share!`);
         } else {
+          setSelectedFile(null);
           showIceMessage('Upload Failed', res.error || 'Failed to upload media to Cloudinary storage.');
         }
       }
     } catch (err: any) {
       setIsUploadingMedia(false);
+      setSelectedFile(null);
       console.log('Document picker / Cloudinary upload error:', err);
       showIceMessage('Upload Error', 'Could not select or upload file.');
     }
@@ -2316,8 +2371,8 @@ export default function CommunityScreen() {
                               {(item.fileAttachment.type === 'image' || item.fileAttachment.type === 'video') && (
                                 <TouchableOpacity
                                   style={styles.chatMediaPreview}
-                                  onPress={() => item.fileAttachment?.type === 'video' && Linking.openURL(item.fileAttachment.url)}
-                                  activeOpacity={item.fileAttachment.type === 'video' ? 0.8 : 1}
+                                  onPress={() => setMediaPreview(item.fileAttachment || null)}
+                                  activeOpacity={0.85}
                                 >
                                   <Image
                                     source={{ uri: item.fileAttachment.type === 'video' ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url) : item.fileAttachment.url }}
@@ -2332,20 +2387,22 @@ export default function CommunityScreen() {
                                   )}
                                 </TouchableOpacity>
                               )}
-                              <TouchableOpacity style={styles.fileCard} onPress={() => handleOpenFileAttachment(item.fileAttachment!)} activeOpacity={0.8}>
-                                <View style={styles.fileIconBox}>
-                                  {item.fileAttachment.type === 'video' ? <VideoIcon color="#f97316" size={24} /> : item.fileAttachment.type === 'image' ? <ImageIcon color="#2563eb" size={24} /> : <FileTextIcon color="#15803d" size={24} />}
-                                </View>
-                                <View style={styles.fileInfo}>
-                                  <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
-                                  <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
-                                </View>
-                                {!item.isMe && (
-                                  <TouchableOpacity style={styles.fileDownloadBtn} onPress={(e) => { e.stopPropagation(); handleDownloadFileAttachment(item.fileAttachment!); }}>
-                                    <DownloadIcon color="#ffffff" size={14} />
-                                  </TouchableOpacity>
-                                )}
-                              </TouchableOpacity>
+                              {item.fileAttachment.type !== 'image' && item.fileAttachment.type !== 'video' && (
+                                <TouchableOpacity style={styles.fileCard} onPress={() => handleOpenFileAttachment(item.fileAttachment!)} activeOpacity={0.8}>
+                                  <View style={styles.fileIconBox}>
+                                    <FileTextIcon color="#15803d" size={24} />
+                                  </View>
+                                  <View style={styles.fileInfo}>
+                                    <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
+                                    <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
+                                  </View>
+                                  {!item.isMe && (
+                                    <TouchableOpacity style={styles.fileDownloadBtn} onPress={(e) => { e.stopPropagation(); handleDownloadFileAttachment(item.fileAttachment!); }}>
+                                      <DownloadIcon color="#ffffff" size={14} />
+                                    </TouchableOpacity>
+                                  )}
+                                </TouchableOpacity>
+                              )}
                             </View>
                           )}
 
@@ -2469,19 +2526,29 @@ export default function CommunityScreen() {
           {selectedFile && (
             <View style={styles.filePreviewBanner}>
               <View style={styles.filePreviewLeft}>
-                <FileTextIcon color="#15803d" size={20} />
+                {selectedFile.type === 'image' ? (
+                  <Image source={{ uri: selectedFile.url }} style={styles.composerMediaThumbnail} />
+                ) : selectedFile.type === 'video' ? (
+                  <View style={styles.composerVideoThumbnail}><VideoIcon color="#f97316" size={18} /></View>
+                ) : (
+                  <FileTextIcon color="#15803d" size={20} />
+                )}
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={styles.filePreviewName} numberOfLines={1}>
                     {selectedFile.name}
                   </Text>
                   <Text style={styles.filePreviewMeta}>
-                    {selectedFile.size} • Attached File
+                    {isUploadingMedia ? 'Uploading…' : `${selectedFile.size} • Ready to send`}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => setSelectedFile(null)} style={styles.removeFileBtn}>
+              {isUploadingMedia ? (
+                <ActivityIndicator size="small" color="#15803d" />
+              ) : (
+                <TouchableOpacity onPress={() => setSelectedFile(null)} style={styles.removeFileBtn}>
                 <Text style={styles.removeFileText}>✕</Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -2638,10 +2705,10 @@ export default function CommunityScreen() {
             <TouchableOpacity
               style={[
                 styles.sendBtn,
-                (!inputText.trim() && !selectedFile) && styles.sendBtnDisabled
+                ((!inputText.trim() && !selectedFile) || isUploadingMedia) && styles.sendBtnDisabled
               ]}
               onPress={() => handleSendMessage()}
-              disabled={!inputText.trim() && !selectedFile}
+              disabled={(!inputText.trim() && !selectedFile) || isUploadingMedia}
               activeOpacity={0.8}
             >
               <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
@@ -2768,6 +2835,7 @@ export default function CommunityScreen() {
                 <TouchableOpacity
                   onPress={() => setShowFileModal(false)}
                   style={styles.closeIconBtn}
+                  disabled={isUploadingMedia}
                   activeOpacity={0.7}
                 >
                   <CloseIcon color="#0f172a" size={16} />
@@ -2777,19 +2845,19 @@ export default function CommunityScreen() {
               <Text style={styles.modalSubtitle}>Select materials from your downloads or phone's storage:</Text>
 
               <View style={styles.mediaOptionsRow}>
-                <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('image')}>
+                <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={() => handlePickMedia('image')}>
                   <View style={[styles.mediaOptionIcon, { backgroundColor: '#eff6ff' }]}><ImageIcon color="#2563eb" size={21} /></View>
                   <Text style={styles.mediaOptionLabel}>Image</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('video')}>
+                <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={() => handlePickMedia('video')}>
                   <View style={[styles.mediaOptionIcon, { backgroundColor: '#fff7ed' }]}><VideoIcon color="#f97316" size={21} /></View>
                   <Text style={styles.mediaOptionLabel}>Video</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.mediaOption} onPress={handlePickFromPhone}>
+                <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handlePickFromPhone}>
                   <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><FileTextIcon color="#15803d" size={21} /></View>
                   <Text style={styles.mediaOptionLabel}>Document</Text>
                 </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaOption} onPress={handleTakeMedia}>
+              <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handleTakeMedia}>
                 <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}><CameraIcon color="#db2777" size={21} /></View>
                 <Text style={styles.mediaOptionLabel}>Camera</Text>
               </TouchableOpacity>
@@ -2817,9 +2885,71 @@ export default function CommunityScreen() {
                 ))}
               </ScrollView>
 
+              {isUploadingMedia && (
+                <View style={styles.mediaUploadOverlay} pointerEvents="auto">
+                  <View style={styles.mediaUploadCard}>
+                    <ActivityIndicator size="large" color="#15803d" />
+                    <Text style={styles.mediaUploadTitle}>Uploading media…</Text>
+                    <Text style={styles.mediaUploadText}>Please wait while it is prepared for chat.</Text>
+                  </View>
+                </View>
+              )}
+
               
             </Pressable>
           </TouchableOpacity>
+        </Modal>
+
+        <Modal
+          visible={!!mediaPreview}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setMediaPreview(null)}
+        >
+          <View style={styles.videoPlayerScreen}>
+            <View style={styles.videoPlayerHeader}>
+              <Text style={styles.videoPlayerTitle}>{mediaPreview?.type === 'video' ? 'Video' : 'Image'}</Text>
+              <TouchableOpacity
+                style={styles.videoPlayerDownload}
+                onPress={() => mediaPreview && handleDownloadFileAttachment(mediaPreview)}
+                disabled={!mediaPreview || downloadingAttachmentKey === (mediaPreview.paperId || mediaPreview.url)}
+                accessibilityRole="button"
+                accessibilityLabel="Download media"
+              >
+                {downloadingAttachmentKey === (mediaPreview?.paperId || mediaPreview?.url) ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <DownloadIcon color="#ffffff" size={17} />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.videoPlayerClose}
+                onPress={() => setMediaPreview(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close media preview"
+              >
+                <CloseIcon color="#ffffff" size={18} />
+              </TouchableOpacity>
+            </View>
+            {mediaPreview?.type === 'video' ? (
+              <WebView
+                source={{ html: getVideoPlayerHtml(mediaPreview.url) }}
+                style={styles.videoPlayerWebView}
+                originWhitelist={['*']}
+                allowsInlineMediaPlayback
+                mediaPlaybackRequiresUserAction={false}
+                javaScriptEnabled
+              />
+            ) : mediaPreview ? (
+              <Image source={{ uri: mediaPreview.url }} style={styles.fullScreenImagePreview} resizeMode="contain" />
+            ) : null}
+            {downloadingAttachmentKey === (mediaPreview?.paperId || mediaPreview?.url) && (
+              <View style={styles.mediaDownloadProgress}>
+                <ActivityIndicator color="#ffffff" size="small" />
+                <Text style={styles.mediaDownloadProgressText}>Downloading {downloadAttachmentProgress}%</Text>
+              </View>
+            )}
+          </View>
         </Modal>
       <PDFViewerModal
         visible={showPreviewModal}
@@ -3344,8 +3474,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(21, 128, 61, 0.2)'
   },
   chatMediaPreview: {
-    width: 240,
-    height: 190,
+    width: 270,
+    height: 230,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
@@ -3383,6 +3513,63 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2
+  },
+  videoPlayerScreen: {
+    flex: 1,
+    backgroundColor: '#020617',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
+  },
+  videoPlayerHeader: {
+    height: 58,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  videoPlayerTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800'
+  },
+  videoPlayerDownload: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#15803d',
+    marginLeft: 'auto',
+    marginRight: 8
+  },
+  videoPlayerClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)'
+  },
+  fullScreenImagePreview: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#020617'
+  },
+  mediaDownloadProgress: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 28,
+    alignItems: 'center',
+    gap: 6
+  },
+  mediaDownloadProgressText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  videoPlayerWebView: {
+    flex: 1,
+    backgroundColor: '#020617'
   },
   fileIconBox: {
     width: 36,
@@ -3480,6 +3667,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center'
+  },
+  composerMediaThumbnail: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0'
+  },
+  composerVideoThumbnail: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff7ed'
   },
   filePreviewName: {
     fontSize: 13,
@@ -3855,8 +4056,40 @@ const styles = StyleSheet.create({
   },
   mediaOptionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   mediaOption: { alignItems: 'center', width: '23%' },
+  mediaOptionDisabled: { opacity: 0.45 },
   mediaOptionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   mediaOptionLabel: { fontSize: 12, color: '#334155', fontWeight: '700' },
+  mediaUploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    zIndex: 20
+  },
+  mediaUploadCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 5
+  },
+  mediaUploadTitle: {
+    marginTop: 10,
+    color: '#0f172a',
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  mediaUploadText: {
+    marginTop: 4,
+    color: '#64748b',
+    fontSize: 11,
+    textAlign: 'center'
+  },
   downloadedSectionTitle: { fontSize: 12, color: '#64748b', fontWeight: '800', marginBottom: 8 },  sampleFileOption: {
     flexDirection: 'row',
     alignItems: 'center',

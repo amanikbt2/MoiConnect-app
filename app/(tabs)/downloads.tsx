@@ -19,10 +19,12 @@ import {
   togglePinOfflinePaper,
   retryPaperDownload,
   subscribeToDownloadUpdates,
+  clearUnreadDownloadBadge,
   OfflinePaper
 } from '../../src/services/offlineStorage';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useAppNavigation } from '../../src/utils/navigation';
+import { useIsFocused } from '@react-navigation/native';
 import { PDFViewerModal, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 import { formatCompactNumber } from '../../src/utils/formatters';
 import {
@@ -59,6 +61,11 @@ export default function DownloadsScreen() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const router = useAppNavigation();
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) void clearUnreadDownloadBadge();
+  }, [isFocused]);
 
   useEffect(() => {
     setLoading(true);

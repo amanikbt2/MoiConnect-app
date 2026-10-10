@@ -290,12 +290,14 @@ export async function scheduleLocalMissedMessagesNotification(
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: `💬 ${senderName}`,
+        title: senderName,
         body: messageText,
         sound: 'default',
+        categoryIdentifier: COMMUNITY_MESSAGE_CATEGORY,
         data: {
+          notificationType: 'community_message',
           screen,
-          channelId: screen === 'community' ? 'community_chat' : 'chat_message',
+          channelId: screen === 'community' ? COMMUNITY_NOTIFICATION_CHANNEL_ID : GENERAL_NOTIFICATION_CHANNEL_ID,
           conversationId
         }
       },
