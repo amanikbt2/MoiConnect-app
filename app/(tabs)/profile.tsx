@@ -182,11 +182,18 @@ export default function ProfileScreen() {
       let persistedAvatarUri = updated.avatarUri;
       if (persistedAvatarUri && !/^https?:\/\//i.test(persistedAvatarUri)) {
         const avatarFormData = new FormData();
-        avatarFormData.append('file', {
-          uri: persistedAvatarUri,
-          name: 'profile-avatar.jpg',
-          type: 'image/jpeg'
-        } as any);
+        
+        if (Platform.OS === 'web') {
+          const response = await fetch(persistedAvatarUri);
+          const blob = await response.blob();
+          avatarFormData.append('file', blob, 'profile-avatar.jpg');
+        } else {
+          avatarFormData.append('file', {
+            uri: persistedAvatarUri,
+            name: 'profile-avatar.jpg',
+            type: 'image/jpeg'
+          } as any);
+        }
         const avatarUpload = await apiRequest<{ avatarUrl: string }>('/auth/profile/avatar', {
           method: 'POST',
           body: avatarFormData
@@ -1001,3 +1008,4 @@ const styles = StyleSheet.create({
   darkMutedText: { color: '#cbd5e1' },
   darkResetButton: { backgroundColor: '#1e293b', borderColor: '#475569' }
 });
+
