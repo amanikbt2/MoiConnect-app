@@ -23,7 +23,7 @@ export default function PrivacyPolicyScreen() {
           <View style={styles.iconCircle}>
             <ShieldCheckIcon color="#15803d" size={32} />
           </View>
-          <Text style={styles.appTitle}>MoiConnect</Text>
+          <Text style={styles.appTitle}>MConnect</Text>
           <Text style={styles.pageTitle}>Privacy Policy</Text>
           <Text style={styles.lastUpdated}>Last Updated: {lastUpdated}</Text>
         </View>
@@ -32,7 +32,7 @@ export default function PrivacyPolicyScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>1. Introduction</Text>
           <Text style={styles.paragraph}>
-            Welcome to MoiConnect ("we", "our", or "us"). We are committed to protecting the privacy and personal data of our users ("students", "landlords", or "visitors"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and web services.
+            Welcome to MConnect ("we", "our", or "us"). We are committed to protecting the privacy and personal data of our users ("students", "landlords", or "visitors"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and web services.
           </Text>
         </View>
 

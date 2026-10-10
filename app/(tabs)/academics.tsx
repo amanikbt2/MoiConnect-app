@@ -51,6 +51,7 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const PAPER_PAGE_SIZE = 24;
 const GRID_CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
 
 export interface NoteItem {
@@ -151,9 +152,10 @@ export default function AcademicsScreen({ route }: any) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Facebook-style Lazy Loading State (start with 4 items = 2 lines)
-  const [visibleCountSection1, setVisibleCountSection1] = useState(4);
-  const [visibleCountSection2, setVisibleCountSection2] = useState(4);
+  const [papersPage, setPapersPage] = useState(1);
+  const [hasMoreNotes, setHasMoreNotes] = useState(true);
+  const [visibleCountSection1, setVisibleCountSection1] = useState(6);
+  const [visibleCountSection2, setVisibleCountSection2] = useState(6);
   const [loadingMoreSection1, setLoadingMoreSection1] = useState(false);
   const [loadingMoreSection2, setLoadingMoreSection2] = useState(false);
 
@@ -175,14 +177,15 @@ export default function AcademicsScreen({ route }: any) {
     getMaterialSearchHistory().then(setSearchHistory);
   }, []);
 
-  const fetchRealAcademicPapers = async (searchQueryParam?: string) => {
+  const fetchRealAcademicPapers = async (searchQueryParam?: string, page = 1, append = false) => {
     try {
-      setInitialLoading(true);
+      if (append) setLoadingMoreSection1(true);
+      else setInitialLoading(true);
       setFetchError(false);
       const url = searchQueryParam && searchQueryParam.trim()
-        ? `/papers?limit=500&search=${encodeURIComponent(searchQueryParam.trim())}`
-        : `/papers?limit=500`;
-      const res = await apiRequest<{ data: IPaper[] }>(url);
+        ? `/papers?limit=${PAPER_PAGE_SIZE}&page=${page}&search=${encodeURIComponent(searchQueryParam.trim())}`
+        : `/papers?limit=${PAPER_PAGE_SIZE}&page=${page}`;
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(url);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const noteMaterials = res.data.filter((p) =>
           ['notes', 'revision', 'lecture_notes'].includes(p.type)
@@ -212,14 +215,23 @@ export default function AcademicsScreen({ route }: any) {
           fileUrl: p.fileUrl,
           ttsTextUrl: (p as any).ttsTextUrl
         }));
-        setRealUploadedNotes(rankMaterialsForProfile(mapped, user, searchHistory)); setInitialLoading(false);
+        setRealUploadedNotes((previous) => {
+          const merged = append ? [...previous, ...mapped] : mapped;
+          const unique = Array.from(new Map(merged.map((note) => [note.id, note])).values());
+          return rankMaterialsForProfile(unique, user, searchHistory);
+        });
+        setPapersPage(page);
+        setHasMoreNotes(res.pagination?.pages ? page < res.pagination.pages : res.data.length === PAPER_PAGE_SIZE);
+        setInitialLoading(false);
+        setLoadingMoreSection1(false);
       } else if (!res.success) {
-        setFetchError(true); setInitialLoading(false);
+        setFetchError(true); setInitialLoading(false); setLoadingMoreSection1(false);
       } else {
-        setRealUploadedNotes([]); setInitialLoading(false);
+        if (!append) setRealUploadedNotes([]);
+        setHasMoreNotes(false); setInitialLoading(false); setLoadingMoreSection1(false);
       }
     } catch (err) {
-      console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false);
+      console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false); setLoadingMoreSection1(false);
     }
   };
 
@@ -288,31 +300,18 @@ export default function AcademicsScreen({ route }: any) {
 
   const forYouListRef = useRef<FlatList>(null);
   const trendingListRef = useRef<FlatList>(null);
+  const topRatedListRef = useRef<FlatList>(null);
   const isForYouInteracting = useRef(false);
   const isTrendingInteracting = useRef(false);
+  const isTopRatedInteracting = useRef(false);
+  const [topRatedIndex, setTopRatedIndex] = useState(0);
 
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 350) {
-      if (visibleCountSection1 < GRID_SECTION_1.length && !loadingMoreSection1) {
-        setLoadingMoreSection1(true);
-        setTimeout(() => {
-          setVisibleCountSection1((prev) => Math.min(prev + 4, GRID_SECTION_1.length));
-          setLoadingMoreSection1(false);
-        }, 900);
-      } else if (
-        visibleCountSection1 >= GRID_SECTION_1.length &&
-        visibleCountSection2 < GRID_SECTION_2.length &&
-        !loadingMoreSection2
-      ) {
-        setLoadingMoreSection2(true);
-        setTimeout(() => {
-          setVisibleCountSection2((prev) => Math.min(prev + 4, GRID_SECTION_2.length));
-          setLoadingMoreSection2(false);
-        }, 900);
-      }
+    if (distanceToBottom < 500 && hasMoreNotes && !loadingMoreSection1 && !initialLoading) {
+      void fetchRealAcademicPapers(searchQuery, papersPage + 1, true);
     }
   };
 
@@ -450,34 +449,26 @@ export default function AcademicsScreen({ route }: any) {
   }, [allBrowseNotes, filterShuffleSeed, isRandomFilter]);
 
   const activeFilterLabel = FILTER_DISCS.find((disc) => disc.id === activeFilterDisc)?.label || 'Selected';
+  const noteFeed = isRandomFilter ? randomizedFilterNotes : allBrowseNotes;
 
   const combinedForYou = isRandomFilter
     ? []
-    : realUploadedNotes.length > 0
-    ? realUploadedNotes
-    : (showDemoMaterials ? FOR_YOU_CAROUSEL : []);
+    : noteFeed.slice(0, 6);
 
   const combinedGrid1 = isRandomFilter
-    ? randomizedFilterNotes
-    : realUploadedNotes.length > 0
-    ? realUploadedNotes
-    : (showDemoMaterials ? GRID_SECTION_1 : []);
+    ? noteFeed.slice(0, 6)
+    : noteFeed.slice(6, 12);
 
   const combinedGrid2 = isRandomFilter
     ? []
-    : realUploadedNotes.length > 3
-    ? realUploadedNotes.slice(3)
-    : (showDemoMaterials ? GRID_SECTION_2 : []);
+    : noteFeed.slice(18, 24);
+
+  const topRatedNotes = isRandomFilter ? [] : noteFeed.slice(24, 30);
 
   const combinedTrending = React.useMemo(() => {
     if (isRandomFilter) return [];
-    if (realUploadedNotes.length > 0) {
-      return [...realUploadedNotes]
-        .sort((a, b) => (parseInt(String(b.downloads).replace(/,/g, '')) || 0) - (parseInt(String(a.downloads).replace(/,/g, '')) || 0))
-        .slice(0, 6);
-    }
-    return TRENDING_CAROUSEL;
-  }, [realUploadedNotes, isRandomFilter]);
+    return noteFeed.slice(12, 18);
+  }, [noteFeed, isRandomFilter]);
 
   // Auto Scroll For You Carousel
   useEffect(() => {
@@ -512,6 +503,26 @@ export default function AcademicsScreen({ route }: any) {
     }, 4500);
     return () => clearInterval(timer);
   }, [trendingIndex, combinedTrending?.length]);
+
+  useEffect(() => {
+    if (topRatedNotes.length <= 1) return;
+    const timer = setInterval(() => {
+      if (!isTopRatedInteracting.current && topRatedListRef.current) {
+        const nextIndex = (topRatedIndex + 1) % topRatedNotes.length;
+        setTopRatedIndex(nextIndex);
+        try {
+          topRatedListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        } catch (_) {
+          // Ignore layout timing while the list is mounting.
+        }
+      }
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [topRatedIndex, topRatedNotes.length]);
+
+  useEffect(() => {
+    if (topRatedIndex >= topRatedNotes.length) setTopRatedIndex(0);
+  }, [topRatedIndex, topRatedNotes.length]);
 
   const fetchOfflinePapers = async () => {
     setLoading(true);
@@ -710,8 +721,10 @@ export default function AcademicsScreen({ route }: any) {
             refreshing={refreshing}
             onRefresh={async () => {
               setRefreshing(true);
-              setVisibleCountSection1(4);
-              setVisibleCountSection2(4);
+              setPapersPage(1);
+              setHasMoreNotes(true);
+              setVisibleCountSection1(6);
+              setVisibleCountSection2(6);
               await fetchRealAcademicPapers();
               setRefreshing(false);
             }}
@@ -992,6 +1005,46 @@ export default function AcademicsScreen({ route }: any) {
               {loadingMoreSection2 && (
                 <ShimmerGridLoader title="loading more resources" count={4} />
               )}
+
+              {/* SECTION 5: TOP RATED CAROUSEL */}
+              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, topRatedNotes.length === 0 && { display: 'none' }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
+                  <StarIcon color="#d97706" size={18} />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>Top Rated</Text>
+                  <Text style={styles.sectionSub}>The highest-rated notes and study guides</Text>
+                </View>
+              </View>
+              <FlatList
+                ref={topRatedListRef}
+                data={topRatedNotes}
+                keyExtractor={(item) => `top-rated-${item.id}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carouselListContent}
+                snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+                decelerationRate="fast"
+                onScrollBeginDrag={() => { isTopRatedInteracting.current = true; }}
+                onScrollEndDrag={() => { setTimeout(() => { isTopRatedInteracting.current = false; }, 3000); }}
+                onMomentumScrollEnd={(event) => {
+                  const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+                  setTopRatedIndex(Math.max(0, Math.min(nextIndex, topRatedNotes.length - 1)));
+                  setTimeout(() => { isTopRatedInteracting.current = false; }, 3000);
+                }}
+                getItemLayout={(_, index) => ({
+                  length: CAROUSEL_CARD_WIDTH + 14,
+                  offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+                  index
+                })}
+                onScrollToIndexFailed={(info) => topRatedListRef.current?.scrollToOffset({ offset: info.index * (CAROUSEL_CARD_WIDTH + 14), animated: true })}
+                renderItem={({ item }) => renderCarouselCard(item)}
+              />
+              <View style={[styles.dotsRow, { marginBottom: 8 }]}>
+                {topRatedNotes.map((_, i) => (
+                  <View key={i} style={[styles.dot, i === topRatedIndex ? styles.activeDot : styles.inactiveDot]} />
+                ))}
+              </View>
             </>
           )}
 

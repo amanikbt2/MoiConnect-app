@@ -317,7 +317,7 @@ function HeaderPointsBadge() {
                 <Text style={{ fontSize: 24 }}>🌟</Text>
               </View>
               <Text style={{ fontSize: 18, fontWeight: '800', color: '#0f172a' }}>Student Rewards</Text>
-              <Text style={{ fontSize: 12, color: '#15803d', fontWeight: '600', marginTop: 2 }}>MoiConnect Points System</Text>
+              <Text style={{ fontSize: 12, color: '#15803d', fontWeight: '600', marginTop: 2 }}>MConnect Points System</Text>
             </View>
 
             <View style={{ backgroundColor: '#f0fdf4', borderRadius: 14, padding: 14, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#bbf7d0' }}>

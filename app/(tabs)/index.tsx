@@ -139,7 +139,7 @@ export default function HomeScreen() {
   }, [user]);
 
   const displaySuggestedMaterials = realSuggestedMaterials.length > 0
-    ? realSuggestedMaterials
+    ? realSuggestedMaterials.slice(0, 10)
     : (showDemoMaterials ? SUGGESTED_MATERIALS : []);
 
   // Smart continuous auto-scroll timer for Suggested Materials
@@ -157,7 +157,11 @@ export default function HomeScreen() {
     }, 3800);
 
     return () => clearInterval(timer);
-  }, [displaySuggestedMaterials.length, Boolean(user)]);
+  }, [displaySuggestedMaterials.length, Boolean(user), activeSuggestedIndex]);
+
+  useEffect(() => {
+    setActiveSuggestedIndex(0);
+  }, [displaySuggestedMaterials.length]);
 
   const fetchDashboardData = async () => {
     try {
@@ -181,7 +185,11 @@ export default function HomeScreen() {
           recommendationTag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
           thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'
         }));
-        setRealSuggestedMaterials(rankMaterialsForProfile(mapped, user));
+        const rankedMaterials = rankMaterialsForProfile(mapped, user);
+        const randomizedMaterials = [...rankedMaterials]
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+        setRealSuggestedMaterials(randomizedMaterials);
       } else {
         setRealSuggestedMaterials([]);
       }

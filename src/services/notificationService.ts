@@ -94,9 +94,15 @@ async function ensureNotificationPermission(): Promise<boolean> {
     notificationPermissionRequest = (async () => {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       if (existingStatus === 'granted') return true;
-      if (permissionPrompted) return false;
+      if (permissionPrompted) {
+        console.warn('[Notifications]: Notification permission is not granted.');
+        return false;
+      }
       permissionPrompted = true;
       const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.warn('[Notifications]: Notification permission was denied.');
+      }
       return status === 'granted';
     })().finally(() => {
       notificationPermissionRequest = null;
@@ -177,7 +183,7 @@ async function registerPushToken() {
     if (Platform.OS === 'android') {
       await configureAndroidChannels();
       await Notifications.setNotificationChannelAsync('academic', {
-        name: 'MoiConnect Academic Approvals',
+        name: 'MConnect Academic Approvals',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#15803d',
@@ -252,15 +258,16 @@ export async function notifyLoginSuccess(userName: string) {
     await configureAndroidChannels();
     if (!await ensureNotificationPermission()) return;
 
-    await Notifications.scheduleNotificationAsync({
+    const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Login successful 🎉',
         body: `You've logged in successfully, ${userName}. Explore PDFs and community chat.`,
         sound: 'default',
-        data: { screen: 'home', channelId: 'login_success' }
+        data: { screen: 'home', channelId: LOGIN_NOTIFICATION_CHANNEL_ID }
       },
-      trigger: { channelId: LOGIN_NOTIFICATION_CHANNEL_ID }
+      trigger: { seconds: 1, channelId: LOGIN_NOTIFICATION_CHANNEL_ID }
     });
+    console.log('[Notifications]: Login success notification scheduled:', notificationId);
   } catch (error) {
     console.warn('[Notifications]: Could not show login success notification:', error);
   }
@@ -293,6 +300,7 @@ export async function scheduleLocalMissedMessagesNotification(
         }
       },
       trigger: {
+        seconds: 1,
         channelId: screen === 'community' ? COMMUNITY_NOTIFICATION_CHANNEL_ID : GENERAL_NOTIFICATION_CHANNEL_ID
       }
     });

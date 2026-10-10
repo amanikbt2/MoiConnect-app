@@ -1,19 +1,19 @@
 ================================================================================
-MOICONNECT - GOOGLE PLAY STORE LISTING DETAILS
+MCONNECT - GOOGLE PLAY STORE LISTING DETAILS
 ================================================================================
 
 --------------------------------------------------------------------------------
 SHORT DESCRIPTION (79 / 80 characters)
 --------------------------------------------------------------------------------
-MoiConnect - Your all-in-one student hub for past papers, notes & campus life.
+MConnect - Your all-in-one student hub for past papers, notes & campus life.
 
 
 --------------------------------------------------------------------------------
 FULL DESCRIPTION (3,648 / 4000 characters)
 --------------------------------------------------------------------------------
-Welcome to MoiConnect – the ultimate all-in-one mobile app designed specifically for Moi University students and campus community! 
+Welcome to MConnect – the ultimate all-in-one mobile app designed specifically for Moi University students and campus community!
 
-Whether you are looking for academic resources, revision materials, student housing, or staying updated with campus events, MoiConnect brings everything you need directly to your fingertips.
+Whether you are looking for academic resources, revision materials, student housing, or staying updated with campus events, MConnect brings everything you need directly to your fingertips.
 
 ---
 
@@ -41,12 +41,12 @@ KEY FEATURES:
 
 ---
 
-WHY CHOOSE MOICONNECT?
+WHY CHOOSE MCONNECT?
 ⚡ Ultra-fast & Lightweight: Optimized for fast loading with low data consumption.
 📱 Clean, Modern Interface: Intuitive user experience designed for modern Android devices.
 🔒 Safe & Verified: Built by students for students, ensuring reliable and accurate campus information.
 
-Download MoiConnect today and take control of your academic journey and campus life at Moi University!
+Download MConnect today and take control of your academic journey and campus life at Moi University!
 
 ---
 Support Email: support@moiconnect.app

@@ -220,7 +220,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.container}>
         <EmptyState title="Not Signed In" message="Log in or create a student account to manage your profile." />
-        <Button title="Sign In to MoiConnect" onPress={() => router.push('/(auth)/login')} style={{ marginHorizontal: 24, marginTop: 16 }} />
+        <Button title="Sign In to MConnect" onPress={() => router.push('/(auth)/login')} style={{ marginHorizontal: 24, marginTop: 16 }} />
       </View>
     );
   }

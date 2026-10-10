@@ -1221,6 +1221,84 @@ export default function CommunityScreen() {
     }
   };
 
+  const reconcileRecentCommunityHistory = async (baseMessages: CommunityMessage[]) => {
+    try {
+      const res = await apiRequest<any>('/community/messages?limit=50');
+      if (!res?.success) return baseMessages;
+      const serverMessages = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data) ? res.data.data : [];
+      if (serverMessages.length === 0) return baseMessages;
+
+      const recentMessages: CommunityMessage[] = serverMessages.map((serverMsg: any) => {
+        const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
+        return {
+          id: serverMsg._id || serverMsg.id,
+          clientMsgId: serverMsg.clientMsgId,
+          deliveryStatus: isMyMsg ? 'delivered' : undefined,
+          senderId: serverMsg.senderId,
+          senderEmail: serverMsg.senderEmail,
+          senderName: serverMsg.senderName || 'Moi Student',
+          senderFaculty: serverMsg.senderFaculty || 'Main Campus',
+          senderCourse: serverMsg.senderCourse,
+          senderPhone: serverMsg.senderPhone,
+          senderAvatarUrl: serverMsg.senderAvatarUrl,
+          senderBadge: serverMsg.senderBadge,
+          avatarBg: serverMsg.avatarBg || '#15803d',
+          text: serverMsg.text || '',
+          timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isoDate: serverMsg.createdAt,
+          updatedAt: serverMsg.updatedAt,
+          isMe: isMyMsg,
+          fileAttachment: serverMsg.fileAttachment,
+          stickerId: serverMsg.stickerId,
+          replyTo: serverMsg.replyTo,
+          reactions: serverMsg.reactions || {}
+        };
+      });
+
+      const mergedById = new Map<string, CommunityMessage>();
+      for (const message of baseMessages) {
+        const key = String(message.clientMsgId || message.id || (message as any)._id || '');
+        if (key) mergedById.set(key, message);
+      }
+      for (const message of recentMessages) {
+        const key = String(message.clientMsgId || message.id || (message as any)._id || '');
+        if (!key) continue;
+        mergedById.set(key, { ...mergedById.get(key), ...message });
+      }
+
+      const persistedMessages = await getStoredCommunityMessages();
+      for (const message of persistedMessages) {
+        const key = String(message.clientMsgId || message.id || message._id || '');
+        if (key && !mergedById.has(key)) mergedById.set(key, message);
+      }
+
+      const merged = Array.from(mergedById.values()).sort((a, b) =>
+        String(a.isoDate || '').localeCompare(String(b.isoDate || ''))
+      );
+      setMessages((current) => {
+        const currentById = new Map<string, CommunityMessage>();
+        for (const message of current) {
+          const key = String(message.clientMsgId || message.id || (message as any)._id || '');
+          if (key) currentById.set(key, message);
+        }
+        for (const message of merged) {
+          const key = String(message.clientMsgId || message.id || (message as any)._id || '');
+          if (key) currentById.set(key, { ...currentById.get(key), ...message });
+        }
+        return Array.from(currentById.values()).sort((a, b) =>
+          String(a.isoDate || '').localeCompare(String(b.isoDate || ''))
+        );
+      });
+      await saveCommunityMessages(merged);
+      return merged;
+    } catch (error) {
+      console.warn('[Community] Recent history reconciliation failed:', error);
+      return baseMessages;
+    }
+  };
+
   useEffect(() => {
     if (!isForumFocused || !user) return;
     let cancelled = false;
@@ -1254,7 +1332,11 @@ export default function CommunityScreen() {
         });
       }
 
+      const reconciledMessages = await reconcileRecentCommunityHistory(cachedMessages);
       await fetchDeltaSync();
+      if (reconciledMessages.length > 0) {
+        await initReadStateAndScroll(reconciledMessages);
+      }
     };
 
     void refreshForumFromOfflineCache().catch((error) => {
@@ -2502,7 +2584,7 @@ export default function CommunityScreen() {
                       {entry.avatarUrl ? <Image source={{ uri: entry.avatarUrl }} style={styles.mentionAvatar} /> : <View style={styles.mentionAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{entry.name[0]?.toUpperCase()}</Text></View>}
                       <View style={styles.mentionUserText}>
                         <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
-                        <Text style={styles.mentionUserSubtitle}>MoiConnect user</Text>
+                        <Text style={styles.mentionUserSubtitle}>MConnect user</Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -2661,7 +2743,7 @@ export default function CommunityScreen() {
                     <Text style={styles.profileModalName}>{selectedProfile.senderName}</Text>
                     <UserBadge badge={selectedProfile.senderBadge} size={18} />
                   </View>
-                  <Text style={styles.profileModalRole}>MoiConnect community member</Text>
+                  <Text style={styles.profileModalRole}>MConnect community member</Text>
                   <View style={styles.profileInfoList}>
                     <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Faculty</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderFaculty || 'Not provided'}</Text></View>
                     <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Course</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderCourse || 'Not provided'}</Text></View>

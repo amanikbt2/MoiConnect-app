@@ -119,7 +119,7 @@ export default function LandlordPortalScreen() {
   const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80');
 
   // Notify Tab State (Normal Popup)
-  const [popTitle, setPopTitle] = useState('Welcome {name} to MoiConnect!');
+  const [popTitle, setPopTitle] = useState('Welcome {name} to MConnect!');
   const [popSubtitle, setPopSubtitle] = useState('Explore the latest study notes for {course}.');
   const [popBody, setPopBody] = useState('Get access to past exam papers, lecture notes, and hostel bookings.');
   const [popImage, setPopImage] = useState('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80');
@@ -132,7 +132,7 @@ export default function LandlordPortalScreen() {
 
   // Notify Tab State (Update Popup)
   const [upMinVersion, setUpMinVersion] = useState('1.0.7');
-  const [upTitle, setUpTitle] = useState('MoiConnect v{version} Available!');
+  const [upTitle, setUpTitle] = useState('MConnect v{version} Available!');
   const [upSubtitle, setUpSubtitle] = useState('Upgrade now for faster PDF downloads and new features.');
   const [upImage, setUpImage] = useState('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80');
   const [upPlayStoreUrl, setUpPlayStoreUrl] = useState('https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect');
@@ -340,7 +340,7 @@ export default function LandlordPortalScreen() {
       if (res?.success) {
         showIceMessage(
           'Approved & Uploaded! ✨',
-          `Document approved with MTID ${res.data?.mtid || ''}!\n\nUploaded to Cloudinary (folder: MoiConnect/pdf). Server temporary file has been safely removed.`
+          `Document approved with MTID ${res.data?.mtid || ''}!\n\nUploaded to MConnect document storage. Server temporary file has been safely removed.`
         );
         setShowPaperModal(false);
         fetchPendingPapers();
@@ -1176,7 +1176,7 @@ export default function LandlordPortalScreen() {
                     <Text style={styles.inputLabel}>Popup Title <Text style={styles.required}>*</Text></Text>
                     <TextInput
                       style={styles.textInput}
-                      placeholder="e.g. Welcome {name} to MoiConnect!"
+                      placeholder="e.g. Welcome {name} to MConnect!"
                       placeholderTextColor="#94a3b8"
                       value={popTitle}
                       onChangeText={setPopTitle}
@@ -1345,7 +1345,7 @@ export default function LandlordPortalScreen() {
                     <Text style={styles.inputLabel}>Update Title</Text>
                     <TextInput
                       style={styles.textInput}
-                      placeholder="e.g. MoiConnect v1.0.7 Available!"
+                      placeholder="e.g. MConnect v1.0.7 Available!"
                       placeholderTextColor="#94a3b8"
                       value={upTitle}
                       onChangeText={setUpTitle}

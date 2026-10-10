@@ -70,6 +70,8 @@ export interface CATPaperItem {
 const RECOMMENDED_CAT_PAPERS: CATPaperItem[] = [];
 
 const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [];
+const PAPER_PAGE_SIZE = 24;
+const DISCOVERY_BLOCK_SIZE = 6;
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All CAT Papers', iconType: 'all' },
@@ -124,6 +126,90 @@ function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: numbe
   );
 }
 
+function CatFeedCarousel({
+  title,
+  subtitle,
+  items,
+  onOpenPreview
+}: {
+  title: string;
+  subtitle: string;
+  items: CATPaperItem[];
+  onOpenPreview: (item: CATPaperItem) => void;
+}) {
+  const carouselRef = useRef<FlatList>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const isInteracting = useRef(false);
+
+  useEffect(() => {
+    if (items.length < 2) return;
+    const timer = setInterval(() => {
+      if (isInteracting.current || !carouselRef.current) return;
+      const nextIndex = (activeIndex + 1) % items.length;
+      setActiveIndex(nextIndex);
+      try {
+        carouselRef.current.scrollToIndex({ index: nextIndex, animated: true });
+      } catch (_) {
+        // The list may still be measuring its items.
+      }
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [activeIndex, items.length]);
+
+  if (items.length < 2) return null;
+
+  return (
+    <View style={styles.discoverySection}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}><SparklesIcon color="#15803d" size={17} /></View>
+        <View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSub}>{subtitle}</Text></View>
+      </View>
+      <FlatList
+        ref={carouselRef}
+        horizontal
+        data={items}
+        keyExtractor={(item) => `${title}-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.carouselListContent}
+        snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+        decelerationRate="fast"
+        onScrollBeginDrag={() => { isInteracting.current = true; }}
+        onScrollEndDrag={() => { setTimeout(() => { isInteracting.current = false; }, 3000); }}
+        onMomentumScrollEnd={(event) => {
+          const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+          setActiveIndex(Math.max(0, Math.min(nextIndex, items.length - 1)));
+          setTimeout(() => { isInteracting.current = false; }, 3000);
+        }}
+        getItemLayout={(_, index) => ({ length: CAROUSEL_CARD_WIDTH + 14, offset: (CAROUSEL_CARD_WIDTH + 14) * index, index })}
+        onScrollToIndexFailed={(info) => carouselRef.current?.scrollToOffset({ offset: info.index * (CAROUSEL_CARD_WIDTH + 14), animated: true })}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.carouselCard} activeOpacity={0.88} onPress={() => onOpenPreview(item)}>
+            <View style={styles.carouselThumbnailContainer}>
+              <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+              <View style={styles.carouselOverlay} />
+              <View style={styles.carouselBadgeRow}>
+                <View style={styles.carouselTypeBadge}><Text style={styles.carouselTypeText}>{item.catType}</Text></View>
+                {!!item.tag && <View style={styles.carouselTagBadge}><Text style={styles.carouselTagText}>{item.tag}</Text></View>}
+              </View>
+            </View>
+            <View style={styles.carouselBody}>
+              <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+              <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+              <View style={styles.carouselFooter}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><DownloadIcon color="#15803d" size={13} /><Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text></View>
+                <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+      <View style={styles.dotsRow}>
+        {items.map((_, index) => <View key={`${title}-dot-${index}`} style={[styles.dot, index === activeIndex ? styles.activeDot : styles.inactiveDot]} />)}
+      </View>
+    </View>
+  );
+}
+
 export default function CatPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
@@ -131,8 +217,8 @@ export default function CatPapersScreen({ route }: any) {
   const [catsData, setCatsData] = useState<CATPaperItem[]>([]);
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
-  // Facebook-Style Lazy Loading State (load 4 cards = 2 rows at a time)
-  const [visibleCount, setVisibleCount] = useState(4);
+  const [papersPage, setPapersPage] = useState(1);
+  const [hasMorePapers, setHasMorePapers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   // Auto-scroll Carousel State
@@ -161,15 +247,16 @@ export default function CatPapersScreen({ route }: any) {
   }, []);
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
-  const fetchRealCatPapers = async (searchTerm = '') => {
+  const fetchRealCatPapers = async (searchTerm = '', page = 1, append = false) => {
     try {
-      setInitialLoading(true);
+      if (append) setLoadingMore(true);
+      else setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
       const searchParam = searchTerm.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
-      const res = await apiRequest<{ data: IPaper[] }>(`/papers?limit=500${searchParam}&refresh=${Date.now()}`);
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${PAPER_PAGE_SIZE}&page=${page}${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
           .filter((p) => p.type === 'cat')
@@ -199,18 +286,26 @@ export default function CatPapersScreen({ route }: any) {
             tag: '🔥 Real CAT'
           }));
 
-        setCatsData(
-          realCatPapers.length > 0
-            ? rankMaterialsForProfile(demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers, user, searchHistory)
-            : (demoSetting ? INITIAL_CAT_PAPERS_DATA : [])
-        ); setInitialLoading(false);
+        const nextPapers = realCatPapers.length > 0
+          ? (demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
+          : [];
+        setCatsData((previous) => {
+          const merged = append ? [...previous, ...nextPapers] : nextPapers;
+          const unique = Array.from(new Map(merged.map((paper) => [paper.id, paper])).values());
+          return rankMaterialsForProfile(unique, user, searchHistory);
+        });
+        setPapersPage(page);
+        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === PAPER_PAGE_SIZE);
+        setInitialLoading(false);
+        setLoadingMore(false);
       } else if (!res.success) {
-        setFetchError(true); setInitialLoading(false);
+        setFetchError(true); setInitialLoading(false); setLoadingMore(false);
       } else {
-        setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []); setInitialLoading(false);
+        if (!append) setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []);
+        setHasMorePapers(false); setInitialLoading(false); setLoadingMore(false);
       }
     } catch (err) {
-      console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false);
+      console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false); setLoadingMore(false);
     }
   };
 
@@ -223,7 +318,9 @@ export default function CatPapersScreen({ route }: any) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setVisibleCount(4);
+      setPapersPage(1);
+      setHasMorePapers(true);
+      setCatsData([]);
       void fetchRealCatPapers(searchQuery.trim().length > 1 ? searchQuery : '');
     }, 350);
     return () => clearTimeout(timer);
@@ -256,18 +353,12 @@ export default function CatPapersScreen({ route }: any) {
     return true;
   });
 
-  const visibleFeedCats = filteredCats.slice(0, visibleCount);
-
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 300 && visibleCount < filteredCats.length && !loadingMore) {
-      setLoadingMore(true);
-      setTimeout(() => {
-        setVisibleCount((prev) => Math.min(prev + 4, filteredCats.length));
-        setLoadingMore(false);
-      }, 850);
+    if (distanceToBottom < 500 && hasMorePapers && !loadingMore && !initialLoading) {
+      void fetchRealCatPapers(searchQuery.trim().length > 1 ? searchQuery : '', papersPage + 1, true);
     }
   };
 
@@ -338,6 +429,60 @@ export default function CatPapersScreen({ route }: any) {
     }
   };
 
+  const recommendedCats = catsData.length > 0 ? catsData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : []);
+  const feedItems = filteredCats.slice(recommendedCats.length);
+  const carouselTitles = [
+    ['Recently Uploaded', 'Fresh CATs and quizzes from across campus'],
+    ['Most Downloaded', 'Popular continuous assessment papers'],
+    ['Top Rated', 'Highly rated CATs worth practising'],
+    ['Based on Your Profile', 'Matched to your course and academic profile']
+  ];
+  const feedBlocks: Array<{ kind: 'carousel' | 'grid'; items: CATPaperItem[]; title?: string; subtitle?: string }> = [];
+  let feedCursor = 0;
+  let carouselTitleIndex = 0;
+  while (feedCursor < feedItems.length) {
+    const carouselItems = feedItems.slice(feedCursor, feedCursor + DISCOVERY_BLOCK_SIZE);
+    if (carouselItems.length >= 2) {
+      const [title, subtitle] = carouselTitles[carouselTitleIndex % carouselTitles.length];
+      feedBlocks.push({ kind: 'carousel', items: carouselItems, title, subtitle });
+      carouselTitleIndex += 1;
+      feedCursor += carouselItems.length;
+    }
+    if (feedCursor < feedItems.length) {
+      const gridItems = feedItems.slice(feedCursor, feedCursor + DISCOVERY_BLOCK_SIZE);
+      feedBlocks.push({ kind: 'grid', items: gridItems });
+      feedCursor += gridItems.length;
+    }
+  }
+
+  const renderGridItems = (items: CATPaperItem[]) => (
+    <View style={styles.gridContainer}>
+      {items.map((item) => {
+        const isStarred = !!userStars[item.id];
+        return (
+          <TouchableOpacity key={item.id} style={styles.gridCard} activeOpacity={0.88} onPress={() => handleOpenPreview(item)}>
+            <View style={styles.gridImageContainer}>
+              <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+              <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>{item.unitCode}</Text></View>
+              <View style={styles.gridCatBadge}><Text style={styles.gridCatText}>{item.catType}</Text></View>
+              <View style={styles.gridRatingBadge}><StarIcon color="#eab308" size={11} /><Text style={styles.gridRatingText}>{item.ratingScore}</Text></View>
+            </View>
+            <View style={styles.gridBody}>
+              <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
+              <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.gridSub}>{item.school}</Text>
+              <View style={styles.gridFooter}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><DownloadIcon color="#15803d" size={12} /><Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text></View>
+                <TouchableOpacity style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]} onPress={(event) => handleToggleStar(item.id, event)}><StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} /></TouchableOpacity>
+                <View style={styles.miniArrow}><ChevronRightIcon color="#15803d" size={14} /></View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -351,7 +496,8 @@ export default function CatPapersScreen({ route }: any) {
             refreshing={refreshing}
             onRefresh={async () => {
               setRefreshing(true);
-              setVisibleCount(4);
+              setPapersPage(1);
+              setHasMorePapers(true);
               await fetchRealCatPapers();
               setRefreshing(false);
             }}
@@ -523,57 +669,17 @@ export default function CatPapersScreen({ route }: any) {
         ) : fetchError && catsData.length === 0 && !showDemoMaterials ? (
           <OfflineState onRetry={fetchRealCatPapers} />
         ) : (
-          <View style={styles.gridContainer}>
-          {visibleFeedCats.map((item) => {
-            const isStarred = !!userStars[item.id];
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.gridCard}
-                activeOpacity={0.88}
-                onPress={() => handleOpenPreview(item)}
-              >
-                <View style={styles.gridImageContainer}>
-                  <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-                  <View style={styles.gridBadge}>
-                    <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
-                  </View>
-                  <View style={styles.gridCatBadge}>
-                    <Text style={styles.gridCatText}>{item.catType}</Text>
-                  </View>
-                  <View style={styles.gridRatingBadge}>
-                    <StarIcon color="#eab308" size={11} />
-                    <Text style={styles.gridRatingText}>{item.ratingScore}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.gridBody}>
-                  <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
-                  <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-                  <Text style={styles.gridSub}>{item.school}</Text>
-
-                  <View style={styles.gridFooter}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <DownloadIcon color="#15803d" size={12} />
-                      <Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]}
-                      onPress={(e) => handleToggleStar(item.id, e)}
-                    >
-                      <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} />
-                    </TouchableOpacity>
-
-                    <View style={styles.miniArrow}>
-                      <ChevronRightIcon color="#15803d" size={14} />
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          feedBlocks.map((block, index) => block.kind === 'carousel' ? (
+            <CatFeedCarousel
+              key={`carousel-${block.title}-${index}`}
+              title={block.title || ''}
+              subtitle={block.subtitle || ''}
+              items={block.items}
+              onOpenPreview={handleOpenPreview}
+            />
+          ) : (
+            <React.Fragment key={`grid-${index}`}>{renderGridItems(block.items)}</React.Fragment>
+          ))
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}
@@ -601,6 +707,9 @@ const styles = StyleSheet.create({
   },
   feedContent: {
     paddingBottom: 32
+  },
+  discoverySection: {
+    marginTop: 24
   },
   searchSection: {
     paddingHorizontal: 16,

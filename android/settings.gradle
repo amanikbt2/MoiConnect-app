@@ -44,7 +44,7 @@ if (getRNMinorVersion() >= 75) {
   }
 }
 
-rootProject.name = 'MoiConnect'
+rootProject.name = 'MConnect'
 
 dependencyResolutionManagement {
   versionCatalogs {

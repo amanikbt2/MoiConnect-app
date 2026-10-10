@@ -68,7 +68,7 @@ export default function RegisterScreen() {
 
       <View style={styles.header}>
         <Text style={styles.title}>Create Student Account</Text>
-        <Text style={styles.subtitle}>Join MoiConnect to access past papers, notes, and houses</Text>
+        <Text style={styles.subtitle}>Join MConnect to access past papers, notes, and houses</Text>
       </View>
 
       {error && (
@@ -310,4 +310,3 @@ const styles = StyleSheet.create({
     color: '#15803d'
   }
 });
-

@@ -12,7 +12,7 @@ export function CommunityLiveRoom({ isHost, onClose }: CommunityLiveRoomProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Live rooms are available in the Android app.</Text>
-      <Text style={styles.subtitle}>Open MoiConnect on Android to join this broadcast.</Text>
+      <Text style={styles.subtitle}>Open MConnect on Android to join this broadcast.</Text>
       <TouchableOpacity style={styles.button} onPress={onClose} activeOpacity={0.8}>
         <Text style={styles.buttonText}>{isHost ? 'End Live' : 'Close'}</Text>
       </TouchableOpacity>

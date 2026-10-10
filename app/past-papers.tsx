@@ -70,6 +70,8 @@ export interface PastPaperItem {
 const RECOMMENDED_PAST_PAPERS: PastPaperItem[] = [];
 
 const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [];
+const PAPER_PAGE_SIZE = 24;
+const DISCOVERY_BLOCK_SIZE = 6;
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All Past Papers', iconType: 'all' },
@@ -125,6 +127,107 @@ function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: numbe
   );
 }
 
+function PastPaperCarouselSection({
+  title,
+  subtitle,
+  items,
+  onOpenPreview
+}: {
+  title: string;
+  subtitle: string;
+  items: PastPaperItem[];
+  onOpenPreview: (item: PastPaperItem) => void;
+}) {
+  const carouselRef = useRef<FlatList>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const isInteracting = useRef(false);
+
+  useEffect(() => {
+    if (items.length < 2) return;
+    const timer = setInterval(() => {
+      if (isInteracting.current || !carouselRef.current) return;
+      const nextIndex = (activeIndex + 1) % items.length;
+      setActiveIndex(nextIndex);
+      carouselRef.current.scrollToIndex({ index: nextIndex, animated: true });
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [activeIndex, items.length]);
+
+  if (items.length < 2) return null;
+
+  return (
+    <View style={styles.discoverySection}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionIconCircle}>
+          <SparklesIcon color="#15803d" size={17} />
+        </View>
+        <View>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSub}>{subtitle}</Text>
+        </View>
+      </View>
+      <FlatList
+        ref={carouselRef}
+        horizontal
+        data={items}
+        keyExtractor={(item) => `${title}-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.carouselListContent}
+        snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+        decelerationRate="fast"
+        onScrollBeginDrag={() => { isInteracting.current = true; }}
+        onScrollEndDrag={() => { setTimeout(() => { isInteracting.current = false; }, 3000); }}
+        onMomentumScrollEnd={(event) => {
+          const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+          setActiveIndex(Math.max(0, Math.min(nextIndex, items.length - 1)));
+          setTimeout(() => { isInteracting.current = false; }, 3000);
+        }}
+        getItemLayout={(_, index) => ({
+          length: CAROUSEL_CARD_WIDTH + 14,
+          offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+          index
+        })}
+        onScrollToIndexFailed={(info) => {
+          carouselRef.current?.scrollToOffset({ offset: info.index * (CAROUSEL_CARD_WIDTH + 14), animated: true });
+        }}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.carouselCard} activeOpacity={0.88} onPress={() => onOpenPreview(item)}>
+            <View style={styles.carouselThumbnailContainer}>
+              <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+              <View style={styles.carouselOverlay} />
+              <View style={styles.carouselBadgeRow}>
+                <View style={styles.carouselTypeBadge}>
+                  <Text style={styles.carouselTypeText}>{item.hasSolutions ? '✓ Solved' : 'Exam Paper'}</Text>
+                </View>
+                {!!item.tag && <View style={styles.carouselTagBadge}><Text style={styles.carouselTagText}>{item.tag}</Text></View>}
+              </View>
+            </View>
+            <View style={styles.carouselBody}>
+              <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+              <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+              <View style={styles.carouselFooter}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <DownloadIcon color="#15803d" size={13} />
+                  <Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text>
+                </View>
+                <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+      <View style={styles.dotsRow}>
+        {items.map((_, index) => (
+          <View
+            key={`${title}-dot-${index}`}
+            style={[styles.dot, index === activeIndex ? styles.activeDot : styles.inactiveDot]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function PastPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
@@ -132,8 +235,9 @@ export default function PastPapersScreen({ route }: any) {
   const [papersData, setPapersData] = useState<PastPaperItem[]>([]);
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
-  // Facebook-Style Lazy Loading State (load 4 cards = 2 rows at a time)
-  const [visibleCount, setVisibleCount] = useState(4);
+  // Paginated feed state: only one small page is fetched at a time.
+  const [papersPage, setPapersPage] = useState(1);
+  const [hasMorePapers, setHasMorePapers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   // Auto-scroll Carousel State
@@ -162,15 +266,16 @@ export default function PastPapersScreen({ route }: any) {
   }, []);
 
   // Fetch real uploaded past papers from Cloudinary / backend API
-  const fetchRealPastPapers = async (searchTerm = '') => {
+  const fetchRealPastPapers = async (searchTerm = '', page = 1, append = false) => {
     try {
-      setInitialLoading(true);
+      if (append) setLoadingMore(true);
+      else setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
       const searchParam = searchTerm.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
-      const res = await apiRequest<{ data: IPaper[] }>(`/papers?limit=500${searchParam}&refresh=${Date.now()}`);
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${PAPER_PAGE_SIZE}&page=${page}${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
           .filter((p) => p.type === 'past_paper' || p.type === 'solution')
@@ -203,20 +308,32 @@ export default function PastPapersScreen({ route }: any) {
             });
           });
 
-        setPapersData(
-          realPastPapers.length > 0
-            ? rankMaterialsForProfile(demoSetting ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers, user, searchHistory)
-            : (demoSetting ? INITIAL_PAST_PAPERS_DATA : [])
-        ); setInitialLoading(false);
+        const nextPapers = realPastPapers.length > 0
+          ? (demoSetting ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
+          : [];
+        setPapersData((previous) => {
+          const merged = append ? [...previous, ...nextPapers] : nextPapers;
+          const unique = Array.from(new Map(merged.map((paper) => [paper.id, paper])).values());
+          return rankMaterialsForProfile(unique, user, searchHistory);
+        });
+        setPapersPage(page);
+        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === PAPER_PAGE_SIZE);
+        setInitialLoading(false);
+        setLoadingMore(false);
       } else if (!res.success) {
-        setFetchError(true); setInitialLoading(false);
+        setFetchError(true); setInitialLoading(false); setLoadingMore(false);
       } else {
-        setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []); setInitialLoading(false);
+        if (!append) setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []);
+        setHasMorePapers(false); setInitialLoading(false); setLoadingMore(false);
       }
     } catch (err) {
-      console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false);
+      console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false); setLoadingMore(false);
     }
   };
+
+  const carouselPapers = papersData.length > 0
+    ? papersData.slice(0, 5)
+    : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -227,7 +344,9 @@ export default function PastPapersScreen({ route }: any) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setVisibleCount(4);
+      setPapersPage(1);
+      setHasMorePapers(true);
+      setPapersData([]);
       void fetchRealPastPapers(searchQuery.trim().length > 1 ? searchQuery : '');
     }, 350);
     return () => clearTimeout(timer);
@@ -235,10 +354,14 @@ export default function PastPapersScreen({ route }: any) {
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
-    if (!RECOMMENDED_PAST_PAPERS || RECOMMENDED_PAST_PAPERS.length <= 1) return;
+    if (carouselPapers.length <= 1) {
+      setCarouselIndex(0);
+      return;
+    }
+    if (carouselIndex >= carouselPapers.length) setCarouselIndex(0);
     const timer = setInterval(() => {
       if (!isCarouselInteracting.current && carouselListRef.current) {
-        const nextIdx = (carouselIndex + 1) % RECOMMENDED_PAST_PAPERS.length;
+        const nextIdx = (carouselIndex + 1) % carouselPapers.length;
         setCarouselIndex(nextIdx);
         try {
           carouselListRef.current.scrollToIndex({ index: nextIdx, animated: true });
@@ -248,7 +371,7 @@ export default function PastPapersScreen({ route }: any) {
       }
     }, 3800);
     return () => clearInterval(timer);
-  }, [carouselIndex]);
+  }, [carouselIndex, carouselPapers.length]);
 
   const filteredPapers = rankMaterials(papersData, searchQuery).filter((item) => {
     if (activeFilterDisc === 'solutions') return item.hasSolutions;
@@ -261,18 +384,12 @@ export default function PastPapersScreen({ route }: any) {
     return true;
   });
 
-  const visibleFeedPapers = filteredPapers.slice(0, visibleCount);
-
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 300 && visibleCount < filteredPapers.length && !loadingMore) {
-      setLoadingMore(true);
-      setTimeout(() => {
-        setVisibleCount((prev) => Math.min(prev + 4, filteredPapers.length));
-        setLoadingMore(false);
-      }, 850);
+    if (distanceToBottom < 500 && hasMorePapers && !loadingMore && !initialLoading) {
+      void fetchRealPastPapers(searchQuery.trim().length > 1 ? searchQuery : '', papersPage + 1, true);
     }
   };
 
@@ -343,6 +460,86 @@ export default function PastPapersScreen({ route }: any) {
     }
   };
 
+  const feedItems = filteredPapers.slice(carouselPapers.length);
+  const carouselTitles = [
+    ['Recently Uploaded', 'Fresh examination materials from students and departments'],
+    ['Most Downloaded', 'Popular papers students are revising now'],
+    ['Top Rated', 'Highly rated papers worth revising'],
+    ['Based on Your Profile', 'Matched to your course and academic profile']
+  ];
+  const feedBlocks: Array<{ kind: 'carousel' | 'grid'; items: PastPaperItem[]; title?: string; subtitle?: string }> = [];
+  let feedCursor = 0;
+  let carouselTitleIndex = 0;
+  while (feedCursor < feedItems.length) {
+    const carouselItems = feedItems.slice(feedCursor, feedCursor + DISCOVERY_BLOCK_SIZE);
+    if (carouselItems.length >= 2) {
+      const [title, subtitle] = carouselTitles[carouselTitleIndex % carouselTitles.length];
+      feedBlocks.push({ kind: 'carousel', items: carouselItems, title, subtitle });
+      carouselTitleIndex += 1;
+      feedCursor += carouselItems.length;
+    }
+
+    if (feedCursor < feedItems.length) {
+      const gridItems = feedItems.slice(feedCursor, feedCursor + DISCOVERY_BLOCK_SIZE);
+      feedBlocks.push({ kind: 'grid', items: gridItems });
+      feedCursor += gridItems.length;
+    }
+  }
+
+  const renderGridItems = (items: PastPaperItem[]) => (
+    <View style={styles.gridContainer}>
+      {items.map((item) => {
+        const isStarred = !!userStars[item.id];
+        return (
+          <TouchableOpacity
+            key={item.id}
+            style={styles.gridCard}
+            activeOpacity={0.88}
+            onPress={() => handleOpenPreview(item)}
+          >
+            <View style={styles.gridImageContainer}>
+              <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+              <View style={styles.gridBadge}>
+                <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+              </View>
+              {item.hasSolutions && (
+                <View style={styles.gridSolutionBadge}>
+                  <Text style={styles.gridSolutionText}>✓ Solved</Text>
+                </View>
+              )}
+              <View style={styles.gridRatingBadge}>
+                <StarIcon color="#eab308" size={11} />
+                <Text style={styles.gridRatingText}>{item.ratingScore}</Text>
+              </View>
+            </View>
+
+            <View style={styles.gridBody}>
+              <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.semester} • {item.examYear}</Text>
+              <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.gridSub}>{item.school}</Text>
+
+              <View style={styles.gridFooter}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <DownloadIcon color="#15803d" size={12} />
+                  <Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]}
+                  onPress={(event) => handleToggleStar(item.id, event)}
+                >
+                  <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} />
+                </TouchableOpacity>
+                <View style={styles.miniArrow}>
+                  <ChevronRightIcon color="#15803d" size={14} />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -356,7 +553,8 @@ export default function PastPapersScreen({ route }: any) {
             refreshing={refreshing}
             onRefresh={async () => {
               setRefreshing(true);
-              setVisibleCount(4);
+              setPapersPage(1);
+              setHasMorePapers(true);
               await fetchRealPastPapers();
               setRefreshing(false);
             }}
@@ -430,7 +628,7 @@ export default function PastPapersScreen({ route }: any) {
         </ScrollView>
 
         {/* AUTO-SCROLLING SUGGESTIONS CAROUSEL */}
-        {((papersData.length > 0 ? papersData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])).length > 0) && (
+        {carouselPapers.length > 0 && (
           <>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionIconCircle}>
@@ -444,7 +642,7 @@ export default function PastPapersScreen({ route }: any) {
 
             <FlatList
               ref={carouselListRef}
-              data={papersData.length > 0 ? papersData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])}
+              data={carouselPapers}
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -453,6 +651,11 @@ export default function PastPapersScreen({ route }: any) {
           decelerationRate="fast"
           onScrollBeginDrag={() => { isCarouselInteracting.current = true; }}
           onScrollEndDrag={() => { setTimeout(() => { isCarouselInteracting.current = false; }, 3000); }}
+          onMomentumScrollEnd={(event) => {
+            const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+            setCarouselIndex(Math.max(0, Math.min(nextIndex, carouselPapers.length - 1)));
+            setTimeout(() => { isCarouselInteracting.current = false; }, 3000);
+          }}
           getItemLayout={(_, index) => ({
             length: CAROUSEL_CARD_WIDTH + 14,
             offset: (CAROUSEL_CARD_WIDTH + 14) * index,
@@ -504,7 +707,7 @@ export default function PastPapersScreen({ route }: any) {
 
         {/* Carousel Pagination Indicator Dots */}
         <View style={styles.dotsRow}>
-          {(papersData.length > 0 ? papersData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])).map((_, i) => (
+          {carouselPapers.map((_, i) => (
             <View
               key={i}
               style={[styles.dot, i === carouselIndex ? styles.activeDot : styles.inactiveDot]}
@@ -530,59 +733,19 @@ export default function PastPapersScreen({ route }: any) {
         ) : fetchError && papersData.length === 0 && !showDemoMaterials ? (
           <OfflineState onRetry={fetchRealPastPapers} />
         ) : (
-          <View style={styles.gridContainer}>
-          {visibleFeedPapers.map((item) => {
-            const isStarred = !!userStars[item.id];
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.gridCard}
-                activeOpacity={0.88}
-                onPress={() => handleOpenPreview(item)}
-              >
-                <View style={styles.gridImageContainer}>
-                  <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-                  <View style={styles.gridBadge}>
-                    <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
-                  </View>
-                  {item.hasSolutions && (
-                    <View style={styles.gridSolutionBadge}>
-                      <Text style={styles.gridSolutionText}>✓ Solved</Text>
-                    </View>
-                  )}
-                  <View style={styles.gridRatingBadge}>
-                    <StarIcon color="#eab308" size={11} />
-                    <Text style={styles.gridRatingText}>{item.ratingScore}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.gridBody}>
-                  <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.semester} • {item.examYear}</Text>
-                  <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-                  <Text style={styles.gridSub}>{item.school}</Text>
-
-                  <View style={styles.gridFooter}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <DownloadIcon color="#15803d" size={12} />
-                      <Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]}
-                      onPress={(e) => handleToggleStar(item.id, e)}
-                    >
-                      <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} />
-                    </TouchableOpacity>
-
-                    <View style={styles.miniArrow}>
-                      <ChevronRightIcon color="#15803d" size={14} />
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          feedBlocks.map((block, index) => block.kind === 'carousel' ? (
+            <PastPaperCarouselSection
+              key={`carousel-${block.title}-${index}`}
+              title={block.title || ''}
+              subtitle={block.subtitle || ''}
+              items={block.items}
+              onOpenPreview={handleOpenPreview}
+            />
+          ) : (
+            <React.Fragment key={`grid-${index}`}>
+              {renderGridItems(block.items)}
+            </React.Fragment>
+          ))
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}
@@ -610,6 +773,9 @@ const styles = StyleSheet.create({
   },
   feedContent: {
     paddingBottom: 32
+  },
+  discoverySection: {
+    marginTop: 24
   },
   searchSection: {
     paddingHorizontal: 16,
@@ -810,12 +976,18 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 10,
+    columnGap: 10,
+    rowGap: 12,
     marginTop: 4
   },
   gridCard: {
-    width: (SCREEN_WIDTH - 44) / 2,
+    // Two responsive columns. flexBasis/flexGrow keeps the layout stable on
+    // narrow phones and prevents a card from taking the whole row.
+    width: '47%',
+    flexBasis: '47%',
+    flexGrow: 0,
+    flexShrink: 0,
     backgroundColor: '#ffffff',
     borderRadius: 14,
     overflow: 'hidden',

@@ -23,7 +23,7 @@ const FAQ_DATA: FAQItem[] = [
     id: 'delete_account',
     category: 'Account & Data Privacy',
     question: 'How do I request deletion of my account and associated data?',
-    answer: 'MoiConnect provides two simple methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> tap the three-dot menu in the top-right corner -> choose "Delete account" -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. Please include your full name and registered phone number. All email deletion requests are processed within 5 business days.',
+    answer: 'MConnect provides two simple methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> tap the three-dot menu in the top-right corner -> choose "Delete account" -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. Please include your full name and registered phone number. All email deletion requests are processed within 5 business days.',
     iconTag: '🗑️'
   },
   {
@@ -95,7 +95,7 @@ export default function FAQScreen() {
           <View style={styles.headerIconCircle}>
             <Text style={{ fontSize: 28 }}>❓</Text>
           </View>
-          <Text style={styles.appTitle}>MoiConnect Support</Text>
+          <Text style={styles.appTitle}>MConnect Support</Text>
           <Text style={styles.pageTitle}>Frequently Asked Questions</Text>
           <Text style={styles.subtitle}>
             Find quick answers on account management, data deletion, downloads, and campus services.
