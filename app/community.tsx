@@ -1155,19 +1155,19 @@ export default function CommunityScreen() {
         const fetchedMsgs: CommunityMessage[] = responseMessages.map((serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
           return {
-            id: serverMsg._id || serverMsg.id,
+            id: serverMsg._id || serverMsg.id || serverMsg._doc?._id || serverMsg._doc?.id,
             clientMsgId: serverMsg.clientMsgId,
             deliveryStatus: isMyMsg ? 'delivered' : undefined,
             senderId: serverMsg.senderId,
             senderEmail: serverMsg.senderEmail,
-            senderName: serverMsg.senderName || 'Moi Student',
+            senderName: serverMsg.senderName || serverMsg._doc?.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             senderCourse: serverMsg.senderCourse,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
-            text: serverMsg.text || '',
+            text: serverMsg.text ?? serverMsg._doc?.text ?? '',
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: serverMsg.createdAt,
             updatedAt: serverMsg.updatedAt,
@@ -1249,7 +1249,7 @@ export default function CommunityScreen() {
       const recentMessages: CommunityMessage[] = serverMessages.map((serverMsg: any) => {
         const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
         return {
-          id: serverMsg._id || serverMsg.id,
+          id: serverMsg._id || serverMsg.id || serverMsg._doc?._id || serverMsg._doc?.id,
           clientMsgId: serverMsg.clientMsgId,
           deliveryStatus: isMyMsg ? 'delivered' : undefined,
           senderId: serverMsg.senderId,
@@ -1261,7 +1261,7 @@ export default function CommunityScreen() {
           senderAvatarUrl: serverMsg.senderAvatarUrl,
           senderBadge: serverMsg.senderBadge,
           avatarBg: serverMsg.avatarBg || '#15803d',
-          text: serverMsg.text || '',
+          text: serverMsg.text ?? serverMsg._doc?.text ?? '',
           timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isoDate: serverMsg.createdAt,
           updatedAt: serverMsg.updatedAt,
