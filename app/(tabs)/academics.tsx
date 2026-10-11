@@ -27,7 +27,7 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
-import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistory, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
+import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { getMaterialSearchScore, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
@@ -171,10 +171,10 @@ export default function AcademicsScreen({ route }: any) {
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [searchHistory, setSearchHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    getMaterialSearchHistory().then(setSearchHistory);
+    getMaterialSearchHistoryEntries().then(setSearchHistory);
   }, []);
 
   const fetchRealAcademicPapers = async (searchQueryParam?: string, page = 1, append = false) => {
@@ -752,7 +752,7 @@ export default function AcademicsScreen({ route }: any) {
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery).then(setSearchHistory)}
+              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory))}
               returnKeyType="search"
                 style={styles.searchInput}
               />

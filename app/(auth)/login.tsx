@@ -63,7 +63,7 @@ export default function LoginScreen() {
         <View style={styles.logoBadge}>
           <Text style={styles.logoText}>M</Text>
         </View>
-        <Text style={styles.title}>MConnect Student Hub</Text>
+        <Text style={styles.title}>MConnect Students</Text>
         <Text style={styles.subtitle}>Academic Resources & Student Rental Marketplace</Text>
       </View>
 
@@ -305,3 +305,5 @@ const styles = StyleSheet.create({
     color: '#15803d'
   }
 });
+
+

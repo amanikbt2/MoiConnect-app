@@ -28,11 +28,8 @@ const MATERIAL_TYPES = [
   { label: 'Lecture Notes', value: 'lecture_notes' },
   { label: 'Exam Solutions', value: 'solution' },
 ];
-const SCHOOL_OPTIONS = [
-  'School of Information Sciences', 'School of Science & Computing', 'School of Engineering',
-  'School of Business & Economics', 'School of Education', 'School of Medicine & Health',
-  'School of Law', 'School of Arts & Social Sciences',
-];
+import { MOI_SCHOOLS } from '@moi/shared';
+const SCHOOL_OPTIONS = [...MOI_SCHOOLS];
 const SEMESTER_OPTIONS = [
   'Select Semester (Optional)',
   'Semester 1',
@@ -1576,7 +1573,7 @@ export default function Admin2Screen() {
               {Platform.OS === 'web' ? (
                 <select
                   value={school}
-                  onChange={(e) => setSchool(e.target.value)}
+                  onChange={(e) => setSchool(e.target.value as any)}
                   style={{
                     width: '100%',
                     minHeight: '42px',
@@ -1931,3 +1928,4 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+

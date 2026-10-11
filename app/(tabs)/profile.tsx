@@ -218,6 +218,9 @@ export default function ProfileScreen() {
       setProfileCompletionRequired(false);
       setShowEditModal(false);
       showIceMessage('Profile Updated', 'Your name and profile details were saved to your account and chat.');
+      if (profileCompletionRequired) {
+        router.replace('/(tabs)');
+      }
     } catch (error: any) {
       showIceMessage('Profile Update Failed', error?.message || 'Could not save your profile changes. Please try again.');
     } finally {
@@ -470,7 +473,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               {showSchoolDropdown && (
-                <View style={styles.dropdownMenu}>
+                <ScrollView style={styles.dropdownMenu} nestedScrollEnabled={true}>
                   {MOI_SCHOOLS.map((sch) => {
                     const isSelected = editSchool === sch;
                     return (
@@ -490,7 +493,7 @@ export default function ProfileScreen() {
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
               )}
             </View>
 
@@ -1008,4 +1011,5 @@ const styles = StyleSheet.create({
   darkMutedText: { color: '#cbd5e1' },
   darkResetButton: { backgroundColor: '#1e293b', borderColor: '#475569' }
 });
+
 

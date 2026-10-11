@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
-import { saveDownloadedPaper, getMaterialSearchHistory, saveMaterialSearchQuery } from '../src/services/offlineStorage';
+import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
@@ -236,14 +236,14 @@ export default function CatPapersScreen({ route }: any) {
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [searchHistory, setSearchHistory] = useState<any[]>([]);
 
   useEffect(() => {
     if (typeof route?.params?.search === 'string') setSearchQuery(route.params.search);
   }, [route?.params?.search]);
 
   useEffect(() => {
-    getMaterialSearchHistory().then(setSearchHistory);
+    getMaterialSearchHistoryEntries().then(setSearchHistory);
   }, []);
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
@@ -516,7 +516,7 @@ export default function CatPapersScreen({ route }: any) {
               placeholderTextColor="#94a3b8"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery).then(setSearchHistory)}
+              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory))}
               returnKeyType="search"
               style={styles.searchInput}
             />

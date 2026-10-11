@@ -16,8 +16,11 @@ import {
   PanResponder,
   Animated,
   ScrollView,
-  Linking
+  Linking,
+  Image,
+  StatusBar
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -47,6 +50,7 @@ import {
 } from '../../src/components/Icons';
 import { LinkifiedText } from '../../src/components/LinkifiedText';
 import { PDFViewerModal, PDFDocumentItem } from '../../src/components/PDFViewerModal';
+import { getSmartReplySnippet, getReplyAttachmentThumbnail } from '../../src/utils/chatReplyUtils';
 
 export interface FileAttachment {
   name: string;
@@ -65,6 +69,43 @@ export interface FileAttachment {
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
 
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [];
+
+const isVideoAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
+  if (!file) return false;
+  if (file.type === 'video') return true;
+  const name = (file.name || '').toLowerCase();
+  const url = (file.url || '').toLowerCase();
+  return Boolean(name.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)$/i)) ||
+    Boolean(url.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)(\?.*)?$/i)) ||
+    url.includes('/video/upload/');
+};
+
+const isImageAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
+  if (!file) return false;
+  if (file.type === 'image') return true;
+  const name = (file.name || '').toLowerCase();
+  const url = (file.url || '').toLowerCase();
+  return Boolean(name.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)$/i)) ||
+    Boolean(url.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)(\?.*)?$/i)) ||
+    url.includes('/image/upload/');
+};
+
+const isMediaAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
+  return isImageAttachment(file) || isVideoAttachment(file);
+};
+
+const getCloudinaryVideoPreviewUrl = (url: string): string => {
+  if (!url || typeof url !== 'string') return '';
+  if (!url.includes('/video/upload/')) return url;
+  const [path, query] = url.split('?');
+  const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
+  return query ? `${previewPath}?${query}` : previewPath;
+};
+
+const getVideoPlayerHtml = (url: string): string => {
+  const safeUrl = (url || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" /><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#020617;overflow:hidden;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;background:#020617;outline:none}</style></head><body><video controls autoplay playsinline webkit-playsinline src="${safeUrl}"></video></body></html>`;
+};
 
 function SwipeableMessageItem({
   children,
@@ -182,6 +223,9 @@ export default function ChatRoomScreen({ route }: any) {
   const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [pickingMediaKind, setPickingMediaKind] = useState<'image' | 'video' | 'doc' | 'camera' | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<FileAttachment | null>(null);
+  const [downloadingAttachmentKey, setDownloadingAttachmentKey] = useState<string | null>(null);
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>(SAMPLE_ATTACHMENTS);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -405,13 +449,20 @@ export default function ChatRoomScreen({ route }: any) {
       };
       setPreviewDoc(docItem);
       setShowPreviewModal(true);
+    } else if (file.type === 'video' || file.type === 'image' || isVideoAttachment(file) || Boolean(file.url?.match(/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i))) {
+      setMediaPreview({
+        ...file,
+        type: isVideoAttachment(file) ? 'video' : (file.type === 'image' || file.url?.match(/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i) ? 'image' : file.type)
+      });
     } else {
-      Linking.openURL(file.url);
+      Linking.openURL(file.url).catch(() => {});
     }
   };
 
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
     try {
+      const downloadKey = file.paperId || file.url;
+      setDownloadingAttachmentKey(downloadKey);
       const paperId = file.paperId || `att_${Date.now()}`;
       const title = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
       await saveDownloadedPaper({
@@ -442,13 +493,19 @@ export default function ChatRoomScreen({ route }: any) {
       );
     } catch (e) {
       showIceMessage('Download Error', 'Could not save attachment offline.');
+    } finally {
+      setDownloadingAttachmentKey(null);
     }
   };
 
   const handlePickMedia = async (kind: 'image' | 'video') => {
     try {
+      setPickingMediaKind(kind);
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) return;
+      if (!permission.granted) {
+        setPickingMediaKind(null);
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: false,
@@ -462,12 +519,18 @@ export default function ChatRoomScreen({ route }: any) {
       }
     } catch (err) {
       console.log('Media picker error:', err);
+    } finally {
+      setPickingMediaKind(null);
     }
   };
   const handleTakeMedia = async () => {
     try {
+      setPickingMediaKind('camera');
       const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) return;
+      if (!permission.granted) {
+        setPickingMediaKind(null);
+        return;
+      }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
         videoMaxDuration: 120,
@@ -482,10 +545,13 @@ export default function ChatRoomScreen({ route }: any) {
       }
     } catch (err) {
       console.log('Camera error:', err);
+    } finally {
+      setPickingMediaKind(null);
     }
   };
   const handlePickFromPhone = async () => {
     try {
+      setPickingMediaKind('doc');
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true
@@ -493,9 +559,11 @@ export default function ChatRoomScreen({ route }: any) {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const mime = asset.mimeType || '';
-        let fileType: 'pdf' | 'doc' | 'image' = 'pdf';
+        let fileType: 'pdf' | 'doc' | 'image' | 'video' = 'pdf';
         if (mime.includes('image')) {
           fileType = 'image';
+        } else if (mime.includes('video') || asset.name.match(/\.(mp4|mov|m4v|webm|mkv|avi)$/i)) {
+          fileType = 'video';
         } else if (mime.includes('word') || asset.name.endsWith('.doc') || asset.name.endsWith('.docx')) {
           fileType = 'doc';
         }
@@ -516,6 +584,8 @@ export default function ChatRoomScreen({ route }: any) {
       }
     } catch (err) {
       console.log('Document picker error:', err);
+    } finally {
+      setPickingMediaKind(null);
     }
   };
 
@@ -602,47 +672,77 @@ export default function ChatRoomScreen({ route }: any) {
                             {item.replyTo.senderName || 'User'}
                           </Text>
                           <Text style={[styles.engulfedText, isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
-                            {item.replyTo.text || (item.replyTo.fileAttachment ? `📎 ${item.replyTo.fileAttachment.name}` : 'Attachment')}
+                            {getSmartReplySnippet(item.replyTo)}
                           </Text>
                         </View>
+                        {getReplyAttachmentThumbnail(item.replyTo)}
                       </TouchableOpacity>
                     )}
 
                     {/* File Attachment */}
                     {item.fileAttachment && (
-                      <TouchableOpacity
-                        style={styles.fileCard}
-                        onPress={() => handleOpenFileAttachment(item.fileAttachment!)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={styles.fileIconBox}>
-                          <FileTextIcon color="#15803d" size={22} />
-                        </View>
-                        <View style={styles.fileInfo}>
-                          <Text style={styles.fileName} numberOfLines={1}>
-                            {item.fileAttachment.name}
-                          </Text>
-                          <Text style={styles.fileMeta}>
-                            {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
-                          </Text>
-                        </View>
-                        {!isMe && (
+                      <View>
+                        {isMediaAttachment(item.fileAttachment) ? (
                           <TouchableOpacity
-                            style={styles.fileDownloadBtn}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleDownloadFileAttachment(item.fileAttachment);
-                            }}
+                            style={styles.chatMediaPreview}
+                            onPress={() => setMediaPreview(item.fileAttachment)}
+                            activeOpacity={0.85}
                           >
-                            <DownloadIcon color="#ffffff" size={12} />
+                            <Image
+                              source={{
+                                uri: (item.fileAttachment.type === 'video' || isVideoAttachment(item.fileAttachment))
+                                  ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url)
+                                  : item.fileAttachment.url
+                              }}
+                              style={styles.chatMediaImage}
+                              resizeMode="cover"
+                            />
+                            {(item.fileAttachment.type === 'video' || isVideoAttachment(item.fileAttachment)) && (
+                              <View style={styles.chatVideoOverlay}>
+                                <View style={styles.chatVideoPlay}><Text style={styles.chatVideoPlayText}>▶</Text></View>
+                                <Text style={styles.chatVideoHint}>Tap to play video</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.fileCard}
+                            onPress={() => handleOpenFileAttachment(item.fileAttachment!)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.fileIconBox}>
+                              <FileTextIcon color="#15803d" size={22} />
+                            </View>
+                            <View style={styles.fileInfo}>
+                              <Text style={styles.fileName} numberOfLines={1}>
+                                {item.fileAttachment.name}
+                              </Text>
+                              <Text style={styles.fileMeta}>
+                                {item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}
+                              </Text>
+                            </View>
+                            {!isMe && (
+                              <TouchableOpacity
+                                style={styles.fileDownloadBtn}
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadFileAttachment(item.fileAttachment);
+                                }}
+                              >
+                                <DownloadIcon color="#ffffff" size={12} />
+                              </TouchableOpacity>
+                            )}
                           </TouchableOpacity>
                         )}
-                      </TouchableOpacity>
+                      </View>
                     )}
 
                     {/* Text content with clean text wrapping */}
                     {!!item.text && (
-                      <LinkifiedText style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
+                      <LinkifiedText
+                        style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}
+                        onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
+                      >
                         {item.text}
                       </LinkifiedText>
                     )}
@@ -704,9 +804,10 @@ export default function ChatRoomScreen({ route }: any) {
               </Text>
             </View>
             <Text style={styles.replyPreviewSnippet} numberOfLines={1}>
-              {replyingTo.text || (replyingTo.fileAttachment ? `📎 ${replyingTo.fileAttachment.name}` : 'Attachment')}
+              {getSmartReplySnippet(replyingTo)}
             </Text>
           </View>
+          {getReplyAttachmentThumbnail(replyingTo)}
           <TouchableOpacity
             style={styles.cancelReplyBtn}
             onPress={() => setReplyingTo(null)}
@@ -796,23 +897,71 @@ export default function ChatRoomScreen({ route }: any) {
             </Text>
 
             <View style={styles.mediaOptionsRow}>
-              <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('image')}>
-                <View style={[styles.mediaOptionIcon, { backgroundColor: '#eff6ff' }]}><ImageIcon color="#2563eb" size={21} /></View>
+              <TouchableOpacity
+                style={[styles.mediaOption, !!pickingMediaKind && styles.mediaOptionDisabled]}
+                disabled={!!pickingMediaKind}
+                onPress={() => handlePickMedia('image')}
+              >
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#eff6ff' }]}>
+                  {pickingMediaKind === 'image' ? (
+                    <ActivityIndicator size="small" color="#2563eb" />
+                  ) : (
+                    <ImageIcon color="#2563eb" size={21} />
+                  )}
+                </View>
                 <Text style={styles.mediaOptionLabel}>Image</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaOption} onPress={() => handlePickMedia('video')}>
-                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fff7ed' }]}><VideoIcon color="#f97316" size={21} /></View>
+              <TouchableOpacity
+                style={[styles.mediaOption, !!pickingMediaKind && styles.mediaOptionDisabled]}
+                disabled={!!pickingMediaKind}
+                onPress={() => handlePickMedia('video')}
+              >
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fff7ed' }]}>
+                  {pickingMediaKind === 'video' ? (
+                    <ActivityIndicator size="small" color="#f97316" />
+                  ) : (
+                    <VideoIcon color="#f97316" size={21} />
+                  )}
+                </View>
                 <Text style={styles.mediaOptionLabel}>Video</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaOption} onPress={handlePickFromPhone}>
-                <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><FileTextIcon color="#15803d" size={21} /></View>
+              <TouchableOpacity
+                style={[styles.mediaOption, !!pickingMediaKind && styles.mediaOptionDisabled]}
+                disabled={!!pickingMediaKind}
+                onPress={handlePickFromPhone}
+              >
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}>
+                  {pickingMediaKind === 'doc' ? (
+                    <ActivityIndicator size="small" color="#15803d" />
+                  ) : (
+                    <FileTextIcon color="#15803d" size={21} />
+                  )}
+                </View>
                 <Text style={styles.mediaOptionLabel}>Document</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaOption} onPress={handleTakeMedia}>
-                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}><CameraIcon color="#db2777" size={21} /></View>
+              <TouchableOpacity
+                style={[styles.mediaOption, !!pickingMediaKind && styles.mediaOptionDisabled]}
+                disabled={!!pickingMediaKind}
+                onPress={handleTakeMedia}
+              >
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}>
+                  {pickingMediaKind === 'camera' ? (
+                    <ActivityIndicator size="small" color="#db2777" />
+                  ) : (
+                    <CameraIcon color="#db2777" size={21} />
+                  )}
+                </View>
                 <Text style={styles.mediaOptionLabel}>Camera</Text>
               </TouchableOpacity>
             </View>
+            {!!pickingMediaKind && (
+              <View style={styles.mediaLoadingBanner}>
+                <ActivityIndicator size="small" color="#15803d" />
+                <Text style={styles.mediaLoadingText}>
+                  Loading {pickingMediaKind === 'image' ? 'Image' : pickingMediaKind === 'video' ? 'Video' : pickingMediaKind === 'camera' ? 'Camera' : 'Document'}… Please wait
+                </Text>
+              </View>
+            )}
             <Text style={styles.downloadedSectionTitle}>Downloaded materials</Text>
             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
               {availableFiles.map((file, idx) => (
@@ -855,6 +1004,57 @@ export default function ChatRoomScreen({ route }: any) {
             author: doc.author
           })}
         />
+      {/* Media Fullscreen Preview Modal (Video Player & Image Viewer) */}
+      <Modal
+        visible={!!mediaPreview}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setMediaPreview(null)}
+      >
+        <View style={styles.videoPlayerScreen}>
+          <StatusBar barStyle="light-content" backgroundColor="#020617" />
+          <View style={styles.videoPlayerHeader}>
+            <Text style={styles.videoPlayerTitle}>
+              {mediaPreview && (mediaPreview.type === 'video' || isVideoAttachment(mediaPreview)) ? 'Video' : 'Image'}
+            </Text>
+            <TouchableOpacity
+              style={styles.videoPlayerDownload}
+              onPress={() => mediaPreview && handleDownloadFileAttachment(mediaPreview)}
+              disabled={!mediaPreview || downloadingAttachmentKey === (mediaPreview.paperId || mediaPreview.url)}
+              accessibilityRole="button"
+              accessibilityLabel="Download media"
+            >
+              {downloadingAttachmentKey === (mediaPreview?.paperId || mediaPreview?.url) ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <DownloadIcon color="#ffffff" size={17} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.videoPlayerClose}
+              onPress={() => setMediaPreview(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Close media preview"
+            >
+              <CloseIcon color="#ffffff" size={18} />
+            </TouchableOpacity>
+          </View>
+          {mediaPreview && (mediaPreview.type === 'video' || isVideoAttachment(mediaPreview)) ? (
+            <WebView
+              source={{ html: getVideoPlayerHtml(mediaPreview.url) }}
+              style={styles.videoPlayerWebView}
+              originWhitelist={['*']}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsFullscreenVideo
+            />
+          ) : mediaPreview ? (
+            <Image source={{ uri: mediaPreview.url }} style={styles.fullScreenImagePreview} resizeMode="contain" />
+          ) : null}
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1121,8 +1321,26 @@ const styles = StyleSheet.create({
   },
   mediaOptionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   mediaOption: { alignItems: 'center', width: '23%' },
+  mediaOptionDisabled: { opacity: 0.5 },
   mediaOptionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   mediaOptionLabel: { fontSize: 12, color: '#334155', fontWeight: '700' },
+  mediaLoadingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 12
+  },
+  mediaLoadingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803d'
+  },
   downloadedSectionTitle: { fontSize: 12, color: '#64748b', fontWeight: '800', marginBottom: 8 },
   sampleFileOption: {
     flexDirection: 'row',
@@ -1277,5 +1495,92 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#15803d',
     letterSpacing: 0.5
+  },
+  chatMediaPreview: {
+    width: 280,
+    maxWidth: '100%',
+    height: 230,
+    borderRadius: 13,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    alignSelf: 'stretch',
+    marginBottom: 6
+  },
+  chatMediaImage: {
+    width: '100%',
+    height: '100%'
+  },
+  chatVideoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.18)'
+  },
+  chatVideoPlay: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(21, 128, 61, 0.94)'
+  },
+  chatVideoPlayText: {
+    color: '#ffffff',
+    fontSize: 20,
+    marginLeft: 3
+  },
+  chatVideoHint: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 8,
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
+  },
+  videoPlayerScreen: {
+    flex: 1,
+    backgroundColor: '#020617',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
+  },
+  videoPlayerHeader: {
+    height: 58,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  videoPlayerTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800'
+  },
+  videoPlayerDownload: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#15803d',
+    marginLeft: 'auto',
+    marginRight: 8
+  },
+  videoPlayerClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)'
+  },
+  videoPlayerWebView: {
+    flex: 1,
+    backgroundColor: '#020617'
+  },
+  fullScreenImagePreview: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#020617'
   }
 });

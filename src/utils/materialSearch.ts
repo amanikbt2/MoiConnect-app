@@ -14,6 +14,14 @@ export interface MaterialSearchFields {
   author?: string;
 }
 
+export interface MaterialSearchHistoryEntry {
+  query: string;
+  school?: string;
+  course?: string;
+  yearOfStudy?: string;
+  searchedAt?: number;
+}
+
 const normalize = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase();
 const normalizeId = (value: unknown) => normalize(value).replace(/[^a-z0-9]/g, '');
 
@@ -113,7 +121,7 @@ export function rankMaterials<T extends MaterialSearchFields>(items: T[], query:
 export function rankMaterialsForProfile<T extends MaterialSearchFields>(
   items: T[],
   profile?: { school?: string; course?: string; yearOfStudy?: string } | null,
-  searchHistory: string[] = []
+  searchHistory: Array<string | MaterialSearchHistoryEntry> = []
 ): T[] {
   const school = normalize(profile?.school);
   const courseTokens = normalize(profile?.course).split(/\s+/).filter((token) => token && token !== 'unset');
@@ -145,12 +153,21 @@ export function rankMaterialsForProfile<T extends MaterialSearchFields>(
         matched++;
       }
 
-      const historyMatchIndex = searchHistory.findIndex((query) => {
-        const tokens = normalize(query).split(/\s+/).filter(Boolean);
-        return tokens.length > 0 && tokens.every((token) => itemCourseText.includes(token) || itemSchool.includes(token) || itemYearText.includes(token));
-      });
-      if (historyMatchIndex >= 0) {
-        score -= Math.max(40, 150 - historyMatchIndex * 10);
+      const historyMatch = searchHistory
+        .map((entry, historyIndex) => {
+          const context = typeof entry === 'string' ? { query: entry } : entry;
+          const historyText = [context.query, context.school, context.course, context.yearOfStudy]
+            .map(normalize)
+            .filter(Boolean)
+            .join(' ');
+          const tokens = historyText.split(/\s+/).filter((token) => token.length > 1 && token !== 'unset');
+          const matchedTokens = tokens.filter((token) => itemCourseText.includes(token) || itemSchool.includes(token) || itemYearText.includes(token));
+          return { historyIndex, matchRatio: tokens.length ? matchedTokens.length / tokens.length : 0, matchedTokens: matchedTokens.length };
+        })
+        .filter((match) => match.matchedTokens > 0)
+        .sort((a, b) => b.matchRatio - a.matchRatio || a.historyIndex - b.historyIndex)[0];
+      if (historyMatch) {
+        score -= Math.round(80 * historyMatch.matchRatio) + Math.max(20, 80 - historyMatch.historyIndex * 5);
         matched++;
       }
 

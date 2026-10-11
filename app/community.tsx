@@ -28,6 +28,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
+import * as ExpoFileSystem from 'expo-file-system';
 import { WebView } from 'react-native-webview';
 import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
@@ -82,6 +83,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { UserBadge } from '../src/components/UserBadge';
 import { useNetwork } from '../src/context/NetworkContext';
+import { getSmartReplySnippet, getReplyAttachmentThumbnail } from '../src/utils/chatReplyUtils';
 
 export interface FileAttachment {
   name: string;
@@ -160,9 +162,32 @@ const getCloudinaryVideoPreviewUrl = (url: string): string => {
   const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
   return query ? `${previewPath}?${query}` : previewPath;
 };
+const isVideoAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
+  if (!file) return false;
+  if (file.type === 'video') return true;
+  const name = (file.name || '').toLowerCase();
+  const url = (file.url || '').toLowerCase();
+  return Boolean(name.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)$/i)) ||
+    Boolean(url.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)(\?.*)?$/i)) ||
+    url.includes('/video/upload/');
+};
+
+const isImageAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
+  if (!file) return false;
+  if (file.type === 'image') return true;
+  const name = (file.name || '').toLowerCase();
+  const url = (file.url || '').toLowerCase();
+  return Boolean(name.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)$/i)) ||
+    Boolean(url.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)(\?.*)?$/i)) ||
+    url.includes('/image/upload/');
+};
+
+const isMediaAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
+  return isImageAttachment(file) || isVideoAttachment(file);
+};
 const getVideoPlayerHtml = (url: string): string => {
-  const safeUrl = url.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{margin:0;width:100%;height:100%;background:#020617;overflow:hidden}video{width:100%;height:100%;object-fit:contain;background:#020617}</style></head><body><video controls autoplay playsinline src="${safeUrl}"></video></body></html>`;
+  const safeUrl = (url || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" /><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#020617;overflow:hidden;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;background:#020617;outline:none}</style></head><body><video controls autoplay playsinline webkit-playsinline src="${safeUrl}"></video></body></html>`;
 };
 const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
@@ -403,6 +428,19 @@ export default function CommunityScreen() {
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [downloadAttachmentBytesText, setDownloadAttachmentBytesText] = useState<string>('');
+  const [downloadAttachmentFailedKey, setDownloadAttachmentFailedKey] = useState<string | null>(null);
+  const [uploadFailed, setUploadFailed] = useState(false);
+  const [sendPendingAfterUpload, setSendPendingAfterUpload] = useState(false);
+  const sendPendingAfterUploadRef = useRef(false);
+  const [pendingUploadItem, setPendingUploadItem] = useState<{
+    uri: string;
+    name: string;
+    mimeType: string;
+    kind: 'image' | 'video' | 'pdf' | 'doc';
+    rawFile?: any;
+  } | null>(null);
+  const [pickingMediaKind, setPickingMediaKind] = useState<'image' | 'video' | 'doc' | 'camera' | null>(null);
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<CommunityMessage | null>(null);
   const [showGuestSignInPrompt, setShowGuestSignInPrompt] = useState(false);
@@ -1688,9 +1726,22 @@ export default function CommunityScreen() {
       clearInterval(retryTimer);
     };
   }, []);
-  const handleSendMessage = (stickerId?: string) => {
-    if (isUploadingMedia) return;
-    if (!inputText.trim() && !selectedFile && !stickerId) return;
+  const handleSendMessage = (stickerId?: string, overrideFile?: FileAttachment) => {
+    const fileToSend = overrideFile || selectedFile;
+
+    if (isUploadingMedia && !overrideFile) {
+      sendPendingAfterUploadRef.current = true;
+      setSendPendingAfterUpload(true);
+      showIceMessage('Uploading Media…', 'Your message will send automatically once the media finishes uploading.');
+      return;
+    }
+
+    if (uploadFailed && !overrideFile) {
+      showIceMessage('Media Upload Failed', 'Please tap retry on the attachment to finish uploading before sending.');
+      return;
+    }
+
+    if (!inputText.trim() && !fileToSend && !stickerId) return;
 
     if (isTypingRef.current) {
       isTypingRef.current = false;
@@ -1755,7 +1806,7 @@ export default function CommunityScreen() {
       senderId: user ? user._id : undefined,
       senderEmail: user ? user.email : undefined,
       text: sentText,
-      fileAttachment: selectedFile || undefined,
+      fileAttachment: fileToSend || undefined,
       stickerId,
       replyTo: replyToData,
       senderName: user ? user.name : 'Moi Student',
@@ -1786,7 +1837,7 @@ export default function CommunityScreen() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isoDate: new Date().toISOString(),
       isMe: true,
-      fileAttachment: selectedFile || undefined,
+      fileAttachment: fileToSend || undefined,
       stickerId,
       replyTo: replyToData,
       reactions: {}
@@ -1802,6 +1853,10 @@ export default function CommunityScreen() {
     });
 
     setInputText('');
+    setPendingUploadItem(null);
+    setUploadFailed(false);
+    setSendPendingAfterUpload(false);
+    sendPendingAfterUploadRef.current = false;
     setSelectedFile(null);
     setShowStickerPicker(false);
     setReplyingTo(null);
@@ -1969,50 +2024,213 @@ export default function CommunityScreen() {
 
   const handleDownloadFileAttachment = async (file: FileAttachment) => {
     const downloadKey = file.paperId || file.url;
+    if (!file.url) return;
     setDownloadingAttachmentKey(downloadKey);
     setDownloadAttachmentProgress(0);
-    try {
-      const paperId = file.paperId || `att_${Date.now()}`;
-      const title = file.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
-      await saveDownloadedPaper({
-        _id: paperId,
-        school: file.school || 'Moi University',
-        department: file.unitName || file.unitCode || 'Academic Material',
-        courseCode: file.unitCode || 'MOI',
-        unitCode: file.unitCode || 'MOI',
-        unitName: file.unitName || title,
-        type: 'notes',
-        title: title,
-        examYear: 2025,
-        fileUrl: file.url,
-        fileType: file.type === 'pdf' ? 'pdf' : (file.type === 'image' ? 'image' : 'video'),
-        uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
-        status: 'approved',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        onProgress: (progress: number) => setDownloadAttachmentProgress(progress)
-      });
+    setDownloadAttachmentBytesText('Connecting…');
+    setDownloadAttachmentFailedKey(null);
 
-      showIceMessage(
-        'Downloaded Offline',
-        `"${title}" saved to your offline downloads tab!`,
-        [
-          { text: 'OK' },
-          { text: 'View Downloads', onPress: () => router.push('/(tabs)/downloads') }
-        ]
-      );
-    } catch (e) {
-      showIceMessage('Download Error', 'Could not save attachment offline.');
+    const formatBytes = (bytes: number) => {
+      if (!bytes || isNaN(bytes) || bytes <= 0) return '0 B';
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    try {
+      const rawUrl = file.url;
+      const cleanTitle = (file.title || file.name || 'media_attachment')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+      
+      let fileExt = (file.name || file.url || '').split('?')[0].split('.').pop() || '';
+      if (!fileExt || fileExt.length > 5) {
+        fileExt = file.type === 'video' ? 'mp4' : file.type === 'image' ? 'jpg' : 'pdf';
+      }
+      const filename = `${cleanTitle}.${fileExt}`;
+
+      if (Platform.OS === 'web') {
+        try {
+          const response = await fetch(rawUrl);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (e) {
+          const link = document.createElement('a');
+          link.href = rawUrl;
+          link.download = filename;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        const targetPath = `${ExpoFileSystem.documentDirectory}${Date.now()}_${filename}`;
+        const downloadTask = ExpoFileSystem.createDownloadResumable(
+          rawUrl,
+          targetPath,
+          {},
+          (dp: any) => {
+            const written = dp.totalBytesWritten || 0;
+            const total = dp.totalBytesExpectedToWrite || 0;
+            const progress = total > 0
+              ? Math.round((written / total) * 100)
+              : 50;
+            setDownloadAttachmentProgress(progress);
+            if (total > 0) {
+              setDownloadAttachmentBytesText(`${formatBytes(written)} / ${formatBytes(total)}`);
+            } else if (written > 0) {
+              setDownloadAttachmentBytesText(formatBytes(written));
+            }
+          }
+        );
+
+        const downloadResult = await downloadTask.downloadAsync();
+        if (!downloadResult?.uri) throw new Error('Download failed.');
+
+        let savedToGallery = false;
+
+        try {
+          const MediaLibrary = require('expo-media-library');
+          const { status } = await MediaLibrary.requestPermissionsAsync();
+          if (status === 'granted') {
+            await MediaLibrary.createAssetAsync(downloadResult.uri);
+            savedToGallery = true;
+          }
+        } catch (mediaLibErr) {
+          console.log('[MediaDownload] MediaLibrary save fallback:', mediaLibErr);
+        }
+
+        if (!savedToGallery) {
+          try {
+            const Sharing = require('expo-sharing');
+            if (await Sharing.isAvailableAsync()) {
+              await Sharing.shareAsync(downloadResult.uri, {
+                dialogTitle: `Save ${filename} to phone`,
+                mimeType: file.type === 'video' ? 'video/mp4' : 'image/jpeg'
+              });
+              savedToGallery = true;
+            }
+          } catch (sharingErr) {
+            console.log('[MediaDownload] Sharing save fallback:', sharingErr);
+          }
+        }
+
+        const paperId = file.paperId || `att_${Date.now()}`;
+        await saveDownloadedPaper({
+          _id: paperId,
+          school: file.school || 'Moi University',
+          department: file.unitName || file.unitCode || 'Academic Material',
+          courseCode: file.unitCode || 'MOI',
+          unitCode: file.unitCode || 'MOI',
+          unitName: file.unitName || filename,
+          type: file.type === 'image' ? 'image' : file.type === 'video' ? 'video' : 'notes',
+          title: file.title || file.name,
+          examYear: 2025,
+          fileUrl: rawUrl,
+          localUri: downloadResult.uri,
+          fileType: fileExt,
+          uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
+          status: 'completed',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }).catch(() => {});
+
+        showIceMessage(
+          'Downloaded to Storage',
+          `"${filename}" saved directly to your phone's storage & photo gallery!`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (e: any) {
+      setDownloadAttachmentFailedKey(downloadKey);
+      showIceMessage('Download Error', e?.message || 'Could not download media file. Tap to retry.');
     } finally {
       setDownloadingAttachmentKey(null);
       setDownloadAttachmentProgress(0);
+      setDownloadAttachmentBytesText('');
+    }
+  };
+
+  const executeUpload = async (itemToUpload: {
+    uri: string;
+    name: string;
+    mimeType: string;
+    kind: 'image' | 'video' | 'pdf' | 'doc';
+    rawFile?: any;
+  }) => {
+    setIsUploadingMedia(true);
+    setUploadFailed(false);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        if (itemToUpload.rawFile && typeof Blob !== 'undefined' && itemToUpload.rawFile instanceof Blob) {
+          formData.append('file', itemToUpload.rawFile, itemToUpload.name);
+        } else {
+          const response = await fetch(itemToUpload.uri);
+          const fetchedBlob = await response.blob();
+          formData.append('file', fetchedBlob, itemToUpload.name);
+        }
+      } else {
+        formData.append('file', {
+          uri: itemToUpload.uri,
+          name: itemToUpload.name,
+          type: itemToUpload.mimeType || (itemToUpload.kind === 'video' ? 'video/mp4' : itemToUpload.kind === 'image' ? 'image/jpeg' : 'application/octet-stream')
+        } as any);
+      }
+
+      const res = await apiRequest('/community/upload-media', {
+        method: 'POST',
+        body: formData
+      });
+
+      setIsUploadingMedia(false);
+
+      if (res.success && res.data?.url) {
+        setUploadFailed(false);
+        const finalType: 'image' | 'video' | 'pdf' =
+          (res.data.type || itemToUpload.kind) === 'video'
+            ? 'video'
+            : (res.data.type || itemToUpload.kind) === 'image'
+              ? 'image'
+              : 'pdf';
+        const uploadedFileObj: FileAttachment = {
+          name: res.data.name || itemToUpload.name,
+          url: res.data.url,
+          size: res.data.size || 'Media file',
+          type: finalType
+        };
+        setSelectedFile(uploadedFileObj);
+
+        if (sendPendingAfterUploadRef.current) {
+          sendPendingAfterUploadRef.current = false;
+          setSendPendingAfterUpload(false);
+          void handleSendMessage(undefined, uploadedFileObj);
+        }
+      } else {
+        setUploadFailed(true);
+        setIsUploadingMedia(false);
+        showIceMessage('Upload Failed', res.error || 'Failed to upload media. Tap retry to try again.');
+      }
+    } catch (err: any) {
+      setUploadFailed(true);
+      setIsUploadingMedia(false);
+      showIceMessage('Upload Error', 'Could not upload media. Tap retry to try again.');
     }
   };
 
   const handlePickMedia = async (kind: 'image' | 'video') => {
     try {
+      setPickingMediaKind(kind);
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) return;
+      if (!permission.granted) {
+        setPickingMediaKind(null);
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: false,
@@ -2020,36 +2238,41 @@ export default function CommunityScreen() {
       });
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
+        const rawFile = (asset as any).file;
+        const item = {
+          uri: asset.uri,
+          name: asset.fileName || `${kind}_${Date.now()}.${kind === 'image' ? 'jpg' : 'mp4'}`,
+          mimeType: asset.mimeType || (kind === 'image' ? 'image/jpeg' : 'video/mp4'),
+          kind,
+          rawFile
+        };
+        setPendingUploadItem(item);
         setSelectedFile({
-          name: asset.fileName || `${kind} attachment`,
+          name: item.name,
           url: asset.uri,
-          size: 'Uploading…',
+          size: 'Loading…',
           type: kind
         });
         setShowFileModal(false);
-        setIsUploadingMedia(true);
-        const formData = new FormData();
-        formData.append('file', { uri: asset.uri, name: asset.fileName || `${kind}_${Date.now()}`, type: asset.mimeType || (kind === 'image' ? 'image/jpeg' : 'video/mp4') } as any);
-        const res = await apiRequest('/community/upload-media', { method: 'POST', body: formData });
-        setIsUploadingMedia(false);
-        if (res.success && res.data?.url) {
-          setSelectedFile({ name: res.data.name || `${kind} attachment`, url: res.data.url, size: res.data.size || 'Media file', type: kind });
-          setShowFileModal(false);
-        } else {
-          setSelectedFile(null);
-          showIceMessage('Upload Failed', res.error || 'Failed to upload media.');
-        }
+        await executeUpload(item);
       }
     } catch (err) {
       setIsUploadingMedia(false);
-      setSelectedFile(null);
+      setUploadFailed(true);
       showIceMessage('Upload Error', 'Could not select or upload media.');
+    } finally {
+      setPickingMediaKind(null);
     }
   };
+
   const handleTakeMedia = async () => {
     try {
+      setPickingMediaKind('camera');
       const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) return;
+      if (!permission.granted) {
+        setPickingMediaKind(null);
+        return;
+      }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
         videoMaxDuration: 120,
@@ -2057,89 +2280,74 @@ export default function CommunityScreen() {
       });
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
-        const type = asset.type === 'video' ? 'video' : 'image';
+        const type: 'video' | 'image' = asset.type === 'video' ? 'video' : 'image';
+        const rawFile = (asset as any).file;
+        const item = {
+          uri: asset.uri,
+          name: asset.fileName || `camera_${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`,
+          mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'),
+          kind: type,
+          rawFile
+        };
+        setPendingUploadItem(item);
         setSelectedFile({
-          name: asset.fileName || `camera ${type}`,
+          name: item.name,
           url: asset.uri,
-          size: 'Uploading…',
+          size: 'Loading…',
           type
         });
         setShowFileModal(false);
-        setIsUploadingMedia(true);
-        const formData = new FormData();
-        formData.append('file', { uri: asset.uri, name: asset.fileName || `camera_${Date.now()}`, type: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg') } as any);
-        const res = await apiRequest('/community/upload-media', { method: 'POST', body: formData });
-        setIsUploadingMedia(false);
-        if (res.success && res.data?.url) {
-          setSelectedFile({ name: res.data.name || `camera ${type}`, url: res.data.url, size: res.data.size || 'Media file', type });
-          setShowFileModal(false);
-        } else {
-          setSelectedFile(null);
-          showIceMessage('Upload Failed', res.error || 'Failed to upload camera media.');
-        }
+        await executeUpload(item);
       }
     } catch (err) {
       setIsUploadingMedia(false);
-      setSelectedFile(null);
+      setUploadFailed(true);
       showIceMessage('Camera Error', 'Could not capture or upload media.');
+    } finally {
+      setPickingMediaKind(null);
     }
   };
+
   const handlePickFromPhone = async () => {
     try {
+      setPickingMediaKind('doc');
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const attachmentType = asset.mimeType?.startsWith('image/')
+        const assetNameLower = (asset.name || '').toLowerCase();
+        const rawFile = (asset as any).file;
+        const attachmentType: 'image' | 'video' | 'pdf' = (asset.mimeType?.startsWith('image/') || assetNameLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)$/i))
           ? 'image'
-          : asset.mimeType?.startsWith('video/')
+          : (asset.mimeType?.startsWith('video/') || assetNameLower.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)$/i))
             ? 'video'
             : 'pdf';
+        const item = {
+          uri: asset.uri,
+          name: asset.name || `doc_${Date.now()}`,
+          mimeType: asset.mimeType || (attachmentType === 'image' ? 'image/jpeg' : attachmentType === 'video' ? 'video/mp4' : 'application/pdf'),
+          kind: attachmentType,
+          rawFile
+        };
+        setPendingUploadItem(item);
         setSelectedFile({
-          name: asset.name || 'chat_attachment',
+          name: item.name,
           url: asset.uri,
-          size: 'Uploading…',
+          size: 'Loading…',
           type: attachmentType
         });
         setShowFileModal(false);
-        setIsUploadingMedia(true);
-
-        const formData = new FormData();
-        const fileObj: any = {
-          uri: asset.uri,
-          name: asset.name || 'chat_attachment',
-          type: asset.mimeType || 'application/octet-stream'
-        };
-        formData.append('file', fileObj);
-
-        const res = await apiRequest('/community/upload-media', {
-          method: 'POST',
-          body: formData
-        });
-
-        setIsUploadingMedia(false);
-
-        if (res.success && res.data?.url) {
-          setSelectedFile({
-            name: res.data.name || asset.name,
-            url: res.data.url,
-            size: res.data.size || '1.2 MB',
-            type: res.data.type || 'pdf'
-          });
-          setShowFileModal(false);
-          showIceMessage('Cloudinary Upload Complete ☁️', `"${asset.name}" uploaded to Cloudinary (folder: moiconnect/chat_media). Ready to share!`);
-        } else {
-          setSelectedFile(null);
-          showIceMessage('Upload Failed', res.error || 'Failed to upload media to Cloudinary storage.');
-        }
+        await executeUpload(item);
       }
     } catch (err: any) {
       setIsUploadingMedia(false);
-      setSelectedFile(null);
-      console.log('Document picker / Cloudinary upload error:', err);
+      setUploadFailed(true);
+      console.log('Document picker / upload error:', err);
       showIceMessage('Upload Error', 'Could not select or upload file.');
+    } finally {
+      setPickingMediaKind(null);
     }
   };
 
@@ -2321,125 +2529,207 @@ export default function CommunityScreen() {
                           </View>
                         )}
 
-                        <TouchableOpacity
-                          activeOpacity={0.9}
-                          onLongPress={() => setSelectedMsgForOptions(item)}
-                          onPress={() => {
-                            if (isPickerOpen) setActiveReactionMsgId(null);
-                          }}
-                          style={[
-                            styles.bubble,
-                            item.isMe ? styles.myBubble : styles.otherBubble,
-                            highlightedMsgId === item.id && styles.highlightedBubble
-                          ]}
-                        >
-                          {!item.isMe && (
-                            <View style={styles.senderHeader}>
-                              <View style={styles.senderNameRow}>
-                                <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
-                                <UserBadge badge={item.senderBadge} size={11} />
-                              </View>
-                              <Text style={styles.senderFaculty}>{getCommunitySenderSubtitle(item)}</Text>
-                            </View>
-                          )}
+                        {(() => {
+                          const hasMedia = Boolean(item.fileAttachment && isMediaAttachment(item.fileAttachment));
+                          const isMediaOnly = hasMedia && !item.text?.trim() && !item.replyTo && !item.stickerId;
 
-                          {/* Engulfed Quoted Reply Box */}
-                          {item.replyTo && (
+                          return (
                             <TouchableOpacity
-                              activeOpacity={0.85}
-                              style={[styles.engulfedQuoteBox, item.isMe ? styles.engulfedQuoteBoxMe : styles.engulfedQuoteBoxOther]}
-                              onPress={() => scrollToMessage(item.replyTo!.id)}
+                              activeOpacity={0.9}
+                              onLongPress={() => setSelectedMsgForOptions(item)}
+                              onPress={() => {
+                                if (isPickerOpen) setActiveReactionMsgId(null);
+                              }}
+                              style={[
+                                styles.bubble,
+                                item.isMe ? styles.myBubble : styles.otherBubble,
+                                highlightedMsgId === item.id && styles.highlightedBubble,
+                                isMediaOnly && styles.mediaOnlyBubble
+                              ]}
                             >
-                              <View style={[styles.engulfedAccentBar, item.isMe ? styles.engulfedAccentBarMe : styles.engulfedAccentBarOther]} />
-                              <View style={styles.engulfedContent}>
-                                <Text style={[styles.engulfedSender, item.isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
-                                  {item.replyTo.senderName || 'User'}
-                                </Text>
-                                <Text style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
-                                  {item.replyTo.text || (item.replyTo.fileAttachment ? `📎 ${item.replyTo.fileAttachment.name}` : 'Attachment')}
-                                </Text>
-                              </View>
-                            </TouchableOpacity>
-                          )}
+                              {!item.isMe && (
+                                <View style={styles.senderHeader}>
+                                  <View style={styles.senderNameRow}>
+                                    <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
+                                    <UserBadge badge={item.senderBadge} size={11} />
+                                  </View>
+                                  <Text style={styles.senderFaculty}>{getCommunitySenderSubtitle(item)}</Text>
+                                </View>
+                              )}
 
-                          {item.stickerId && STICKER_SOURCES[item.stickerId] && (
-                            <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} />
-                          )}
-
-                          {/* File Attachment Card */}
-                          {item.fileAttachment && (
-                            <View>
-                              {(item.fileAttachment.type === 'image' || item.fileAttachment.type === 'video') && (
+                              {/* Engulfed Quoted Reply Box */}
+                              {item.replyTo && (
                                 <TouchableOpacity
-                                  style={styles.chatMediaPreview}
-                                  onPress={() => setMediaPreview(item.fileAttachment || null)}
                                   activeOpacity={0.85}
+                                  style={[styles.engulfedQuoteBox, item.isMe ? styles.engulfedQuoteBoxMe : styles.engulfedQuoteBoxOther]}
+                                  onPress={() => scrollToMessage(item.replyTo!.id)}
                                 >
-                                  <Image
-                                    source={{ uri: item.fileAttachment.type === 'video' ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url) : item.fileAttachment.url }}
-                                    style={styles.chatMediaImage}
-                                    resizeMode="cover"
-                                  />
-                                  {item.fileAttachment.type === 'video' && (
-                                    <View style={styles.chatVideoOverlay}>
-                                      <View style={styles.chatVideoPlay}><Text style={styles.chatVideoPlayText}>▶</Text></View>
-                                      <Text style={styles.chatVideoHint}>Tap to play</Text>
-                                    </View>
-                                  )}
+                                  <View style={[styles.engulfedAccentBar, item.isMe ? styles.engulfedAccentBarMe : styles.engulfedAccentBarOther]} />
+                                  <View style={styles.engulfedContent}>
+                                    <Text style={[styles.engulfedSender, item.isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
+                                      {item.replyTo.senderName || 'User'}
+                                    </Text>
+                                    <Text style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
+                                      {getSmartReplySnippet(item.replyTo)}
+                                    </Text>
+                                  </View>
+                                  {getReplyAttachmentThumbnail(item.replyTo)}
                                 </TouchableOpacity>
                               )}
-                              {item.fileAttachment.type !== 'image' && item.fileAttachment.type !== 'video' && (
-                                <TouchableOpacity style={styles.fileCard} onPress={() => handleOpenFileAttachment(item.fileAttachment!)} activeOpacity={0.8}>
-                                  <View style={styles.fileIconBox}>
-                                    <FileTextIcon color="#15803d" size={24} />
-                                  </View>
-                                  <View style={styles.fileInfo}>
-                                    <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
-                                    <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
-                                  </View>
-                                  {!item.isMe && (
-                                    <TouchableOpacity style={styles.fileDownloadBtn} onPress={(e) => { e.stopPropagation(); handleDownloadFileAttachment(item.fileAttachment!); }}>
-                                      <DownloadIcon color="#ffffff" size={14} />
+
+                              {item.stickerId && STICKER_SOURCES[item.stickerId] && (
+                                <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} />
+                              )}
+
+                              {/* File Attachment or Pure Media Card */}
+                              {item.fileAttachment && (
+                                <View style={hasMedia ? styles.mediaAttachmentWrapper : styles.docAttachmentWrapper}>
+                                  {hasMedia ? (
+                                    <TouchableOpacity
+                                      style={styles.chatMediaPreview}
+                                      onPress={() => {
+                                        const fileKey = item.fileAttachment?.paperId || item.fileAttachment?.url;
+                                        if (downloadAttachmentFailedKey === fileKey) {
+                                          handleDownloadFileAttachment(item.fileAttachment!);
+                                          return;
+                                        }
+                                        if (downloadingAttachmentKey === fileKey) {
+                                          return;
+                                        }
+                                        setMediaPreview(item.fileAttachment || null);
+                                      }}
+                                      activeOpacity={0.88}
+                                    >
+                                      <Image
+                                        source={{
+                                          uri: isVideoAttachment(item.fileAttachment)
+                                            ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url)
+                                            : item.fileAttachment.url
+                                        }}
+                                        style={styles.chatMediaImage}
+                                        resizeMode="cover"
+                                      />
+                                      {isVideoAttachment(item.fileAttachment) && (
+                                        <View style={styles.chatVideoOverlay}>
+                                          <View style={styles.chatVideoPlay}>
+                                            <Text style={styles.chatVideoPlayText}>▶</Text>
+                                          </View>
+                                          <View style={styles.chatVideoBadge}>
+                                            <VideoIcon color="#ffffff" size={12} />
+                                            <Text style={styles.chatVideoBadgeText}>
+                                              {item.fileAttachment.size ? `${item.fileAttachment.size} • ` : ''}Tap to play
+                                            </Text>
+                                          </View>
+                                        </View>
+                                      )}
+
+                                      {/* WhatsApp-style Bit-by-bit Download Progress Overlay */}
+                                      {downloadingAttachmentKey === (item.fileAttachment.paperId || item.fileAttachment.url) && (
+                                        <View style={styles.chatMediaDownloadOverlay}>
+                                          <View style={styles.chatMediaDownloadCircle}>
+                                            <ActivityIndicator size="small" color="#22c55e" />
+                                            <Text style={styles.chatMediaDownloadPercentText}>
+                                              {downloadAttachmentProgress > 0 ? `${downloadAttachmentProgress}%` : '…'}
+                                            </Text>
+                                          </View>
+                                          <Text style={styles.chatMediaDownloadBytesText}>
+                                            {downloadAttachmentBytesText || 'Downloading…'}
+                                          </Text>
+                                        </View>
+                                      )}
+
+                                      {/* WhatsApp-style Download Interrupted / Failed Retry Overlay */}
+                                      {downloadAttachmentFailedKey === (item.fileAttachment.paperId || item.fileAttachment.url) && (
+                                        <View style={styles.chatMediaDownloadOverlay}>
+                                          <View style={styles.chatMediaRetryCircle}>
+                                            <Text style={styles.chatMediaRetryIcon}>↺</Text>
+                                          </View>
+                                          <Text style={styles.chatMediaRetryText}>Download failed</Text>
+                                          <Text style={styles.chatMediaRetrySubText}>Tap to retry</Text>
+                                        </View>
+                                      )}
+
+                                      {/* WhatsApp-style Save/Download button on media for incoming messages */}
+                                      {!item.isMe && downloadingAttachmentKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && downloadAttachmentFailedKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && (
+                                        <TouchableOpacity
+                                          style={styles.chatMediaDownloadCornerBtn}
+                                          onPress={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadFileAttachment(item.fileAttachment!);
+                                          }}
+                                          activeOpacity={0.8}
+                                        >
+                                          <DownloadIcon color="#ffffff" size={13} />
+                                        </TouchableOpacity>
+                                      )}
+                                    </TouchableOpacity>
+                                  ) : (
+                                    <TouchableOpacity
+                                      style={styles.fileCard}
+                                      onPress={() => handleOpenFileAttachment(item.fileAttachment!)}
+                                      activeOpacity={0.8}
+                                    >
+                                      <View style={styles.fileIconBox}>
+                                        <FileTextIcon color="#15803d" size={24} />
+                                      </View>
+                                      <View style={styles.fileInfo}>
+                                        <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
+                                        <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
+                                      </View>
+                                      {!item.isMe && (
+                                        <TouchableOpacity
+                                          style={styles.fileDownloadBtn}
+                                          onPress={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadFileAttachment(item.fileAttachment!);
+                                          }}
+                                        >
+                                          <DownloadIcon color="#ffffff" size={14} />
+                                        </TouchableOpacity>
+                                      )}
                                     </TouchableOpacity>
                                   )}
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          )}
-
-                          {/* Text content with clean wrapping */}
-                          {!!item.text && (
-                            <LinkifiedText style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}>
-                              {item.text}
-                            </LinkifiedText>
-                          )}
-
-                          {/* Timestamp & Ticks */}
-                          <View style={styles.metaRow}>
-                            <TouchableOpacity
-                              style={styles.reactionTriggerBtn}
-                              onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
-                            >
-                              <SmileIcon color={item.isMe ? '#854d0e' : '#94a3b8'} size={12} />
-                            </TouchableOpacity>
-
-                            <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp]}>
-                              {item.timestamp}
-                            </Text>
-                            {item.isMe && (
-                              item.deliveryStatus === 'queued' ? (
-                                <Text style={styles.queuedClock}>◷</Text>
-                              ) : (
-                                <View style={styles.ticksWrapper}>
-                                  <CheckIcon color={item.deliveryStatus === 'delivered' ? '#38bdf8' : '#94a3b8'} size={14} />
-                                  {item.deliveryStatus === 'delivered' && (
-                                    <CheckIcon color="#38bdf8" size={14} style={styles.secondTick} />
-                                  )}
                                 </View>
-                              )
-                            )}
-                          </View>
-                        </TouchableOpacity>
+                              )}
+
+                              {/* Text content with clean wrapping */}
+                              {!!item.text && (
+                                <LinkifiedText
+                                  style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}
+                                  onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
+                                >
+                                  {item.text}
+                                </LinkifiedText>
+                              )}
+
+                              {/* Timestamp & Ticks */}
+                              <View style={[styles.metaRow, isMediaOnly && styles.mediaMetaRow]}>
+                                <TouchableOpacity
+                                  style={styles.reactionTriggerBtn}
+                                  onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
+                                >
+                                  <SmileIcon color={item.isMe ? '#854d0e' : '#94a3b8'} size={12} />
+                                </TouchableOpacity>
+
+                                <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp]}>
+                                  {item.timestamp}
+                                </Text>
+                                {item.isMe && (
+                                  item.deliveryStatus === 'queued' ? (
+                                    <Text style={styles.queuedClock}>◷</Text>
+                                  ) : (
+                                    <View style={styles.ticksWrapper}>
+                                      <CheckIcon color={item.deliveryStatus === 'delivered' ? '#38bdf8' : '#94a3b8'} size={14} />
+                                      {item.deliveryStatus === 'delivered' && (
+                                        <CheckIcon color="#38bdf8" size={14} style={styles.secondTick} />
+                                      )}
+                                    </View>
+                                  )
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })()}
 
                         {/* Emoji Reaction Badges at bottom right */}
                         {hasReactions && (
@@ -2510,9 +2800,10 @@ export default function CommunityScreen() {
                   </Text>
                 </View>
                 <Text style={styles.replyPreviewSnippet} numberOfLines={1}>
-                  {replyingTo.text || (replyingTo.fileAttachment ? `📎 ${replyingTo.fileAttachment.name}` : 'Attachment')}
+                  {getSmartReplySnippet(replyingTo)}
                 </Text>
               </View>
+              {getReplyAttachmentThumbnail(replyingTo)}
               <TouchableOpacity
                 style={styles.cancelReplyBtn}
                 onPress={() => setReplyingTo(null)}
@@ -2525,29 +2816,88 @@ export default function CommunityScreen() {
 
           {/* Attached File Preview Bar before sending */}
           {selectedFile && (
-            <View style={styles.filePreviewBanner}>
+            <View style={[styles.filePreviewBanner, uploadFailed && styles.filePreviewBannerError]}>
               <View style={styles.filePreviewLeft}>
-                {selectedFile.type === 'image' ? (
-                  <Image source={{ uri: selectedFile.url }} style={styles.composerMediaThumbnail} />
-                ) : selectedFile.type === 'video' ? (
-                  <View style={styles.composerVideoThumbnail}><VideoIcon color="#f97316" size={18} /></View>
-                ) : (
-                  <FileTextIcon color="#15803d" size={20} />
-                )}
+                <View style={styles.composerThumbnailWrapper}>
+                  {selectedFile.type === 'image' ? (
+                    <Image source={{ uri: pendingUploadItem?.uri || selectedFile.url }} style={styles.composerMediaThumbnail} />
+                  ) : selectedFile.type === 'video' ? (
+                    <View style={styles.composerVideoThumbnail}><VideoIcon color="#ffffff" size={18} /></View>
+                  ) : (
+                    <FileTextIcon color="#15803d" size={20} />
+                  )}
+                  {isUploadingMedia && (
+                    <View style={styles.composerMediaLoadingOverlay}>
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    </View>
+                  )}
+                  {uploadFailed && (
+                    <TouchableOpacity
+                      style={styles.composerRetryOverlay}
+                      onPress={() => pendingUploadItem && executeUpload(pendingUploadItem)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.composerRetryOverlayIcon}>↺</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={styles.filePreviewName} numberOfLines={1}>
                     {selectedFile.name}
                   </Text>
-                  <Text style={styles.filePreviewMeta}>
-                    {isUploadingMedia ? 'Uploading…' : `${selectedFile.size} • Ready to send`}
+                  <Text style={[styles.filePreviewMeta, uploadFailed && { color: '#ef4444', fontWeight: '700' }]}>
+                    {isUploadingMedia
+                      ? (sendPendingAfterUpload ? 'Uploading media… will auto-send' : 'Uploading to cloud…')
+                      : uploadFailed
+                        ? 'Upload failed • Tap ↺ to retry'
+                        : `${selectedFile.size} • Ready to send`}
                   </Text>
                 </View>
               </View>
               {isUploadingMedia ? (
-                <ActivityIndicator size="small" color="#15803d" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ActivityIndicator size="small" color="#15803d" />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsUploadingMedia(false);
+                      setSendPendingAfterUpload(false);
+                      sendPendingAfterUploadRef.current = false;
+                      setSelectedFile(null);
+                      setPendingUploadItem(null);
+                    }}
+                    style={styles.removeFileBtn}
+                  >
+                    <Text style={styles.removeFileText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : uploadFailed ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    style={styles.composerRetryBtn}
+                    onPress={() => pendingUploadItem && executeUpload(pendingUploadItem)}
+                  >
+                    <Text style={styles.composerRetryBtnText}>Retry</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setUploadFailed(false);
+                      setSelectedFile(null);
+                      setPendingUploadItem(null);
+                    }}
+                    style={styles.removeFileBtn}
+                  >
+                    <Text style={styles.removeFileText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
-                <TouchableOpacity onPress={() => setSelectedFile(null)} style={styles.removeFileBtn}>
-                <Text style={styles.removeFileText}>✕</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedFile(null);
+                    setPendingUploadItem(null);
+                  }}
+                  style={styles.removeFileBtn}
+                >
+                  <Text style={styles.removeFileText}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -2706,13 +3056,18 @@ export default function CommunityScreen() {
             <TouchableOpacity
               style={[
                 styles.sendBtn,
-                ((!inputText.trim() && !selectedFile) || isUploadingMedia) && styles.sendBtnDisabled
+                ((!inputText.trim() && !selectedFile) || uploadFailed) && styles.sendBtnDisabled,
+                (isUploadingMedia || sendPendingAfterUpload) && styles.sendBtnUploading
               ]}
               onPress={() => handleSendMessage()}
-              disabled={(!inputText.trim() && !selectedFile) || isUploadingMedia}
+              disabled={(!inputText.trim() && !selectedFile) || uploadFailed}
               activeOpacity={0.8}
             >
-              <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
+              {isUploadingMedia || sendPendingAfterUpload ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
+              )}
             </TouchableOpacity>
           </View> : (
             <View style={styles.chatDisabledNotice}>
@@ -2932,7 +3287,7 @@ export default function CommunityScreen() {
                 <CloseIcon color="#ffffff" size={18} />
               </TouchableOpacity>
             </View>
-            {mediaPreview?.type === 'video' ? (
+            {mediaPreview && (mediaPreview.type === 'video' || isVideoAttachment(mediaPreview)) ? (
               <WebView
                 source={{ html: getVideoPlayerHtml(mediaPreview.url) }}
                 style={styles.videoPlayerWebView}
@@ -2940,6 +3295,8 @@ export default function CommunityScreen() {
                 allowsInlineMediaPlayback
                 mediaPlaybackRequiresUserAction={false}
                 javaScriptEnabled
+                domStorageEnabled
+                allowsFullscreenVideo
               />
             ) : mediaPreview ? (
               <Image source={{ uri: mediaPreview.url }} style={styles.fullScreenImagePreview} resizeMode="contain" />
@@ -3474,14 +3831,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(21, 128, 61, 0.2)'
   },
+  mediaOnlyBubble: {
+    padding: 3,
+    paddingBottom: 4,
+    paddingHorizontal: 3,
+    borderRadius: 16,
+  },
+  mediaAttachmentWrapper: {
+    borderRadius: 13,
+    overflow: 'hidden',
+  },
+  docAttachmentWrapper: {
+    marginBottom: 4,
+  },
   chatMediaPreview: {
-    width: 270,
+    width: 280,
+    maxWidth: '100%',
     height: 230,
-    borderRadius: 12,
+    borderRadius: 13,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
-    marginBottom: 6,
-    position: 'relative'
+    position: 'relative',
+    alignSelf: 'stretch',
   },
   chatMediaImage: {
     width: '100%',
@@ -3491,7 +3862,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.18)'
+    backgroundColor: 'rgba(15, 23, 42, 0.22)'
   },
   chatVideoPlay: {
     width: 52,
@@ -3499,21 +3870,112 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(21, 128, 61, 0.94)'
+    backgroundColor: 'rgba(21, 128, 61, 0.94)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3
   },
   chatVideoPlayText: {
     color: '#ffffff',
     fontSize: 20,
     marginLeft: 3
   },
-  chatVideoHint: {
+  chatVideoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8
+  },
+  chatVideoBadgeText: {
     color: '#ffffff',
     fontSize: 11,
+    fontWeight: '700'
+  },
+  mediaMetaRow: {
+    marginTop: 3,
+    paddingHorizontal: 6,
+    paddingBottom: 2
+  },
+  chatMediaContainer: {
+    position: 'relative'
+  },
+  chatMediaDownloadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    padding: 12,
+  },
+  chatMediaDownloadCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 2,
+    borderColor: '#22c55e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  chatMediaDownloadPercentText: {
+    fontSize: 10,
     fontWeight: '800',
-    marginTop: 8,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2
+    color: '#ffffff',
+    marginTop: 2,
+  },
+  chatMediaDownloadBytesText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  chatMediaRetryCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(239, 68, 68, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  chatMediaRetryIcon: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  chatMediaRetryText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  chatMediaRetrySubText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#fca5a5',
+    marginTop: 2,
+  },
+  chatMediaDownloadCornerBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   videoPlayerScreen: {
     flex: 1,
@@ -3664,10 +4126,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10
   },
+  filePreviewBannerError: {
+    borderTopColor: '#fecaca',
+    backgroundColor: '#fff5f5'
+  },
   filePreviewLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center'
+  },
+  composerThumbnailWrapper: {
+    position: 'relative',
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    overflow: 'hidden'
   },
   composerMediaThumbnail: {
     width: 42,
@@ -3681,7 +4154,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff7ed'
+    backgroundColor: '#0f172a'
+  },
+  composerMediaLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  composerRetryOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(220, 38, 38, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  composerRetryOverlayIcon: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff'
+  },
+  composerRetryBtn: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fca5a5'
+  },
+  composerRetryBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#dc2626'
   },
   filePreviewName: {
     fontSize: 13,
@@ -3869,6 +4372,10 @@ const styles = StyleSheet.create({
   sendBtnDisabled: {
     backgroundColor: '#15803d',
     opacity: 0.55
+  },
+  sendBtnUploading: {
+    backgroundColor: '#16a34a',
+    opacity: 0.95
   },
   modalOverlay: {
     flex: 1,
@@ -4060,6 +4567,23 @@ const styles = StyleSheet.create({
   mediaOptionDisabled: { opacity: 0.45 },
   mediaOptionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   mediaOptionLabel: { fontSize: 12, color: '#334155', fontWeight: '700' },
+  mediaLoadingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 12
+  },
+  mediaLoadingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803d'
+  },
   mediaUploadOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255, 255, 255, 0.86)',

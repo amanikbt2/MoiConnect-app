@@ -17,10 +17,11 @@ export default function RegisterScreen() {
 
   const { register: registerUser, login, googleLogin } = useAuth();
   const router = useAppNavigation();
+  const openNewUserProfile = () => router.replace('/(tabs)/profile?complete=1');
 
   const handleSocialRegister = async (provider: 'Google' | 'Apple') => {
     if (provider === 'Apple') {
-      router.replace('/(tabs)');
+      openNewUserProfile();
     }
   };
 
@@ -42,7 +43,7 @@ export default function RegisterScreen() {
     setLoading(false);
 
     if (res.success) {
-      router.replace('/(tabs)');
+      openNewUserProfile();
     } else {
       setError(res.error || 'Registration failed.');
     }
@@ -85,7 +86,7 @@ export default function RegisterScreen() {
           </View>
           <GoogleAuthButton
             googleLogin={googleLogin}
-            onSuccess={() => router.replace('/(tabs)')}
+            onSuccess={openNewUserProfile}
             onError={(err) => setError(err)}
           />
         </View>

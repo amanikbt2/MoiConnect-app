@@ -1,16 +1,22 @@
 export const MOI_SCHOOLS = [
   'School of Information Sciences',
+  'School of Science and Aerospace Studies',
+  'School of Biological & Physical Sciences',
+  'School of Science & Computing',
   'School of Engineering',
   'School of Business & Economics',
   'School of Education',
+  'School of Medicine & Health',
   'School of Medicine',
   'School of Arts & Social Sciences',
-  'School of Science and Aerospace Studies',
-  'School of Biological & Physical Sciences',
   'School of Law',
   'School of Nursing',
   'School of Public Health',
-  'School of Agriculture & Natural Resources'
+  'School of Agriculture & Natural Resources',
+  'School of Dentistry',
+  'School of Tourism & Hospitality',
+  'School of Architecture & Built Environment',
+  'School of Humanities'
 ] as const;
 
 export const PAPER_TYPES = ['past_paper', 'cat', 'revision', 'notes'] as const;
@@ -37,3 +43,4 @@ export const MOI_LOCATIONS = [
   'Town Campus / Eldoret CBD',
   'Muss'
 ] as const;
+

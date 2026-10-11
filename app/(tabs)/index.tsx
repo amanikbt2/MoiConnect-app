@@ -18,6 +18,7 @@ import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
+import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
 import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 
@@ -83,6 +84,7 @@ export default function HomeScreen() {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSuggestedIndex, setActiveSuggestedIndex] = useState(0);
+  const [searchHistory, setSearchHistory] = useState<any[]>([]);
 
   // Built-in Portal Viewer Modal State
   const [activePortal, setActivePortal] = useState<PortalConfig | null>(null);
@@ -105,6 +107,7 @@ export default function HomeScreen() {
   const handleGlobalSearch = () => {
     const query = searchQuery.trim();
     if (!query) return;
+    void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
     router.push(getGlobalSearchDestination(query));
     setSearchQuery('');
   };
@@ -131,12 +134,16 @@ export default function HomeScreen() {
   const [realSuggestedMaterials, setRealSuggestedMaterials] = useState<SuggestedMaterial[]>([]);
 
   useEffect(() => {
+    void getMaterialSearchHistoryEntries().then(setSearchHistory);
+  }, []);
+
+  useEffect(() => {
     fetchDashboardData();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') fetchDashboardData();
     });
     return () => subscription.remove();
-  }, [user]);
+  }, [user, searchHistory]);
 
   const displaySuggestedMaterials = realSuggestedMaterials.length > 0
     ? realSuggestedMaterials.slice(0, 10)
@@ -185,7 +192,7 @@ export default function HomeScreen() {
           recommendationTag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
           thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'
         }));
-        const rankedMaterials = rankMaterialsForProfile(mapped, user);
+        const rankedMaterials = rankMaterialsForProfile(mapped, user, searchHistory);
         const randomizedMaterials = [...rankedMaterials]
           .sort(() => Math.random() - 0.5)
           .slice(0, 10);

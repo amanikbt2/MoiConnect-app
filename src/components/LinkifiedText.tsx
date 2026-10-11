@@ -36,10 +36,11 @@ const renderMentions = (value: string, keyPrefix: string) => {
   return parts.length > 0 ? parts : value;
 };
 
-export function LinkifiedText({ children, style, linkStyle }: {
+export function LinkifiedText({ children, style, linkStyle, onPressVideo }: {
   children: string;
   style?: StyleProp<TextStyle>;
   linkStyle?: StyleProp<TextStyle>;
+  onPressVideo?: (url: string) => void;
 }) {
   const parts = children.split(URL_PATTERN);
 
@@ -54,11 +55,20 @@ export function LinkifiedText({ children, style, linkStyle }: {
 
         const displayValue = part.replace(TRAILING_PUNCTUATION, '');
         const isEmail = EMAIL_PATTERN.test(displayValue);
+        const urlToOpen = isEmail ? `mailto:${normalizeEmail(displayValue)}` : normalizeUrl(displayValue);
+        const isVideo = !isEmail && (Boolean(urlToOpen.match(/\.(mp4|mov|m4v|webm)(\?.*)?$/i)) || urlToOpen.includes('/video/upload/'));
+
         return (
           <React.Fragment key={`${index}-${part}`}>
             <Text
               style={[{ color: '#2563eb', textDecorationLine: 'underline' }, linkStyle]}
-              onPress={() => Linking.openURL(isEmail ? `mailto:${normalizeEmail(displayValue)}` : normalizeUrl(displayValue)).catch(() => {})}
+              onPress={() => {
+                if (isVideo && onPressVideo) {
+                  onPressVideo(urlToOpen);
+                } else {
+                  Linking.openURL(urlToOpen).catch(() => {});
+                }
+              }}
             >
               {displayValue}
             </Text>

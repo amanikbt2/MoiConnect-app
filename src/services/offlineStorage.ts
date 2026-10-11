@@ -594,23 +594,65 @@ export const clearOfflineMessageQueue = async () => {
 const STUDENT_PROFILE_KEY = 'moi_student_profile_details';
 const MATERIAL_SEARCH_HISTORY_KEY = 'moi_material_search_history';
 
+export interface MaterialSearchHistoryEntry {
+  query: string;
+  school?: string;
+  course?: string;
+  yearOfStudy?: string;
+  searchedAt: number;
+}
+
 export const getMaterialSearchHistory = async (): Promise<string[]> => {
+  const entries = await getMaterialSearchHistoryEntries();
+  return entries.map((entry) => entry.query);
+};
+
+export const getMaterialSearchHistoryEntries = async (): Promise<MaterialSearchHistoryEntry[]> => {
   try {
     const stored = await getItem(MATERIAL_SEARCH_HISTORY_KEY);
     const history = stored ? JSON.parse(stored) : [];
-    return Array.isArray(history) ? history.filter((item): item is string => typeof item === 'string') : [];
+    if (!Array.isArray(history)) return [];
+    const cleaned = history.map((item: unknown, index: number) => {
+      if (typeof item === 'string') {
+        return { query: item, searchedAt: Date.now() - index };
+      }
+      const entry = item as Partial<MaterialSearchHistoryEntry>;
+      return {
+        query: typeof entry.query === 'string' ? entry.query : '',
+        school: typeof entry.school === 'string' ? entry.school : undefined,
+        course: typeof entry.course === 'string' ? entry.course : undefined,
+        yearOfStudy: typeof entry.yearOfStudy === 'string' ? entry.yearOfStudy : undefined,
+        searchedAt: Number(entry.searchedAt) || Date.now() - index
+      };
+    }).filter((entry) => entry.query.trim().length > 0);
+    const uniqueLatest = Array.from(new Map(
+      cleaned.map((entry) => [entry.query.trim().toLowerCase(), entry] as const)
+    ).values()).slice(0, 10);
+    const serialized = JSON.stringify(uniqueLatest);
+    if (stored !== serialized) await setItem(MATERIAL_SEARCH_HISTORY_KEY, serialized);
+    return uniqueLatest;
   } catch {
     return [];
   }
 };
 
-export const saveMaterialSearchQuery = async (query: string): Promise<string[]> => {
+export const saveMaterialSearchQuery = async (
+  query: string,
+  profile?: { school?: string; course?: string; yearOfStudy?: string } | null
+): Promise<string[]> => {
   const cleanQuery = query.trim().replace(/\s+/g, ' ');
   if (!cleanQuery) return getMaterialSearchHistory();
-  const existing = await getMaterialSearchHistory();
-  const next = [cleanQuery, ...existing.filter((item) => item.toLowerCase() !== cleanQuery.toLowerCase())].slice(0, 12);
-  await setItem(MATERIAL_SEARCH_HISTORY_KEY, JSON.stringify(next));
-  return next;
+  const existing = await getMaterialSearchHistoryEntries();
+  const nextEntry: MaterialSearchHistoryEntry = {
+    query: cleanQuery,
+    school: profile?.school,
+    course: profile?.course,
+    yearOfStudy: profile?.yearOfStudy,
+    searchedAt: Date.now()
+  };
+  const nextEntries = [nextEntry, ...existing.filter((item) => item.query.toLowerCase() !== cleanQuery.toLowerCase())].slice(0, 10);
+  await setItem(MATERIAL_SEARCH_HISTORY_KEY, JSON.stringify(nextEntries));
+  return nextEntries.map((item) => item.query);
 };
 
 export const clearMaterialSearchHistory = async (): Promise<void> => {

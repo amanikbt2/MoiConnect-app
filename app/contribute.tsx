@@ -30,16 +30,8 @@ import {
   LightbulbIcon
 } from '../src/components/Icons';
 
-const SCHOOL_OPTIONS = [
-  'School of Information Sciences',
-  'School of Science & Computing',
-  'School of Engineering',
-  'School of Business & Economics',
-  'School of Education',
-  'School of Medicine & Health',
-  'School of Law',
-  'School of Arts & Social Sciences'
-];
+import { MOI_SCHOOLS } from '@moi/shared';
+const SCHOOL_OPTIONS = [...MOI_SCHOOLS];
 
 const MATERIAL_TYPES = [
   { label: 'Past Paper', value: 'past_paper', IconComponent: PastPaperIcon },
@@ -67,8 +59,8 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
   const [academicLevel, setAcademicLevel] = useState('');
   const [semester, setSemester] = useState('');
   const [description, setDescription] = useState('');
-  const [schoolInput, setSchoolInput] = useState(SCHOOL_OPTIONS[0]);
-  const [school, setSchool] = useState(SCHOOL_OPTIONS[0]);
+  const [schoolInput, setSchoolInput] = useState<string>(SCHOOL_OPTIONS[0]);
+  const [school, setSchool] = useState<any>(SCHOOL_OPTIONS[0]);
   const [type, setType] = useState('past_paper');
   const [examYear, setExamYear] = useState('2025');
 
@@ -338,19 +330,8 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
         if (!agentMode) router.replace('/(tabs)');
       };
 
-      if (Platform.OS === 'web') {
-        showIceMessage(`Submission Successful! 🎉\n\n${successMsg}`);
-        navigateAway();
-      } else {
-        showIceMessage(
-          'Submission Successful! 🎉',
-          successMsg,
-          [
-            { text: 'View Academic Hub', onPress: () => router.push('/(tabs)/academics') },
-            { text: 'OK', onPress: navigateAway }
-          ]
-        );
-      }
+      showIceMessage('Submission Successful! 🎉', successMsg);
+      navigateAway();
     } catch (e) {
       setUploading(false);
       setFormError(e instanceof Error ? e.message : 'Failed to upload the material. Please check your connection and try again.');
@@ -524,7 +505,7 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>School / Faculty</Text>
             <View style={[styles.searchableInputWrapper, showSchoolPicker && styles.dropdownInputFocused]}>
-              <TextInput style={styles.textInputInWrapper} placeholder="Select or type School / Faculty..." placeholderTextColor="#94a3b8" value={schoolInput} onChangeText={(value) => { setSchoolInput(value); setSchool(value); setShowSchoolPicker(true); }} onFocus={() => setShowSchoolPicker(true)} />
+              <TextInput style={styles.textInputInWrapper} placeholder="Select or type School / Faculty..." placeholderTextColor="#94a3b8" value={schoolInput} onChangeText={(value) => { setSchoolInput(value); setSchool(value as any); setShowSchoolPicker(true); }} onFocus={() => setShowSchoolPicker(true)} />
               <TouchableOpacity style={styles.dropdownChevronBtn} onPress={() => setShowSchoolPicker(!showSchoolPicker)} activeOpacity={0.7}>
                 <Text style={{ color: showSchoolPicker ? '#15803d' : '#64748b', fontSize: 12, fontWeight: '700' }}>{showSchoolPicker ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -535,7 +516,7 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
                   {filteredSchools.length > 0 ? filteredSchools.map((sch) => {
                     const isSelected = schoolInput.trim().toLowerCase() === sch.toLowerCase();
                     return (
-                      <TouchableOpacity key={sch} style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]} onPress={() => { setSchoolInput(sch); setSchool(sch); setShowSchoolPicker(false); }} activeOpacity={0.7}>
+                      <TouchableOpacity key={sch} style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]} onPress={() => { setSchoolInput(sch); setSchool(sch as any); setShowSchoolPicker(false); }} activeOpacity={0.7}>
                         <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>{sch}</Text>
                         {isSelected && <CheckIcon color="#15803d" size={16} />}
                       </TouchableOpacity>
@@ -983,3 +964,4 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   }
 });
+
