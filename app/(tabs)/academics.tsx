@@ -30,6 +30,7 @@ import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { getMaterialSearchScore, rankMaterialsForProfile } from '../../src/utils/materialSearch';
+import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 
 import {
@@ -752,7 +753,7 @@ export default function AcademicsScreen({ route }: any) {
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory))}
+              onSubmitEditing={() => { void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory)); void reportMaterialSearch(searchQuery, 'notes'); }}
               returnKeyType="search"
                 style={styles.searchInput}
               />

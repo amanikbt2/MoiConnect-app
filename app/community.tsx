@@ -3056,18 +3056,13 @@ export default function CommunityScreen() {
             <TouchableOpacity
               style={[
                 styles.sendBtn,
-                ((!inputText.trim() && !selectedFile) || uploadFailed) && styles.sendBtnDisabled,
-                (isUploadingMedia || sendPendingAfterUpload) && styles.sendBtnUploading
+                ((!inputText.trim() && !selectedFile) || uploadFailed || isUploadingMedia || sendPendingAfterUpload) && styles.sendBtnDisabled
               ]}
               onPress={() => handleSendMessage()}
-              disabled={(!inputText.trim() && !selectedFile) || uploadFailed}
+              disabled={(!inputText.trim() && !selectedFile) || uploadFailed || isUploadingMedia || sendPendingAfterUpload}
               activeOpacity={0.8}
             >
-              {isUploadingMedia || sendPendingAfterUpload ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
-              )}
+              <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
             </TouchableOpacity>
           </View> : (
             <View style={styles.chatDisabledNotice}>

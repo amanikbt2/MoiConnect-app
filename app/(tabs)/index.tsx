@@ -21,6 +21,7 @@ import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsServi
 import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
 import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
+import { reportMaterialSearch } from '../../src/services/searchReportService';
 
 import {
   SearchIcon,
@@ -108,6 +109,7 @@ export default function HomeScreen() {
     const query = searchQuery.trim();
     if (!query) return;
     void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+    void reportMaterialSearch(query, 'home');
     router.push(getGlobalSearchDestination(query));
     setSearchQuery('');
   };

@@ -23,6 +23,7 @@ import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { rankMaterials, rankMaterialsForProfile } from '../src/utils/materialSearch';
+import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
 import { IPaper } from '@moi/shared';
 import {
@@ -571,7 +572,7 @@ export default function PastPapersScreen({ route }: any) {
               placeholderTextColor="#94a3b8"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={() => saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory))}
+              onSubmitEditing={() => { void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory)); void reportMaterialSearch(searchQuery, 'past_papers'); }}
               returnKeyType="search"
               style={styles.searchInput}
             />

@@ -273,14 +273,75 @@ export async function notifyLoginSuccess(userName: string) {
   }
 }
 
+export const formatSmartNotificationSnippet = (
+  text?: string,
+  fileAttachment?: any,
+  stickerId?: string
+): string => {
+  const cleanText = (text || '').trim();
+
+  if (fileAttachment && (fileAttachment.url || fileAttachment.name || fileAttachment.type || fileAttachment.paperId)) {
+    const rawType = (fileAttachment.type || '').toLowerCase();
+    const name = (fileAttachment.name || fileAttachment.title || '').toLowerCase();
+    const url = (fileAttachment.url || '').toLowerCase();
+
+    const isVideo =
+      rawType === 'video' ||
+      /\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)($|\?)/i.test(name) ||
+      /\.(mp4|mov|m4v|webm|mkv|avi|3gp|flv|wmv)($|\?)/i.test(url) ||
+      /\/video\/upload\//i.test(url);
+
+    const isImage =
+      !isVideo &&
+      (rawType === 'image' ||
+        /\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)($|\?)/i.test(name) ||
+        /\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)($|\?)/i.test(url) ||
+        /\/image\/upload\//i.test(url));
+
+    const isAudio =
+      !isVideo &&
+      !isImage &&
+      (rawType === 'audio' ||
+        /\.(mp3|wav|m4a|aac|ogg|opus|amr)($|\?)/i.test(name) ||
+        /\.(mp3|wav|m4a|aac|ogg|opus|amr)($|\?)/i.test(url));
+
+    if (isVideo) {
+      return cleanText ? `\u{1F3A5} ${cleanText}` : '\u{1F3A5} Video';
+    }
+
+    if (isImage) {
+      return cleanText ? `\u{1F4F7} ${cleanText}` : '\u{1F4F7} Photo';
+    }
+
+    if (isAudio) {
+      return cleanText ? `\u{1F3A4} ${cleanText}` : '\u{1F3A4} Voice message';
+    }
+
+    // Document / PDF / Notes
+    const cleanDocName = (fileAttachment.title || fileAttachment.name || 'Document')
+      .replace(/[_-]/g, ' ')
+      .trim();
+    return cleanText ? `\u{1F4C4} ${cleanText}` : `\u{1F4C4} ${cleanDocName}`;
+  }
+
+  if (stickerId) {
+    return cleanText ? `\u{2728} ${cleanText}` : '\u{2728} Sticker';
+  }
+
+  return cleanText || 'New message';
+};
+
 export async function scheduleLocalMissedMessagesNotification(
   senderName: string,
   messageText: string,
   screen: 'community' | 'chat' = 'community',
-  conversationId?: string
+  conversationId?: string,
+  fileAttachment?: any,
+  stickerId?: string
 ) {
+  const formattedBody = formatSmartNotificationSnippet(messageText, fileAttachment, stickerId);
   if (Platform.OS === 'web') {
-    sendWebBrowserNotification(`💬 ${senderName}`, messageText);
+    sendWebBrowserNotification(`💬 ${senderName}`, formattedBody);
     return;
   }
 
@@ -291,7 +352,7 @@ export async function scheduleLocalMissedMessagesNotification(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: senderName,
-        body: messageText,
+        body: formattedBody,
         sound: 'default',
         categoryIdentifier: COMMUNITY_MESSAGE_CATEGORY,
         data: {
