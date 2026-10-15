@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Modal, Pressable, Alert, StyleSheet, Platform } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { HomeIcon, DownloadIcon, MessageIcon, ProfileIcon, CommunityIcon, MoreVerticalIcon, TrashIcon } from '../../src/components/Icons';
 import { NotificationCenterModal } from '../../src/components/NotificationCenterModal';
 import { PointsHeaderButton } from '../../src/components/StudentRewardsModal';
+import { DeleteAccountConfirmModal } from '../../src/components/DeleteAccountConfirmModal';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   subscribeToUnreadCountUpdates
@@ -135,19 +136,47 @@ function ProfileHeaderTitle() {
 }
 
 function ProfileHeaderActions() {
-  const { logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
-  const confirmDeleteAccount = () => {
+  useEffect(() => {
+    if (!user) {
+      setMenuVisible(false);
+      setShowDeleteConfirm(false);
+    }
+  }, [user]);
+
+  if (!user) {
+    return null;
+  }
+
+  const handleLogout = async () => {
     setMenuVisible(false);
-    Alert.alert(
-      'Permanently Delete Account?',
-      'This permanently deletes your profile, posts, uploaded materials, and personal data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete Account', style: 'destructive', onPress: () => deleteAccount() }
-      ]
-    );
+    try {
+      await logout();
+    } finally {
+      setMenuVisible(false);
+      router.replace('/(auth)/login');
+    }
+  };
+
+  const handleOpenDeleteConfirm = () => {
+    setMenuVisible(false);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      setShowDeleteConfirm(false);
+      router.replace('/(auth)/login');
+    } catch (e) {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -164,17 +193,28 @@ function ProfileHeaderActions() {
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={profileHeaderStyles.backdrop} onPress={() => setMenuVisible(false)}>
           <Pressable style={profileHeaderStyles.menu} onPress={(event) => event.stopPropagation()}>
-            <TouchableOpacity style={profileHeaderStyles.menuRow} onPress={() => { setMenuVisible(false); logout(); }}>
+            <TouchableOpacity style={profileHeaderStyles.menuRow} onPress={handleLogout}>
               <Text style={profileHeaderStyles.menuText}>Log out</Text>
             </TouchableOpacity>
             <View style={profileHeaderStyles.divider} />
-            <TouchableOpacity style={profileHeaderStyles.menuRow} onPress={confirmDeleteAccount}>
+            <TouchableOpacity style={profileHeaderStyles.menuRow} onPress={handleOpenDeleteConfirm}>
               <TrashIcon color="#dc2626" size={16} />
               <Text style={profileHeaderStyles.deleteText}>Delete account</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Centered Confirmation Popup for Account Deletion */}
+      <DeleteAccountConfirmModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        userId={user._id}
+        userName={user.name}
+        userEmail={user.email}
+        isDeleting={isDeleting}
+      />
     </View>
   );
 }

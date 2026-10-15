@@ -26,6 +26,7 @@ import { rankMaterials, rankMaterialsForProfile, smartSearchMaterials, getSearch
 import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
 import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
+import { SmartMirrorSkeleton } from '../src/components/SmartMirrorSkeleton';
 import { parseSmartSearchQuery } from '../src/utils/smartSearchParser';
 import { IPaper } from '@moi/shared';
 import {
@@ -44,7 +45,7 @@ import {
 } from '../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 340);
 
 export interface CATPaperItem {
   id: string;
@@ -85,47 +86,15 @@ const FILTER_DISCS = [
   { id: '2025', label: '2025 CATs', iconType: 'calendar' }
 ];
 
-function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
-  const fadeAnim = useRef(new Animated.Value(0.35)).current;
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.95,
-          duration: 650,
-          useNativeDriver: Platform.OS !== 'web'
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.35,
-          duration: 650,
-          useNativeDriver: Platform.OS !== 'web'
-        })
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [fadeAnim]);
-
+function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
-    <View style={styles.shimmerContainer}>
-      <View style={styles.shimmerHeaderRow}>
-        <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
-        <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
-      </View>
-      <View style={styles.gridContainer}>
-        {(Array.from({ length: count }, (_, i) => i + 1)).map((idx) => (
-          <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
-            <View style={styles.shimmerThumbnail} />
-            <View style={styles.shimmerBody}>
-              <View style={styles.shimmerBadge} />
-              <View style={styles.shimmerTitleLine} />
-              <View style={styles.shimmerSubLine} />
-            </View>
-          </Animated.View>
-        ))}
-      </View>
-    </View>
+    <SmartMirrorSkeleton
+      carouselTitle="Recommended CAT Quizzes"
+      carouselSubtitle="Matched to your course and academic profile"
+      gridTitle={title || 'loading more resources'}
+      showCarousel={showCarousel}
+      gridCount={count}
+    />
   );
 }
 
@@ -263,10 +232,10 @@ export default function CatPapersScreen({ route }: any) {
 
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
       const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}${searchParam}&refresh=${Date.now()}`);
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=cat${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
-          .filter((p) => p.type === 'cat')
+          .filter((p) => p.type === 'cat' || p.type === 'quiz')
           .map((p) => {
             const materialId = p.mtid || `C${(p._id || '').substring(0, 4)}`;
             return ({
@@ -609,6 +578,7 @@ export default function CatPapersScreen({ route }: any) {
               onSubmitEditing={() => { void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory)); void reportMaterialSearch(searchQuery, 'cats'); }}
               returnKeyType="search"
               style={styles.searchInput}
+              underlineColorAndroid="transparent"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -1028,8 +998,12 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0f172a'
-  },
+    color: '#0f172a',
+    paddingVertical: 0,
+    borderWidth: 0,
+    outlineWidth: 0,
+    outlineStyle: 'none'
+  } as any,
   discScroll: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
@@ -1107,7 +1081,7 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   carouselThumbnailContainer: {
-    height: 125,
+    height: 132,
     width: '100%',
     position: 'relative'
   },

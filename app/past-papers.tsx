@@ -26,6 +26,7 @@ import { rankMaterials, rankMaterialsForProfile, smartSearchMaterials, getSearch
 import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
 import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
+import { SmartMirrorSkeleton } from '../src/components/SmartMirrorSkeleton';
 import { parseSmartSearchQuery } from '../src/utils/smartSearchParser';
 import { IPaper } from '@moi/shared';
 import {
@@ -45,7 +46,7 @@ import {
 } from '../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 340);
 
 export interface PastPaperItem {
   id: string;
@@ -87,47 +88,15 @@ const FILTER_DISCS = [
   { id: 'science', label: 'Science', iconType: 'book' }
 ];
 
-function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
-  const fadeAnim = useRef(new Animated.Value(0.35)).current;
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.95,
-          duration: 650,
-          useNativeDriver: Platform.OS !== 'web'
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.35,
-          duration: 650,
-          useNativeDriver: Platform.OS !== 'web'
-        })
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [fadeAnim]);
-
+function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
-    <View style={styles.shimmerContainer}>
-      <View style={styles.shimmerHeaderRow}>
-        <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
-        <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
-      </View>
-      <View style={styles.gridContainer}>
-        {(Array.from({ length: count }, (_, i) => i + 1)).map((idx) => (
-          <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
-            <View style={styles.shimmerThumbnail} />
-            <View style={styles.shimmerBody}>
-              <View style={styles.shimmerBadge} />
-              <View style={styles.shimmerTitleLine} />
-              <View style={styles.shimmerSubLine} />
-            </View>
-          </Animated.View>
-        ))}
-      </View>
-    </View>
+    <SmartMirrorSkeleton
+      carouselTitle="Recommended Past Exams"
+      carouselSubtitle="Matched to your course and academic profile"
+      gridTitle={title || 'loading more resources'}
+      showCarousel={showCarousel}
+      gridCount={count}
+    />
   );
 }
 
@@ -283,10 +252,10 @@ export default function PastPapersScreen({ route }: any) {
 
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
       const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}${searchParam}&refresh=${Date.now()}`);
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=past_paper${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
-          .filter((p) => p.type === 'past_paper' || p.type === 'solution')
+          .filter((p) => p.type === 'past_paper' || p.type === 'solution' || p.type === 'exam')
           .map((p) => {
             const materialId = p.mtid || `P${(p._id || '').substring(0, 4)}`;
             return ({
@@ -1090,6 +1059,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#0f172a',
+    paddingVertical: 0,
+    borderWidth: 0,
+    outlineWidth: 0,
     outlineStyle: 'none'
   } as any,
   discScroll: {
@@ -1169,7 +1141,7 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   carouselThumbnailContainer: {
-    height: 125,
+    height: 132,
     width: '100%',
     position: 'relative'
   },

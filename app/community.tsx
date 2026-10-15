@@ -54,7 +54,7 @@ import {
   TransmitterIcon,
   WifiOffIcon,
 } from '../src/components/Icons';
-import { getSocket } from '../src/services/socket';
+import { getSocket, ensureConnectedSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
 import {
 
@@ -109,6 +109,7 @@ export interface CommunityMessage {
   senderName: string;
   senderFaculty: string;
   senderCourse?: string;
+  senderYear?: string;
   senderPhone?: string;
   senderAvatarUrl?: string;
   senderBadge?: 'blue' | 'red' | 'green';
@@ -196,10 +197,24 @@ const isCampusAIMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusai@moiconnect.app' ||
   message.senderName.toLowerCase() === 'campus ai';
 const isCampusAssistantMessage = (message: CommunityMessage) => isCampusBotMessage(message) || isCampusAIMessage(message);
-const getCommunitySenderSubtitle = (message: CommunityMessage): string =>
-  isCampusAssistantMessage(message)
-    ? 'AI Assistant'
-    : formatStudentSubtitle(undefined, undefined, undefined, message.senderFaculty);
+const isUnsetCommunityValue = (val?: string) => !val || val.trim() === '' || val.trim().toLowerCase() === 'unset';
+
+const getCommunitySenderSubtitle = (
+  message: CommunityMessage,
+  currentUser?: any,
+  currentProfile?: StudentPersonalDetails | null
+): string => {
+  if (isCampusAssistantMessage(message)) {
+    return 'AI Assistant';
+  }
+  if (message.isMe && currentUser) {
+    const course = !isUnsetCommunityValue(currentUser.course) ? currentUser.course : (!isUnsetCommunityValue(currentProfile?.course) ? currentProfile?.course : undefined);
+    const year = !isUnsetCommunityValue(currentUser.yearOfStudy) ? currentUser.yearOfStudy : (!isUnsetCommunityValue(currentProfile?.yearOfStudy) ? currentProfile?.yearOfStudy : undefined);
+    const school = !isUnsetCommunityValue(currentUser.school) ? currentUser.school : (!isUnsetCommunityValue(currentProfile?.school) ? currentProfile?.school : undefined);
+    return formatStudentSubtitle(school, course, year, message.senderFaculty);
+  }
+  return formatStudentSubtitle(undefined, message.senderCourse, message.senderYear, message.senderFaculty);
+};
 
 const STICKER_SOURCES: Record<string, any> = Object.fromEntries(STICKERS.map((sticker) => [sticker.id, sticker.source]));
 
@@ -329,60 +344,83 @@ function formatDeletingText(users: TypingUser[]): string {
   return `${getPresenceFirstName(users[0].userName)} & ${users.length - 1} ${users.length - 1 === 1 ? 'other' : 'others'} are deleting...`;
 }
 
+export function formatYearShort(year?: string): string {
+  if (!year || isUnsetCommunityValue(year)) return '';
+  const yTrim = year.trim();
+  if (/^Y[1-6]$/i.test(yTrim)) return yTrim.toUpperCase();
+  const digitMatch = yTrim.match(/\b([1-6])\b/) || yTrim.match(/(\d+)/);
+  if (digitMatch) return `Y${digitMatch[1]}`;
+  if (/postgrad|master|phd/i.test(yTrim)) return 'PG';
+  return yTrim;
+}
+
 export function formatStudentSubtitle(
   school?: string,
   course?: string,
   yearOfStudy?: string,
   facultyFallback?: string
 ): string {
-  let programStr = course?.trim() || school?.trim() || facultyFallback?.trim() || '';
+  let programStr = !isUnsetCommunityValue(course) ? course!.trim() : '';
+  let yearStr = !isUnsetCommunityValue(yearOfStudy) ? yearOfStudy!.trim() : '';
 
-  let existingYearStr = '';
-  const yearMatchInProg = programStr.match(/\s+Y[1-6]$/i);
-  if (yearMatchInProg) {
-    existingYearStr = yearMatchInProg[0].trim().toUpperCase();
-    programStr = programStr.replace(/\s+Y[1-6]$/i, '').trim();
+  // If course or year missing, try parsing facultyFallback which may already contain combined info
+  if ((!programStr || !yearStr) && facultyFallback && !isUnsetCommunityValue(facultyFallback)) {
+    const fallback = facultyFallback.trim();
+    const lower = fallback.toLowerCase();
+    if (
+      lower !== 'main campus' &&
+      lower !== 'main campus student' &&
+      lower !== 'moi student' &&
+      lower !== 'moi university student' &&
+      lower !== 'school of science & computing' &&
+      lower !== 'moi university' &&
+      lower !== 'unset'
+    ) {
+      // Check for bullet or dot separator e.g. "Computer Science • Y2" or "Computer Science . Y2"
+      const parts = fallback.split(/\s*[•·.]\s*(Y[1-6]|PG)\b/i);
+      if (parts.length >= 2) {
+        if (!programStr) programStr = parts[0].trim();
+        if (!yearStr) yearStr = parts[1].trim();
+      } else {
+        const yearMatch = fallback.match(/\s+(Y[1-6]|PG)$/i);
+        if (yearMatch) {
+          if (!programStr) programStr = fallback.replace(/\s+(Y[1-6]|PG)$/i, '').trim();
+          if (!yearStr) yearStr = yearMatch[1].trim();
+        } else if (!programStr) {
+          programStr = fallback;
+        }
+      }
+    }
   }
 
-  const lower = programStr.toLowerCase();
+  // Clean course prefix if overly verbose (e.g., "BSc. Computer Science" -> "Computer Science")
+  if (programStr) {
+    programStr = programStr
+      .replace(/^(bachelor\s+of\s+(science|arts|education|commerce|business)?(\s+in)?\s*)/i, '')
+      .replace(/^b\.?sc\.?\s*(in\s*)?/i, '')
+      .trim();
+  }
+
   if (
-    !programStr ||
-    lower === 'main campus' ||
-    lower === 'main campus student' ||
-    lower === 'moi student' ||
-    lower === 'moi university student' ||
-    lower === 'school of science & computing' ||
-    lower === 'moi university'
+    isUnsetCommunityValue(programStr) ||
+    programStr.toLowerCase() === 'moi student' ||
+    programStr.toLowerCase() === 'moi university student' ||
+    programStr.toLowerCase() === 'school of science & computing'
   ) {
     programStr = '';
   }
 
-  let yearStr = existingYearStr;
-  if (!yearStr && yearOfStudy) {
-    const yTrim = yearOfStudy.trim();
-    if (/^Y[1-6]$/i.test(yTrim)) {
-      yearStr = yTrim.toUpperCase();
-    } else if (yTrim.toLowerCase().includes('year')) {
-      const match = yTrim.match(/\d+/);
-      if (match) {
-        yearStr = `Y${match[0]}`;
-      }
-    } else if (/^[1-6]$/.test(yTrim)) {
-      yearStr = `Y${yTrim}`;
-    }
+  // If unset then just show default Moi Student
+  if (!programStr) {
+    return 'Moi Student';
   }
 
-  if (programStr && yearStr) {
-    return `${programStr} ${yearStr}`;
-  }
-  if (programStr) {
-    return programStr;
-  }
-  if (yearStr) {
-    return `Moi University Student ${yearStr}`;
+  const shortYear = formatYearShort(yearStr);
+  if (shortYear) {
+    return `${programStr} • ${shortYear}`;
   }
 
-  return 'Moi University Student';
+  return programStr;
 }
 
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [];
@@ -405,8 +443,24 @@ export default function CommunityScreen() {
   const [forumHeaderHeight, setForumHeaderHeight] = useState(0);
   const [hasForumListLayout, setHasForumListLayout] = useState(false);
   const [isForumLayoutReady, setIsForumLayoutReady] = useState(false);
-  const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
   const showForumLoading = isForumLoading || !isForumLayoutReady;
+  const displayMessages = React.useMemo(() => {
+    // Smart Presence Collapse:
+    // Filter out consecutive system presence notices so back-to-back
+    // online/offline oscillations collapse into a single clean presence notice.
+    const collapsed: CommunityMessage[] = [];
+    for (let i = 0; i < messages.length; i++) {
+      const current = messages[i];
+      if (current.isSystemNotice) {
+        const next = messages[i + 1];
+        if (next && next.isSystemNotice) {
+          continue;
+        }
+      }
+      collapsed.push(current);
+    }
+    return collapsed.reverse();
+  }, [messages]);
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -462,10 +516,10 @@ export default function CommunityScreen() {
   }, [isForumLoading, hasForumListLayout]);
 
   useEffect(() => {
-    getStudentPersonalDetails().then((details) => {
+    getStudentPersonalDetails(user?._id).then((details) => {
       if (details) setMyProfile(details);
     });
-  }, []);
+  }, [user?._id]);
 
   // Smart Mention & Reply Tracking State
   const [unreadMentionIds, setUnreadMentionIds] = useState<string[]>([]);
@@ -510,6 +564,9 @@ export default function CommunityScreen() {
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const myDeletingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef<boolean>(false);
+  const prevInputTextLengthRef = useRef<number>(0);
+  const lastTypingHeartbeatRef = useRef<number>(0);
+  const socketInstanceRef = useRef<any>(null);
   const typingDotAnim = useRef(new Animated.Value(0)).current;
 
   const clearTypingIndicators = () => {
@@ -575,19 +632,44 @@ export default function CommunityScreen() {
 
   const addLocalPresenceNotice = (event: 'user_connected' | 'user_disconnected') => {
     const isConnected = event === 'user_connected';
-    const notice: CommunityMessage = {
-      id: `local_presence_${event}_${Date.now()}`,
-      senderName: 'System',
-      senderFaculty: '',
-      avatarBg: '#64748b',
-      text: isConnected ? 'You came online' : 'You went offline',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isoDate: new Date().toISOString(),
-      isMe: false,
-      isSystemNotice: true,
-      eventType: event
-    };
-    setMessages((previous) => [...previous, notice]);
+    const nowTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const nowISO = new Date().toISOString();
+
+    setMessages((previous) => {
+      const lastIdx = previous.length - 1;
+      const lastMsg = lastIdx >= 0 ? previous[lastIdx] : null;
+
+      // Smart Presence Merge: If the last message is already a system presence notice
+      if (lastMsg && lastMsg.isSystemNotice) {
+        if (lastMsg.eventType === event) return previous;
+        const updated = [...previous];
+        updated[lastIdx] = {
+          ...lastMsg,
+          id: `local_presence_${event}`,
+          text: isConnected ? 'You came online' : 'You went offline',
+          timestamp: nowTimestamp,
+          isoDate: nowISO,
+          eventType: event
+        };
+        return updated;
+      }
+
+      return [
+        ...previous,
+        {
+          id: `local_presence_${event}`,
+          senderName: 'System',
+          senderFaculty: '',
+          avatarBg: '#64748b',
+          text: isConnected ? 'You came online' : 'You went offline',
+          timestamp: nowTimestamp,
+          isoDate: nowISO,
+          isMe: false,
+          isSystemNotice: true,
+          eventType: event
+        }
+      ];
+    });
   };
 
   useEffect(() => {
@@ -807,7 +889,8 @@ export default function CommunityScreen() {
       deletedForMeIdsRef.current = new Set(deletedForMeIds);
       setShowDemoMaterials(demoSetting);
       setAllowCommunityChat(allowChat);
-      const rawMsgs = cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []);
+      const rawMsgs = (cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []))
+        .filter((m: any) => !m?.isSystemNotice && !String(m?.id || '').startsWith('local_presence_') && !String(m?.id || '').startsWith('sys_'));
       const msgsToLoad = rawMsgs
         .filter((m) => !deletedForMeIdsRef.current.has(m.id) && !deletedForMeIdsRef.current.has((m as any)._id))
         .filter((m) => demoSetting || !isHardcodedCommunityMessage(m))
@@ -815,6 +898,9 @@ export default function CommunityScreen() {
           ...m,
           isMe: evalIsMe(m.senderId, m.senderEmail, m.senderName, m.clientMsgId)
         }));
+      if (cachedMsgs && cachedMsgs.length !== rawMsgs.length) {
+        void saveCommunityMessages(rawMsgs);
+      }
       const initialMessages = msgsToLoad;
       setMessages(initialMessages);
       const initialCursor = storedCursor || await ensureCommunitySyncCursor();
@@ -833,19 +919,17 @@ export default function CommunityScreen() {
     getSocket().then((socket) => {
       if (socket) {
         activeSocket = socket;
+        socketInstanceRef.current = socket;
         const handleSocketConnect = async () => {
           setSocketOnline(true);
           if (socketPresenceRef.current) addLocalPresenceNotice('user_connected');
           socketPresenceRef.current = true;
           socket.emit('community:request_online_count');
           socket.emit('join_community');
-          setIsForumLoading(true);
           try {
             await fetchDeltaSync();
           } catch (syncErr) {
             console.warn('[Community] Reconnect delta sync error:', syncErr);
-          } finally {
-            if (!cancelled) setIsForumLoading(false);
           }
           retryQueuedMessages();
         };
@@ -864,7 +948,11 @@ export default function CommunityScreen() {
         socket.on('community:online_count', (stats: { totalOnline?: number }) => {
           setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
         });
-        if (socket.connected) handleSocketConnect();
+        if (socket.connected) {
+          handleSocketConnect();
+        } else {
+          socket.connect();
+        }
 
         socket.on('community:receive_message', (serverMsg: any) => {
           const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
@@ -878,6 +966,7 @@ export default function CommunityScreen() {
             senderName: serverMsg.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             senderCourse: serverMsg.senderCourse,
+            senderYear: serverMsg.senderYear,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
             senderBadge: serverMsg.senderBadge,
@@ -925,7 +1014,7 @@ export default function CommunityScreen() {
 
             if (formattedMsg.isMe || (isChatVisible() && isNearBottomRef.current)) {
               markAsRead(formattedMsg.id);
-              if (formattedMsg.isMe) {
+              if (formattedMsg.isMe || isNearBottomRef.current) {
                 scrollToLatestWhenReady(true);
               }
             } else {
@@ -958,13 +1047,8 @@ export default function CommunityScreen() {
         socket.on('community:user_typing', (data: { userId: string; userName: string; avatarUrl?: string; avatarBg?: string; socketId?: string }) => {
           if (!data || !data.userId) return;
 
-          // Never show the current user's own indicator on their device.
-          // This also covers another active session using the same account.
-          const currentUserId = user?._id ? String(user._id) : '';
-          if (currentUserId && String(data.userId) === currentUserId) {
-            setTypingUsers((prev) => prev.filter((u) => u.userId !== String(data.userId)));
-            return;
-          }
+          // Never show the current user's own indicator on this socket instance
+          if (socket?.id && data.socketId && socket.id === data.socketId) return;
 
           setTypingUsers((prev) => {
             const incomingUserId = String(data.userId);
@@ -999,9 +1083,8 @@ export default function CommunityScreen() {
 
         socket.on('community:user_deleting', (data: { userId: string; userName: string; avatarUrl?: string; avatarBg?: string; socketId?: string }) => {
           if (!data || !data.userId) return;
+          if (socket?.id && data.socketId && socket.id === data.socketId) return;
           const incomingUserId = String(data.userId);
-          const currentUserId = user?._id ? String(user._id) : '';
-          if (currentUserId && incomingUserId === currentUserId) return;
 
           setTypingUsers((prev) => prev.filter((u) => u.userId !== incomingUserId));
           setDeletingUsers((prev) => prev.some((u) => u.userId === incomingUserId)
@@ -1067,14 +1150,15 @@ export default function CommunityScreen() {
         });
 
         socket.on('community:system_event', (eventData: any) => {
+          // If this event is for the current user, local presence notice already handled it cleanly
+          if (eventData?.userId && user?._id && String(eventData.userId) === String(user._id)) return;
+
           const sysMsg: CommunityMessage = {
             id: eventData.id || `sys_${Date.now()}`,
             senderName: 'System',
             senderFaculty: '',
             avatarBg: '#64748b',
-            text: eventData.userId && user?._id && String(eventData.userId) === String(user._id)
-              ? (eventData.event === 'user_connected' ? 'You came online' : 'You went offline')
-              : (eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MConnect' : 'went offline'}`),
+            text: eventData.text || `${eventData.userName || 'Student'} ${eventData.event === 'user_connected' ? 'logged into MConnect' : 'went offline'}`,
             timestamp: new Date(eventData.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: eventData.timestamp || new Date().toISOString(),
             isMe: false,
@@ -1083,9 +1167,18 @@ export default function CommunityScreen() {
           };
 
           setMessages((prev) => {
-            if (prev.some((m) => m.id === sysMsg.id)) return prev;
-            const updated = [...prev, sysMsg];
-            return updated;
+            if (prev.length === 0) return [sysMsg];
+            const lastIdx = prev.length - 1;
+            const lastMsg = prev[lastIdx];
+
+            // If the last message is already a system notice with the same text, update in place
+            if (lastMsg.isSystemNotice && lastMsg.text === sysMsg.text) {
+              const updated = [...prev];
+              updated[lastIdx] = { ...sysMsg, id: lastMsg.id };
+              return updated;
+            }
+
+            return [...prev, sysMsg];
           });
         });
 
@@ -1133,6 +1226,7 @@ export default function CommunityScreen() {
         activeSocket.off('connect_error');
         activeSocket.off('disconnect');
       }
+      socketInstanceRef.current = null;
       setSocketOnline(false);
     };
   }, [user]);
@@ -1201,6 +1295,7 @@ export default function CommunityScreen() {
             senderName: serverMsg.senderName || serverMsg._doc?.senderName || 'Moi Student',
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             senderCourse: serverMsg.senderCourse,
+            senderYear: serverMsg.senderYear,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
             senderBadge: serverMsg.senderBadge,
@@ -1295,6 +1390,7 @@ export default function CommunityScreen() {
           senderName: serverMsg.senderName || 'Moi Student',
           senderFaculty: serverMsg.senderFaculty || 'Main Campus',
           senderCourse: serverMsg.senderCourse,
+          senderYear: serverMsg.senderYear,
           senderPhone: serverMsg.senderPhone,
           senderAvatarUrl: serverMsg.senderAvatarUrl,
           senderBadge: serverMsg.senderBadge,
@@ -1516,7 +1612,8 @@ export default function CommunityScreen() {
   };
 
   const handleInputChange = (text: string) => {
-    const wasDeleting = text.length < inputText.length;
+    const wasDeleting = text.length < prevInputTextLengthRef.current;
+    prevInputTextLengthRef.current = text.length;
     setInputText(text);
 
     const activeMention = text.match(/(^|\s)@([^\s@]*)$/);
@@ -1534,85 +1631,56 @@ export default function CommunityScreen() {
       setShowMentionSuggestions(false);
     }
 
-    if (wasDeleting && text.trim().length > 0) {
+    const sock = socketInstanceRef.current;
+    const emitPayload = {
+      userName: user?.name || 'Moi Student',
+      userId: user?._id,
+      avatarUrl: user?.avatarUrl || myProfile?.avatarUri,
+      avatarBg: '#15803d'
+    };
+
+    if (wasDeleting) {
       if (isTypingRef.current) {
         isTypingRef.current = false;
         if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
-        getSocket().then((s) => s?.emit('community:stop_typing', {
-          userName: user?.name || 'Moi Student',
-          userId: user?._id
-        }));
+        sock?.emit('community:stop_typing', emitPayload);
       }
 
-      getSocket().then((s) => s?.emit('community:start_deleting', {
-        userName: user?.name || 'Moi Student',
-        userId: user?._id,
-        avatarUrl: user?.avatarUrl || myProfile?.avatarUri,
-        avatarBg: '#15803d'
-      }));
+      sock?.emit('community:start_deleting', emitPayload);
       if (myDeletingTimeoutRef.current) clearTimeout(myDeletingTimeoutRef.current);
       myDeletingTimeoutRef.current = setTimeout(() => {
-        getSocket().then((s) => s?.emit('community:stop_deleting', {
-          userName: user?.name || 'Moi Student',
-          userId: user?._id
-        }));
+        sock?.emit('community:stop_deleting', emitPayload);
         myDeletingTimeoutRef.current = null;
-      }, 2500);
+      }, text.trim().length === 0 ? 1500 : 2500);
     } else if (text.trim().length > 0) {
       if (myDeletingTimeoutRef.current) {
         clearTimeout(myDeletingTimeoutRef.current);
         myDeletingTimeoutRef.current = null;
-        getSocket().then((s) => s?.emit('community:stop_deleting', {
-          userName: user?.name || 'Moi Student',
-          userId: user?._id
-        }));
+        sock?.emit('community:stop_deleting', emitPayload);
       }
-      if (!isTypingRef.current) {
+
+      const now = Date.now();
+      if (!isTypingRef.current || now - lastTypingHeartbeatRef.current > 1800) {
         isTypingRef.current = true;
-        getSocket().then((s) => {
-          if (s) {
-            s.emit('community:start_typing', {
-              userName: user?.name || 'Moi Student',
-              userId: user?._id,
-              avatarUrl: user?.avatarUrl || myProfile?.avatarUri,
-              avatarBg: '#15803d'
-            });
-          }
-        });
+        lastTypingHeartbeatRef.current = now;
+        sock?.emit('community:start_typing', emitPayload);
       }
 
       if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
       myTypingTimeoutRef.current = setTimeout(() => {
         isTypingRef.current = false;
-        getSocket().then((s) => {
-          if (s) {
-            s.emit('community:stop_typing', {
-              userName: user?.name || 'Moi Student',
-              userId: user?._id
-            });
-          }
-        });
+        sock?.emit('community:stop_typing', emitPayload);
       }, 2500);
     } else {
       if (myDeletingTimeoutRef.current) {
         clearTimeout(myDeletingTimeoutRef.current);
         myDeletingTimeoutRef.current = null;
       }
-      getSocket().then((s) => s?.emit('community:stop_deleting', {
-        userName: user?.name || 'Moi Student',
-        userId: user?._id
-      }));
+      sock?.emit('community:stop_deleting', emitPayload);
       if (isTypingRef.current) {
         isTypingRef.current = false;
         if (myTypingTimeoutRef.current) clearTimeout(myTypingTimeoutRef.current);
-        getSocket().then((s) => {
-          if (s) {
-            s.emit('community:stop_typing', {
-              userName: user?.name || 'Moi Student',
-              userId: user?._id
-            });
-          }
-        });
+        sock?.emit('community:stop_typing', emitPayload);
       }
     }
   };
@@ -1633,7 +1701,7 @@ export default function CommunityScreen() {
     if (retryingMessageIdsRef.current.has(clientMsgId)) return;
     retryingMessageIdsRef.current.add(clientMsgId);
     try {
-      const socket = await getSocket();
+      const socket = await ensureConnectedSocket(2000);
       if (socket?.connected) {
         // Mark delivery as sent immediately so retry timer doesn't duplicate
         updateMessageDelivery(clientMsgId, 'delivered');
@@ -1794,10 +1862,14 @@ export default function CommunityScreen() {
     const tempId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     tempSentIdsRef.current.add(tempId);
 
+    const effectiveCourse = !isUnsetCommunityValue(user?.course) ? user?.course : (!isUnsetCommunityValue(myProfile?.course) ? myProfile?.course : undefined);
+    const effectiveYear = !isUnsetCommunityValue(user?.yearOfStudy) ? user?.yearOfStudy : (!isUnsetCommunityValue(myProfile?.yearOfStudy) ? myProfile?.yearOfStudy : undefined);
+    const effectiveSchool = !isUnsetCommunityValue(user?.school) ? user?.school : (!isUnsetCommunityValue(myProfile?.school) ? myProfile?.school : undefined);
+
     const facultySubtitle = formatStudentSubtitle(
-      myProfile?.school,
-      myProfile?.course,
-      myProfile?.yearOfStudy,
+      effectiveSchool,
+      effectiveCourse,
+      effectiveYear,
       (user as any)?.department
     );
 
@@ -1811,8 +1883,9 @@ export default function CommunityScreen() {
       replyTo: replyToData,
       senderName: user ? user.name : 'Moi Student',
       senderFaculty: facultySubtitle,
-      senderCourse: myProfile?.course,
-      senderPhone: myProfile?.phone || user?.phone,
+      senderCourse: effectiveCourse,
+      senderYear: effectiveYear,
+      senderPhone: user?.phone || myProfile?.phone,
       senderAvatarUrl: user?.avatarUrl || myProfile?.avatarUri,
       senderBadge: user?.badge,
       waitForBot: isBotMentioned,
@@ -1829,6 +1902,7 @@ export default function CommunityScreen() {
       senderName: payload.senderName,
       senderFaculty: payload.senderFaculty,
       senderCourse: payload.senderCourse,
+      senderYear: payload.senderYear,
       senderPhone: payload.senderPhone,
       senderAvatarUrl: payload.senderAvatarUrl,
       senderBadge: payload.senderBadge,
@@ -1853,6 +1927,7 @@ export default function CommunityScreen() {
     });
 
     setInputText('');
+    prevInputTextLengthRef.current = 0;
     setPendingUploadItem(null);
     setUploadFailed(false);
     setSendPendingAfterUpload(false);
@@ -2569,7 +2644,7 @@ export default function CommunityScreen() {
                                     <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
                                     <UserBadge badge={item.senderBadge} size={11} />
                                   </View>
-                                  <Text style={styles.senderFaculty}>{getCommunitySenderSubtitle(item)}</Text>
+                                  <Text style={styles.senderFaculty}>{getCommunitySenderSubtitle(item, user, myProfile)}</Text>
                                 </View>
                               )}
 
@@ -3179,8 +3254,9 @@ export default function CommunityScreen() {
                   </View>
                   <Text style={styles.profileModalRole}>MConnect community member</Text>
                   <View style={styles.profileInfoList}>
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Faculty</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderFaculty || 'Not provided'}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Academic</Text><Text style={styles.profileInfoValue}>{getCommunitySenderSubtitle(selectedProfile, user, myProfile)}</Text></View>
                     <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Course</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderCourse || 'Not provided'}</Text></View>
+                    {selectedProfile.senderYear ? <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Year</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderYear}</Text></View> : null}
                     <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Phone</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderPhone || 'Not provided'}</Text></View>
                   </View>
                 </>

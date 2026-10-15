@@ -3,12 +3,15 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 import { apiRequest } from './api';
+import { showIceMessage } from '../components/IceMessageCard';
 
 // Configure foreground push notification presentation handler
 Notifications.setNotificationHandler({
   handleNotification: async () => {
     return {
       shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
     };
@@ -250,22 +253,47 @@ async function registerPushToken() {
 }
 
 export async function notifyLoginSuccess(userName: string) {
-  if (Platform.OS !== 'android') {
+  const title = 'Login successful 🎉';
+  const body = `You've logged in successfully, ${userName}. Explore PDFs and community chat.`;
+
+  // 1. In-app visual notification (always visible, even if system push is blocked or disabled)
+  try {
+    showIceMessage(title, `Welcome back, ${userName}! Explore past papers, notes, and community chat.`);
+  } catch (err) {
+    console.warn('[Notifications]: Could not show in-app login alert:', err);
+  }
+
+  // 2. Web browser push notification (Web / Localhost)
+  if (Platform.OS === 'web') {
+    try {
+      sendWebBrowserNotification(title, body);
+    } catch (err) {
+      console.warn('[Notifications]: Could not show web browser notification:', err);
+    }
     return;
   }
 
+  // 3. Android & iOS native push notification (Heads-up system banner)
   try {
-    await configureAndroidChannels();
-    if (!await ensureNotificationPermission()) return;
+    if (Platform.OS === 'android') {
+      await configureAndroidChannels();
+    }
+    const hasPermission = await ensureNotificationPermission();
+    if (!hasPermission) {
+      console.log('[Notifications]: Notification permission not granted, in-app notification shown instead.');
+      return;
+    }
 
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Login successful 🎉',
-        body: `You've logged in successfully, ${userName}. Explore PDFs and community chat.`,
+        title,
+        body,
         sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        ...(Platform.OS === 'android' ? { channelId: LOGIN_NOTIFICATION_CHANNEL_ID } : {}),
         data: { screen: 'home', channelId: LOGIN_NOTIFICATION_CHANNEL_ID }
       },
-      trigger: { seconds: 1, channelId: LOGIN_NOTIFICATION_CHANNEL_ID }
+      trigger: null
     });
     console.log('[Notifications]: Login success notification scheduled:', notificationId);
   } catch (error) {

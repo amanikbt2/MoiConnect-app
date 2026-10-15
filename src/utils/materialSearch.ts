@@ -317,63 +317,212 @@ export function smartSearchMaterials<T extends MaterialSearchFields>(
 }
 
 /** Rank every material for a student profile, keeping unmatched materials as a useful fallback. */
+// Known mappings between Moi University course keywords and unit code prefixes.
+const MOI_COURSE_PREFIX_MAP: Array<{ keywords: string[]; prefixes: string[] }> = [
+  {
+    keywords: ['computer', 'computing', 'software', 'informatics', 'csc'],
+    prefixes: ['CSC', 'COM', 'INF', 'INS']
+  },
+  {
+    keywords: ['information sciences', 'information science', 'it', 'informatics', 'media', 'publishing', 'sis'],
+    prefixes: ['INS', 'INF', 'COM', 'LIS', 'PUB']
+  },
+  {
+    keywords: ['electrical', 'electronics', 'telecommunication', 'telecom', 'ece'],
+    prefixes: ['ECE', 'TEL', 'EEE', 'ENG']
+  },
+  {
+    keywords: ['mechanical', 'production', 'civil', 'mechatronics', 'engineering'],
+    prefixes: ['MEC', 'CIV', 'ENG']
+  },
+  {
+    keywords: ['mathematics', 'maths', 'statistics', 'actuarial', 'math'],
+    prefixes: ['MAT', 'STA', 'ACS']
+  },
+  {
+    keywords: ['chemistry', 'biochemistry', 'analytical chemistry'],
+    prefixes: ['CHE', 'BCH']
+  },
+  {
+    keywords: ['physics', 'renewable energy'],
+    prefixes: ['PHY', 'REN']
+  },
+  {
+    keywords: ['education', 'teaching', 'pedagogy', 'curriculum'],
+    prefixes: ['EDE', 'EDF', 'EDK', 'EDC', 'CIM', 'PSY']
+  },
+  {
+    keywords: ['business', 'commerce', 'accounting', 'finance', 'management', 'economics', 'marketing', 'hr'],
+    prefixes: ['BBM', 'ECO', 'ACC', 'FIN', 'HRM', 'MKT']
+  },
+  {
+    keywords: ['law', 'legal', 'sol'],
+    prefixes: ['LAW', 'BLL']
+  },
+  {
+    keywords: ['medicine', 'surgery', 'mbchb', 'medical', 'som'],
+    prefixes: ['MED', 'SUR', 'ANA', 'PAT']
+  },
+  {
+    keywords: ['nursing', 'son'],
+    prefixes: ['NUR']
+  },
+  {
+    keywords: ['public health', 'sph', 'environmental health'],
+    prefixes: ['SPH', 'EHS']
+  },
+  {
+    keywords: ['kiswahili', 'swahili'],
+    prefixes: ['KIS', 'BKS']
+  },
+  {
+    keywords: ['literature', 'french', 'linguistics', 'languages', 'film'],
+    prefixes: ['LIT', 'FRE', 'LIN', 'BLL', 'FMS']
+  },
+  {
+    keywords: ['anthropology', 'sociology', 'social work', 'community development'],
+    prefixes: ['ANT', 'SOC', 'SWK', 'CMD']
+  }
+];
+
+/** Extract all relevant course prefixes and keywords from user's course string. */
+function extractUserCoursePrefixes(rawCourse?: string): { prefixes: string[]; meaningfulWords: string[] } {
+  const norm = normalize(rawCourse);
+  if (!norm || norm === 'unset') return { prefixes: [], meaningfulWords: [] };
+
+  const prefixes = new Set<string>();
+
+  // 1. Direct 2-4 uppercase letter prefixes if present (e.g. "CSC", "ECE", "BBM")
+  const directCodeMatches = String(rawCourse || '').match(/\b([A-Z]{2,4})\b/g);
+  if (directCodeMatches) {
+    directCodeMatches.forEach((code) => prefixes.add(code.toUpperCase()));
+  }
+
+  // 2. Keyword-based matching from master map
+  for (const entry of MOI_COURSE_PREFIX_MAP) {
+    if (entry.keywords.some((kw) => norm.includes(kw))) {
+      entry.prefixes.forEach((p) => prefixes.add(p));
+    }
+  }
+
+  // 3. Meaningful words for text matching
+  const stopWords = new Set(['bsc', 'bachelor', 'of', 'in', 'and', 'degree', 'studies', 'unset', 'moi', 'university', 'science']);
+  const meaningfulWords = norm
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+
+  return { prefixes: Array.from(prefixes), meaningfulWords };
+}
+
+/**
+ * Smart Multi-Tiered Profile Recommendation Algorithm:
+ * 1. Course Code / Course Unit Match (Priority #1 - 100% Top Matches, with Year level on top)
+ * 2. School / Faculty Match (Priority #2)
+ * 3. Search History / Active Revision Match (Priority #3)
+ * 4. General Popular Campus Materials (Priority #4)
+ * Strict descending waterfall (no random shuffling).
+ */
 export function rankMaterialsForProfile<T extends MaterialSearchFields>(
   items: T[],
   profile?: { school?: string; course?: string; yearOfStudy?: string } | null,
   searchHistory: Array<string | MaterialSearchHistoryEntry> = []
 ): T[] {
-  const school = normalize(profile?.school);
-  const courseTokens = normalize(profile?.course).split(/\s+/).filter((token) => token && token !== 'unset');
-  const yearTokens = normalize(profile?.yearOfStudy).match(/\d+/g) || [];
+  const userSchool = profile?.school && profile.school !== 'Unset' ? normalizeSchoolName(profile.school) : '';
+  const { prefixes: targetPrefixes, meaningfulWords: courseWords } = extractUserCoursePrefixes(profile?.course);
+  const userYearMatch = String(profile?.yearOfStudy || '').match(/[1-6]/);
+  const userYearDigit = userYearMatch ? userYearMatch[0] : null;
 
   return items
     .map((item, index) => {
-      const itemSchool = normalize(item.school || item.department);
-      const itemCourseText = [item.courseCode, item.unitCode, item.unitName, item.department, item.title]
+      const itemCode = normalize(item.unitCode || item.courseCode || (item as any).code);
+      const itemCodeDense = itemCode.replace(/[^a-z0-9]/g, '').toUpperCase();
+      const itemPrefix = itemCode.replace(/[^a-z]/g, '').toUpperCase();
+      const itemYearDigitMatch = itemCode.match(/\d/);
+      const itemYearDigit = itemYearDigitMatch ? itemYearDigitMatch[0] : null;
+      const itemSchool = normalizeSchoolName(item.school || item.department);
+      const itemTitleNorm = normalize(item.title);
+      const itemUnitNameNorm = normalize(item.unitName);
+      const itemFullText = [item.title, item.unitCode, item.unitName, item.department, item.courseCode, (item as any).code]
         .map(normalize)
         .join(' ');
-      const itemYearText = [item.academicYear, item.examYear].map(normalize).join(' ');
-      let score = 1000;
+
+      let tierScore = 900;
+      let matchLabel = '✨ Recommended';
       let matched = 0;
 
-      if (school && school !== 'unset' && itemSchool && (itemSchool === school || itemSchool.includes(school) || school.includes(itemSchool))) {
-        score -= 450;
-        matched++;
+      // --- TIER 1: COURSE MATCH (HIGHEST PRIORITY) ---
+      const hasPrefixMatch = targetPrefixes.length > 0 && targetPrefixes.some((p) => itemPrefix === p || itemCodeDense.startsWith(p));
+      const hasCourseWordMatch = courseWords.length > 0 && courseWords.every((w) => itemFullText.includes(w));
+      const hasPartialCourseWordMatch = courseWords.length > 0 && courseWords.some((w) => itemTitleNorm.includes(w) || itemUnitNameNorm.includes(w));
+
+      if (hasPrefixMatch && userYearDigit && itemYearDigit === userYearDigit) {
+        // TIER 1A: 100% Perfect Match - Course Code AND Year of Study match
+        tierScore = 10;
+        matchLabel = `🎯 100% Match • Yr ${userYearDigit}`;
+        matched = 4;
+      } else if (hasPrefixMatch) {
+        // TIER 1B: Course Code Match (Other years of the same course)
+        tierScore = 50;
+        matchLabel = '📚 Course Unit';
+        matched = 3;
+      } else if (hasCourseWordMatch) {
+        // TIER 1C: All course title words match item
+        tierScore = 80;
+        matchLabel = '📚 Course Match';
+        matched = 3;
+      } else if (hasPartialCourseWordMatch) {
+        // TIER 1D: Partial course title word match
+        tierScore = 120;
+        matchLabel = '📚 Course Related';
+        matched = 2;
       }
-      if (courseTokens.length > 0 && courseTokens.every((token) => itemCourseText.includes(token))) {
-        score -= 420;
-        matched++;
-      } else if (courseTokens.some((token) => itemCourseText.includes(token))) {
-        score -= 180;
-        matched++;
-      }
-      if (yearTokens.length > 0 && yearTokens.some((token) => itemYearText.includes(token))) {
-        score -= 160;
-        matched++;
+      // --- TIER 2: SCHOOL / FACULTY MATCH ---
+      else if (userSchool && itemSchool && (itemSchool === userSchool || itemSchool.includes(userSchool) || userSchool.includes(itemSchool))) {
+        tierScore = 250;
+        matchLabel = '🏫 Faculty Match';
+        matched = 2;
       }
 
-      const historyMatch = searchHistory
-        .map((entry, historyIndex) => {
-          const context = typeof entry === 'string' ? { query: entry } : entry;
-          const historyText = [context.query, context.school, context.course, context.yearOfStudy]
-            .map(normalize)
-            .filter(Boolean)
-            .join(' ');
-          const tokens = historyText.split(/\s+/).filter((token) => token.length > 1 && token !== 'unset');
-          const matchedTokens = tokens.filter((token) => itemCourseText.includes(token) || itemSchool.includes(token) || itemYearText.includes(token));
-          return { historyIndex, matchRatio: tokens.length ? matchedTokens.length / tokens.length : 0, matchedTokens: matchedTokens.length };
-        })
-        .filter((match) => match.matchedTokens > 0)
-        .sort((a, b) => b.matchRatio - a.matchRatio || a.historyIndex - b.historyIndex)[0];
-      if (historyMatch) {
-        score -= Math.round(80 * historyMatch.matchRatio) + Math.max(20, 80 - historyMatch.historyIndex * 5);
-        matched++;
+      // --- TIER 3: SEARCH HISTORY MATCH ---
+      if (searchHistory.length > 0) {
+        const historyHits = searchHistory.filter((entry) => {
+          const qText = normalize(typeof entry === 'string' ? entry : entry.query);
+          return qText.length > 2 && (itemFullText.includes(qText) || qText.includes(itemCode));
+        });
+        if (historyHits.length > 0) {
+          if (tierScore > 350) {
+            tierScore = 350;
+            matchLabel = '🔍 From Search';
+          }
+          matched += 1;
+        }
+      }
+
+      // --- TIER 4: GENERAL CAMPUS POPULAR ---
+      if (tierScore >= 900) {
+        matchLabel = (item as any).mtid ? `MTID: ${(item as any).mtid}` : '🔥 Campus Popular';
       }
 
       const downloads = Number((item as any).downloads || (item as any).downloadsCount || 0);
-      return { item, index, score, matched, downloads };
+      const rating = Number((item as any).ratingScore || (item as any).rating || 4.5);
+
+      // Clone item with dynamically assigned recommendation tag
+      const enrichedItem = {
+        ...item,
+        recommendationTag: matchLabel
+      };
+
+      return {
+        item: enrichedItem,
+        index,
+        tierScore,
+        matched,
+        downloads,
+        rating
+      };
     })
-    .sort((a, b) => b.matched - a.matched || a.score - b.score || b.downloads - a.downloads || a.index - b.index)
+    // Strict Downwards Waterfall: Tier Score FIRST -> Downloads SECOND -> Rating THIRD
+    .sort((a, b) => a.tierScore - b.tierScore || b.downloads - a.downloads || b.rating - a.rating || a.index - b.index)
     .map(({ item }) => item);
 }
 

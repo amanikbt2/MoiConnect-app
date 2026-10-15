@@ -26,7 +26,15 @@ export function UniversitySetupModal() {
           <Text style={styles.title}>Choose your university</Text>
           <Text style={styles.subtitle}>Select your campus community to personalize MConnect.</Text>
           <View style={styles.requiredPill}><Text style={styles.requiredText}>Required on first setup</Text></View>
-          <TextInput value={query} onChangeText={setQuery} placeholder="Search university..." placeholderTextColor="#94a3b8" style={styles.search} autoCapitalize="words" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search university..."
+            placeholderTextColor="#94a3b8"
+            style={styles.search}
+            autoCapitalize="words"
+            underlineColorAndroid="transparent"
+          />
           <FlatList
             data={filtered}
             keyExtractor={(item) => item.name}
@@ -67,7 +75,19 @@ const styles = StyleSheet.create({
   subtitle: { color: '#64748b', fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 6 },
   requiredPill: { alignSelf: 'center', backgroundColor: '#ecfdf5', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginTop: 12 },
   requiredText: { color: '#047857', fontSize: 11, fontWeight: '800' },
-  search: { height: 46, width: '100%', alignSelf: 'stretch', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, paddingHorizontal: 14, color: '#0f172a', fontSize: 14, marginTop: 16, backgroundColor: '#f8fafc' },
+  search: {
+    height: 46,
+    width: '100%',
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    color: '#0f172a',
+    fontSize: 14,
+    marginTop: 16,
+    backgroundColor: '#f8fafc'
+  },
   list: { marginTop: 10 },
   option: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', gap: 10 },
   optionIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' },

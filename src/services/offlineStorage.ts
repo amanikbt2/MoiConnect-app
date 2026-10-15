@@ -660,6 +660,7 @@ export const clearMaterialSearchHistory = async (): Promise<void> => {
 };
 
 export interface StudentPersonalDetails {
+  userId?: string;
   admissionNumber?: string;
   school: string;
   course: string;
@@ -673,9 +674,26 @@ export const saveStudentPersonalDetails = async (details: StudentPersonalDetails
   await setItem(STUDENT_PROFILE_KEY, JSON.stringify(details));
 };
 
-export const getStudentPersonalDetails = async (): Promise<StudentPersonalDetails | null> => {
+export const getStudentPersonalDetails = async (userId?: string): Promise<StudentPersonalDetails | null> => {
   const existingStr = await getItem(STUDENT_PROFILE_KEY);
-  return existingStr ? JSON.parse(existingStr) : null;
+  if (!existingStr) return null;
+  try {
+    const parsed = JSON.parse(existingStr);
+    if (userId && parsed?.userId && parsed.userId !== userId) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const clearStudentPersonalDetails = async (): Promise<void> => {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem(STUDENT_PROFILE_KEY);
+    return;
+  }
+  await SecureStore.deleteItemAsync(STUDENT_PROFILE_KEY).catch(() => {});
 };
 
 export const personalizeLectureText = async (template: string): Promise<string> => {
@@ -741,7 +759,10 @@ export const getStoredCommunityMessages = async (): Promise<any[]> => {
         : await getItem(COMMUNITY_MESSAGES_KEY);
     if (!existingStr) return [];
     const parsed = JSON.parse(existingStr);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (m: any) => !m?.isSystemNotice && !String(m?.id || '').startsWith('local_presence_') && !String(m?.id || '').startsWith('sys_')
+    );
   } catch {
     return [];
   }
@@ -759,12 +780,16 @@ export const saveCommunityMessages = async (messages: any[]) => {
         : undefined
     };
   };
+  // Do not persist ephemeral system presence notices ("You came online", "You went offline")
+  const nonSystemMessages = (Array.isArray(messages) ? messages : []).filter(
+    (m) => !m?.isSystemNotice && !String(m?.id || '').startsWith('local_presence_') && !String(m?.id || '').startsWith('sys_')
+  );
   // Keep one canonical copy of every message. Socket delivery, delta sync, and
   // the offline queue can all briefly contain the same message under different
   // ids, which otherwise makes the unread badge grow inaccurately.
   const compacted = Array.from(
     new Map(
-      messages.map((message) => {
+      nonSystemMessages.map((message) => {
         const normalized = compact(message);
         const key = normalized.clientMsgId || normalized.id || normalized._id || `${normalized.senderEmail || ''}:${normalized.isoDate || ''}:${normalized.text || ''}`;
         return [String(key), normalized] as const;
@@ -1034,6 +1059,7 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
           senderName: serverMsg.senderName || 'Moi Student',
           senderFaculty: serverMsg.senderFaculty || 'Main Campus',
           senderCourse: serverMsg.senderCourse,
+          senderYear: serverMsg.senderYear,
           senderPhone: serverMsg.senderPhone,
           senderAvatarUrl: serverMsg.senderAvatarUrl,
           avatarBg: serverMsg.avatarBg || '#15803d',
@@ -1164,4 +1190,174 @@ export const saveDeletedForMeMessageId = async (id: string): Promise<void> => {
       await setItem(DELETED_FOR_ME_KEY, JSON.stringify(existing));
     }
   } catch {}
+};
+
+// ─── Total Data Wipe Functions for Account Deletion ─────────────────────────
+
+export const clearCommunityMessagesCache = async (): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(COMMUNITY_MESSAGES_KEY);
+        window.localStorage.removeItem(LAST_READ_COMMUNITY_KEY);
+        window.localStorage.removeItem(COMMUNITY_SYNC_CURSOR_KEY);
+        window.localStorage.removeItem(COMMUNITY_REACTOR_ID_KEY);
+        window.localStorage.removeItem(READ_COMMUNITY_MENTIONS_KEY);
+        window.localStorage.removeItem(DELETED_FOR_ME_KEY);
+        window.localStorage.removeItem('moi_community_mention_directory_v1');
+      }
+    } else {
+      if (COMMUNITY_MESSAGES_FILE) {
+        await FileSystem.deleteAsync(COMMUNITY_MESSAGES_FILE, { idempotent: true }).catch(() => undefined);
+      }
+      await SecureStore.deleteItemAsync(COMMUNITY_MESSAGES_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(LAST_READ_COMMUNITY_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(COMMUNITY_SYNC_CURSOR_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(COMMUNITY_REACTOR_ID_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(READ_COMMUNITY_MENTIONS_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(DELETED_FOR_ME_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync('moi_community_mention_directory_v1').catch(() => undefined);
+    }
+    await notifyUnreadCountListeners().catch(() => undefined);
+  } catch (_) {}
+};
+
+export const clearAllOfflinePapers = async (): Promise<void> => {
+  try {
+    // Cancel and purge active download tasks
+    Object.values(activeDownloadTasks).forEach((task) => {
+      task.cancelAsync().catch(() => undefined);
+    });
+    for (const key of Object.keys(activeDownloadTasks)) {
+      delete activeDownloadTasks[key];
+    }
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(OFFLINE_PAPERS_KEY);
+        window.localStorage.removeItem(UNREAD_DOWNLOAD_BADGE_KEY);
+      }
+      if (typeof indexedDB !== 'undefined' && indexedDB.deleteDatabase) {
+        try {
+          indexedDB.deleteDatabase(OFFLINE_PDF_DB);
+        } catch (_) {}
+      }
+    } else {
+      const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
+      await FileSystem.deleteAsync(privateDirectory, { idempotent: true }).catch(() => undefined);
+      await SecureStore.deleteItemAsync(OFFLINE_PAPERS_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(UNREAD_DOWNLOAD_BADGE_KEY).catch(() => undefined);
+    }
+
+    await notifyDownloadListeners().catch(() => undefined);
+    await notifyDownloadBadgeListeners().catch(() => undefined);
+  } catch (_) {}
+};
+
+export const clearAllChatAndRentalsCache = async (): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(CHAT_MESSAGES_KEY);
+        window.localStorage.removeItem(OFFLINE_MSG_QUEUE_KEY);
+        window.localStorage.removeItem(CACHED_HOUSES_KEY);
+        window.localStorage.removeItem(OFFLINE_BOOKING_QUEUE_KEY);
+        window.localStorage.removeItem('moi_cached_rentals_list');
+      }
+    } else {
+      await SecureStore.deleteItemAsync(CHAT_MESSAGES_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(OFFLINE_MSG_QUEUE_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(CACHED_HOUSES_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(OFFLINE_BOOKING_QUEUE_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync('moi_cached_rentals_list').catch(() => undefined);
+    }
+  } catch (_) {}
+};
+
+/**
+ * Permanently wipes ALL locally stored application data across the client:
+ * - Community messages cache and unread cursors
+ * - 1-on-1 chat caches and offline message queues
+ * - Downloaded past papers, notes, CATs, and IndexedDB/FileSystem PDF blobs
+ * - Saved search history and personal profile details
+ * - House caches and offline booking queues
+ * - Push notification badges and dismissed popups
+ * - All Web LocalStorage / SessionStorage / IndexedDB databases
+ * - All Native SecureStore credentials and offline storage folders
+ *
+ * Leaves the app completely pristine, like a fresh install.
+ */
+export const wipeAllAppData = async (): Promise<void> => {
+  try {
+    // 1. Wipe offline papers & physical file blobs
+    await clearAllOfflinePapers().catch(() => undefined);
+
+    // 2. Wipe community chat messages & cursors
+    await clearCommunityMessagesCache().catch(() => undefined);
+
+    // 3. Wipe 1-on-1 chats & rental queues
+    await clearAllChatAndRentalsCache().catch(() => undefined);
+
+    // 4. Wipe material search history
+    await clearMaterialSearchHistory().catch(() => undefined);
+
+    // 5. Wipe student profile details
+    await clearStudentPersonalDetails().catch(() => undefined);
+
+    // 6. Native SecureStore complete purge
+    if (Platform.OS !== 'web') {
+      const ALL_SECURE_KEYS = [
+        'moi_access_token',
+        'moi_refresh_token',
+        'moi_user_profile',
+        'moi_student_profile_details',
+        'moi_cached_chat_messages',
+        'moi_cached_house_details',
+        'moi_cached_rentals_list',
+        'moi_offline_papers',
+        'moi_offline_msg_queue',
+        'moi_offline_booking_queue',
+        'moi_unread_download_badge',
+        'moi_material_search_history',
+        'moi_community_messages_cache',
+        'moi_community_last_read_id',
+        'moi_community_sync_cursor',
+        'moi_community_reactor_id',
+        'moi_community_read_mention_ids',
+        'moi_community_deleted_for_me_ids',
+        'moi_community_mention_directory_v1',
+        'moi_read_notification_ids',
+        'moi_dismissed_popup_ids',
+        'moi_dark_theme_enabled',
+        'moi_tts_preferences',
+        'moiconnect_selected_university_v1',
+        'mconnect_push_installation_id',
+        'google_oauth_client_id_config'
+      ];
+      for (const key of ALL_SECURE_KEYS) {
+        await SecureStore.deleteItemAsync(key).catch(() => undefined);
+      }
+    }
+
+    // 7. Web / Localhost complete storage & database purge
+    if (typeof window !== 'undefined') {
+      try {
+        if (window.localStorage) {
+          window.localStorage.clear();
+        }
+      } catch (_) {}
+      try {
+        if (window.sessionStorage) {
+          window.sessionStorage.clear();
+        }
+      } catch (_) {}
+      try {
+        if (typeof indexedDB !== 'undefined' && indexedDB.deleteDatabase) {
+          indexedDB.deleteDatabase(OFFLINE_PDF_DB);
+        }
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.warn('[wipeAllAppData] Error during data purge:', err);
+  }
 };

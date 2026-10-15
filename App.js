@@ -44,6 +44,7 @@ import { TouchableOpacity } from 'react-native';
 import { useAuth } from './src/context/AuthContext';
 import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon, ArrowLeftIcon } from './src/components/Icons';
 import { InAppPopupModal } from './src/components/InAppPopupModal';
+import { IceMessageHost } from './src/components/IceMessageCard';
 import { checkAppPopups } from './src/services/popupService';
 import { setupNotificationResponseListener } from './src/services/notificationService';
 import { apiRequest } from './src/services/api';
@@ -329,17 +330,17 @@ function HeaderPointsBadge() {
             {/* Progress Section Container */}
             <View style={{ width: '100%', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 16 }}>
               <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600', marginBottom: 16 }}>
-                {userPoints >= 1000
+                {userPoints >= 3000
                   ? '🎉 Max level reached!'
-                  : userPoints >= 100
-                  ? 'Reach 1000+ pts to unlock Ksh 2,500'
-                  : userPoints >= 10
-                  ? 'Reach 100+ pts to unlock Ksh 450'
-                  : userPoints >= 8
-                  ? 'Reach 10+ pts to unlock Ksh 1'
-                  : userPoints >= 6
-                  ? 'Reach 8+ pts to unlock Ksh 1'
-                  : 'Reach 6+ pts to unlock Ksh 5'}
+                  : userPoints >= 1500
+                  ? 'Reach 3k+ pts to unlock Ksh 50'
+                  : userPoints >= 500
+                  ? 'Reach 1.5k+ pts to unlock Ksh 25'
+                  : userPoints >= 120
+                  ? 'Reach 500+ pts to unlock Ksh 20'
+                  : userPoints >= 50
+                  ? 'Reach 120+ pts to unlock Ksh 8'
+                  : 'Reach 50+ pts to unlock Ksh 5'}
               </Text>
 
               {/* Progress Line Component */}
@@ -352,16 +353,16 @@ function HeaderPointsBadge() {
                       backgroundColor: '#16a34a',
                       borderRadius: 2,
                       width: `${
-                        userPoints >= 1000
+                        userPoints >= 3000
                           ? 100
-                          : userPoints >= 100
-                          ? 75 + Math.min(25, ((userPoints - 100) / 900) * 25)
-                          : userPoints >= 10
-                          ? 50 + Math.min(25, ((userPoints - 10) / 90) * 25)
-                          : userPoints >= 8
-                          ? 25 + Math.min(25, ((userPoints - 8) / 2) * 25)
-                          : userPoints >= 6
-                          ? Math.min(25, ((userPoints - 6) / 2) * 25)
+                          : userPoints >= 1500
+                          ? 75 + Math.min(25, ((userPoints - 1500) / 1500) * 25)
+                          : userPoints >= 500
+                          ? 50 + Math.min(25, ((userPoints - 500) / 1000) * 25)
+                          : userPoints >= 120
+                          ? 25 + Math.min(25, ((userPoints - 120) / 380) * 25)
+                          : userPoints >= 50
+                          ? Math.min(25, ((userPoints - 50) / 70) * 25)
                           : 0
                       }%`
                     }}
@@ -371,11 +372,11 @@ function HeaderPointsBadge() {
                 {/* Nodes Row */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   {[
-                    { pts: 6, label: '6+ pts', reward: 'Ksh 5' },
-                    { pts: 8, label: '8+ pts', reward: 'Ksh 1' },
-                    { pts: 10, label: '10+ pts', reward: 'Ksh 1' },
-                    { pts: 100, label: '100+ pts', reward: 'Ksh 450' },
-                    { pts: 1000, label: '1000+ pts', reward: 'Ksh 2.5k' }
+                    { pts: 50, label: '50+ pts', reward: 'Ksh 5' },
+                    { pts: 120, label: '120+ pts', reward: 'Ksh 8' },
+                    { pts: 500, label: '500+ pts', reward: 'Ksh 20' },
+                    { pts: 1500, label: '1.5k+ pts', reward: 'Ksh 25' },
+                    { pts: 3000, label: '3k+ pts', reward: 'Ksh 50' }
                   ].map((m) => {
                     const isReached = userPoints >= m.pts;
                     return (
@@ -758,6 +759,7 @@ export default function App() {
             <AuthProvider>
               <ThemeProvider>
               <StatusBar style="light" backgroundColor="#15803d" />
+              <IceMessageHost />
               <NavigationContainer
                 ref={navigationRef}
                 linking={linking}

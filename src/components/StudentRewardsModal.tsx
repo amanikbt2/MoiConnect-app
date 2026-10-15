@@ -19,11 +19,11 @@ interface RewardMilestone {
 
 const REWARD_MILESTONES: RewardMilestone[] = [
   { pts: 0, labelPts: '0–49 pts', rewardKsh: 'Ksh 0' },
-  { pts: 50, labelPts: '50+ pts', rewardKsh: 'Ksh 1' },
-  { pts: 150, labelPts: '150+ pts', rewardKsh: 'Ksh 1' },
-  { pts: 500, labelPts: '500+ pts', rewardKsh: 'Ksh 3' },
-  { pts: 1000, labelPts: '1000+ pts', rewardKsh: 'Ksh 5' },
-  { pts: 1500, labelPts: '1500+ pts', rewardKsh: 'Ksh 7' }
+  { pts: 50, labelPts: '50+ pts', rewardKsh: 'Ksh 5' },
+  { pts: 120, labelPts: '120+ pts', rewardKsh: 'Ksh 8' },
+  { pts: 500, labelPts: '500+ pts', rewardKsh: 'Ksh 20' },
+  { pts: 1500, labelPts: '1.5k+ pts', rewardKsh: 'Ksh 25' },
+  { pts: 3000, labelPts: '3k+ pts', rewardKsh: 'Ksh 50' }
 ];
 
 interface StudentRewardsModalProps {

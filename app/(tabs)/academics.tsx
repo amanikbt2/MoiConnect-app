@@ -33,6 +33,7 @@ import { getMaterialSearchScore, rankMaterials, rankMaterialsForProfile, getSear
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
+import { SmartMirrorSkeleton } from '../../src/components/SmartMirrorSkeleton';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 
 import {
@@ -53,7 +54,7 @@ import {
 } from '../../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 340);
 const PAPER_PAGE_SIZE = 60;
 const GRID_CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
 
@@ -98,47 +99,15 @@ const FILTER_DISCS = [
   { id: 'hot', label: 'Hot Now', iconType: 'flame' },
 ];
 
-function ShimmerGridLoader({ title, count = 4 }: { title?: string; count?: number }) {
-  const fadeAnim = useRef(new Animated.Value(0.35)).current;
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.95,
-          duration: 650,
-          useNativeDriver: Platform.OS !== 'web'
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.35,
-          duration: 650,
-          useNativeDriver: Platform.OS !== 'web'
-        })
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [fadeAnim]);
-
+function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
-    <View style={styles.shimmerContainer}>
-      <View style={styles.shimmerHeaderRow}>
-        <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
-        <Text style={styles.shimmerLoadingLabel}>{title || 'loading more resources'}</Text>
-      </View>
-      <View style={styles.gridContainer}>
-        {(Array.from({ length: count }, (_, i) => i + 1)).map((idx) => (
-          <Animated.View key={idx} style={[styles.shimmerCard, { opacity: fadeAnim }]}>
-            <View style={styles.shimmerThumbnail} />
-            <View style={styles.shimmerBody}>
-              <View style={styles.shimmerBadge} />
-              <View style={styles.shimmerTitleLine} />
-              <View style={styles.shimmerSubLine} />
-            </View>
-          </Animated.View>
-        ))}
-      </View>
-    </View>
+    <SmartMirrorSkeleton
+      carouselTitle="Recommended Study Materials"
+      carouselSubtitle="Matched to your course and academic profile"
+      gridTitle={title || 'loading more resources'}
+      showCarousel={showCarousel}
+      gridCount={count}
+    />
   );
 }
 
@@ -189,13 +158,12 @@ export default function AcademicsScreen({ route }: any) {
       else setInitialLoading(true);
       setFetchError(false);
       const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
-      const url = isSearch
-        ? `/papers?limit=${limit}&page=${page}&search=${encodeURIComponent(searchQueryParam!.trim())}`
-        : `/papers?limit=${limit}&page=${page}`;
+      const searchParam = isSearch ? `&search=${encodeURIComponent(searchQueryParam!.trim())}` : '';
+      const url = `/papers?limit=${limit}&page=${page}&type=notes${searchParam}&refresh=${Date.now()}`;
       const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(url);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const noteMaterials = res.data.filter((p) =>
-          ['notes', 'revision', 'lecture_notes'].includes(p.type)
+          ['notes', 'revision', 'lecture_notes'].includes(String(p.type || '').toLowerCase()) || !p.type
         );
         const mapped: NoteItem[] = noteMaterials.map((p) => ({
           id: p._id || (p as any).id,
@@ -1071,6 +1039,29 @@ export default function AcademicsScreen({ route }: any) {
             </View>
           ) : (
             <>
+              {/* ZERO RESULTS FALLBACK */}
+              {allBrowseNotes.length === 0 && (
+                <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 18, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                    <BookIcon color="#15803d" size={26} />
+                  </View>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', textAlign: 'center' }}>
+                    No Notes Available Yet
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center', maxWidth: 300, lineHeight: 18, marginTop: 4 }}>
+                    Academic revision notes and study guides will appear here once uploaded and approved.
+                  </Text>
+                  <TouchableOpacity
+                    style={{ marginTop: 14, backgroundColor: '#15803d', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                    activeOpacity={0.8}
+                    onPress={() => fetchRealAcademicPapers()}
+                  >
+                    <SparklesIcon color="#ffffff" size={14} />
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>↻ Refresh Notes</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* SECTION 1: FOR YOU / BASED ON PROFILE CAROUSEL */}
               {combinedForYou.length > 0 && (
                 <>
@@ -1390,6 +1381,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#0f172a',
+    paddingVertical: 0,
+    borderWidth: 0,
+    outlineWidth: 0,
     outlineStyle: 'none'
   } as any,
 
@@ -1514,7 +1508,7 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   carouselThumbnailContainer: {
-    height: 120,
+    height: 130,
     width: '100%',
     position: 'relative',
     backgroundColor: '#0f172a'

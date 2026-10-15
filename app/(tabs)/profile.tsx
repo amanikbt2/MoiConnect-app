@@ -1,5 +1,5 @@
 import { showIceMessage } from '../../src/components/IceMessageCard';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
 import {
@@ -32,6 +32,7 @@ import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { UserBadge } from '../../src/components/UserBadge';
 import { EmptyState } from '../../src/components/EmptyState';
+import { DeleteAccountConfirmModal } from '../../src/components/DeleteAccountConfirmModal';
 import { MOI_SCHOOLS } from '@moi/shared';
 import {
   HouseIcon,
@@ -65,6 +66,8 @@ export default function ProfileScreen() {
   // Edit Profile Modal State
   const [showEditModal, setShowEditModal] = useState(false);
   const [profileCompletionRequired, setProfileCompletionRequired] = useState(false);
+  // Track which user we've auto-prompted so we only open once per mount
+  const autoOpenedForUserId = useRef<string | null>(null);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const [editSchool, setEditSchool] = useState('');
   const [editCourse, setEditCourse] = useState('');
@@ -75,6 +78,8 @@ export default function ProfileScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileValidationMessage, setProfileValidationMessage] = useState('');
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const { complete } = useLocalSearchParams<{ complete?: string }>();
   const route = useRoute<any>();
   const completeParam = complete || route.params?.complete;
@@ -88,24 +93,34 @@ export default function ProfileScreen() {
   }, [user]);
 
   const loadStudentProfile = async () => {
-    const saved = await getStudentPersonalDetails();
-    if (saved) {
-      setStudentDetails(saved);
-      const savedSchool = saved.school || 'Unset';
-      const savedCourse = saved.course || 'Unset';
-      const savedYear = saved.yearOfStudy || 'Unset';
-      if ((!user?.school || user?.school === 'Unset') && savedSchool !== 'Unset' && savedCourse !== 'Unset' && savedYear !== 'Unset') {
-        await updateUserProfile({ school: savedSchool, course: savedCourse, yearOfStudy: savedYear }).catch(() => undefined);
-      }
-    } else if (user) {
-      setStudentDetails({
-        school: user?.school || 'Unset',
-        course: user?.course || 'Unset',
-        yearOfStudy: user?.yearOfStudy || 'Unset',
-        phone: '',
-        fullName: user.name || 'Moi Student'
-      });
-    }
+    if (!user) return;
+    const saved = await getStudentPersonalDetails(user._id);
+
+    const school = (user.school && user.school !== 'Unset')
+      ? user.school
+      : (saved?.userId === user._id && saved.school && saved.school !== 'Unset' ? saved.school : 'Unset');
+
+    const course = (user.course && user.course !== 'Unset')
+      ? user.course
+      : (saved?.userId === user._id && saved.course && saved.course !== 'Unset' ? saved.course : 'Unset');
+
+    const yearOfStudy = (user.yearOfStudy && user.yearOfStudy !== 'Unset')
+      ? user.yearOfStudy
+      : (saved?.userId === user._id && saved.yearOfStudy && saved.yearOfStudy !== 'Unset' ? saved.yearOfStudy : 'Unset');
+
+    const phone = user.phone || (saved?.userId === user._id ? saved.phone : '') || '';
+    const fullName = user.name || (saved?.userId === user._id ? saved.fullName : '') || 'Moi Student';
+    const avatarUri = user.avatarUrl || (saved?.userId === user._id ? saved.avatarUri : undefined);
+
+    setStudentDetails({
+      userId: user._id,
+      school,
+      course,
+      yearOfStudy,
+      phone,
+      fullName,
+      avatarUri
+    });
   };
 
   const handlePickProfileImage = async () => {
@@ -134,23 +149,41 @@ export default function ProfileScreen() {
   };
 
   const handleOpenEditModal = () => {
-    setEditSchool(studentDetails.school || user?.school || 'Unset');
-    setEditCourse(studentDetails.course || user?.course || 'Unset');
-    setEditYear(studentDetails.yearOfStudy || user?.yearOfStudy || 'Unset');
-    setEditPhone(studentDetails.phone);
+    const rawSchool = studentDetails.school || user?.school || '';
+    const rawCourse = studentDetails.course || user?.course || '';
+    const rawYear = studentDetails.yearOfStudy || user?.yearOfStudy || '';
+    setEditSchool(rawSchool === 'Unset' ? '' : rawSchool);
+    setEditCourse(rawCourse === 'Unset' ? '' : rawCourse);
+    setEditYear(rawYear === 'Unset' ? '' : rawYear);
+    setEditPhone(studentDetails.phone || user?.phone || '');
     setEditName(studentDetails.fullName || user?.name || '');
-    setEditAvatarUri(studentDetails.avatarUri);
+    setEditAvatarUri(studentDetails.avatarUri || user?.avatarUrl);
     setProfileValidationMessage('');
     setShowSchoolDropdown(false);
     setShowEditModal(true);
   };
 
   useEffect(() => {
-    if (completeParam === '1' && user && (user.course === 'Unset' || user.school === 'Unset' || user.yearOfStudy === 'Unset' || !user.course || !user.school || !user.yearOfStudy)) {
+    if (!user?._id) return;
+    const isIncomplete = (
+      !user.course || user.course === 'Unset' ||
+      !user.school || user.school === 'Unset' ||
+      !user.yearOfStudy || user.yearOfStudy === 'Unset'
+    );
+    // Auto-open if profile is incomplete AND we haven't already auto-opened for this user
+    if (isIncomplete && autoOpenedForUserId.current !== user._id) {
+      autoOpenedForUserId.current = user._id;
       setProfileCompletionRequired(true);
-      handleOpenEditModal();
+      // Small delay so the screen has rendered first
+      const t = setTimeout(() => handleOpenEditModal(), 300);
+      return () => clearTimeout(t);
     }
-  }, [completeParam, user]);
+    // If profile is now complete (user just saved), mark as done
+    if (!isIncomplete) {
+      autoOpenedForUserId.current = user._id;
+      setProfileCompletionRequired(false);
+    }
+  }, [user?._id, user?.school, user?.course, user?.yearOfStudy]);
 
   const handleSaveProfileSubmit = async () => {
     const missingFields = [
@@ -170,6 +203,7 @@ export default function ProfileScreen() {
     setProfileValidationMessage('');
     setSavingProfile(true);
     const updated: StudentPersonalDetails = {
+      userId: user?._id,
       school: editSchool.trim(),
       course: editCourse.trim(),
       yearOfStudy: editYear.trim(),
@@ -228,16 +262,48 @@ export default function ProfileScreen() {
     }
   };
 
-  const confirmDeleteAccount = () => {
+  useEffect(() => {
+    if (!user) {
+      setAccountMenuVisible(false);
+      setShowDeleteConfirm(false);
+      setShowEditModal(false);
+    }
+  }, [user]);
+
+  const handleLogout = async () => {
     setAccountMenuVisible(false);
-    Alert.alert(
-      'Permanently Delete Account?',
-      'This permanently deletes your profile, posts, uploaded materials, and personal data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete Account', style: 'destructive', onPress: () => deleteAccount() }
-      ]
-    );
+    try {
+      await logout();
+    } finally {
+      setAccountMenuVisible(false);
+      router.replace('/(auth)/login');
+    }
+  };
+
+  const handleOpenDeleteConfirm = () => {
+    setAccountMenuVisible(false);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount();
+      setShowDeleteConfirm(false);
+      showIceMessage('Account Deleted', 'Your account and all stored local data have been permanently erased.');
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        router.replace('/(auth)/login');
+        setTimeout(() => {
+          if (window.location && !window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
+        }, 300);
+      } else {
+        router.replace('/(auth)/login');
+      }
+    } catch (e) {
+      setIsDeletingAccount(false);
+    }
   };
 
   const handleResetAlgorithm = async () => {
@@ -303,17 +369,28 @@ export default function ProfileScreen() {
       <Modal visible={accountMenuVisible} transparent animationType="fade" onRequestClose={() => setAccountMenuVisible(false)}>
         <Pressable style={styles.accountMenuBackdrop} onPress={() => setAccountMenuVisible(false)}>
           <Pressable style={styles.accountMenu} onPress={(event) => event.stopPropagation()}>
-            <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); logout(); }}>
+            <TouchableOpacity style={styles.accountMenuRow} onPress={handleLogout}>
               <Text style={styles.accountMenuText}>Log out</Text>
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
-            <TouchableOpacity style={styles.accountMenuRow} onPress={confirmDeleteAccount}>
+            <TouchableOpacity style={styles.accountMenuRow} onPress={handleOpenDeleteConfirm}>
               <TrashIcon color="#dc2626" size={16} />
               <Text style={styles.accountMenuDeleteText}>Delete account</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Centered Confirmation Popup for Account Deletion */}
+      <DeleteAccountConfirmModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDeleteAccount}
+        userId={user._id}
+        userName={studentDetails.fullName || user.name}
+        userEmail={user.email}
+        isDeleting={isDeletingAccount}
+      />
       {/* Student Personal Details Card */}
       <View style={styles.studentProfileCard}>
         <View style={styles.cardHeaderRow}>
@@ -372,8 +449,8 @@ export default function ProfileScreen() {
               <PhoneIcon color="#15803d" size={18} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={styles.detailLabelHeader}>PHONE CONTACT</Text>
-              <Text style={styles.detailValueText}>{studentDetails.phone || ''}</Text>
+              <Text style={styles.detailLabelHeader}>PHONE CONTACT (OPTIONAL)</Text>
+              <Text style={styles.detailValueText}>{studentDetails.phone || 'Unset'}</Text>
             </View>
           </View>
         </View>
@@ -516,7 +593,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Phone Contact Number</Text>
+              <Text style={styles.formLabel}>Phone Contact Number (Optional)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. 0712 345 678"

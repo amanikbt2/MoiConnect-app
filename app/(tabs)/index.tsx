@@ -20,6 +20,7 @@ import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
+import { CompleteProfilePromptModal } from '../../src/components/CompleteProfilePromptModal';
 import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
@@ -42,7 +43,7 @@ import {
 } from '../../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 340);
 const CARD_GAP = 14;
 
 interface SuggestedMaterial {
@@ -54,6 +55,14 @@ interface SuggestedMaterial {
   downloads: string;
   recommendationTag: string;
   thumbnail: string;
+  unitCode?: string;
+  courseCode?: string;
+  unitName?: string;
+  department?: string;
+  examYear?: string | number;
+  academicYear?: string;
+  type?: string;
+  ratingScore?: string | number;
 }
 
 const SUGGESTED_MATERIALS: SuggestedMaterial[] = [];
@@ -81,6 +90,7 @@ function getGreetingText(userName?: string): string {
   return `${timePrefix}, Moi University Student`;
 }
 
+
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const smartIntent = React.useMemo(() => {
@@ -94,6 +104,11 @@ export default function HomeScreen() {
   // Built-in Portal Viewer Modal State
   const [activePortal, setActivePortal] = useState<PortalConfig | null>(null);
   const [showPortalModal, setShowPortalModal] = useState(false);
+
+  // Complete Profile Prompt Modal State
+  const [showProfilePromptModal, setShowProfilePromptModal] = useState(false);
+  // Track which userId we've already shown the prompt for in this component lifetime
+  const promptedForUserId = useRef<string | null>(null);
 
   const handleOpenPortal = async (config: PortalConfig) => {
 
@@ -135,6 +150,21 @@ export default function HomeScreen() {
     user?.school && user.school !== 'Unset' &&
     user?.yearOfStudy && user.yearOfStudy !== 'Unset'
   );
+
+  useEffect(() => {
+    if (user?._id && !profileComplete && promptedForUserId.current !== user._id) {
+      promptedForUserId.current = user._id;
+      const timer = setTimeout(() => {
+        setShowProfilePromptModal(true);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [user?._id, profileComplete]);
+
+  const handleNavigateToCompleteProfile = () => {
+    setShowProfilePromptModal(false);
+    router.push('/(tabs)/profile?complete=1');
+  };
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [realSuggestedMaterials, setRealSuggestedMaterials] = useState<SuggestedMaterial[]>([]);
@@ -184,8 +214,16 @@ export default function HomeScreen() {
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped: SuggestedMaterial[] = res.data.map((p, idx) => ({
           id: p._id || String(idx),
-          title: p.title,
+          title: p.title || '',
           code: p.unitCode || p.courseCode || 'MOI',
+          unitCode: p.unitCode || p.courseCode || '',
+          courseCode: p.courseCode || p.unitCode || '',
+          unitName: p.unitName || p.title || '',
+          department: p.department || '',
+          examYear: p.examYear || '',
+          academicYear: p.academicYear || '',
+          type: p.type || '',
+          ratingScore: p.ratingScore || 0,
           school: p.school || 'Moi University',
           paperType: p.type === 'cat'
             ? 'CAT Paper'
@@ -199,10 +237,7 @@ export default function HomeScreen() {
           thumbnail: p.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'
         }));
         const rankedMaterials = rankMaterialsForProfile(mapped, user, searchHistory);
-        const randomizedMaterials = [...rankedMaterials]
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 10);
-        setRealSuggestedMaterials(randomizedMaterials);
+        setRealSuggestedMaterials(rankedMaterials.slice(0, 10));
       } else {
         setRealSuggestedMaterials([]);
       }
@@ -237,11 +272,22 @@ export default function HomeScreen() {
   };
 
   const renderSuggestedCard = ({ item }: { item: SuggestedMaterial }) => {
+    const handleCardPress = () => {
+      const query = item.unitCode || item.code || item.title;
+      if (item.type === 'past_paper' || item.paperType === 'Past Paper' || item.paperType === 'Exam Solution') {
+        router.push(`/past-papers?search=${encodeURIComponent(query)}`);
+      } else if (item.type === 'cat' || item.paperType === 'CAT Paper') {
+        router.push(`/cat-papers?search=${encodeURIComponent(query)}`);
+      } else {
+        router.push(`/(tabs)/academics?search=${encodeURIComponent(query)}`);
+      }
+    };
+
     return (
       <TouchableOpacity
         style={styles.suggestedCard}
         activeOpacity={0.88}
-        onPress={() => router.push(`/(tabs)/academics?search=${encodeURIComponent(item.code)}`)}
+        onPress={handleCardPress}
       >
         {/* Thumbnail Header */}
         <View style={styles.thumbnailContainer}>
@@ -608,6 +654,13 @@ export default function HomeScreen() {
         portal={activePortal}
         onClose={() => setShowPortalModal(false)}
       />
+
+      {/* Complete Profile Reminder Popup Modal */}
+      <CompleteProfilePromptModal
+        visible={showProfilePromptModal}
+        onClose={() => setShowProfilePromptModal(false)}
+        onComplete={handleNavigateToCompleteProfile}
+      />
     </ScrollView>
   );
 }
@@ -651,7 +704,10 @@ const styles = StyleSheet.create({
     height: 42,
     fontSize: 14,
     color: '#0f172a',
-    outlineStyle: 'none',
+    paddingVertical: 0,
+    borderWidth: 0,
+    outlineWidth: 0,
+    outlineStyle: 'none'
   } as any,
   searchSendBtn: {
     backgroundColor: '#15803d',
@@ -830,7 +886,7 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   thumbnailContainer: {
-    height: 115,
+    height: 125,
     width: '100%',
     position: 'relative',
     backgroundColor: '#0f172a'

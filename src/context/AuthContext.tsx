@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Alert, Platform } from 'react-native';
 import { IUser, RegisterInput, LoginInput, RequestLandlordInput } from '@moi/shared';
 import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken, setStoredToken, removeStoredToken } from '../services/api';
-import { disconnectSocket } from '../services/socket';
+import { getSocket, disconnectSocket } from '../services/socket';
 import { notifyLoginSuccess, registerForPushNotificationsAsync, stopPushTokenRegistrationRetries } from '../services/notificationService';
+import { wipeAllAppData } from '../services/offlineStorage';
 
 interface AuthContextType {
   user: IUser | null;
@@ -65,6 +67,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    let unsubSocket: (() => void) | null = null;
+
+    if (user && user._id) {
+      getSocket().then((sock) => {
+        if (!isMounted || !sock) return;
+
+        const handleForceLogout = async (data?: any) => {
+          console.warn('[AuthContext] Force logout event received:', data);
+          stopPushTokenRegistrationRetries();
+          await wipeAllAppData();
+          await clearAuthTokens();
+          disconnectSocket();
+          setUser(null);
+          setUserPoints(5);
+          const alertMsg = data?.message || 'Your account has been permanently removed by an administrator. Please create a new account to continue.';
+          if (Platform.OS === 'web') {
+            window.alert(alertMsg);
+          } else {
+            Alert.alert('Account Removed', alertMsg, [{ text: 'OK' }]);
+          }
+        };
+
+        const handleAccountDeleted = (data: any) => {
+          if (data && String(data.userId) === String(user._id)) {
+            handleForceLogout(data);
+          }
+        };
+
+        sock.on('auth:force_logout', handleForceLogout);
+        sock.on('force_logout', handleForceLogout);
+        sock.on('account:deleted', handleAccountDeleted);
+
+        unsubSocket = () => {
+          sock.off('auth:force_logout', handleForceLogout);
+          sock.off('force_logout', handleForceLogout);
+          sock.off('account:deleted', handleAccountDeleted);
+        };
+      }).catch(() => {});
+    }
+
+    return () => {
+      isMounted = false;
+      if (unsubSocket) unsubSocket();
+    };
+  }, [user?._id]);
+
   const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => {
     try {
       const res = await apiRequest('/auth/google', {
@@ -73,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.success && res.data) {
+        await clearAuthTokens();
         const { user: authedUser, tokens } = res.data;
         await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
         await saveUserProfile(authedUser);
@@ -86,6 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: payload?.email || 'student.google@moi.ac.ke',
         name: payload?.name || 'Google Student',
         avatarUrl: payload?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        phone: '',
+        school: 'Unset',
+        course: 'Unset',
+        yearOfStudy: 'Unset',
         roles: ['student'],
         activeRole: 'student',
         landlordStatus: 'none',
@@ -190,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await apiRequest<IUser>('/auth/me');
         if (res.success && res.data) {
           await saveUserProfile(res.data);
-        } else if (!cachedUser) {
+        } else {
           await clearAuthTokens();
           setUser(null);
         }
@@ -208,6 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (res.success && res.data) {
+      await clearAuthTokens();
       const { user: authedUser, tokens } = res.data;
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
       await saveUserProfile(authedUser);
@@ -224,9 +280,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (res.success && res.data) {
+      await clearAuthTokens();
       const { user: authedUser, tokens } = res.data;
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
       await saveUserProfile(authedUser);
+      void notifyLoginSuccess(authedUser.name);
       return { success: true };
     }
     return { success: false, error: res.error || 'Registration failed' };
@@ -262,11 +320,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await apiRequest('/auth/delete-account', { method: 'DELETE' });
     } catch (e) {
-      // Continue cleanup
+      // Continue cleanup even if server is unreachable
     }
+    await wipeAllAppData();
     await clearAuthTokens();
     disconnectSocket();
     setUser(null);
+    setUserPoints(5);
     return { success: true };
   };
 

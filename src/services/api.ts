@@ -38,6 +38,25 @@ export const clearAuthTokens = async () => {
   await removeStoredToken(ACCESS_TOKEN_KEY);
   await removeStoredToken(REFRESH_TOKEN_KEY);
   await removeStoredToken('moi_user_profile');
+  await removeStoredToken('moi_student_profile_details');
+  await removeStoredToken('moi_cached_chat_messages');
+  await removeStoredToken('moi_offline_booking_queue');
+  await removeStoredToken('moi_offline_msg_queue');
+  await removeStoredToken('moi_unread_download_badge');
+  await removeStoredToken('moi_read_notification_ids');
+  await removeStoredToken('moi_community_messages_cache');
+  await removeStoredToken('moi_community_read_mention_ids');
+  await removeStoredToken('moi_community_deleted_for_me_ids');
+  await removeStoredToken('moi_community_last_read_id');
+  await removeStoredToken('moi_community_sync_cursor');
+  await removeStoredToken('moi_community_reactor_id');
+  await removeStoredToken('moi_community_mention_directory_v1');
+  await removeStoredToken('moi_offline_papers');
+  await removeStoredToken('moi_material_search_history');
+  await removeStoredToken('moi_cached_rentals_list');
+  await removeStoredToken('moi_cached_house_details');
+  await removeStoredToken('moi_dismissed_popup_ids');
+  await removeStoredToken('moi_tts_preferences');
 };
 
 const inFlightGetRequests = new Map<string, Promise<any>>();

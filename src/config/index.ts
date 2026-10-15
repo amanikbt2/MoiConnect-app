@@ -42,7 +42,13 @@ export const config = {
     return process.env.EXPO_PUBLIC_API_URL || `${getDynamicHost()}/api/v1`;
   },
   get socketUrl() {
-    return process.env.EXPO_PUBLIC_SOCKET_URL || getDynamicHost();
+    if (process.env.EXPO_PUBLIC_SOCKET_URL) {
+      return process.env.EXPO_PUBLIC_SOCKET_URL;
+    }
+    if (process.env.EXPO_PUBLIC_API_URL) {
+      return process.env.EXPO_PUBLIC_API_URL.replace(/\/api(\/v\d+)?\/?$/i, '');
+    }
+    return getDynamicHost();
   },
   google: {
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
