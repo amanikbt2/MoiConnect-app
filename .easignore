@@ -44,3 +44,7 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Native project directories for CNG / Prebuild
+/android
+/ios

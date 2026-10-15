@@ -1,32 +1,30 @@
-const baseConfig = require('./app.json').expo;
-
 const numberFromEnv = (name, fallback) => {
   const value = Number(process.env[name]);
   return Number.isInteger(value) && value > 0 ? value : fallback;
 };
 
-module.exports = {
-  expo: {
-    ...baseConfig,
-    version: process.env.MCONNECT_VERSION || baseConfig.version,
+module.exports = ({ config }) => {
+  return {
+    ...config,
+    version: process.env.MCONNECT_VERSION || config.version,
     android: {
-      ...baseConfig.android,
-      versionCode: numberFromEnv('MCONNECT_ANDROID_VERSION_CODE', baseConfig.android.versionCode)
+      ...(config.android || {}),
+      versionCode: numberFromEnv('MCONNECT_ANDROID_VERSION_CODE', config.android?.versionCode)
     },
     ios: {
-      ...baseConfig.ios,
-      buildNumber: String(process.env.MCONNECT_IOS_BUILD_NUMBER || baseConfig.ios.buildNumber)
+      ...(config.ios || {}),
+      buildNumber: String(process.env.MCONNECT_IOS_BUILD_NUMBER || config.ios?.buildNumber)
     },
     extra: {
-      ...(baseConfig.extra || {}),
-      ...(process.env.EAS_PROJECT_ID || baseConfig.extra?.eas?.projectId
+      ...(config.extra || {}),
+      ...(process.env.EAS_PROJECT_ID || config.extra?.eas?.projectId
         ? {
             eas: {
-              ...(baseConfig.extra?.eas || {}),
+              ...(config.extra?.eas || {}),
               ...(process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : {})
             }
           }
         : {})
     }
-  }
+  };
 };

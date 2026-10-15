@@ -2167,34 +2167,6 @@ export default function CommunityScreen() {
         const downloadResult = await downloadTask.downloadAsync();
         if (!downloadResult?.uri) throw new Error('Download failed.');
 
-        let savedToGallery = false;
-
-        try {
-          const MediaLibrary = require('expo-media-library');
-          const { status } = await MediaLibrary.requestPermissionsAsync();
-          if (status === 'granted') {
-            await MediaLibrary.createAssetAsync(downloadResult.uri);
-            savedToGallery = true;
-          }
-        } catch (mediaLibErr) {
-          console.log('[MediaDownload] MediaLibrary save fallback:', mediaLibErr);
-        }
-
-        if (!savedToGallery) {
-          try {
-            const Sharing = require('expo-sharing');
-            if (await Sharing.isAvailableAsync()) {
-              await Sharing.shareAsync(downloadResult.uri, {
-                dialogTitle: `Save ${filename} to phone`,
-                mimeType: file.type === 'video' ? 'video/mp4' : 'image/jpeg'
-              });
-              savedToGallery = true;
-            }
-          } catch (sharingErr) {
-            console.log('[MediaDownload] Sharing save fallback:', sharingErr);
-          }
-        }
-
         const paperId = file.paperId || `att_${Date.now()}`;
         await saveDownloadedPaper({
           _id: paperId,
@@ -2216,9 +2188,27 @@ export default function CommunityScreen() {
         }).catch(() => {});
 
         showIceMessage(
-          'Downloaded to Storage',
-          `"${filename}" saved directly to your phone's storage & photo gallery!`,
-          [{ text: 'OK' }]
+          'Saved for Offline',
+          `"${filename}" has been saved to your offline materials for offline viewing.`,
+          [
+            { text: 'OK' },
+            {
+              text: 'Share / Export',
+              onPress: async () => {
+                try {
+                  const Sharing = require('expo-sharing');
+                  if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(downloadResult.uri, {
+                      dialogTitle: `Share or save ${filename}`,
+                      mimeType: file.type === 'video' ? 'video/mp4' : 'image/jpeg'
+                    });
+                  }
+                } catch (sharingErr) {
+                  console.log('[MediaDownload] Sharing export fallback:', sharingErr);
+                }
+              }
+            }
+          ]
         );
       }
     } catch (e: any) {
