@@ -65,6 +65,11 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "moiconnect",
-    "owner": "amanikbt2"
+    "owner": "sliver1-org",
+    "extra": {
+      "eas": {
+        "projectId": "c9474df0-edb4-40e5-aae1-5eedfc902839"
+      }
+    }
   }
 }

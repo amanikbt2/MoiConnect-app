@@ -10,7 +10,8 @@
     "android": "npm run generate:stickers && npm run generate:pdfjs && expo run:android",
     "ios": "npm run generate:stickers && expo run:ios",
     "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js && node scripts/generate-pdfjs-assets.js",
-    "web": "expo start --web --offline --port 8082"
+    "web": "expo start --web --offline --port 8082",
+    "eas": "eas"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^1.0.0",

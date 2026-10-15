@@ -49,7 +49,18 @@ export function UniversitySetupModal() {
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(2, 44, 34, 0.72)', justifyContent: 'center', padding: 18 },
-  card: { width: '100%', maxWidth: 520, alignSelf: 'center', maxHeight: '88%', backgroundColor: '#fff', borderRadius: 24, padding: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
+  card: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    maxHeight: '88%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.2)' } as any)
+      : { shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 })
+  },
   brandMark: { alignSelf: 'center', width: 52, height: 52, borderRadius: 16, backgroundColor: '#006400', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   brandMarkText: { color: '#fff', fontWeight: '900', fontSize: 30 },
   title: { color: '#0f172a', fontSize: 22, fontWeight: '900', textAlign: 'center' },

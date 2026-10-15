@@ -42,7 +42,7 @@ import ChatRoomScreen from './app/chat/[id]';
 
 import { TouchableOpacity } from 'react-native';
 import { useAuth } from './src/context/AuthContext';
-import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon } from './src/components/Icons';
+import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon, ArrowLeftIcon } from './src/components/Icons';
 import { InAppPopupModal } from './src/components/InAppPopupModal';
 import { checkAppPopups } from './src/services/popupService';
 import { setupNotificationResponseListener } from './src/services/notificationService';
@@ -649,7 +649,30 @@ function AppNavigator({ currentRoute }) {
             headerShown: false,
             headerStyle: { backgroundColor: '#15803d' },
             headerTintColor: '#ffffff',
-            headerTitleStyle: { fontWeight: '800', fontSize: 18 }
+            headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+            headerLeft: ({ canGoBack, tintColor }) => (
+              <TouchableOpacity
+                onPress={() => {
+                  if (navigationRef.isReady() && navigationRef.canGoBack()) {
+                    navigationRef.goBack();
+                  } else if (navigationRef.isReady()) {
+                    navigationRef.navigate('MainTabs', { screen: 'HomeTab' });
+                  }
+                }}
+                style={{
+                  paddingRight: 14,
+                  paddingVertical: 6,
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.7}
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
+              >
+                <ArrowLeftIcon color={tintColor || '#ffffff'} size={22} />
+              </TouchableOpacity>
+            )
           }}
         >
           <Stack.Screen name="MainTabs" component={MainTabs} />

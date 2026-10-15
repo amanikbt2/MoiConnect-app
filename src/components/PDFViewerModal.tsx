@@ -112,9 +112,17 @@ export function getCleanPdfUrl(rawUrl?: string): string {
   return url;
 }
 
-const resolveRawPdfUrl = (rawUrl: string): string => rawUrl.startsWith('/')
-  ? config.apiUrl.replace(/\/api\/v1\/?$/, '') + rawUrl
-  : rawUrl;
+const resolveRawPdfUrl = (rawUrl: string): string => {
+  if (!rawUrl) return '';
+  if (rawUrl.startsWith('/')) {
+    return config.apiUrl.replace(/\/api\/v1\/?$/, '') + rawUrl;
+  }
+  const apiBase = config.apiUrl.replace(/\/api\/v1\/?$/, '');
+  if (rawUrl.includes('localhost:5000') && !apiBase.includes('localhost:5000')) {
+    return rawUrl.replace(/https?:\/\/localhost:5000/g, apiBase);
+  }
+  return rawUrl;
+};
 
 const PDFJS_CORE_ASSET = require('../../assets/pdfjs/pdfjs-core.pdf');
 const PDFJS_WORKER_ASSET = require('../../assets/pdfjs/pdfjs-worker.pdf');
@@ -231,6 +239,15 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     setIsPdfLoading(Boolean(visible && document?.fileUrl));
     setHasPdfLoadError(false);
     if (!visible || !document?.fileUrl) return;
+
+    if (Platform.OS === 'web') {
+      const webTimer = setTimeout(() => {
+        pdfReadyRef.current = true;
+        setIsPdfLoading(false);
+      }, 1500);
+      return () => clearTimeout(webTimer);
+    }
+
     const timeout = setTimeout(() => {
       if (!pdfReadyRef.current) {
         setIsPdfLoading(false);
@@ -747,6 +764,30 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 onRetry={handleRetryPdfLoad}
                 retrying={isPdfRetrying}
               />
+              {Platform.OS === 'web' && hasRealDocument ? (
+                <TouchableOpacity
+                  style={{
+                    marginTop: 18,
+                    paddingVertical: 12,
+                    paddingHorizontal: 22,
+                    backgroundColor: '#15803d',
+                    borderRadius: 10,
+                    alignSelf: 'center',
+                    alignItems: 'center'
+                  }}
+                  onPress={() => {
+                    const urlToOpen = embeddedFileUrl ? embeddedFileUrl.split('#')[0] : fileUrl;
+                    if (typeof window !== 'undefined' && urlToOpen) {
+                      window.open(urlToOpen, '_blank');
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>
+                    Open PDF in New Browser Tab ↗
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : Platform.OS === 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>

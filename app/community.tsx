@@ -2372,7 +2372,16 @@ export default function CommunityScreen() {
                 resizeMode="contain"
               />
             </View>
-            <View style={styles.onlineDot} />
+            <View
+              style={[
+                styles.onlineDot,
+                !networkOnline
+                  ? styles.offlineDot
+                  : isForumLoading || !socketOnline
+                  ? styles.connectingDot
+                  : styles.activeOnlineDot
+              ]}
+            />
           </View>
 
           <View style={styles.headerInfo}>
@@ -2381,15 +2390,22 @@ export default function CommunityScreen() {
               <Text style={{ color: '#a7f3d0' }}>Forum</Text>
             </Text>
             <View style={styles.onlineSubtitle}>
-              {networkOnline && socketOnline ? (
-                <>
-                  <OnlineStatusIcon color="#86efac" size={13} />
-                  <Text style={styles.headerSubtitle}>{onlineCount.toLocaleString()} students online • Open Forum</Text>
-                </>
-              ) : (
+              {!networkOnline ? (
                 <>
                   <WifiOffIcon color="#fca5a5" size={13} />
                   <Text style={styles.offlineHeaderSubtitle}>You're offline</Text>
+                </>
+              ) : isForumLoading || !socketOnline ? (
+                <>
+                  <ActivityIndicator size={11} color="#fef08a" />
+                  <Text style={styles.connectingHeaderSubtitle}>Connecting...</Text>
+                </>
+              ) : (
+                <>
+                  <OnlineStatusIcon color="#86efac" size={13} />
+                  <Text style={styles.headerSubtitle}>
+                    {Math.max(1, onlineCount).toLocaleString()} students online • Open Forum
+                  </Text>
                 </>
               )}
             </View>
@@ -3629,10 +3645,27 @@ const styles = StyleSheet.create({
     color: '#dcfce7',
     fontWeight: '500'
   },
+  connectingHeaderSubtitle: {
+    fontSize: 12,
+    color: '#fef08a',
+    fontWeight: '700'
+  },
   offlineHeaderSubtitle: {
     fontSize: 12,
     color: '#fecaca',
     fontWeight: '700'
+  },
+  activeOnlineDot: {
+    backgroundColor: '#22c55e',
+    borderColor: '#15803d'
+  },
+  connectingDot: {
+    backgroundColor: '#facc15',
+    borderColor: '#854d0e'
+  },
+  offlineDot: {
+    backgroundColor: '#94a3b8',
+    borderColor: '#475569'
   },
   chatBackground: {
     flex: 1,

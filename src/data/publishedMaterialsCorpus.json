@@ -1,0 +1,872 @@
+{
+  "extractedAt": "2026-10-14T14:44:40.143Z",
+  "totalMaterials": 93,
+  "schools": [
+    "School of Arts & Social Sciences (SASS)",
+    "School of Arts and Social Sciences",
+    "School of Arts and Social Sciences (SASS)",
+    "School of Education",
+    "School of Education (SOE)",
+    "School of Engineering",
+    "School of Information Sciences",
+    "School of Science & Aerospace Studies",
+    "School of Science and Aerospace Studies",
+    "School of Sciences and Aerospace Studies"
+  ],
+  "departments": [
+    "Chemistry & Biochemistry",
+    "Computer Science",
+    "Curriculum, Instruction & Educational Media",
+    "Department of Anthropology and Human Ecology",
+    "Department of Anthropology, Gender & Diversity Studies",
+    "Department of Chemistry and Biochemistry",
+    "Department of Curriculum Instruction and Educational Media",
+    "Department of Curriculum, Instruction & Educational Media",
+    "Department of Curriculum, Instruction and Educational Media",
+    "Department of Educational Psychology",
+    "Department of Electrical & Communications Engineering",
+    "Department of French",
+    "Department of History, Political Science & Public Administration",
+    "Department of History, Political Science and Public Administration",
+    "Department of History, Political Science, Public Administration, Penology & Security Studies",
+    "Department of Kiswahili and Other African Languages",
+    "Department of Linguistics & Foreign Languages",
+    "Department of Linguistics, Indigenous Languages and Media Studies",
+    "Department of Literature, Linguistics and Foreign Languages",
+    "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "Department of Literature, Theatre and Film Studies",
+    "Department of Mathematics",
+    "Department of Mathematics and Aerospace Studies",
+    "Department of Mathematics, Physics and Computing",
+    "Department of Philosophy & Religious Studies",
+    "Department of Philosophy and Religious Studies",
+    "Department of Philosophy, Religion and Theology",
+    "Department of Philosophy, Theology and Religious Studies",
+    "Department of Psychology",
+    "Department of Publishing & Media Studies",
+    "Department of Sociology and Psychology",
+    "Department of Sociology, Psychology & Anthropology",
+    "Department of Sociology, Psychology and Anthropology",
+    "Department of Sociology, Psychology and Social Work",
+    "Electrical Engineering",
+    "Mathematics & Physics",
+    "Maths & Physics",
+    "Maths, Physics & Computing",
+    "Mechanical Engineering"
+  ],
+  "courseCodes": [
+    "ANT 311",
+    "ANT 312",
+    "ANT 313",
+    "ANT 321",
+    "ANT 325",
+    "BAS 103",
+    "BAS 201",
+    "BAS 301",
+    "BKS 310",
+    "BLL 221",
+    "BLL 310",
+    "BLL 311",
+    "BLL 321",
+    "CHE 103",
+    "CHE 104",
+    "CHE 201",
+    "CHE 310",
+    "CIM 223",
+    "CIM 312",
+    "CIM 323",
+    "CMD 310",
+    "CSC 211",
+    "CSC 213",
+    "CSC 214",
+    "CSC 215",
+    "ECE 211",
+    "ECE 261",
+    "EDB 302E",
+    "EDE 214",
+    "EDE 314",
+    "ENG 323",
+    "ENG 410",
+    "ENG322",
+    "FMS 321",
+    "FRE 121",
+    "FRE 313",
+    "KIS 314",
+    "KIS 321",
+    "LIN 312",
+    "LIN 325",
+    "LIT 410",
+    "LIT 411",
+    "LIT 420",
+    "LMC 312",
+    "LMC311",
+    "MAT 206",
+    "MAT 207",
+    "MAT 318",
+    "MPE 361",
+    "MPE 371",
+    "PCA 313",
+    "PHL 321",
+    "PHY 112",
+    "PHY 121",
+    "PHY 122",
+    "PHY 210",
+    "PHY 211",
+    "PHY 221",
+    "PHY 311",
+    "PSS 222",
+    "PSS 314",
+    "REL 313",
+    "SAS 203",
+    "SNE 316E",
+    "SPH 211",
+    "SPY322",
+    "SWK 210",
+    "SWK 211",
+    "SWK 213",
+    "SWK 223",
+    "SWK 224",
+    "SWK 310",
+    "SWK 320",
+    "SWK 323",
+    "SWK 324",
+    "SWK 410",
+    "SWK 412",
+    "SWK 413",
+    "THE 320",
+    "THL320"
+  ],
+  "units": [
+    {
+      "code": "ANT 311",
+      "name": "Political and Legal Anthropology",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Anthropology and Human Ecology",
+      "titles": [
+        "ANT 311 Political Legal Anthropology Exam"
+      ]
+    },
+    {
+      "code": "ANT 312",
+      "name": "Economic Anthropology",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Anthropology and Human Ecology",
+      "titles": [
+        "ANT 312 Economic Anthropology Exam"
+      ]
+    },
+    {
+      "code": "ANT 313",
+      "name": "Human Evolution",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Anthropology and Human Ecology",
+      "titles": [
+        "ANT 313 Human Evolution Exam"
+      ]
+    },
+    {
+      "code": "ANT 321",
+      "name": "Quantitative and Qualitative Methods and Analysis",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Anthropology, Gender & Diversity Studies",
+      "titles": [
+        "Quantitative and Qualitative Methods and Analysis"
+      ]
+    },
+    {
+      "code": "ANT 325",
+      "name": "Human Ecology",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Anthropology, Gender & Diversity Studies",
+      "titles": [
+        "ANT 325 Human Ecology Second Semester Examination 2015"
+      ]
+    },
+    {
+      "code": "BAS 103",
+      "name": "Introduction to Philosophy and Religion",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Philosophy and Religious Studies",
+      "titles": [
+        "BAS 103 Intro Philosophy Religion Exam"
+      ]
+    },
+    {
+      "code": "BAS 201",
+      "name": "Kenya in World History",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of History, Political Science and Public Administration",
+      "titles": [
+        "BAS 201 Kenya in World History Exam"
+      ]
+    },
+    {
+      "code": "BAS 301",
+      "name": "Religion and Science",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Philosophy, Religion and Theology",
+      "titles": [
+        "BAS 301 Religion and Science University Examination"
+      ]
+    },
+    {
+      "code": "BKS 310",
+      "name": "Prose Works in Kiswahili",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Kiswahili and Other African Languages",
+      "titles": [
+        "Prose Works in Kiswahili",
+        "BKS 310 Prose Works in Kiswahili Examination"
+      ]
+    },
+    {
+      "code": "BLL 221",
+      "name": "Proficiency Course in French",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of French",
+      "titles": [
+        "BLL 221 Proficiency Course French Exam"
+      ]
+    },
+    {
+      "code": "BLL 310",
+      "name": "Business English",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Literature, Linguistics and Foreign Languages",
+      "titles": [
+        "BLL 310 Business English Degree Examination"
+      ]
+    },
+    {
+      "code": "BLL 311",
+      "name": "French Language Skills for the Media",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "BLL 311 French Language Skills Media Exam Feb 2025"
+      ]
+    },
+    {
+      "code": "BLL 321",
+      "name": "Research Methods",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Linguistics, Indigenous Languages and Media Studies",
+      "titles": [
+        "Research Methods"
+      ]
+    },
+    {
+      "code": "CHE 103",
+      "name": "Introduction to Kinetics and Thermodynamics",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Chemistry & Biochemistry",
+      "titles": [
+        "Kinetics and Thermodynamics Exam May 2022"
+      ]
+    },
+    {
+      "code": "CHE 104",
+      "name": "Organic Chemistry I",
+      "school": "School of Sciences and Aerospace Studies",
+      "department": "Department of Chemistry and Biochemistry",
+      "titles": [
+        "CHE 104 Organic Chemistry I Exam April 2022"
+      ]
+    },
+    {
+      "code": "CHE 201",
+      "name": "Chemical Analysis and Structural Determination",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Chemistry & Biochemistry",
+      "titles": [
+        "Chemical Analysis Exam August 2022"
+      ]
+    },
+    {
+      "code": "CHE 310",
+      "name": "Chemistry of the s- and p-Block Elements",
+      "school": "School of Sciences and Aerospace Studies",
+      "department": "Department of Chemistry and Biochemistry",
+      "titles": [
+        "CHE 310 Chemistry of the s and p Block Elements Exam Dec 2023"
+      ]
+    },
+    {
+      "code": "CIM 223",
+      "name": "Physics Methods",
+      "school": "School of Education",
+      "department": "Department of Curriculum Instruction and Educational Media",
+      "titles": [
+        "CIM 223 Physics Methods Exam Dec 2022"
+      ]
+    },
+    {
+      "code": "CIM 312",
+      "name": "History Education",
+      "school": "School of Education",
+      "department": "Department of Curriculum, Instruction & Educational Media",
+      "titles": [
+        "History Education",
+        "CIM 312 History Education School Based Examination"
+      ]
+    },
+    {
+      "code": "CIM 323",
+      "name": "Special Methods in Physics II",
+      "school": "School of Education",
+      "department": "Department of Curriculum, Instruction and Educational Media",
+      "titles": [
+        "CIM 323 Special Methods in Physics II Exam Dec 2023"
+      ]
+    },
+    {
+      "code": "CMD 310",
+      "name": "Leadership and Management of Community Projects",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Sociology, Psychology & Anthropology",
+      "titles": [
+        "Leadership and Management of Community Projects"
+      ]
+    },
+    {
+      "code": "CSC 211",
+      "name": "Object Oriented Programming",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Computer Science",
+      "titles": [
+        "Object Oriented Programming Core Principles & Java Architecture",
+        "Object Oriented Programming overview",
+        "Object Oriented Programming Exam March 2025 Sem1"
+      ]
+    },
+    {
+      "code": "CSC 213",
+      "name": "Operating System",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Computer Science",
+      "titles": [
+        "Operating System Introduction",
+        "Operating Systems Lecture 1",
+        "Operating Systems Lecture 2"
+      ]
+    },
+    {
+      "code": "CSC 214",
+      "name": "Formal Language and Automata theory",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Computer Science",
+      "titles": [
+        "Formal Language and Automata theory Course Overview",
+        "Formal Language and Automata theory Lecture1",
+        "Formal Language and Automata theory Lecture 2",
+        "Formal Language and Automata theory Lecture3"
+      ]
+    },
+    {
+      "code": "CSC 215",
+      "name": "System Programming",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Computer Science",
+      "titles": [
+        "System Programming - File Attributes, Permissions & Shell Programming"
+      ]
+    },
+    {
+      "code": "ECE 211",
+      "name": "Circuit Theory II",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Computer Science",
+      "titles": [
+        "Circuit Theory II Course overview",
+        "ECE 211 Circuit Theory II Second Year Supplementary Special Examination September 2015"
+      ]
+    },
+    {
+      "code": "ECE 261",
+      "name": "Basic electrical machines",
+      "school": "School of Engineering",
+      "department": "Electrical Engineering",
+      "titles": [
+        "Basic Electrical Machines Exam"
+      ]
+    },
+    {
+      "code": "EDB 302E",
+      "name": "Company Accounts",
+      "school": "School of Education",
+      "department": "Department of Curriculum Instruction and Educational Media",
+      "titles": [
+        "Company Accounts"
+      ]
+    },
+    {
+      "code": "EDE 214",
+      "name": "English Language Education I",
+      "school": "School of Education",
+      "department": "Department of Curriculum, Instruction & Educational Media",
+      "titles": [
+        "EDE 214 English Language Education I Special Supplementary Examination"
+      ]
+    },
+    {
+      "code": "EDE 314",
+      "name": "English Language Education II",
+      "school": "School of Education",
+      "department": "Department of Curriculum, Instruction and Educational Media",
+      "titles": [
+        "English Language Education II"
+      ]
+    },
+    {
+      "code": "ENG 323",
+      "name": "English for Diplomacy and Public Relations",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "English for Diplomacy and Public Relations"
+      ]
+    },
+    {
+      "code": "ENG 410",
+      "name": "Advance in the Description of English Grammar",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "Advance in the Description of English Grammar"
+      ]
+    },
+    {
+      "code": "ENG322",
+      "name": "Development of English as a Second Language",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+      "titles": [
+        "ENG 322: Development of English as a Second Language"
+      ]
+    },
+    {
+      "code": "FMS 321",
+      "name": "Film Editing",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Literature, Theatre and Film Studies",
+      "titles": [
+        "FMS 321 Film Editing Degree Examination April 2017"
+      ]
+    },
+    {
+      "code": "FRE 121",
+      "name": "Skills in Written Expression",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "FRE 121 Skills in Written Expression Exam Feb 2025"
+      ]
+    },
+    {
+      "code": "FRE 313",
+      "name": "Applied Linguistics",
+      "school": "School of Arts & Social Sciences (SASS)",
+      "department": "Department of Linguistics & Foreign Languages",
+      "titles": [
+        "Applied Linguistics"
+      ]
+    },
+    {
+      "code": "KIS 314",
+      "name": "Linguistics and the Language of Translation",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Kiswahili and Other African Languages",
+      "titles": [
+        "KIS 314 Linguistics and the Language of Translation 3rd Year Examination 1st Semester 2014"
+      ]
+    },
+    {
+      "code": "KIS 321",
+      "name": "Drama and Theatre for Interventions",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Kiswahili and Other African Languages",
+      "titles": [
+        "KIS 321 Drama and Theatre for Interventions Final Examination August 2015"
+      ]
+    },
+    {
+      "code": "LIN 312",
+      "name": "Second Language Acquisition",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "LIN 312 Second Language Acquisition Exam Feb 2025"
+      ]
+    },
+    {
+      "code": "LIN 325",
+      "name": "Comparative Study of Language",
+      "school": "School of Arts & Social Sciences (SASS)",
+      "department": "Department of Linguistics & Foreign Languages",
+      "titles": [
+        "Comparative Study of Language"
+      ]
+    },
+    {
+      "code": "LIT 410",
+      "name": "Literature and Postmodernist Theory",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "LIT 410 Literature and Postmodernist Theory Exam"
+      ]
+    },
+    {
+      "code": "LIT 411",
+      "name": "The African Novel",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "LIT 411 The African Novel Exam"
+      ]
+    },
+    {
+      "code": "LIT 420",
+      "name": "Modern African Poetry",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "LIT 420 Modern African Poetry Exam"
+      ]
+    },
+    {
+      "code": "LMC 312",
+      "name": "Corporate Communication",
+      "school": "School of Information Sciences",
+      "department": "Department of Publishing & Media Studies",
+      "titles": [
+        "Corporate Communication"
+      ]
+    },
+    {
+      "code": "LMC311",
+      "name": "Introduction to Media Law",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+      "titles": [
+        "LMC 311: Introduction to Media Law"
+      ]
+    },
+    {
+      "code": "MAT 206",
+      "name": "Numerical Methods",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Maths & Physics",
+      "titles": [
+        "Numerical Methods Exam March 2025 Sem1"
+      ]
+    },
+    {
+      "code": "MAT 207",
+      "name": "NGINEERING MATHEMATICS I",
+      "school": "School of Engineering",
+      "department": "Maths, Physics & Computing",
+      "titles": [
+        "Engineering Mathematics I Exam March 2025 Sem1"
+      ]
+    },
+    {
+      "code": "MAT 318",
+      "name": "MAT 318 Fluid Mechanics I Main Examination 2014/2015",
+      "school": "School of Science and Aerospace Studies",
+      "department": "Department of Mathematics",
+      "titles": [
+        "MAT 318 Fluid Mechanics I Main Examination 2014/2015"
+      ]
+    },
+    {
+      "code": "MPE 361",
+      "name": "Mechanical Engineering Design I",
+      "school": "School of Engineering",
+      "department": "Mechanical Engineering",
+      "titles": [
+        "Mechanical Engineering Design I Exam"
+      ]
+    },
+    {
+      "code": "MPE 371",
+      "name": "THERMODYNAMICS II",
+      "school": "School of Engineering",
+      "department": "Mechanical Engineering",
+      "titles": [
+        "Thermodynamics II Exam"
+      ]
+    },
+    {
+      "code": "PCA 313",
+      "name": "Community Correction",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of History, Political Science, Public Administration, Penology & Security Studies",
+      "titles": [
+        "PCA 313 Community Correction Examination"
+      ]
+    },
+    {
+      "code": "PHL 321",
+      "name": "Contemporary Moral Issues",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Philosophy, Religion and Theology",
+      "titles": [
+        "Contemporary Moral Issues"
+      ]
+    },
+    {
+      "code": "PHY 112",
+      "name": "Mechanics",
+      "school": "School of Sciences and Aerospace Studies",
+      "department": "Department of Mathematics, Physics and Computing",
+      "titles": [
+        "PHY 112 Mechanics Exam Jan 2022"
+      ]
+    },
+    {
+      "code": "PHY 121",
+      "name": "Geometrical Optics",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Mathematics & Physics",
+      "titles": [
+        "Geometrical Optics Exam April 2022"
+      ]
+    },
+    {
+      "code": "PHY 122",
+      "name": "Modern Physics",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Mathematics & Physics",
+      "titles": [
+        "Modern Physics Exam May 2022"
+      ]
+    },
+    {
+      "code": "PHY 210",
+      "name": "Electricity and Magnetism",
+      "school": "School of Sciences and Aerospace Studies",
+      "department": "Department of Mathematics, Physics and Computing",
+      "titles": [
+        "PHY 210 Electricity and Magnetism Exam July 2022"
+      ]
+    },
+    {
+      "code": "PHY 211",
+      "name": "Waves and Oscillations",
+      "school": "School of Sciences and Aerospace Studies",
+      "department": "Department of Mathematics and Aerospace Studies",
+      "titles": [
+        "PHY 211 Waves and Oscillations Exam July 2022"
+      ]
+    },
+    {
+      "code": "PHY 221",
+      "name": "Electricity and Magnetism II",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Mathematics & Physics",
+      "titles": [
+        "Electricity and Magnetism II Exam Dec 2022"
+      ]
+    },
+    {
+      "code": "PHY 311",
+      "name": "Solid State Physics I",
+      "school": "School of Sciences and Aerospace Studies",
+      "department": "Department of Mathematics, Physics and Computing",
+      "titles": [
+        "PHY 311 Solid State Physics I Exam Dec 2023"
+      ]
+    },
+    {
+      "code": "PSS 222",
+      "name": "Criminal Procedure and Practice",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of History, Political Science & Public Administration",
+      "titles": [
+        "Criminal Procedure and Practice"
+      ]
+    },
+    {
+      "code": "PSS 314",
+      "name": "Criminal Law",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of History, Political Science & Public Administration",
+      "titles": [
+        "PSS 314 Criminal Law Special Supplementary Examination March 2024"
+      ]
+    },
+    {
+      "code": "REL 313",
+      "name": "History of Christianity in Africa",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Philosophy, Theology and Religious Studies",
+      "titles": [
+        "History of Christianity in Africa"
+      ]
+    },
+    {
+      "code": "SAS 203",
+      "name": "Ethnicity, Race Relations and Nation Building in Kenya",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of History, Political Science and Public Administration",
+      "titles": [
+        "SAS 203 Ethnicity Race Relations Exam"
+      ]
+    },
+    {
+      "code": "SNE 316E",
+      "name": "Assessment and Identification of Learners with Emotional and Behaviour Disorders",
+      "school": "School of Education (SOE)",
+      "department": "Department of Educational Psychology",
+      "titles": [
+        "Assessment and Identification of Learners with Emotional and Behaviour Disorders"
+      ]
+    },
+    {
+      "code": "SPH 211",
+      "name": "Electricity and Magnetism",
+      "school": "School of Science & Aerospace Studies",
+      "department": "Computer Science",
+      "titles": [
+        "Electricity and Magnetism_Chapter 4 - Electric Potential"
+      ]
+    },
+    {
+      "code": "SPY322",
+      "name": "Psychology of Human Behaviour and Learning",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Psychology",
+      "titles": [
+        "SPY 322: Psychology of Human Behaviour and Learning"
+      ]
+    },
+    {
+      "code": "SWK 210",
+      "name": "Fundamental Issues of Diversity and Globalisation in Social Work",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology, Psychology and Social Work",
+      "titles": [
+        "SWK 210 Fundamental Issues of Diversity and Globalisation in Social Work Exam"
+      ]
+    },
+    {
+      "code": "SWK 211",
+      "name": "Social Work Practice with Individuals and Families",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology, Psychology and Anthropology",
+      "titles": [
+        "SWK 211 Social Work Practice with Individuals and Families Exam"
+      ]
+    },
+    {
+      "code": "SWK 213",
+      "name": "Advocacy in Social Work",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology, Psychology and Anthropology",
+      "titles": [
+        "SWK 213 Advocacy in Social Work Exam"
+      ]
+    },
+    {
+      "code": "SWK 223",
+      "name": "Family and Child Welfare Policy",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 223 Family Child Welfare Policy Exam"
+      ]
+    },
+    {
+      "code": "SWK 224",
+      "name": "Death and Dying Issues Across Lifespan",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology, Psychology and Anthropology",
+      "titles": [
+        "SWK 224 Death and Dying Issues Across Lifespan Exam"
+      ]
+    },
+    {
+      "code": "SWK 310",
+      "name": "Ethical Issues in Social Work Practice",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology, Psychology and Social Work",
+      "titles": [
+        "SWK 310 Ethical Issues in Social Work Practice Exam"
+      ]
+    },
+    {
+      "code": "SWK 320",
+      "name": "Social Work Practice with Groups",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 320 Social Work Practice Groups Exam"
+      ]
+    },
+    {
+      "code": "SWK 323",
+      "name": "Family Violence",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 323 Family Violence Exam"
+      ]
+    },
+    {
+      "code": "SWK 324",
+      "name": "Social Work, Health and Development",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 324 Social Work Health Development Exam"
+      ]
+    },
+    {
+      "code": "SWK 410",
+      "name": "Social Work Practice with Communities",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 410 Social Work Practice Communities Exam"
+      ]
+    },
+    {
+      "code": "SWK 412",
+      "name": "Contemporary Issues in Fields of Practice I",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 412 Contemporary Issues Exam"
+      ]
+    },
+    {
+      "code": "SWK 413",
+      "name": "Working With Trauma",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Sociology and Psychology",
+      "titles": [
+        "SWK 413 Working With Trauma Exam"
+      ]
+    },
+    {
+      "code": "THE 320",
+      "name": "Costume Design",
+      "school": "School of Arts and Social Sciences",
+      "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+      "titles": [
+        "THE 320 Costume Design Exam"
+      ]
+    },
+    {
+      "code": "THL320",
+      "name": "Studies in the Old Testament 1",
+      "school": "School of Arts and Social Sciences (SASS)",
+      "department": "Department of Philosophy & Religious Studies",
+      "titles": [
+        "THL 320: Studies in the Old Testament 1"
+      ]
+    }
+  ]
+}

@@ -22,9 +22,11 @@ import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearc
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
-import { rankMaterials, rankMaterialsForProfile } from '../src/utils/materialSearch';
+import { rankMaterials, rankMaterialsForProfile, smartSearchMaterials } from '../src/utils/materialSearch';
 import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
+import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
+import { parseSmartSearchQuery } from '../src/utils/smartSearchParser';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -71,7 +73,7 @@ export interface PastPaperItem {
 const RECOMMENDED_PAST_PAPERS: PastPaperItem[] = [];
 
 const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [];
-const PAPER_PAGE_SIZE = 24;
+const PAPER_PAGE_SIZE = 60;
 const DISCOVERY_BLOCK_SIZE = 6;
 
 const FILTER_DISCS = [
@@ -255,6 +257,7 @@ export default function PastPapersScreen({ route }: any) {
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
 
@@ -269,14 +272,17 @@ export default function PastPapersScreen({ route }: any) {
   // Fetch real uploaded past papers from Cloudinary / backend API
   const fetchRealPastPapers = async (searchTerm = '', page = 1, append = false) => {
     try {
+      const isSearch = searchTerm.trim().length > 0;
       if (append) setLoadingMore(true);
+      else if (isSearch) setIsSearchLoading(true);
       else setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
-      const searchParam = searchTerm.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${PAPER_PAGE_SIZE}&page=${page}${searchParam}&refresh=${Date.now()}`);
+      const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
+      const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
           .filter((p) => p.type === 'past_paper' || p.type === 'solution')
@@ -310,48 +316,60 @@ export default function PastPapersScreen({ route }: any) {
           });
 
         const nextPapers = realPastPapers.length > 0
-          ? (demoSetting ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
+          ? (demoSetting && !isSearch ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
           : [];
         setPapersData((previous) => {
+          if (isSearch && !append) {
+            return rankMaterials(nextPapers, searchTerm.trim());
+          }
           const merged = append ? [...previous, ...nextPapers] : nextPapers;
           const unique = Array.from(new Map(merged.map((paper) => [paper.id, paper])).values());
+          if (searchTerm.trim()) {
+            return rankMaterials(unique, searchTerm.trim());
+          }
           return rankMaterialsForProfile(unique, user, searchHistory);
         });
         setPapersPage(page);
-        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === PAPER_PAGE_SIZE);
+        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit);
         setInitialLoading(false);
+        setIsSearchLoading(false);
         setLoadingMore(false);
       } else if (!res.success) {
-        setFetchError(true); setInitialLoading(false); setLoadingMore(false);
+        setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       } else {
-        if (!append) setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []);
-        setHasMorePapers(false); setInitialLoading(false); setLoadingMore(false);
+        if (!append) setPapersData(demoSetting && !isSearch ? INITIAL_PAST_PAPERS_DATA : []);
+        setHasMorePapers(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       }
     } catch (err) {
-      console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false); setLoadingMore(false);
+      console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
     }
   };
 
-  const carouselPapers = papersData.length > 0
-    ? (papersData.length <= 3 ? papersData.slice(0, Math.min(2, papersData.length)) : papersData.slice(0, 4))
-    : (showDemoMaterials ? RECOMMENDED_PAST_PAPERS : []);
-
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') fetchRealPastPapers();
+      if (state === 'active') fetchRealPastPapers(searchQuery.trim());
     });
     return () => subscription.remove();
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      setIsSearchLoading(true);
+    }
     const timer = setTimeout(() => {
       setPapersPage(1);
       setHasMorePapers(true);
-      setPapersData([]);
-      void fetchRealPastPapers(searchQuery.trim().length > 1 ? searchQuery : '');
-    }, 350);
+      void fetchRealPastPapers(trimmed);
+    }, 280);
     return () => clearTimeout(timer);
   }, [searchQuery, user, searchHistory]);
+
+  const isSearching = searchQuery.trim().length > 0;
+
+  const carouselPapers = !isSearching && papersData.length > 0
+    ? (papersData.length <= 3 ? papersData.slice(0, Math.min(2, papersData.length)) : papersData.slice(0, 4))
+    : (!isSearching && showDemoMaterials ? RECOMMENDED_PAST_PAPERS : []);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -374,7 +392,30 @@ export default function PastPapersScreen({ route }: any) {
     return () => clearInterval(timer);
   }, [carouselIndex, carouselPapers.length]);
 
-  const filteredPapers = rankMaterials(papersData, searchQuery).filter((item) => {
+  const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
+
+  const smartSearch = React.useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      return {
+        results: papersData,
+        intent: parseSmartSearchQuery(''),
+        isAutoPivoted: false,
+        effectiveQuery: ''
+      };
+    }
+    const smart = smartSearchMaterials(papersData, q);
+    if (forcedOriginalQuery === q) {
+      return {
+        ...smart,
+        isAutoPivoted: false,
+        effectiveQuery: q
+      };
+    }
+    return smart;
+  }, [papersData, searchQuery, forcedOriginalQuery]);
+
+  const filteredPapers = smartSearch.results.filter((item) => {
     if (activeFilterDisc === 'solutions') return item.hasSolutions;
     if (activeFilterDisc === 'hot') return item.downloadsCount > 2500;
     if (activeFilterDisc === '2025') return item.examYear === '2025';
@@ -384,6 +425,10 @@ export default function PastPapersScreen({ route }: any) {
 
     return true;
   });
+
+  const feedItems = isSearching
+    ? filteredPapers
+    : (filteredPapers.length <= 3 ? filteredPapers : filteredPapers.slice(carouselPapers.length));
 
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
@@ -461,7 +506,6 @@ export default function PastPapersScreen({ route }: any) {
     }
   };
 
-  const feedItems = filteredPapers.length <= 3 ? filteredPapers : filteredPapers.slice(carouselPapers.length);
   const carouselTitles = [
     ['Recently Uploaded', 'Fresh examination materials from students and departments'],
     ['Most Downloaded', 'Popular papers students are revising now'],
@@ -568,7 +612,7 @@ export default function PastPapersScreen({ route }: any) {
           <View style={styles.searchBar}>
             <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
             <TextInput
-              placeholder="Search past papers, unit codes (e.g. COM 310, MAT 210)..."
+              placeholder="Describe what you want..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -583,6 +627,24 @@ export default function PastPapersScreen({ route }: any) {
             )}
           </View>
         </View>
+
+        {/* Google-Style Smart Search Header */}
+        <SmartSearchHeader
+          intent={smartSearch.intent}
+          isAutoPivoted={smartSearch.isAutoPivoted}
+          totalResultsCount={filteredPapers.length}
+          onAcceptSuggestion={(suggestion) => {
+            setSearchQuery(suggestion);
+            setForcedOriginalQuery(null);
+          }}
+          onSearchInsteadOriginal={() => {
+            setForcedOriginalQuery(searchQuery);
+          }}
+          onChipPress={(chip) => {
+            setSearchQuery(chip);
+            setForcedOriginalQuery(null);
+          }}
+        />
 
         {/* Filter Discs Pills Header */}
         <ScrollView
@@ -636,8 +698,18 @@ export default function PastPapersScreen({ route }: any) {
                 <SparklesIcon color="#15803d" size={18} />
               </View>
               <View>
-                <Text style={styles.sectionTitle}>Recommended Past Exams</Text>
-                <Text style={styles.sectionSub}>Auto-suggested for your upcoming examinations</Text>
+                <Text style={styles.sectionTitle}>
+                  {isSearching ? 'Top Matches' : 'Recommended Past Exams'}
+                </Text>
+                <Text style={styles.sectionSub}>
+                  {isSearching
+                    ? (smartSearch.intent.school
+                        ? `Auto-matched for ${smartSearch.intent.school}`
+                        : smartSearch.intent.unitCode
+                          ? `Auto-matched for ${smartSearch.intent.unitCode}`
+                          : `Top results for "${smartSearch.effectiveQuery || searchQuery}"`)
+                    : 'Auto-suggested for your upcoming examinations'}
+                </Text>
               </View>
             </View>
 
@@ -732,7 +804,31 @@ export default function PastPapersScreen({ route }: any) {
         {initialLoading ? (
           <ShimmerGridLoader title="loading more resources" count={6} />
         ) : fetchError && papersData.length === 0 && !showDemoMaterials ? (
-          <OfflineState onRetry={fetchRealPastPapers} />
+          <OfflineState onRetry={() => fetchRealPastPapers(searchQuery.trim())} />
+        ) : isSearching ? (
+          isSearchLoading && filteredPapers.length === 0 ? (
+            <ShimmerGridLoader title={`Searching past papers for "${searchQuery}"...`} count={4} />
+          ) : filteredPapers.length > 0 ? (
+            <View style={{ marginTop: 20 }}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 8 }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                  <BookIcon color="#15803d" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>
+                    {smartSearch.isAutoPivoted
+                      ? `Matched for "${smartSearch.effectiveQuery}"`
+                      : (filteredPapers.length <= 4 ? 'Search Results' : 'All Matching Exam Papers')}
+                  </Text>
+                  <Text style={styles.sectionSub}>
+                    {filteredPapers.length} paper{filteredPapers.length === 1 ? '' : 's'} found
+                    {isSearchLoading ? ' • updating...' : ''}
+                  </Text>
+                </View>
+              </View>
+              {renderGridItems(filteredPapers)}
+            </View>
+          ) : null
         ) : (
           feedBlocks.map((block, index) => {
             if (!block.items || block.items.length === 0) return null;
@@ -765,6 +861,36 @@ export default function PastPapersScreen({ route }: any) {
               </React.Fragment>
             );
           })
+        )}
+
+        {/* Zero Results Smart Fallback */}
+        {!initialLoading && !isSearchLoading && searchQuery.trim().length > 0 && filteredPapers.length === 0 && (
+          <View style={{ padding: 28, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 16, borderWidth: 1, borderColor: '#e2e8f0' }}>
+            <DocumentIcon color="#94a3b8" size={38} />
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12, textAlign: 'center' }}>
+              No past papers found for "{searchQuery}"
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+              {smartSearch.intent.didYouMeanText
+                ? `Did you mean: "${smartSearch.intent.didYouMeanText}"? Tap the recommendation above, or request peers to upload this exam.`
+                : 'Try searching by unit code (e.g. COM 110, CSC 112) or exam year (e.g. 2024).'}
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={{ marginTop: 18, backgroundColor: '#15803d', paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              onPress={() => {
+                showIceMessage(
+                  'Past Paper Requested',
+                  `We've recorded your request for "${searchQuery}". Class reps & peer contributors will be notified to upload it!`
+                );
+              }}
+            >
+              <SparklesIcon color="#ffffff" size={14} />
+              <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                Request this Past Paper
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}

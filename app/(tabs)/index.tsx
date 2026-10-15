@@ -22,6 +22,7 @@ import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
 import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
+import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 
 import {
   SearchIcon,
@@ -82,6 +83,9 @@ function getGreetingText(userName?: string): string {
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const smartIntent = React.useMemo(() => {
+    return searchQuery.trim().length > 1 ? parseSmartSearchQuery(searchQuery.trim()) : null;
+  }, [searchQuery]);
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSuggestedIndex, setActiveSuggestedIndex] = useState(0);
@@ -301,7 +305,7 @@ export default function HomeScreen() {
         <View style={styles.searchBox}>
           <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
           <TextInput
-            placeholder="Search papers by code, unit, or house..."
+            placeholder="Describe what you want..."
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -321,6 +325,49 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Smart Recognized Intent & "Did You Mean" Helper Card */}
+        {smartIntent && (smartIntent.didYouMeanText || smartIntent.chips.length > 0) && (
+          <View style={styles.homeSmartSearchBox}>
+            {smartIntent.didYouMeanText && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setSearchQuery(smartIntent.autoPivotSuggestion || smartIntent.didYouMeanText!)}
+                style={styles.homeDidYouMeanRow}
+              >
+                <SparklesIcon color="#15803d" size={14} />
+                <Text style={styles.homeDidYouMeanText}>
+                  Did you mean:{' '}
+                  <Text style={styles.homeDidYouMeanBold}>{smartIntent.didYouMeanText}</Text>?
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {smartIntent.chips.length > 0 && (
+              <View style={styles.homeChipsRow}>
+                {smartIntent.chips.map((chip, idx) => (
+                  <TouchableOpacity
+                    key={`${chip.label}-${idx}`}
+                    onPress={() => setSearchQuery(chip.label)}
+                    style={styles.homeChip}
+                  >
+                    <Text style={styles.homeChipText}>{chip.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleGlobalSearch}
+              style={styles.homeInstantSearchJump}
+            >
+              <Text style={styles.homeInstantSearchJumpText}>
+                Tap to search in {smartIntent.materialType ? smartIntent.materialType.replace('_', ' ').toUpperCase() : 'MCONNECT'} ➔
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Quick Access Actions (2x2 Grid) */}
@@ -614,6 +661,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6
+  },
+  homeSmartSearchBox: {
+    marginTop: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3
+  },
+  homeDidYouMeanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  homeDidYouMeanText: {
+    fontSize: 13,
+    color: '#334155'
+  },
+  homeDidYouMeanBold: {
+    fontWeight: '700',
+    color: '#15803d'
+  },
+  homeChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8
+  },
+  homeChip: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  homeChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1e40af'
+  },
+  homeInstantSearchJump: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9'
+  },
+  homeInstantSearchJumpText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803d'
   },
   section: {
     marginBottom: 24

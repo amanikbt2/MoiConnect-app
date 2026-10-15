@@ -1,0 +1,169 @@
+================================================================================
+MOI UNIVERSITY OFFLINE ACADEMIC CORPUS & SEARCH DICTIONARY
+Extracted from Database + Official Curriculum
+100% Offline Static Knowledge Base - No Online Sync Required
+================================================================================
+
+### SECTION 1: SCHOOLS ###
+SCHOOL | SSAS | School of Science and Aerospace Studies | science and aerospace, science, aerospace, ssas, aviation, pure sciences
+SCHOOL | SIS | School of Information Sciences | information sciences, sis, it, informatics, information science, media
+SCHOOL | SOL | School of Law | law, sol, annex, legal studies, school of law
+SCHOOL | SOM | School of Medicine | medicine, som, mbchb, med school, school of medicine, medical
+SCHOOL | SOE | School of Engineering | engineering, soe, eng, civil, mechanical, electrical
+SCHOOL | SOBE | School of Business & Economics | business, economics, sobe, commerce, finance, accounting
+SCHOOL | SOE_ED | School of Education | education, teaching, school of education, pedagogy
+SCHOOL | SASS | School of Arts and Social Sciences | sass, arts, social sciences, humanities, anthropology, sociology
+SCHOOL | SPH | School of Public Health | public health, sph, epidemiology
+SCHOOL | SON | School of Nursing Sciences | nursing, son, nursing sciences
+SCHOOL | SOD | School of Dentistry | dentistry, dental
+
+### SECTION 2: SEMESTERS ###
+SEMESTER | Semester 1 | sem 1, sem1, s1, first semester, semester 1, semester1
+SEMESTER | Semester 2 | sem 2, sem2, s2, second semester, semester 2, semester2
+
+### SECTION 3: YEARS OF STUDY ###
+YEAR_OF_STUDY | Year 1 | year 1, y1, yr 1, first year, 1st year, year one
+YEAR_OF_STUDY | Year 2 | year 2, y2, yr 2, second year, 2nd year, year two
+YEAR_OF_STUDY | Year 3 | year 3, y3, yr 3, third year, 3rd year, year three
+YEAR_OF_STUDY | Year 4 | year 4, y4, yr 4, fourth year, 4th year, year four
+YEAR_OF_STUDY | Year 5 | year 5, y5, yr 5, fifth year, 5th year, year five
+YEAR_OF_STUDY | Year 6 | year 6, y6, yr 6, sixth year, 6th year, year six
+
+### SECTION 4: EXAM YEARS ###
+EXAM_YEARS | 2000-2060
+
+### SECTION 5: MATERIAL TYPES ###
+MATERIAL_TYPE | past_paper | Past Paper | past paper, pastpaper, exam paper, exam, examination, main exam, special exam
+MATERIAL_TYPE | notes | Revision Notes | notes, revision notes, lecture notes, pdf notes, slides, handout, reading material
+MATERIAL_TYPE | cat | CAT / Quiz | cat, cats, cat paper, quiz, continuous assessment, cat 1, cat 2, midterm, mid-term
+MATERIAL_TYPE | solution | Exam Solution | solution, answers, marking scheme, worked solutions, solved paper
+
+### SECTION 6: COURSE UNITS (128 Total Units) ###
+UNIT | ANT 311 | Political and Legal Anthropology | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 311 Political Legal Anthropology Exam
+UNIT | ANT 312 | Economic Anthropology | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 312 Economic Anthropology Exam
+UNIT | ANT 313 | Human Evolution | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 313 Human Evolution Exam
+UNIT | ANT 321 | Quantitative and Qualitative Methods and Analysis | Department of Anthropology, Gender & Diversity Studies | School of Arts and Social Sciences (SASS) | Quantitative and Qualitative Methods and Analysis
+UNIT | ANT 325 | Human Ecology | Department of Anthropology, Gender & Diversity Studies | School of Arts and Social Sciences (SASS) | ANT 325 Human Ecology Second Semester Examination 2015
+UNIT | BAS 103 | Introduction to Philosophy and Religion | Department of Philosophy and Religious Studies | School of Arts and Social Sciences | BAS 103 Intro Philosophy Religion Exam
+UNIT | BAS 201 | Kenya in World History | Department of History, Political Science and Public Administration | School of Arts and Social Sciences | BAS 201 Kenya in World History Exam
+UNIT | BBM 101 | Principles of Management | Department of Business Administration | School of Business & Economics | management principles
+UNIT | BBM 102 | Introduction to Business Studies | Department of Business Administration | School of Business & Economics | business studies
+UNIT | BBM 201 | Financial Accounting I | Department of Accounting and Finance | School of Business & Economics | financial accounting ; accounting 1
+UNIT | BBM 202 | Principles of Marketing | Department of Marketing | School of Business & Economics | marketing principles
+UNIT | BKS 310 | Prose Works in Kiswahili | Department of Kiswahili and Other African Languages | School of Arts and Social Sciences (SASS) | Prose Works in Kiswahili ; BKS 310 Prose Works in Kiswahili Examination
+UNIT | BLL 221 | Proficiency Course in French | Department of French | School of Arts and Social Sciences | BLL 221 Proficiency Course French Exam
+UNIT | BLL 311 | French Language Skills for the Media | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | BLL 311 French Language Skills Media Exam Feb 2025
+UNIT | BLL 321 | Research Methods | Department of Linguistics, Indigenous Languages and Media Studies | School of Arts and Social Sciences (SASS) | Research Methods
+UNIT | CHE 103 | Introduction to Kinetics and Thermodynamics | Chemistry & Biochemistry | School of Science & Aerospace Studies | Kinetics and Thermodynamics Exam May 2022
+UNIT | CHE 104 | Organic Chemistry I | Department of Chemistry and Biochemistry | School of Sciences and Aerospace Studies | CHE 104 Organic Chemistry I Exam April 2022
+UNIT | CHE 111 | General Chemistry I | Department of Chemistry & Biochemistry | School of Science and Aerospace Studies | general chemistry ; chemistry 1
+UNIT | CHE 121 | Organic Chemistry I | Department of Chemistry & Biochemistry | School of Science and Aerospace Studies | organic chemistry
+UNIT | CHE 201 | Chemical Analysis and Structural Determination | Chemistry & Biochemistry | School of Science & Aerospace Studies | Chemical Analysis Exam August 2022
+UNIT | CHE 310 | Chemistry of the s- and p-Block Elements | Department of Chemistry and Biochemistry | School of Sciences and Aerospace Studies | CHE 310 Chemistry of the s and p Block Elements Exam Dec 2023
+UNIT | CIM 223 | Physics Methods | Department of Curriculum Instruction and Educational Media | School of Education | CIM 223 Physics Methods Exam Dec 2022
+UNIT | CIM 312 | History Education | Department of Curriculum, Instruction & Educational Media | School of Education | History Education ; CIM 312 History Education School Based Examination
+UNIT | CIM 323 | Special Methods in Physics II | Department of Curriculum, Instruction and Educational Media | School of Education | CIM 323 Special Methods in Physics II Exam Dec 2023
+UNIT | CMD 310 | Leadership and Management of Community Projects | Department of Sociology, Psychology & Anthropology | School of Arts and Social Sciences (SASS) | Leadership and Management of Community Projects
+UNIT | COM 110 | Introduction to Computers and Computing | Department of Computer Science | School of Science and Aerospace Studies | intro to computers ; computer fundamentals
+UNIT | COM 111 | Communication Skills | Department of Publishing & Media Studies | School of Information Sciences | comm skills ; communication
+UNIT | COM 210 | Object-Oriented Analysis and Design | Department of Computer Science | School of Science and Aerospace Studies | ooad ; system analysis
+UNIT | CSC 111 | Introduction to Computer Science | Department of Computer Science | School of Science and Aerospace Studies | intro to cs ; cs101 ; computing
+UNIT | CSC 112 | Introduction to Programming | Department of Computer Science | School of Science and Aerospace Studies | intro to programming ; c programming ; structured programming
+UNIT | CSC 121 | Object-Oriented Programming I | Department of Computer Science | School of Science and Aerospace Studies | oop 1 ; java programming ; c++ programming
+UNIT | CSC 122 | Discrete Mathematics | Department of Computer Science | School of Science and Aerospace Studies | discrete structures ; discrete math
+UNIT | CSC 211 | Data Structures and Algorithms | Department of Computer Science | School of Science and Aerospace Studies | dsa ; data structures ; algorithms ; Object Oriented Programming Core Principles & Java Architecture ; Object Oriented Programming overview ; Object Oriented Programming Exam March 2025 Sem1
+UNIT | CSC 212 | Computer Architecture and Organization | Department of Computer Science | School of Science and Aerospace Studies | computer architecture ; computer org
+UNIT | CSC 213 | Object Oriented Programming II | Department of Computer Science | School of Science and Aerospace Studies | advanced oop ; oop 2 ; Operating System Introduction ; Operating Systems Lecture 1 ; Operating Systems Lecture 2
+UNIT | CSC 214 | Formal Language and Automata Theory | Department of Computer Science | School of Science and Aerospace Studies | automata ; flat ; formal languages ; turing machines ; Formal Language and Automata theory Course Overview ; Formal Language and Automata theory Lecture1 ; Formal Language and Automata theory Lecture 2 ; Formal Language and Automata theory Lecture3
+UNIT | CSC 215 | System Programming | Department of Computer Science | School of Science and Aerospace Studies | systems programming ; linux programming ; c unix ; System Programming - File Attributes, Permissions & Shell Programming
+UNIT | CSC 221 | Operating Systems | Department of Computer Science | School of Science and Aerospace Studies | os ; operating system
+UNIT | CSC 222 | Database Management Systems | Department of Computer Science | School of Science and Aerospace Studies | dbms ; databases ; sql
+UNIT | CSC 311 | Software Engineering | Department of Computer Science | School of Science and Aerospace Studies | se ; software dev
+UNIT | CSC 312 | Design and Analysis of Algorithms | Department of Computer Science | School of Science and Aerospace Studies | daa ; advanced algorithms
+UNIT | CSC 313 | Assembly Language Programming | Department of Computer Science | School of Science and Aerospace Studies | assembly ; low level programming
+UNIT | CSC 321 | Computer Networks | Department of Computer Science | School of Science and Aerospace Studies | networks ; networking ; telecom
+UNIT | CSC 322 | Web Development and Technologies | Department of Computer Science | School of Science and Aerospace Studies | web dev ; internet tech
+UNIT | CSC 323 | Artificial Intelligence | Department of Computer Science | School of Science and Aerospace Studies | ai ; machine learning ; expert systems
+UNIT | CSC 411 | Compiler Construction | Department of Computer Science | School of Science and Aerospace Studies | compilers ; automata and compilers
+UNIT | CSC 412 | Computer Graphics and Multimedia | Department of Computer Science | School of Science and Aerospace Studies | graphics ; multimedia
+UNIT | CSC 421 | Distributed Systems | Department of Computer Science | School of Science and Aerospace Studies | distributed computing ; cloud
+UNIT | CSC 422 | Information and Network Security | Department of Computer Science | School of Science and Aerospace Studies | cybersecurity ; cryptography
+UNIT | ECE 211 | Circuit Theory II | Computer Science | School of Science & Aerospace Studies | Circuit Theory II Course overview
+UNIT | ECE 261 | Basic electrical machines | Electrical Engineering | School of Engineering | Basic Electrical Machines Exam
+UNIT | ECO 110 | Introduction to Microeconomics | Department of Economics | School of Business & Economics | microeconomics ; intro micro
+UNIT | ECO 111 | Introduction to Macroeconomics | Department of Economics | School of Business & Economics | macroeconomics ; intro macro
+UNIT | EDE 111 | Introduction to Education | Department of Curriculum Instruction & Educational Media | School of Education | intro to education
+UNIT | EDE 211 | Educational Media and Technology | Department of Curriculum Instruction & Educational Media | School of Education | ed tech ; educational media ; audio visual
+UNIT | EDE 314 | English Language Education II | Department of Curriculum, Instruction and Educational Media | School of Education | English Language Education II
+UNIT | EDF 111 | History of Education | Department of Educational Foundations | School of Education | history of ed
+UNIT | EDF 211 | Philosophy of Education | Department of Educational Foundations | School of Education | philosophy of ed
+UNIT | FMS 321 | Film Editing | Department of Literature, Theatre and Film Studies | School of Arts and Social Sciences (SASS) | FMS 321 Film Editing Degree Examination April 2017
+UNIT | FRE 121 | Skills in Written Expression | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | FRE 121 Skills in Written Expression Exam Feb 2025
+UNIT | INF 110 | Foundations of Information Sciences | Department of Information Technology | School of Information Sciences | foundations of is
+UNIT | INS 111 | Information Literacy | Department of Library, Records & Information Management | School of Information Sciences | info literacy
+UNIT | KIS 314 | Linguistics and the Language of Translation | Department of Kiswahili and Other African Languages | School of Arts and Social Sciences (SASS) | KIS 314 Linguistics and the Language of Translation 3rd Year Examination 1st Semester 2014
+UNIT | KIS 321 | Drama and Theatre for Interventions | Department of Kiswahili and Other African Languages | School of Arts and Social Sciences (SASS) | KIS 321 Drama and Theatre for Interventions Final Examination August 2015
+UNIT | LAW 110 | Constitutional Law I | Department of Public Law | School of Law | consti ; constitutional law
+UNIT | LAW 111 | Legal Method and Legal Systems | Department of Public Law | School of Law | legal systems
+UNIT | LAW 120 | Law of Contract I | Department of Private Law | School of Law | contract law ; contracts
+UNIT | LAW 210 | Criminal Law I | Department of Public Law | School of Law | criminal law
+UNIT | LAW 220 | Law of Torts I | Department of Private Law | School of Law | torts ; tort law
+UNIT | LIN 312 | Second Language Acquisition | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIN 312 Second Language Acquisition Exam Feb 2025
+UNIT | LIT 410 | Literature and Postmodernist Theory | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIT 410 Literature and Postmodernist Theory Exam
+UNIT | LIT 411 | The African Novel | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIT 411 The African Novel Exam
+UNIT | LIT 420 | Modern African Poetry | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIT 420 Modern African Poetry Exam
+UNIT | LMC311 | Introduction to Media Law | Department of Literature, Linguistics, Foreign Languages & Film Studies | School of Arts and Social Sciences (SASS) | LMC 311: Introduction to Media Law
+UNIT | MAT 110 | Basic Mathematics | Department of Mathematics & Physics | School of Science and Aerospace Studies | basic math ; foundation math
+UNIT | MAT 111 | Differential Calculus | Department of Mathematics & Physics | School of Science and Aerospace Studies | calculus 1 ; differentiation ; calc 1 ; differential calulus
+UNIT | MAT 120 | Integral Calculus | Department of Mathematics & Physics | School of Science and Aerospace Studies | calculus 2 ; integration ; calc 2
+UNIT | MAT 121 | Linear Algebra I | Department of Mathematics & Physics | School of Science and Aerospace Studies | linear algebra ; matrices ; vectors
+UNIT | MAT 206 | Mathematical Modeling | Department of Mathematics & Physics | School of Science and Aerospace Studies | modelling ; math models ; Numerical Methods Exam March 2025 Sem1
+UNIT | MAT 207 | NGINEERING MATHEMATICS I | Maths, Physics & Computing | School of Engineering | Engineering Mathematics I Exam March 2025 Sem1
+UNIT | MAT 210 | Calculus III / Multivariable Calculus | Department of Mathematics & Physics | School of Science and Aerospace Studies | calc 3 ; multivariable calculus ; calculus iii
+UNIT | MAT 211 | Linear Algebra II | Department of Mathematics & Physics | School of Science and Aerospace Studies | linear algebra 2 ; vector spaces
+UNIT | MAT 220 | Vector Analysis | Department of Mathematics & Physics | School of Science and Aerospace Studies | vector calculus
+UNIT | MAT 221 | Ordinary Differential Equations | Department of Mathematics & Physics | School of Science and Aerospace Studies | ode ; differential equations
+UNIT | MAT 310 | Real Analysis I | Department of Mathematics & Physics | School of Science and Aerospace Studies | real analysis
+UNIT | MAT 311 | Complex Analysis | Department of Mathematics & Physics | School of Science and Aerospace Studies | complex variables
+UNIT | MAT 318 | MAT 318 Fluid Mechanics I Main Examination 2014/2015 | Department of Mathematics | School of Science and Aerospace Studies | MAT 318 Fluid Mechanics I Main Examination 2014/2015
+UNIT | MAT 320 | Partial Differential Equations | Department of Mathematics & Physics | School of Science and Aerospace Studies | pde
+UNIT | MAT 321 | Numerical Analysis | Department of Mathematics & Physics | School of Science and Aerospace Studies | numerical methods
+UNIT | MPE 361 | Mechanical Engineering Design I | Mechanical Engineering | School of Engineering | Mechanical Engineering Design I Exam
+UNIT | MPE 371 | THERMODYNAMICS II | Mechanical Engineering | School of Engineering | Thermodynamics II Exam
+UNIT | PCA 313 | Community Correction | Department of History, Political Science, Public Administration, Penology & Security Studies | School of Arts and Social Sciences (SASS) | PCA 313 Community Correction Examination
+UNIT | PHL 321 | Contemporary Moral Issues | Department of Philosophy, Religion and Theology | School of Arts and Social Sciences (SASS) | Contemporary Moral Issues
+UNIT | PHY 110 | Mechanics and Properties of Matter | Department of Mathematics & Physics | School of Science and Aerospace Studies | mechanics ; general physics
+UNIT | PHY 111 | Thermal Physics | Department of Mathematics & Physics | School of Science and Aerospace Studies | heat and thermodynamics
+UNIT | PHY 112 | Mechanics | Department of Mathematics, Physics and Computing | School of Sciences and Aerospace Studies | PHY 112 Mechanics Exam Jan 2022
+UNIT | PHY 120 | Electricity and Magnetism | Department of Mathematics & Physics | School of Science and Aerospace Studies | electromagnetism ; e and m
+UNIT | PHY 121 | Waves and Optics | Department of Mathematics & Physics | School of Science and Aerospace Studies | optics ; wave motion ; Geometrical Optics Exam April 2022
+UNIT | PHY 122 | Modern Physics | Mathematics & Physics | School of Science & Aerospace Studies | Modern Physics Exam May 2022
+UNIT | PHY 210 | Electricity and Magnetism | Department of Mathematics, Physics and Computing | School of Sciences and Aerospace Studies | PHY 210 Electricity and Magnetism Exam July 2022
+UNIT | PHY 211 | Waves and Oscillations | Department of Mathematics and Aerospace Studies | School of Sciences and Aerospace Studies | PHY 211 Waves and Oscillations Exam July 2022
+UNIT | PHY 221 | Electricity and Magnetism II | Mathematics & Physics | School of Science & Aerospace Studies | Electricity and Magnetism II Exam Dec 2022
+UNIT | PHY 311 | Solid State Physics I | Department of Mathematics, Physics and Computing | School of Sciences and Aerospace Studies | PHY 311 Solid State Physics I Exam Dec 2023
+UNIT | PSS 222 | Criminal Procedure and Practice | Department of History, Political Science & Public Administration | School of Arts and Social Sciences (SASS) | Criminal Procedure and Practice
+UNIT | PSS 314 | Criminal Law | Department of History, Political Science & Public Administration | School of Arts and Social Sciences (SASS) | PSS 314 Criminal Law Special Supplementary Examination March 2024
+UNIT | PSY 111 | Introduction to Educational Psychology | Department of Educational Psychology | School of Education | ed psych
+UNIT | SAS 203 | Ethnicity, Race Relations and Nation Building in Kenya | Department of History, Political Science and Public Administration | School of Arts and Social Sciences | SAS 203 Ethnicity Race Relations Exam
+UNIT | SPH 211 | Electricity and Magnetism | Computer Science | School of Science & Aerospace Studies | Electricity and Magnetism_Chapter 4 - Electric Potential
+UNIT | SPY322 | Psychology of Human Behaviour and Learning | Department of Psychology | School of Arts and Social Sciences (SASS) | SPY 322: Psychology of Human Behaviour and Learning
+UNIT | STA 111 | Introduction to Probability and Statistics | Department of Mathematics & Physics | School of Science and Aerospace Studies | stats 1 ; intro to stats ; probability
+UNIT | STA 112 | Descriptive Statistics | Department of Mathematics & Physics | School of Science and Aerospace Studies | descriptive stats
+UNIT | STA 211 | Mathematical Statistics I | Department of Mathematics & Physics | School of Science and Aerospace Studies | math stats ; statistical theory
+UNIT | STA 221 | Probability Theory | Department of Mathematics & Physics | School of Science and Aerospace Studies | probability models
+UNIT | STA 311 | Regression Analysis | Department of Mathematics & Physics | School of Science and Aerospace Studies | regression models ; econometrics stats
+UNIT | SWK 210 | Fundamental Issues of Diversity and Globalisation in Social Work | Department of Sociology, Psychology and Social Work | School of Arts and Social Sciences | SWK 210 Fundamental Issues of Diversity and Globalisation in Social Work Exam
+UNIT | SWK 211 | Social Work Practice with Individuals and Families | Department of Sociology, Psychology and Anthropology | School of Arts and Social Sciences | SWK 211 Social Work Practice with Individuals and Families Exam
+UNIT | SWK 213 | Advocacy in Social Work | Department of Sociology, Psychology and Anthropology | School of Arts and Social Sciences | SWK 213 Advocacy in Social Work Exam
+UNIT | SWK 223 | Family and Child Welfare Policy | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 223 Family Child Welfare Policy Exam
+UNIT | SWK 224 | Death and Dying Issues Across Lifespan | Department of Sociology, Psychology and Anthropology | School of Arts and Social Sciences | SWK 224 Death and Dying Issues Across Lifespan Exam
+UNIT | SWK 310 | Ethical Issues in Social Work Practice | Department of Sociology, Psychology and Social Work | School of Arts and Social Sciences | SWK 310 Ethical Issues in Social Work Practice Exam
+UNIT | SWK 320 | Social Work Practice with Groups | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 320 Social Work Practice Groups Exam
+UNIT | SWK 323 | Family Violence | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 323 Family Violence Exam
+UNIT | SWK 324 | Social Work, Health and Development | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 324 Social Work Health Development Exam
+UNIT | SWK 410 | Social Work Practice with Communities | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 410 Social Work Practice Communities Exam
+UNIT | SWK 412 | Contemporary Issues in Fields of Practice I | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 412 Contemporary Issues Exam
+UNIT | SWK 413 | Working With Trauma | Department of Sociology and Psychology | School of Arts and Social Sciences | SWK 413 Working With Trauma Exam
+UNIT | THE 320 | Costume Design | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | THE 320 Costume Design Exam
+UNIT | THL320 | Studies in the Old Testament 1 | Department of Philosophy & Religious Studies | School of Arts and Social Sciences (SASS) | THL 320: Studies in the Old Testament 1

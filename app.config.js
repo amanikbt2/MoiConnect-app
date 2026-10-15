@@ -19,10 +19,14 @@ module.exports = {
     },
     extra: {
       ...(baseConfig.extra || {}),
-      eas: {
-        ...(baseConfig.extra?.eas || {}),
-        projectId: process.env.EAS_PROJECT_ID || 'b2e599b0-7be8-4fad-bdaf-330db9d6c1a5'
-      }
+      ...(process.env.EAS_PROJECT_ID || baseConfig.extra?.eas?.projectId
+        ? {
+            eas: {
+              ...(baseConfig.extra?.eas || {}),
+              ...(process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : {})
+            }
+          }
+        : {})
     }
   }
 };

@@ -3,7 +3,8 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
-import { AppState, Platform, View } from 'react-native';
+import { AppState, Platform, View, TouchableOpacity } from 'react-native';
+import { ArrowLeftIcon } from '../src/components/Icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GlobalBottomBar } from '../src/components/GlobalBottomBar';
 import { IceMessageHost } from '../src/components/IceMessageCard';
@@ -128,12 +129,42 @@ function RootLayoutContent() {
           <StatusBar style="light" backgroundColor={isDark ? '#020617' : '#15803d'} />
           <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
             <View style={{ flex: 1 }}>
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  headerStyle: { backgroundColor: '#15803d' },
+                  headerTintColor: '#ffffff',
+                  headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+                  headerLeft: ({ canGoBack, tintColor }) => (
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (router.canGoBack()) {
+                          router.back();
+                        } else {
+                          router.push('/(tabs)');
+                        }
+                      }}
+                      style={{
+                        paddingRight: 14,
+                        paddingVertical: 6,
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Go back"
+                      accessibilityRole="button"
+                    >
+                      <ArrowLeftIcon color={tintColor || '#ffffff'} size={22} />
+                    </TouchableOpacity>
+                  )
+                }}
+              >
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="faq" options={{ headerShown: false }} />
-                <Stack.Screen name="privacy" options={{ headerShown: false }} />
-                <Stack.Screen name="past-papers" options={{ headerShown: false }} />
-                <Stack.Screen name="cat-papers" options={{ headerShown: false }} />
+                <Stack.Screen name="faq" options={{ title: 'Frequently Asked Questions', headerShown: true }} />
+                <Stack.Screen name="privacy" options={{ title: 'Privacy Policy', headerShown: true }} />
+                <Stack.Screen name="past-papers" options={{ title: 'Past Exam Papers', headerShown: true }} />
+                <Stack.Screen name="cat-papers" options={{ title: 'CAT Papers', headerShown: true }} />
                 <Stack.Screen name="contribute" options={{ headerShown: false }} />
                 <Stack.Screen name="admin2" options={{ headerShown: false }} />
                 <Stack.Screen name="community" options={{ headerShown: false }} />

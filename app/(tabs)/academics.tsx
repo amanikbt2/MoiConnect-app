@@ -29,9 +29,11 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
-import { getMaterialSearchScore, rankMaterialsForProfile } from '../../src/utils/materialSearch';
+import { getMaterialSearchScore, rankMaterials, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
+import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
+import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 
 import {
   DownloadIcon,
@@ -52,7 +54,7 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
-const PAPER_PAGE_SIZE = 24;
+const PAPER_PAGE_SIZE = 60;
 const GRID_CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
 
 export interface NoteItem {
@@ -146,7 +148,7 @@ export default function AcademicsScreen({ route }: any) {
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [filterShuffleSeed, setFilterShuffleSeed] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
   const [papers, setPapers] = useState<IPaper[]>([]);
   const [mySubmissions, setMySubmissions] = useState<IPaper[]>([]);
   const [downloadedPapers, setDownloadedPapers] = useState<IPaper[]>([]);
@@ -171,6 +173,7 @@ export default function AcademicsScreen({ route }: any) {
   const [realUploadedNotes, setRealUploadedNotes] = useState<NoteItem[]>([]);
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
 
@@ -180,12 +183,15 @@ export default function AcademicsScreen({ route }: any) {
 
   const fetchRealAcademicPapers = async (searchQueryParam?: string, page = 1, append = false) => {
     try {
+      const isSearch = Boolean(searchQueryParam && searchQueryParam.trim());
       if (append) setLoadingMoreSection1(true);
+      else if (isSearch) setIsSearchLoading(true);
       else setInitialLoading(true);
       setFetchError(false);
-      const url = searchQueryParam && searchQueryParam.trim()
-        ? `/papers?limit=${PAPER_PAGE_SIZE}&page=${page}&search=${encodeURIComponent(searchQueryParam.trim())}`
-        : `/papers?limit=${PAPER_PAGE_SIZE}&page=${page}`;
+      const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
+      const url = isSearch
+        ? `/papers?limit=${limit}&page=${page}&search=${encodeURIComponent(searchQueryParam!.trim())}`
+        : `/papers?limit=${limit}&page=${page}`;
       const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(url);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const noteMaterials = res.data.filter((p) =>
@@ -217,31 +223,39 @@ export default function AcademicsScreen({ route }: any) {
           ttsTextUrl: (p as any).ttsTextUrl
         }));
         setRealUploadedNotes((previous) => {
+          if (isSearch && !append) {
+            return rankMaterials(mapped, searchQueryParam!.trim());
+          }
           const merged = append ? [...previous, ...mapped] : mapped;
           const unique = Array.from(new Map(merged.map((note) => [note.id, note])).values());
+          if (isSearch) {
+            return rankMaterials(unique, searchQueryParam!.trim());
+          }
           return rankMaterialsForProfile(unique, user, searchHistory);
         });
         setPapersPage(page);
-        setHasMoreNotes(res.pagination?.pages ? page < res.pagination.pages : res.data.length === PAPER_PAGE_SIZE);
+        setHasMoreNotes(res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit);
         setInitialLoading(false);
+        setIsSearchLoading(false);
         setLoadingMoreSection1(false);
       } else if (!res.success) {
-        setFetchError(true); setInitialLoading(false); setLoadingMoreSection1(false);
+        setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
       } else {
         if (!append) setRealUploadedNotes([]);
-        setHasMoreNotes(false); setInitialLoading(false); setLoadingMoreSection1(false);
+        setHasMoreNotes(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
       }
     } catch (err) {
-      console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false); setLoadingMoreSection1(false);
+      console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
     }
   };
 
   useEffect(() => {
-    fetchRealAcademicPapers();
+    const initialSearch = route?.params?.search ? String(route.params.search).trim() : searchQuery.trim();
+    fetchRealAcademicPapers(initialSearch);
     getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        fetchRealAcademicPapers();
+        fetchRealAcademicPapers(searchQuery.trim());
         getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
       }
     });
@@ -343,24 +357,39 @@ export default function AcademicsScreen({ route }: any) {
     }
   }, [route?.params]);
 
-  // Debounced API Search
+  // Debounced API Search with Smart Parser
   useEffect(() => {
-    if (searchQuery.trim().length > 1) {
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      setIsSearchLoading(true);
       const timer = setTimeout(() => {
-        fetchRealAcademicPapers(searchQuery.trim());
-      }, 350);
+        fetchRealAcademicPapers(trimmed);
+      }, 280);
       return () => clearTimeout(timer);
-    } else if (searchQuery.trim().length === 0) {
+    } else {
       fetchRealAcademicPapers();
     }
   }, [searchQuery]);
+
+  const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
 
   // Categorize items into Top Matches vs Related Materials (supporting hidden metadata like semester, academicYear, examYear, etc.)
   const smartSearchResults = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) {
-      return { isSearching: false, topMatches: [], relatedMatches: [] };
+      return {
+        isSearching: false,
+        topMatches: [] as NoteItem[],
+        relatedMatches: [] as NoteItem[],
+        intent: parseSmartSearchQuery(''),
+        isAutoPivoted: false,
+        effectiveQuery: ''
+      };
     }
+
+    const intent = parseSmartSearchQuery(q);
+    let effectiveQuery = q;
+    let isAutoPivoted = false;
 
     const allPool: NoteItem[] = [
       ...realUploadedNotes,
@@ -377,48 +406,71 @@ export default function AcademicsScreen({ route }: any) {
       return true;
     };
 
-    const seenIds = new Set<string>();
-    const topMatches: NoteItem[] = [];
-    const relatedMatches: NoteItem[] = [];
+    let seenIds = new Set<string>();
+    let topMatches: NoteItem[] = [];
+    let relatedMatches: NoteItem[] = [];
 
-    allPool.forEach((item) => {
-      if (seenIds.has(item.id) || !filterByDisc(item)) return;
-      seenIds.add(item.id);
+    const evaluate = (targetQuery: string) => {
+      seenIds = new Set<string>();
+      topMatches = [];
+      relatedMatches = [];
 
-      const score = getMaterialSearchScore({
-        mtid: item.mtid,
-        title: item.title,
-        unitCode: item.unitCode,
-        unitName: item.unitName,
-        school: item.school,
-        department: item.department,
-        courseCode: item.courseCode,
-        semester: item.semester,
-        academicYear: item.academicYear,
-        examYear: item.examYear,
-        type: item.paperType,
-        description: item.description,
-        author: item.author
-      }, q);
+      allPool.forEach((item) => {
+        if (seenIds.has(item.id) || !filterByDisc(item)) return;
+        seenIds.add(item.id);
 
-      if (score !== null && score <= 5) {
-        topMatches.push(item);
-      } else if (score !== null) {
-        relatedMatches.push(item);
+        const score = getMaterialSearchScore({
+          mtid: item.mtid,
+          title: item.title,
+          unitCode: item.unitCode,
+          unitName: item.unitName,
+          school: item.school,
+          department: item.department,
+          courseCode: item.courseCode,
+          semester: item.semester,
+          academicYear: item.academicYear,
+          examYear: item.examYear,
+          type: item.paperType,
+          description: item.description,
+          author: item.author
+        }, targetQuery, intent);
+
+        if (score !== null && score <= 5) {
+          topMatches.push(item);
+        } else if (score !== null) {
+          relatedMatches.push(item);
+        }
+      });
+    };
+
+    evaluate(q);
+
+    // Google-Style Auto-Pivot: If 0 results for raw query and intent found a typo/unit-code correction:
+    if (topMatches.length === 0 && relatedMatches.length === 0 && forcedOriginalQuery !== q) {
+      const fallback = intent.autoPivotSuggestion || intent.unitCode || intent.correctedQuery;
+      if (fallback && fallback.toLowerCase() !== q) {
+        evaluate(fallback);
+        if (topMatches.length > 0 || relatedMatches.length > 0) {
+          isAutoPivoted = true;
+          effectiveQuery = fallback;
+        }
       }
-    });
+    }
 
-    const scoreList = (items: NoteItem[]) => items.sort((a, b) =>
-      (getMaterialSearchScore({ ...a, type: a.paperType }, q) ?? Number.MAX_SAFE_INTEGER) -
-      (getMaterialSearchScore({ ...b, type: b.paperType }, q) ?? Number.MAX_SAFE_INTEGER)
+    const scoreList = (items: NoteItem[], targetQ: string) => items.sort((a, b) =>
+      (getMaterialSearchScore({ ...a, type: a.paperType }, targetQ, intent) ?? Number.MAX_SAFE_INTEGER) -
+      (getMaterialSearchScore({ ...b, type: b.paperType }, targetQ, intent) ?? Number.MAX_SAFE_INTEGER)
     );
 
     return {
       isSearching: true,
-      topMatches: scoreList(topMatches),
-      relatedMatches: scoreList(relatedMatches)
+      topMatches: scoreList(topMatches, effectiveQuery),
+      relatedMatches: scoreList(relatedMatches, effectiveQuery),
+      intent,
+      isAutoPivoted,
+      effectiveQuery
     };
-  }, [searchQuery, realUploadedNotes, activeFilterDisc, showDemoMaterials]);
+  }, [searchQuery, realUploadedNotes, activeFilterDisc, showDemoMaterials, forcedOriginalQuery]);
 
   const allBrowseNotes = React.useMemo(() => {
     const seen = new Set<string>();
@@ -749,7 +801,7 @@ export default function AcademicsScreen({ route }: any) {
             <View style={styles.searchBar}>
               <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
               <TextInput
-                placeholder="Search notes, unit codes (e.g. COM 310, STA 210)..."
+                placeholder="Describe what you want..."
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
               onChangeText={setSearchQuery}
@@ -810,73 +862,108 @@ export default function AcademicsScreen({ route }: any) {
             <OfflineState onRetry={() => fetchRealAcademicPapers(searchQuery)} />
           ) : smartSearchResults.isSearching ? (
             <View style={{ marginTop: 16 }}>
-              {/* Search Summary Banner */}
-              <View style={{ backgroundColor: '#f0fdf4', padding: 14, borderRadius: 14, borderColor: '#bbf7d0', borderWidth: 1, marginBottom: 20 }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#166534' }}>
-                  Smart Search results for "{searchQuery}"
-                </Text>
-                <Text style={{ fontSize: 12, color: '#15803d', marginTop: 3 }}>
-                  {smartSearchResults.topMatches.length} Top Match(es) • {smartSearchResults.relatedMatches.length} Related Material(s)
-                </Text>
-              </View>
+              {/* Google-Style Smart Search Header with Did You Mean & Intent Breakdown */}
+              <SmartSearchHeader
+                intent={smartSearchResults.intent}
+                isAutoPivoted={smartSearchResults.isAutoPivoted}
+                totalResultsCount={smartSearchResults.topMatches.length + smartSearchResults.relatedMatches.length}
+                onAcceptSuggestion={(suggestion) => {
+                  setSearchQuery(suggestion);
+                  setForcedOriginalQuery(null);
+                }}
+                onSearchInsteadOriginal={() => {
+                  setForcedOriginalQuery(searchQuery);
+                }}
+                onChipPress={(chip) => {
+                  setSearchQuery(chip);
+                  setForcedOriginalQuery(null);
+                }}
+              />
 
-              {/* SECTION 1: TOP MATCH / TOP RESULTS */}
-              <View style={[styles.sectionHeaderRow, smartSearchResults.topMatches.length === 0 && { display: 'none' }]}>
-                <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
-                  <SparklesIcon color="#15803d" size={18} />
-                </View>
-                <View>
-                  <Text style={styles.sectionTitle}>Top Match Results</Text>
-                  <Text style={styles.sectionSub}>Direct title, unit code & MTID matches</Text>
-                </View>
-              </View>
-
-              {smartSearchResults.topMatches.length > 0 ? (
-                <View style={styles.gridContainer}>
-                  {smartSearchResults.topMatches.map((item) => renderGridCard(item))}
+              {/* Search Summary Banner or Shimmer */}
+              {isSearchLoading && smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 ? (
+                <View style={{ marginHorizontal: 16 }}>
+                  <ShimmerGridLoader title={`Searching academic notes for "${searchQuery}"...`} count={4} />
                 </View>
               ) : (
-                <View style={[{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }, { display: 'none' }]}>
-                  <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center' }}>
-                    No direct unit code or title match for "{searchQuery}". See related materials below.
+                <>
+                  <View style={{ backgroundColor: '#f0fdf4', padding: 14, borderRadius: 14, borderColor: '#bbf7d0', borderWidth: 1, marginBottom: 20, marginHorizontal: 16 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#166534' }}>
+                      {smartSearchResults.isAutoPivoted
+                        ? `Showing results for "${smartSearchResults.effectiveQuery}"`
+                        : `Search results for "${searchQuery}"`}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#15803d', marginTop: 3 }}>
+                      {smartSearchResults.topMatches.length} Top Match(es) • {smartSearchResults.relatedMatches.length} Related Material(s)
+                      {isSearchLoading ? ' • updating...' : ''}
+                    </Text>
+                  </View>
+
+                  {/* SECTION 1: TOP MATCH / TOP RESULTS */}
+                  <View style={[styles.sectionHeaderRow, smartSearchResults.topMatches.length === 0 && { display: 'none' }]}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                      <SparklesIcon color="#15803d" size={18} />
+                    </View>
+                    <View>
+                      <Text style={styles.sectionTitle}>Top Match Results</Text>
+                      <Text style={styles.sectionSub}>Auto-matched for {smartSearchResults.intent.school || smartSearchResults.intent.unitCode || 'your search'}</Text>
+                    </View>
+                  </View>
+
+                  {smartSearchResults.topMatches.length > 0 && (
+                    <View style={styles.gridContainer}>
+                      {smartSearchResults.topMatches.map((item) => renderGridCard(item))}
+                    </View>
+                  )}
+
+                  {/* SECTION 2: RELATED MATERIALS (SCROLL DOWN) */}
+                  <View style={[styles.sectionHeaderRow, { marginTop: 28 }, smartSearchResults.relatedMatches.length === 0 && { display: 'none' }]}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
+                      <BookIcon color="#2563eb" size={18} />
+                    </View>
+                    <View>
+                      <Text style={styles.sectionTitle}>Related Materials</Text>
+                      <Text style={styles.sectionSub}>Matched by semester, year level, department or category</Text>
+                    </View>
+                  </View>
+
+                  {smartSearchResults.relatedMatches.length > 0 && (
+                    <View style={styles.gridContainer}>
+                      {smartSearchResults.relatedMatches.map((item) => renderGridCard(item))}
+                    </View>
+                  )}
+
+                  {/* ZERO RESULTS FALLBACK: SMART RECOMMENDATIONS + REQUEST BUTTON */}
+                  {!isSearchLoading && smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 && (
+                <View style={{ padding: 28, alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <DocumentIcon color="#94a3b8" size={38} />
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12, textAlign: 'center' }}>
+                    No exact materials found for "{searchQuery}"
                   </Text>
+                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+                    {smartSearchResults.intent.didYouMeanText
+                      ? `We found a close match: "${smartSearchResults.intent.didYouMeanText}". Tap the recommendation above, or request peers to upload it.`
+                      : 'Try searching by unit code (e.g. COM 110, CSC 112), subject (e.g. Calculus), or semester (e.g. sem1).'}
+                  </Text>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={{ marginTop: 18, backgroundColor: '#15803d', paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                    onPress={() => {
+                      showIceMessage(
+                        'Request Logged',
+                        `We have recorded your request for "${searchQuery}". Peer contributors and class reps will be alerted!`
+                      );
+                    }}
+                  >
+                    <SparklesIcon color="#ffffff" size={14} />
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                      Request Material from Peers
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
-
-              {/* SECTION 2: RELATED MATERIALS (SCROLL DOWN) */}
-              <View style={[styles.sectionHeaderRow, { marginTop: 28 }, smartSearchResults.relatedMatches.length === 0 && { display: 'none' }]}>
-                <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
-                  <BookIcon color="#2563eb" size={18} />
-                </View>
-                <View>
-                  <Text style={styles.sectionTitle}>Related Materials</Text>
-                  <Text style={styles.sectionSub}>Matched by semester, year level, department or category</Text>
-                </View>
-              </View>
-
-              {smartSearchResults.relatedMatches.length > 0 ? (
-                <View style={styles.gridContainer}>
-                  {smartSearchResults.relatedMatches.map((item) => renderGridCard(item))}
-                </View>
-              ) : (
-                <View style={[{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1' }, { display: 'none' }]}>
-                  <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center' }}>
-                    No secondary metadata matches for "{searchQuery}".
-                  </Text>
-                </View>
-              )}
-
-              {/* EMPTY STATE IF BOTH 0 */}
-              {smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 && (
-                <View style={{ padding: 36, alignItems: 'center' }}>
-                  <DocumentIcon color="#94a3b8" size={42} />
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12 }}>
-                    No results found for "{searchQuery}"
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300 }}>
-                    Try searching by unit code (e.g. COM 310), course (e.g. BSC-CS), semester (e.g. Semester 1), or year (e.g. Year 1 or 2024).
-                  </Text>
-                </View>
+                </>
               )}
             </View>
           ) : (

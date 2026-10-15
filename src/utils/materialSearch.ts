@@ -38,9 +38,18 @@ export function getMaterialCategoryFromId(query: string): 'past_paper' | 'notes'
   return null;
 }
 
+import { parseSmartSearchQuery, ParsedSearchIntent } from './smartSearchParser';
+
 export function getGlobalSearchDestination(query: string): string {
   const value = normalize(query);
   const encodedQuery = encodeURIComponent(query.trim());
+  const parsed = parseSmartSearchQuery(query);
+
+  // If parsed intent specifically found a material type:
+  if (parsed.materialType === 'cat') return `/cat-papers?search=${encodedQuery}`;
+  if (parsed.materialType === 'past_paper') return `/past-papers?search=${encodedQuery}`;
+  if (parsed.materialType === 'notes') return `/(tabs)/academics?search=${encodedQuery}`;
+
   const hasAny = (words: string[]) => words.some((word) => value.includes(word));
 
   const idCategory = getMaterialCategoryFromId(query);
@@ -51,23 +60,128 @@ export function getGlobalSearchDestination(query: string): string {
   if (hasAny(['cat', 'continuous assessment', 'quiz', 'test'])) {
     return `/cat-papers?search=${encodedQuery}`;
   }
-  if (hasAny(['rent', 'rental', 'house', 'hostel', 'accommodation', 'room', 'bedsitter', 'apartment', 'housing', 'landlord'])) {
+  if (hasAny(['rent', 'rental', 'house', 'hostel', 'accommodation', 'room', 'bedsitter', 'apartment', 'housing', 'landlord', 'stage', 'kesses', 'mabs'])) {
     return `/rentals?search=${encodedQuery}`;
   }
-  if (hasAny(['exam', 'past paper', 'pastpaper', 'revision', 'semester exam', 'final paper'])) {
+  if (hasAny(['exam', 'past paper', 'pastpaper', 'revision', 'semester exam', 'final paper', 'solution', 'marking scheme'])) {
     return `/past-papers?search=${encodedQuery}`;
   }
   return `/(tabs)/academics?search=${encodedQuery}`;
 }
 
-/** Lower scores are better. Exact MTID is always ranked ahead of ordinary text matches. */
-export function getMaterialSearchScore(item: MaterialSearchFields, query: string): number | null {
+export function normalizeSchoolName(school?: string): string {
+  const s = String(school || '').toLowerCase().trim();
+  if (s.includes('science') && (s.includes('aerospace') || s.includes('aviation'))) {
+    return 'School of Science and Aerospace Studies';
+  }
+  if (s.includes('arts') && s.includes('social')) {
+    return 'School of Arts and Social Sciences';
+  }
+  if (s.includes('information')) {
+    return 'School of Information Sciences';
+  }
+  if (s.includes('business') || s.includes('economics')) {
+    return 'School of Business & Economics';
+  }
+  if (s.includes('education')) {
+    return 'School of Education';
+  }
+  if (s.includes('law')) {
+    return 'School of Law';
+  }
+  if (s.includes('engineering')) {
+    return 'School of Engineering';
+  }
+  if (s.includes('medicine')) {
+    return 'School of Medicine';
+  }
+  if (s.includes('nursing')) {
+    return 'School of Nursing';
+  }
+  if (s.includes('public health')) {
+    return 'School of Public Health';
+  }
+  if (s.includes('agriculture')) {
+    return 'School of Agriculture & Natural Resources';
+  }
+  if (s.includes('dentistry')) {
+    return 'School of Dentistry';
+  }
+  if (s.includes('tourism')) {
+    return 'School of Tourism & Hospitality';
+  }
+  return s;
+}
+
+/** Lower scores are better. Exact MTID, Canonical Unit Code, School & Department are always ranked ahead of ordinary text matches. */
+export function getMaterialSearchScore(item: MaterialSearchFields, query: string, parsedIntent?: ParsedSearchIntent): number | null {
   const q = normalize(query);
   if (!q) return 0;
 
   const id = normalizeId(item.mtid);
   const normalizedQueryId = normalizeId(q);
   if (id && normalizedQueryId && id === normalizedQueryId) return 0;
+
+  const intent = parsedIntent || parseSmartSearchQuery(query);
+
+  const itemUnitCodeNorm = normalizeId(item.unitCode);
+  const itemCourseCodeNorm = normalizeId(item.courseCode);
+  const itemSchoolNorm = normalizeSchoolName(item.school);
+  const intentSchoolNorm = intent.school ? normalizeSchoolName(intent.school) : '';
+  const itemDeptNorm = normalize(item.department);
+  const intentDeptNorm = intent.department ? normalize(intent.department) : '';
+
+  const itemPrefix = (item.unitCode || item.courseCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+  const intentPrefix = (intent.unitCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+
+  // 1. Matched by canonical unit code from intent parser (e.g. "CSC 111", "CSC 112", "EDE 211")
+  if (intent.unitCode) {
+    const targetCodeNorm = normalizeId(intent.unitCode);
+    if (itemUnitCodeNorm === targetCodeNorm || itemCourseCodeNorm === targetCodeNorm) {
+      return 1;
+    }
+  }
+
+  // 2. Direct exact match on unitCode with space stripped (e.g. "com110" matches "COM 110")
+  if (normalizedQueryId && (itemUnitCodeNorm === normalizedQueryId || itemCourseCodeNorm === normalizedQueryId)) {
+    return 1;
+  }
+
+  // 3. Matched by parsed unit name (e.g. "Differential Calculus")
+  if (intent.unitName) {
+    const targetNameNorm = normalize(intent.unitName);
+    const itemTitleNorm = normalize(item.title);
+    const itemUnitNameNorm = normalize(item.unitName);
+    if (itemTitleNorm.includes(targetNameNorm) || itemUnitNameNorm.includes(targetNameNorm)) {
+      return 2;
+    }
+  }
+
+  // 4. Same unit prefix + same school or department (e.g. search has "CSC 111", item is "CSC 211" in Science)
+  if (intentPrefix && itemPrefix && itemPrefix === intentPrefix) {
+    if (intentSchoolNorm && itemSchoolNorm && intentSchoolNorm === itemSchoolNorm) {
+      return 2;
+    }
+    return 3;
+  }
+
+  // 5. School and Department match when school/department intent was recognized
+  const schoolMatches = Boolean(intentSchoolNorm && itemSchoolNorm && intentSchoolNorm === itemSchoolNorm);
+  const deptMatches = Boolean(intentDeptNorm && itemDeptNorm && (itemDeptNorm.includes(intentDeptNorm) || intentDeptNorm.includes(itemDeptNorm)));
+
+  if (schoolMatches && deptMatches) {
+    return 2;
+  }
+  if (deptMatches) {
+    return 3;
+  }
+  if (schoolMatches) {
+    return 3;
+  }
+
+  // If user searched for a school or department, penalize or exclude papers from conflicting schools
+  const hasSchoolOrDeptIntent = Boolean(intentSchoolNorm || intentDeptNorm);
+  const schoolConflicts = hasSchoolOrDeptIntent && itemSchoolNorm && intentSchoolNorm && itemSchoolNorm !== intentSchoolNorm;
 
   const fields = [
     item.title, item.unitCode, item.unitName, item.school, item.department,
@@ -83,38 +197,123 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   const primaryMatchedTokens = queryTokens.filter((token) => primaryFields.some((field) => field.includes(token)));
 
   const idText = normalize(item.mtid);
-  if (idText && idText.startsWith(q)) return 1;
+  if (idText && idText.startsWith(q)) return 2;
   if (id && normalizedQueryId && id.includes(normalizedQueryId)) return 2;
 
   const title = normalize(item.title);
   const unitCode = normalize(item.unitCode);
   const unitName = normalize(item.unitName);
+
+  if (q.length <= 2) {
+    const wordBoundaryRegex = new RegExp(`(^|\\s)${q}`, 'i');
+    const matchesCodeOrWord = Boolean(
+      (idText && idText.startsWith(q)) ||
+      (unitCode && (unitCode.startsWith(q) || unitCode.replace(/[^a-z0-9]/g, '').startsWith(q))) ||
+      (title && (title === q || wordBoundaryRegex.test(title))) ||
+      (unitName && (unitName === q || wordBoundaryRegex.test(unitName)))
+    );
+    if (matchesCodeOrWord) {
+      return schoolConflicts ? 12 : 4;
+    }
+    return null;
+  }
+
   if (title === q || unitCode === q || unitName === q) return 3;
   if ([title, unitCode, unitName].some((field) => field.startsWith(q))) return 4;
   if ([title, unitCode, unitName].some((field) => field.includes(q))) return 5;
 
-  // Search by meaningful words, not only by the exact sentence/order. A query
-  // such as "language automata theory" therefore matches "Formal Language
-  // and Automata Theory" strongly even though the full phrase is different.
+  // Search by meaningful words, not only by exact sentence/order
   if (queryTokens.length > 0 && matchedTokens.length === queryTokens.length) {
-    return primaryMatchedTokens.length === queryTokens.length ? 5 : 6;
+    const base = primaryMatchedTokens.length === queryTokens.length ? 5 : 6;
+    return schoolConflicts ? base + 10 : base;
   }
 
-  // Keep partial word matches as related material instead of dropping them.
-  // This is useful for course initials, a unit keyword, semester, or year.
-  if (matchedTokens.length >= Math.max(1, Math.ceil(queryTokens.length / 2))) return 8;
-  if (matchedTokens.length > 0) return 9;
+  // Partial word matches
+  if (matchedTokens.length >= Math.max(1, Math.ceil(queryTokens.length / 2))) {
+    return schoolConflicts ? 18 : 8;
+  }
+  if (matchedTokens.length > 0) {
+    return schoolConflicts ? null : 9;
+  }
 
-  return fields.some((field) => field.includes(q)) ? 10 : null;
+  return fields.some((field) => field.includes(q)) ? (schoolConflicts ? null : 10) : null;
 }
 
-export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string): T[] {
+export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string, parsedIntent?: ParsedSearchIntent): T[] {
   if (!query.trim()) return items;
+  const intent = parsedIntent || parseSmartSearchQuery(query);
   return items
-    .map((item, index) => ({ item, index, score: getMaterialSearchScore(item, query) }))
-    .filter((entry): entry is { item: T; index: number; score: number } => entry.score !== null)
-    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map((item, index) => ({
+      item,
+      index,
+      score: getMaterialSearchScore(item, query, intent),
+      downloads: Number((item as any).downloads || (item as any).downloadsCount || 0)
+    }))
+    .filter((entry): entry is { item: T; index: number; score: number; downloads: number } => entry.score !== null)
+    .sort((a, b) => a.score - b.score || b.downloads - a.downloads || a.index - b.index)
     .map(({ item }) => item);
+}
+
+export interface SmartSearchResult<T> {
+  results: T[];
+  intent: ParsedSearchIntent;
+  isAutoPivoted: boolean;
+  effectiveQuery: string;
+}
+
+/**
+ * Smart Search Engine: Google-Style Auto-Pivot & Never-Empty Fallback.
+ * If raw query gives 0 results, automatically tests the corrected term or unit code.
+ */
+export function smartSearchMaterials<T extends MaterialSearchFields>(
+  items: T[],
+  query: string
+): SmartSearchResult<T> {
+  const clean = query.trim();
+  const intent = parseSmartSearchQuery(clean);
+
+  if (!clean) {
+    return {
+      results: items,
+      intent,
+      isAutoPivoted: false,
+      effectiveQuery: ''
+    };
+  }
+
+  // 1. Run direct ranking with raw query
+  const directResults = rankMaterials(items, clean, intent);
+
+  if (directResults.length > 0) {
+    return {
+      results: directResults,
+      intent,
+      isAutoPivoted: false,
+      effectiveQuery: clean
+    };
+  }
+
+  // 2. Exact match yielded 0 results: Check if Smart Parser has a corrected query or unit code!
+  const fallbackQuery = intent.autoPivotSuggestion || intent.unitCode || intent.correctedQuery;
+  if (fallbackQuery && fallbackQuery.toLowerCase() !== clean.toLowerCase()) {
+    const autoPivotedResults = rankMaterials(items, fallbackQuery);
+    if (autoPivotedResults.length > 0) {
+      return {
+        results: autoPivotedResults,
+        intent,
+        isAutoPivoted: true,
+        effectiveQuery: fallbackQuery
+      };
+    }
+  }
+
+  // 3. Fallback: Return empty or closest partial matches
+  return {
+    results: [],
+    intent,
+    isAutoPivoted: false,
+    effectiveQuery: clean
+  };
 }
 
 /** Rank every material for a student profile, keeping unmatched materials as a useful fallback. */

@@ -22,9 +22,11 @@ import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearc
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
-import { rankMaterials, rankMaterialsForProfile } from '../src/utils/materialSearch';
+import { rankMaterials, rankMaterialsForProfile, smartSearchMaterials } from '../src/utils/materialSearch';
 import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
+import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
+import { parseSmartSearchQuery } from '../src/utils/smartSearchParser';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -71,7 +73,7 @@ export interface CATPaperItem {
 const RECOMMENDED_CAT_PAPERS: CATPaperItem[] = [];
 
 const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [];
-const PAPER_PAGE_SIZE = 24;
+const PAPER_PAGE_SIZE = 60;
 const DISCOVERY_BLOCK_SIZE = 6;
 
 const FILTER_DISCS = [
@@ -236,6 +238,7 @@ export default function CatPapersScreen({ route }: any) {
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
 
@@ -250,80 +253,96 @@ export default function CatPapersScreen({ route }: any) {
   // Fetch real uploaded CAT papers from Cloudinary / backend API
   const fetchRealCatPapers = async (searchTerm = '', page = 1, append = false) => {
     try {
+      const isSearch = searchTerm.trim().length > 0;
       if (append) setLoadingMore(true);
+      else if (isSearch) setIsSearchLoading(true);
       else setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
       setShowDemoMaterials(demoSetting);
 
-      const searchParam = searchTerm.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${PAPER_PAGE_SIZE}&page=${page}${searchParam}&refresh=${Date.now()}`);
+      const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
+      const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}${searchParam}&refresh=${Date.now()}`);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
           .filter((p) => p.type === 'cat')
-          .map((p) => ({
-            id: p._id || (p as any).id,
-            mtid: p.mtid || `C${(p._id || '').substring(0, 4)}`,
-            title: p.title,
-            unitCode: p.unitCode || p.courseCode || 'MOI',
-            unitName: p.unitName || p.title,
-            school: p.school || 'Moi University',
-            catType: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
-            type: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
-            downloadsCount: p.downloads || 4500,
-            starsCount: 22,
-            ratingScore: p.ratingScore || '4.8',
-            thumbnail: p.thumbnail 
-              || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
-              || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
-              || 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
-            fileUrl: p.fileUrl,
-            ttsTextUrl: (p as any).ttsTextUrl,
-            examYear: String(p.examYear || 2025),
-            semester: p.semester || '',
-            academicYear: p.academicYear || '',
-            department: p.department || '',
-            description: p.description || '',
-            tag: '🔥 Real CAT'
-          }));
+          .map((p) => {
+            const materialId = p.mtid || `C${(p._id || '').substring(0, 4)}`;
+            return ({
+              id: p._id || (p as any).id,
+              mtid: materialId,
+              title: p.title,
+              unitCode: p.unitCode || p.courseCode || 'MOI',
+              unitName: p.unitName || p.title,
+              school: p.school || 'Moi University',
+              catType: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
+              type: p.title.toLowerCase().includes('cat 2') ? 'CAT 2' : (p.title.toLowerCase().includes('quiz') ? 'Mid-Sem Quiz' : 'CAT 1'),
+              downloadsCount: p.downloads || 4500,
+              starsCount: 22,
+              ratingScore: p.ratingScore || '4.8',
+              thumbnail: p.thumbnail 
+                || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+                || (Array.isArray(p.attachments) ? p.attachments.find((att: any) => att.fileType === 'image' || att.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i))?.fileUrl : undefined)
+                || 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=600&q=80',
+              fileUrl: p.fileUrl,
+              ttsTextUrl: (p as any).ttsTextUrl,
+              examYear: String(p.examYear || 2025),
+              semester: p.semester || '',
+              academicYear: p.academicYear || '',
+              department: p.department || '',
+              description: p.description || '',
+              tag: `MTID: ${materialId}`
+            });
+          });
 
         const nextPapers = realCatPapers.length > 0
-          ? (demoSetting ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
+          ? (demoSetting && !isSearch ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
           : [];
         setCatsData((previous) => {
+          if (isSearch && !append) {
+            return rankMaterials(nextPapers, searchTerm.trim());
+          }
           const merged = append ? [...previous, ...nextPapers] : nextPapers;
           const unique = Array.from(new Map(merged.map((paper) => [paper.id, paper])).values());
+          if (searchTerm.trim()) {
+            return rankMaterials(unique, searchTerm.trim());
+          }
           return rankMaterialsForProfile(unique, user, searchHistory);
         });
         setPapersPage(page);
-        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === PAPER_PAGE_SIZE);
+        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit);
         setInitialLoading(false);
+        setIsSearchLoading(false);
         setLoadingMore(false);
       } else if (!res.success) {
-        setFetchError(true); setInitialLoading(false); setLoadingMore(false);
+        setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       } else {
-        if (!append) setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []);
-        setHasMorePapers(false); setInitialLoading(false); setLoadingMore(false);
+        if (!append) setCatsData(demoSetting && !isSearch ? INITIAL_CAT_PAPERS_DATA : []);
+        setHasMorePapers(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       }
     } catch (err) {
-      console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false); setLoadingMore(false);
+      console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') fetchRealCatPapers();
+      if (state === 'active') fetchRealCatPapers(searchQuery.trim());
     });
     return () => subscription.remove();
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      setIsSearchLoading(true);
+    }
     const timer = setTimeout(() => {
       setPapersPage(1);
       setHasMorePapers(true);
-      setCatsData([]);
-      void fetchRealCatPapers(searchQuery.trim().length > 1 ? searchQuery : '');
-    }, 350);
+      void fetchRealCatPapers(trimmed);
+    }, 280);
     return () => clearTimeout(timer);
   }, [searchQuery, user, searchHistory]);
 
@@ -344,7 +363,30 @@ export default function CatPapersScreen({ route }: any) {
     return () => clearInterval(timer);
   }, [carouselIndex]);
 
-  const filteredCats = rankMaterials(catsData, searchQuery).filter((item) => {
+  const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
+
+  const smartSearch = React.useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      return {
+        results: catsData,
+        intent: parseSmartSearchQuery(''),
+        isAutoPivoted: false,
+        effectiveQuery: ''
+      };
+    }
+    const smart = smartSearchMaterials(catsData, q);
+    if (forcedOriginalQuery === q) {
+      return {
+        ...smart,
+        isAutoPivoted: false,
+        effectiveQuery: q
+      };
+    }
+    return smart;
+  }, [catsData, searchQuery, forcedOriginalQuery]);
+
+  const filteredCats = smartSearch.results.filter((item) => {
     if (activeFilterDisc === 'cat1') return item.catType === 'CAT 1';
     if (activeFilterDisc === 'cat2') return item.catType === 'CAT 2';
     if (activeFilterDisc === 'quiz') return item.catType === 'Mid-Sem Quiz';
@@ -430,10 +472,14 @@ export default function CatPapersScreen({ route }: any) {
     }
   };
 
-  const recommendedCats = catsData.length > 0
+  const isSearching = searchQuery.trim().length > 0;
+
+  const recommendedCats = !isSearching && catsData.length > 0
     ? (catsData.length <= 3 ? catsData.slice(0, Math.min(2, catsData.length)) : catsData.slice(0, 4))
-    : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : []);
-  const feedItems = filteredCats.length <= 3 ? filteredCats : filteredCats.slice(recommendedCats.length);
+    : (!isSearching && showDemoMaterials ? RECOMMENDED_CAT_PAPERS : []);
+  const feedItems = isSearching
+    ? filteredCats
+    : (filteredCats.length <= 3 ? filteredCats : filteredCats.slice(recommendedCats.length));
   const carouselTitles = [
     ['Recently Uploaded', 'Fresh CATs and quizzes from across campus'],
     ['Most Downloaded', 'Popular continuous assessment papers'],
@@ -513,7 +559,7 @@ export default function CatPapersScreen({ route }: any) {
           <View style={styles.searchBar}>
             <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
             <TextInput
-              placeholder="Search CAT 1, CAT 2, quizzes (e.g. COM 310, STA 210)..."
+              placeholder="Describe what you want..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -528,6 +574,24 @@ export default function CatPapersScreen({ route }: any) {
             )}
           </View>
         </View>
+
+        {/* Google-Style Smart Search Header */}
+        <SmartSearchHeader
+          intent={smartSearch.intent}
+          isAutoPivoted={smartSearch.isAutoPivoted}
+          totalResultsCount={filteredCats.length}
+          onAcceptSuggestion={(suggestion) => {
+            setSearchQuery(suggestion);
+            setForcedOriginalQuery(null);
+          }}
+          onSearchInsteadOriginal={() => {
+            setForcedOriginalQuery(searchQuery);
+          }}
+          onChipPress={(chip) => {
+            setSearchQuery(chip);
+            setForcedOriginalQuery(null);
+          }}
+        />
 
         {/* Filter Discs Pills Header */}
         <ScrollView
@@ -571,22 +635,32 @@ export default function CatPapersScreen({ route }: any) {
           })}
         </ScrollView>
 
-        {/* AUTO-SCROLLING SUGGESTIONS CAROUSEL */}
-        {((catsData.length > 0 ? catsData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : [])).length > 0) && (
+        {/* AUTO-SCROLLING SUGGESTIONS / TOP MATCHES CAROUSEL */}
+        {recommendedCats.length > 0 && (
           <>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionIconCircle}>
                 <SparklesIcon color="#15803d" size={18} />
               </View>
               <View>
-                <Text style={styles.sectionTitle}>Recommended CAT 1 & 2 Quizzes</Text>
-                <Text style={styles.sectionSub}>Auto-suggested for continuous assessment revision</Text>
+                <Text style={styles.sectionTitle}>
+                  {isSearching ? 'Top Matches' : 'Recommended CAT 1 & 2 Quizzes'}
+                </Text>
+                <Text style={styles.sectionSub}>
+                  {isSearching
+                    ? (smartSearch.intent.school
+                        ? `Auto-matched for ${smartSearch.intent.school}`
+                        : smartSearch.intent.unitCode
+                          ? `Auto-matched for ${smartSearch.intent.unitCode}`
+                          : `Top results for "${smartSearch.effectiveQuery || searchQuery}"`)
+                    : 'Auto-suggested for continuous assessment revision'}
+                </Text>
               </View>
             </View>
 
             <FlatList
               ref={carouselListRef}
-              data={catsData.length > 0 ? catsData.slice(0, 5) : (showDemoMaterials ? RECOMMENDED_CAT_PAPERS : [])}
+              data={recommendedCats}
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -670,7 +744,31 @@ export default function CatPapersScreen({ route }: any) {
         {initialLoading ? (
           <ShimmerGridLoader title="loading more resources" count={6} />
         ) : fetchError && catsData.length === 0 && !showDemoMaterials ? (
-          <OfflineState onRetry={fetchRealCatPapers} />
+          <OfflineState onRetry={() => fetchRealCatPapers(searchQuery.trim())} />
+        ) : isSearching ? (
+          isSearchLoading && filteredCats.length === 0 ? (
+            <ShimmerGridLoader title={`Searching CAT assessments for "${searchQuery}"...`} count={4} />
+          ) : filteredCats.length > 0 ? (
+            <View style={{ marginTop: 20 }}>
+              <View style={[styles.sectionHeaderRow, { marginTop: 8 }]}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                  <BookIcon color="#15803d" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>
+                    {smartSearch.isAutoPivoted
+                      ? `Matched for "${smartSearch.effectiveQuery}"`
+                      : (filteredCats.length <= 4 ? 'Search Results' : 'All Matching CAT Quizzes')}
+                  </Text>
+                  <Text style={styles.sectionSub}>
+                    {filteredCats.length} assessment{filteredCats.length === 1 ? '' : 's'} found
+                    {isSearchLoading ? ' • updating...' : ''}
+                  </Text>
+                </View>
+              </View>
+              {renderGridItems(filteredCats)}
+            </View>
+          ) : null
         ) : (
           feedBlocks.map((block, index) => {
             if (!block.items || block.items.length === 0) return null;
@@ -703,6 +801,36 @@ export default function CatPapersScreen({ route }: any) {
               </React.Fragment>
             );
           })
+        )}
+
+        {/* Zero Results Smart Fallback */}
+        {!initialLoading && !isSearchLoading && searchQuery.trim().length > 0 && filteredCats.length === 0 && (
+          <View style={{ padding: 28, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 16, borderWidth: 1, borderColor: '#e2e8f0' }}>
+            <DocumentIcon color="#94a3b8" size={38} />
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12, textAlign: 'center' }}>
+              No CAT assessments found for "{searchQuery}"
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+              {smartSearch.intent.didYouMeanText
+                ? `Did you mean: "${smartSearch.intent.didYouMeanText}"? Tap the recommendation above, or request peers to upload this CAT.`
+                : 'Try searching by unit code (e.g. COM 110, CSC 112) or assessment type (e.g. CAT 1, CAT 2).'}
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={{ marginTop: 18, backgroundColor: '#15803d', paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              onPress={() => {
+                showIceMessage(
+                  'CAT Paper Requested',
+                  `We've recorded your request for "${searchQuery}". Class reps & peer contributors will be notified to upload it!`
+                );
+              }}
+            >
+              <SparklesIcon color="#ffffff" size={14} />
+              <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                Request this CAT Paper
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}
