@@ -29,7 +29,7 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
-import { getMaterialSearchScore, rankMaterials, rankMaterialsForProfile } from '../../src/utils/materialSearch';
+import { getMaterialSearchScore, rankMaterials, rankMaterialsForProfile, getSearchRecommendationSections } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
@@ -487,6 +487,43 @@ export default function AcademicsScreen({ route }: any) {
     });
   }, [realUploadedNotes, showDemoMaterials]);
 
+  const searchRecommendations = React.useMemo(() => {
+    if (!smartSearchResults.isSearching) return { youMayAlsoLike: [] as NoteItem[], continuationFeed: [] as NoteItem[], contextLabel: '' };
+    const matching = [...smartSearchResults.topMatches, ...smartSearchResults.relatedMatches];
+    return getSearchRecommendationSections(
+      allBrowseNotes,
+      matching,
+      searchQuery,
+      smartSearchResults.intent,
+      user,
+      searchHistory
+    );
+  }, [allBrowseNotes, smartSearchResults, searchQuery, user, searchHistory]);
+
+  const searchCarouselListRef = useRef<FlatList>(null);
+  const isSearchCarouselInteracting = useRef(false);
+  const [searchCarouselIndex, setSearchCarouselIndex] = useState(0);
+
+  // Auto-Scroll "You May Also Like" Carousel (Slides every 3.8s)
+  useEffect(() => {
+    if (!smartSearchResults.isSearching || searchRecommendations.youMayAlsoLike.length <= 1) {
+      setSearchCarouselIndex(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      if (!isSearchCarouselInteracting.current && searchCarouselListRef.current) {
+        setSearchCarouselIndex((prev) => {
+          const nextIdx = (prev + 1) % searchRecommendations.youMayAlsoLike.length;
+          try {
+            searchCarouselListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
+          } catch (_) {}
+          return nextIdx;
+        });
+      }
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [smartSearchResults.isSearching, searchRecommendations.youMayAlsoLike.length]);
+
   const isRandomFilter = ['hot', 'profile', 'new', 'trending'].includes(activeFilterDisc);
   const randomizedFilterNotes = React.useMemo(() => {
     if (!isRandomFilter) return [];
@@ -935,34 +972,100 @@ export default function AcademicsScreen({ route }: any) {
 
                   {/* ZERO RESULTS FALLBACK: SMART RECOMMENDATIONS + REQUEST BUTTON */}
                   {!isSearchLoading && smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 && (
-                <View style={{ padding: 28, alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                  <DocumentIcon color="#94a3b8" size={38} />
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12, textAlign: 'center' }}>
-                    No exact materials found for "{searchQuery}"
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
-                    {smartSearchResults.intent.didYouMeanText
-                      ? `We found a close match: "${smartSearchResults.intent.didYouMeanText}". Tap the recommendation above, or request peers to upload it.`
-                      : 'Try searching by unit code (e.g. COM 110, CSC 112), subject (e.g. Calculus), or semester (e.g. sem1).'}
-                  </Text>
+                    <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                      <DocumentIcon color="#94a3b8" size={36} />
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 10, textAlign: 'center' }}>
+                        No exact materials found for "{searchQuery}"
+                      </Text>
+                      <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+                        {smartSearchResults.intent.didYouMeanText
+                          ? `We found a close match: "${smartSearchResults.intent.didYouMeanText}". Tap the recommendation above, or browse related notes below.`
+                          : 'Try searching by unit code (e.g. COM 110, CSC 112), subject (e.g. Calculus), or explore recommendations below.'}
+                      </Text>
 
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={{ marginTop: 18, backgroundColor: '#15803d', paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                    onPress={() => {
-                      showIceMessage(
-                        'Request Logged',
-                        `We have recorded your request for "${searchQuery}". Peer contributors and class reps will be alerted!`
-                      );
-                    }}
-                  >
-                    <SparklesIcon color="#ffffff" size={14} />
-                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
-                      Request Material from Peers
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={{ marginTop: 14, backgroundColor: '#15803d', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        onPress={() => {
+                          showIceMessage(
+                            'Request Logged',
+                            `We have recorded your request for "${searchQuery}". Peer contributors and class reps will be alerted!`
+                          );
+                        }}
+                      >
+                        <SparklesIcon color="#ffffff" size={14} />
+                        <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                          Request Material from Peers
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* SECTION 3: YOU MAY ALSO LIKE (AUTO-SCROLLING HORIZONTAL CAROUSEL) */}
+                  {searchRecommendations.youMayAlsoLike.length > 0 && (
+                    <View style={{ marginTop: (smartSearchResults.topMatches.length > 0 || smartSearchResults.relatedMatches.length > 0) ? 32 : 12 }}>
+                      <View style={styles.sectionHeaderRow}>
+                        <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
+                          <SparklesIcon color="#d97706" size={18} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.sectionTitle}>You May Also Like</Text>
+                          <Text style={styles.sectionSub}>
+                            Closest related to {searchRecommendations.contextLabel}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <FlatList
+                        ref={searchCarouselListRef}
+                        data={searchRecommendations.youMayAlsoLike}
+                        keyExtractor={(item) => `search-like-${item.id}`}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.carouselListContent}
+                        snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+                        decelerationRate="fast"
+                        onScrollBeginDrag={() => { isSearchCarouselInteracting.current = true; }}
+                        onScrollEndDrag={() => { setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000); }}
+                        getItemLayout={(_, index) => ({
+                          length: CAROUSEL_CARD_WIDTH + 14,
+                          offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+                          index
+                        })}
+                        renderItem={({ item }) => renderCarouselCard(item)}
+                      />
+
+                      {/* Carousel Pagination Indicator Dots */}
+                      <View style={styles.dotsRow}>
+                        {searchRecommendations.youMayAlsoLike.map((_, i) => (
+                          <View
+                            key={i}
+                            style={[styles.dot, i === searchCarouselIndex ? styles.activeDot : styles.inactiveDot]}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* SECTION 4: CONTINUATION FEED (ENDLESS GRID) */}
+                  {searchRecommendations.continuationFeed.length > 0 && (
+                    <View style={{ marginTop: 28 }}>
+                      <View style={styles.sectionHeaderRow}>
+                        <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
+                          <TrendingUpIcon color="#2563eb" size={18} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.sectionTitle}>More Recommended for You</Text>
+                          <Text style={styles.sectionSub}>
+                            Continue browsing popular lecture notes & revision guides
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.gridContainer}>
+                        {searchRecommendations.continuationFeed.map((item) => renderGridCard(item))}
+                      </View>
+                    </View>
+                  )}
                 </>
               )}
             </View>

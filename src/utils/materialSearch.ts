@@ -376,3 +376,90 @@ export function rankMaterialsForProfile<T extends MaterialSearchFields>(
     .sort((a, b) => b.matched - a.matched || a.score - b.score || b.downloads - a.downloads || a.index - b.index)
     .map(({ item }) => item);
 }
+
+export interface SearchRecommendationSections<T> {
+  youMayAlsoLike: T[];
+  continuationFeed: T[];
+  contextLabel: string;
+}
+
+/**
+ * YouTube-style smart search recommendation engine:
+ * At the end of matching search results, generates:
+ * 1. "You May Also Like" - Auto-scrolling horizontal cards of closest related materials (same school, dept, prefix).
+ * 2. "Continuation Feed" - Endless grid continuation so the feed never abruptly stops.
+ */
+export function getSearchRecommendationSections<T extends MaterialSearchFields>(
+  allPool: T[],
+  matchingItems: T[],
+  query: string,
+  parsedIntent?: ParsedSearchIntent,
+  profile?: { school?: string; course?: string; yearOfStudy?: string } | null,
+  searchHistory: Array<string | MaterialSearchHistoryEntry> = []
+): SearchRecommendationSections<T> {
+  const intent = parsedIntent || parseSmartSearchQuery(query);
+  const matchedIds = new Set(matchingItems.map((m) => String((m as any).id || (m as any)._id || m.mtid || '')));
+
+  // Deduplicated pool excluding direct search matches
+  const remaining: T[] = [];
+  const seenIds = new Set<string>();
+  allPool.forEach((item) => {
+    const id = String((item as any).id || (item as any)._id || item.mtid || '');
+    if (!id || matchedIds.has(id) || seenIds.has(id)) return;
+    seenIds.add(id);
+    remaining.push(item);
+  });
+
+  // Identify dominant context school & department from intent or top matching items
+  const primarySchool = normalizeSchoolName(intent.school || (matchingItems[0]?.school ? normalizeSchoolName(matchingItems[0].school) : ''));
+  const primaryDept = normalize(intent.department || matchingItems[0]?.department || '');
+  const primaryPrefix = (intent.unitCode || matchingItems[0]?.unitCode || matchingItems[0]?.courseCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+
+  const contextLabel = intent.school
+    ? intent.school
+    : (intent.unitCode || intent.department || (primarySchool ? primarySchool : 'your search'));
+
+  // Relatedness scoring: Closest to the search context
+  const scoredRemaining = remaining.map((item, index) => {
+    const itemSchool = normalizeSchoolName(item.school);
+    const itemDept = normalize(item.department);
+    const itemPrefix = (item.unitCode || item.courseCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const downloads = Number((item as any).downloads || (item as any).downloadsCount || 0);
+    const rating = Number((item as any).ratingScore || (item as any).rating || 4.5);
+
+    let relatedScore = 1000;
+
+    // 1. Same School bonus
+    if (primarySchool && itemSchool && (itemSchool === primarySchool || itemSchool.includes(primarySchool) || primarySchool.includes(itemSchool))) {
+      relatedScore -= 500;
+    }
+    // 2. Same unit prefix or department bonus
+    if (primaryPrefix && itemPrefix && (itemPrefix === primaryPrefix || primaryPrefix.slice(0, 2) === itemPrefix.slice(0, 2))) {
+      relatedScore -= 300;
+    }
+    if (primaryDept && itemDept && (itemDept.includes(primaryDept) || primaryDept.includes(itemDept))) {
+      relatedScore -= 200;
+    }
+
+    return { item, index, relatedScore, downloads, rating };
+  });
+
+  // Sort by relatedness, then downloads/ratings
+  const sortedByRelatedness = [...scoredRemaining].sort((a, b) =>
+    a.relatedScore - b.relatedScore || b.downloads - a.downloads || b.rating - a.rating || a.index - b.index
+  );
+
+  // Top 4 to 8 closest items for "You May Also Like" carousel
+  const youMayAlsoLike = sortedByRelatedness.slice(0, Math.min(8, sortedByRelatedness.length)).map((e) => e.item);
+  const carouselIds = new Set(youMayAlsoLike.map((item) => String((item as any).id || (item as any)._id || item.mtid || '')));
+
+  // The rest form the endless continuation feed, personalized by profile and popularity
+  const continuationPool = remaining.filter((item) => !carouselIds.has(String((item as any).id || (item as any)._id || item.mtid || '')));
+  const continuationFeed = rankMaterialsForProfile(continuationPool, profile, searchHistory);
+
+  return {
+    youMayAlsoLike,
+    continuationFeed,
+    contextLabel
+  };
+}

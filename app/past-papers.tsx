@@ -22,7 +22,7 @@ import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearc
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
-import { rankMaterials, rankMaterialsForProfile, smartSearchMaterials } from '../src/utils/materialSearch';
+import { rankMaterials, rankMaterialsForProfile, smartSearchMaterials, getSearchRecommendationSections } from '../src/utils/materialSearch';
 import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
 import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
@@ -40,7 +40,8 @@ import {
   ZapIcon,
   DocumentIcon,
   CheckIcon,
-  LaptopIcon
+  LaptopIcon,
+  TrendingUpIcon
 } from '../src/components/Icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -430,11 +431,54 @@ export default function PastPapersScreen({ route }: any) {
     ? filteredPapers
     : (filteredPapers.length <= 3 ? filteredPapers : filteredPapers.slice(carouselPapers.length));
 
+  const allPool = React.useMemo(() => {
+    return [
+      ...papersData,
+      ...(showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])
+    ];
+  }, [papersData, showDemoMaterials]);
+
+  const searchRecommendations = React.useMemo(() => {
+    if (!isSearching) return { youMayAlsoLike: [] as PastPaperItem[], continuationFeed: [] as PastPaperItem[], contextLabel: '' };
+    return getSearchRecommendationSections(
+      allPool,
+      filteredPapers,
+      searchQuery,
+      smartSearch.intent,
+      user,
+      searchHistory
+    );
+  }, [allPool, filteredPapers, searchQuery, smartSearch.intent, user, searchHistory, isSearching]);
+
+  const searchCarouselListRef = useRef<FlatList>(null);
+  const isSearchCarouselInteracting = useRef(false);
+  const [searchCarouselIndex, setSearchCarouselIndex] = useState(0);
+
+  // Auto-Scroll "You May Also Like" Carousel (Slides every 3.8s)
+  useEffect(() => {
+    if (!isSearching || searchRecommendations.youMayAlsoLike.length <= 1) {
+      setSearchCarouselIndex(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      if (!isSearchCarouselInteracting.current && searchCarouselListRef.current) {
+        setSearchCarouselIndex((prev) => {
+          const nextIdx = (prev + 1) % searchRecommendations.youMayAlsoLike.length;
+          try {
+            searchCarouselListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
+          } catch (_) {}
+          return nextIdx;
+        });
+      }
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [isSearching, searchRecommendations.youMayAlsoLike.length]);
+
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 500 && hasMorePapers && !loadingMore && !initialLoading) {
+    if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
       void fetchRealPastPapers(searchQuery.trim().length > 1 ? searchQuery : '', papersPage + 1, true);
     }
   };
@@ -808,27 +852,161 @@ export default function PastPapersScreen({ route }: any) {
         ) : isSearching ? (
           isSearchLoading && filteredPapers.length === 0 ? (
             <ShimmerGridLoader title={`Searching past papers for "${searchQuery}"...`} count={4} />
-          ) : filteredPapers.length > 0 ? (
+          ) : (
             <View style={{ marginTop: 20 }}>
-              <View style={[styles.sectionHeaderRow, { marginTop: 8 }]}>
-                <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
-                  <BookIcon color="#15803d" size={18} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>
-                    {smartSearch.isAutoPivoted
-                      ? `Matched for "${smartSearch.effectiveQuery}"`
-                      : (filteredPapers.length <= 4 ? 'Search Results' : 'All Matching Exam Papers')}
+              {/* SECTION 1: SEARCH MATCHES */}
+              {filteredPapers.length > 0 && (
+                <>
+                  <View style={[styles.sectionHeaderRow, { marginTop: 8 }]}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
+                      <BookIcon color="#15803d" size={18} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sectionTitle}>
+                        {smartSearch.isAutoPivoted
+                          ? `Matched for "${smartSearch.effectiveQuery}"`
+                          : (filteredPapers.length <= 4 ? 'Search Results' : 'All Matching Exam Papers')}
+                      </Text>
+                      <Text style={styles.sectionSub}>
+                        {filteredPapers.length} paper{filteredPapers.length === 1 ? '' : 's'} found
+                        {isSearchLoading ? ' • updating...' : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  {renderGridItems(filteredPapers)}
+                </>
+              )}
+
+              {/* ZERO DIRECT RESULTS FALLBACK */}
+              {filteredPapers.length === 0 && !isSearchLoading && (
+                <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <DocumentIcon color="#94a3b8" size={36} />
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 10, textAlign: 'center' }}>
+                    No exact matches for "{searchQuery}"
                   </Text>
-                  <Text style={styles.sectionSub}>
-                    {filteredPapers.length} paper{filteredPapers.length === 1 ? '' : 's'} found
-                    {isSearchLoading ? ' • updating...' : ''}
+                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+                    {smartSearch.intent.didYouMeanText
+                      ? `We found a related recommendation: "${smartSearch.intent.didYouMeanText}". Tap the recommendation above, or browse related papers below.`
+                      : 'Explore related papers and recommendations from campus below.'}
                   </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={{ marginTop: 14, backgroundColor: '#15803d', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                    onPress={() => {
+                      showIceMessage(
+                        'Past Paper Requested',
+                        `We've recorded your request for "${searchQuery}". Class reps & peer contributors will be notified to upload it!`
+                      );
+                    }}
+                  >
+                    <SparklesIcon color="#ffffff" size={14} />
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                      Request this Past Paper
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-              {renderGridItems(filteredPapers)}
+              )}
+
+              {/* SECTION 2: YOU MAY ALSO LIKE (AUTO-SCROLLING HORIZONTAL CAROUSEL) */}
+              {searchRecommendations.youMayAlsoLike.length > 0 && (
+                <View style={{ marginTop: filteredPapers.length > 0 ? 32 : 12 }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
+                      <SparklesIcon color="#d97706" size={18} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sectionTitle}>You May Also Like</Text>
+                      <Text style={styles.sectionSub}>
+                        Closest related to {searchRecommendations.contextLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <FlatList
+                    ref={searchCarouselListRef}
+                    data={searchRecommendations.youMayAlsoLike}
+                    keyExtractor={(item) => `search-like-${item.id}`}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.carouselListContent}
+                    snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+                    decelerationRate="fast"
+                    onScrollBeginDrag={() => { isSearchCarouselInteracting.current = true; }}
+                    onScrollEndDrag={() => { setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000); }}
+                    getItemLayout={(_, index) => ({
+                      length: CAROUSEL_CARD_WIDTH + 14,
+                      offset: (CAROUSEL_CARD_WIDTH + 14) * index,
+                      index
+                    })}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.carouselCard}
+                        activeOpacity={0.88}
+                        onPress={() => handleOpenPreview(item)}
+                      >
+                        <View style={styles.carouselThumbnailContainer}>
+                          <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+                          <View style={styles.carouselOverlay} />
+                          <View style={styles.carouselBadgeRow}>
+                            <View style={styles.carouselTypeBadge}>
+                              <Text style={styles.carouselTypeText}>{item.hasSolutions ? '✓ Solved' : 'Exam Paper'}</Text>
+                            </View>
+                            {item.tag && (
+                              <View style={styles.carouselTagBadge}>
+                                <Text style={styles.carouselTagText}>{item.tag}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        <View style={styles.carouselBody}>
+                          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+                          <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+
+                          <View style={styles.carouselFooter}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <DownloadIcon color="#15803d" size={13} />
+                              <Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text>
+                            </View>
+                            <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+
+                  {/* Carousel Pagination Indicator Dots */}
+                  <View style={styles.dotsRow}>
+                    {searchRecommendations.youMayAlsoLike.map((_, i) => (
+                      <View
+                        key={i}
+                        style={[styles.dot, i === searchCarouselIndex ? styles.activeDot : styles.inactiveDot]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* SECTION 3: CONTINUATION FEED (ENDLESS GRID) */}
+              {searchRecommendations.continuationFeed.length > 0 && (
+                <View style={{ marginTop: 28 }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
+                      <TrendingUpIcon color="#2563eb" size={18} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sectionTitle}>More Recommended for You</Text>
+                      <Text style={styles.sectionSub}>
+                        Continue browsing popular campus exams & model papers
+                      </Text>
+                    </View>
+                  </View>
+                  {renderGridItems(searchRecommendations.continuationFeed)}
+                </View>
+              )}
             </View>
-          ) : null
+          )
         ) : (
           feedBlocks.map((block, index) => {
             if (!block.items || block.items.length === 0) return null;
@@ -861,36 +1039,6 @@ export default function PastPapersScreen({ route }: any) {
               </React.Fragment>
             );
           })
-        )}
-
-        {/* Zero Results Smart Fallback */}
-        {!initialLoading && !isSearchLoading && searchQuery.trim().length > 0 && filteredPapers.length === 0 && (
-          <View style={{ padding: 28, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 16, borderWidth: 1, borderColor: '#e2e8f0' }}>
-            <DocumentIcon color="#94a3b8" size={38} />
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12, textAlign: 'center' }}>
-              No past papers found for "{searchQuery}"
-            </Text>
-            <Text style={{ fontSize: 13, color: '#64748b', marginTop: 6, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
-              {smartSearch.intent.didYouMeanText
-                ? `Did you mean: "${smartSearch.intent.didYouMeanText}"? Tap the recommendation above, or request peers to upload this exam.`
-                : 'Try searching by unit code (e.g. COM 110, CSC 112) or exam year (e.g. 2024).'}
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={{ marginTop: 18, backgroundColor: '#15803d', paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-              onPress={() => {
-                showIceMessage(
-                  'Past Paper Requested',
-                  `We've recorded your request for "${searchQuery}". Class reps & peer contributors will be notified to upload it!`
-                );
-              }}
-            >
-              <SparklesIcon color="#ffffff" size={14} />
-              <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
-                Request this Past Paper
-              </Text>
-            </TouchableOpacity>
-          </View>
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}

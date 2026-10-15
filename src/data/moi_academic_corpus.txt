@@ -38,7 +38,7 @@ MATERIAL_TYPE | notes | Revision Notes | notes, revision notes, lecture notes, p
 MATERIAL_TYPE | cat | CAT / Quiz | cat, cats, cat paper, quiz, continuous assessment, cat 1, cat 2, midterm, mid-term
 MATERIAL_TYPE | solution | Exam Solution | solution, answers, marking scheme, worked solutions, solved paper
 
-### SECTION 6: COURSE UNITS (128 Total Units) ###
+### SECTION 6: COURSE UNITS (141 Total Units) ###
 UNIT | ANT 311 | Political and Legal Anthropology | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 311 Political Legal Anthropology Exam
 UNIT | ANT 312 | Economic Anthropology | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 312 Economic Anthropology Exam
 UNIT | ANT 313 | Human Evolution | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 313 Human Evolution Exam
@@ -46,12 +46,14 @@ UNIT | ANT 321 | Quantitative and Qualitative Methods and Analysis | Department 
 UNIT | ANT 325 | Human Ecology | Department of Anthropology, Gender & Diversity Studies | School of Arts and Social Sciences (SASS) | ANT 325 Human Ecology Second Semester Examination 2015
 UNIT | BAS 103 | Introduction to Philosophy and Religion | Department of Philosophy and Religious Studies | School of Arts and Social Sciences | BAS 103 Intro Philosophy Religion Exam
 UNIT | BAS 201 | Kenya in World History | Department of History, Political Science and Public Administration | School of Arts and Social Sciences | BAS 201 Kenya in World History Exam
+UNIT | BAS 301 | Religion and Science | Department of Philosophy, Religion and Theology | School of Arts and Social Sciences (SASS) | BAS 301 Religion and Science University Examination
 UNIT | BBM 101 | Principles of Management | Department of Business Administration | School of Business & Economics | management principles
 UNIT | BBM 102 | Introduction to Business Studies | Department of Business Administration | School of Business & Economics | business studies
 UNIT | BBM 201 | Financial Accounting I | Department of Accounting and Finance | School of Business & Economics | financial accounting ; accounting 1
 UNIT | BBM 202 | Principles of Marketing | Department of Marketing | School of Business & Economics | marketing principles
 UNIT | BKS 310 | Prose Works in Kiswahili | Department of Kiswahili and Other African Languages | School of Arts and Social Sciences (SASS) | Prose Works in Kiswahili ; BKS 310 Prose Works in Kiswahili Examination
 UNIT | BLL 221 | Proficiency Course in French | Department of French | School of Arts and Social Sciences | BLL 221 Proficiency Course French Exam
+UNIT | BLL 310 | Business English | Department of Literature, Linguistics and Foreign Languages | School of Arts and Social Sciences (SASS) | BLL 310 Business English Degree Examination
 UNIT | BLL 311 | French Language Skills for the Media | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | BLL 311 French Language Skills Media Exam Feb 2025
 UNIT | BLL 321 | Research Methods | Department of Linguistics, Indigenous Languages and Media Studies | School of Arts and Social Sciences (SASS) | Research Methods
 UNIT | CHE 103 | Introduction to Kinetics and Thermodynamics | Chemistry & Biochemistry | School of Science & Aerospace Studies | Kinetics and Thermodynamics Exam May 2022
@@ -88,17 +90,24 @@ UNIT | CSC 411 | Compiler Construction | Department of Computer Science | School
 UNIT | CSC 412 | Computer Graphics and Multimedia | Department of Computer Science | School of Science and Aerospace Studies | graphics ; multimedia
 UNIT | CSC 421 | Distributed Systems | Department of Computer Science | School of Science and Aerospace Studies | distributed computing ; cloud
 UNIT | CSC 422 | Information and Network Security | Department of Computer Science | School of Science and Aerospace Studies | cybersecurity ; cryptography
-UNIT | ECE 211 | Circuit Theory II | Computer Science | School of Science & Aerospace Studies | Circuit Theory II Course overview
+UNIT | ECE 211 | Circuit Theory II | Computer Science | School of Science & Aerospace Studies | Circuit Theory II Course overview ; ECE 211 Circuit Theory II Second Year Supplementary Special Examination September 2015
 UNIT | ECE 261 | Basic electrical machines | Electrical Engineering | School of Engineering | Basic Electrical Machines Exam
+UNIT | ECE 322 | Introduction to Telecommunication Engineering | Department of Electrical & Communication Engineering | School of Engineering | intro to telcom eng ; telecommunications ; telecom eng ; intro to telecom engineering ; telecommunication engineering
 UNIT | ECO 110 | Introduction to Microeconomics | Department of Economics | School of Business & Economics | microeconomics ; intro micro
 UNIT | ECO 111 | Introduction to Macroeconomics | Department of Economics | School of Business & Economics | macroeconomics ; intro macro
+UNIT | EDB 302E | Company Accounts | Department of Curriculum Instruction and Educational Media | School of Education | Company Accounts
 UNIT | EDE 111 | Introduction to Education | Department of Curriculum Instruction & Educational Media | School of Education | intro to education
 UNIT | EDE 211 | Educational Media and Technology | Department of Curriculum Instruction & Educational Media | School of Education | ed tech ; educational media ; audio visual
+UNIT | EDE 214 | English Language Education I | Department of Curriculum, Instruction & Educational Media | School of Education | EDE 214 English Language Education I Special Supplementary Examination
 UNIT | EDE 314 | English Language Education II | Department of Curriculum, Instruction and Educational Media | School of Education | English Language Education II
 UNIT | EDF 111 | History of Education | Department of Educational Foundations | School of Education | history of ed
 UNIT | EDF 211 | Philosophy of Education | Department of Educational Foundations | School of Education | philosophy of ed
+UNIT | ENG 323 | English for Diplomacy and Public Relations | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences (SASS) | English for Diplomacy and Public Relations
+UNIT | ENG 410 | Advance in the Description of English Grammar | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences (SASS) | Advance in the Description of English Grammar
+UNIT | ENG322 | Development of English as a Second Language | Department of Literature, Linguistics, Foreign Languages & Film Studies | School of Arts and Social Sciences (SASS) | ENG 322: Development of English as a Second Language
 UNIT | FMS 321 | Film Editing | Department of Literature, Theatre and Film Studies | School of Arts and Social Sciences (SASS) | FMS 321 Film Editing Degree Examination April 2017
 UNIT | FRE 121 | Skills in Written Expression | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | FRE 121 Skills in Written Expression Exam Feb 2025
+UNIT | FRE 313 | Applied Linguistics | Department of Linguistics & Foreign Languages | School of Arts & Social Sciences (SASS) | Applied Linguistics
 UNIT | INF 110 | Foundations of Information Sciences | Department of Information Technology | School of Information Sciences | foundations of is
 UNIT | INS 111 | Information Literacy | Department of Library, Records & Information Management | School of Information Sciences | info literacy
 UNIT | KIS 314 | Linguistics and the Language of Translation | Department of Kiswahili and Other African Languages | School of Arts and Social Sciences (SASS) | KIS 314 Linguistics and the Language of Translation 3rd Year Examination 1st Semester 2014
@@ -109,9 +118,11 @@ UNIT | LAW 120 | Law of Contract I | Department of Private Law | School of Law |
 UNIT | LAW 210 | Criminal Law I | Department of Public Law | School of Law | criminal law
 UNIT | LAW 220 | Law of Torts I | Department of Private Law | School of Law | torts ; tort law
 UNIT | LIN 312 | Second Language Acquisition | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIN 312 Second Language Acquisition Exam Feb 2025
+UNIT | LIN 325 | Comparative Study of Language | Department of Linguistics & Foreign Languages | School of Arts & Social Sciences (SASS) | Comparative Study of Language
 UNIT | LIT 410 | Literature and Postmodernist Theory | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIT 410 Literature and Postmodernist Theory Exam
 UNIT | LIT 411 | The African Novel | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIT 411 The African Novel Exam
 UNIT | LIT 420 | Modern African Poetry | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | LIT 420 Modern African Poetry Exam
+UNIT | LMC 312 | Corporate Communication | Department of Publishing & Media Studies | School of Information Sciences | Corporate Communication
 UNIT | LMC311 | Introduction to Media Law | Department of Literature, Linguistics, Foreign Languages & Film Studies | School of Arts and Social Sciences (SASS) | LMC 311: Introduction to Media Law
 UNIT | MAT 110 | Basic Mathematics | Department of Mathematics & Physics | School of Science and Aerospace Studies | basic math ; foundation math
 UNIT | MAT 111 | Differential Calculus | Department of Mathematics & Physics | School of Science and Aerospace Studies | calculus 1 ; differentiation ; calc 1 ; differential calulus
@@ -145,7 +156,9 @@ UNIT | PHY 311 | Solid State Physics I | Department of Mathematics, Physics and 
 UNIT | PSS 222 | Criminal Procedure and Practice | Department of History, Political Science & Public Administration | School of Arts and Social Sciences (SASS) | Criminal Procedure and Practice
 UNIT | PSS 314 | Criminal Law | Department of History, Political Science & Public Administration | School of Arts and Social Sciences (SASS) | PSS 314 Criminal Law Special Supplementary Examination March 2024
 UNIT | PSY 111 | Introduction to Educational Psychology | Department of Educational Psychology | School of Education | ed psych
+UNIT | REL 313 | History of Christianity in Africa | Department of Philosophy, Theology and Religious Studies | School of Arts and Social Sciences (SASS) | History of Christianity in Africa
 UNIT | SAS 203 | Ethnicity, Race Relations and Nation Building in Kenya | Department of History, Political Science and Public Administration | School of Arts and Social Sciences | SAS 203 Ethnicity Race Relations Exam
+UNIT | SNE 316E | Assessment and Identification of Learners with Emotional and Behaviour Disorders | Department of Educational Psychology | School of Education (SOE) | Assessment and Identification of Learners with Emotional and Behaviour Disorders
 UNIT | SPH 211 | Electricity and Magnetism | Computer Science | School of Science & Aerospace Studies | Electricity and Magnetism_Chapter 4 - Electric Potential
 UNIT | SPY322 | Psychology of Human Behaviour and Learning | Department of Psychology | School of Arts and Social Sciences (SASS) | SPY 322: Psychology of Human Behaviour and Learning
 UNIT | STA 111 | Introduction to Probability and Statistics | Department of Mathematics & Physics | School of Science and Aerospace Studies | stats 1 ; intro to stats ; probability

@@ -65,10 +65,10 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "moiconnect",
-    "owner": "sliver1-org",
+    "owner": "sliver1",
     "extra": {
       "eas": {
-        "projectId": "c9474df0-edb4-40e5-aae1-5eedfc902839"
+        "projectId": "cd92abb9-b9be-4713-a8d4-807655da8cc6"
       }
     }
   }

@@ -31,18 +31,11 @@ export const MOI_ACADEMIC_SCHOOLS: AcademicSchoolEntry[] = [
     "code": "SSAS",
     "aliases": [
       "science and aerospace",
-      "science & aerospace",
-      "sciences and aerospace",
-      "sciences & aerospace",
       "science",
       "aerospace",
       "ssas",
-      "sas",
       "aviation",
-      "pure sciences",
-      "school of science and aerospace studies",
-      "school of sciences and aerospace studies",
-      "school of science & aerospace studies"
+      "pure sciences"
     ]
   },
   {
@@ -185,6 +178,13 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
+    "name": "Department of Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "philosophy, religion and theology"
+    ]
+  },
+  {
     "name": "Department of Business Administration",
     "school": "School of Business & Economics",
     "aliases": [
@@ -217,6 +217,13 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     "school": "School of Arts and Social Sciences",
     "aliases": [
       "french"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "literature, linguistics and foreign languages"
     ]
   },
   {
@@ -311,6 +318,13 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
+    "name": "Department of Electrical & Communication Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "electrical & communication engineering"
+    ]
+  },
+  {
     "name": "Department of Economics",
     "school": "School of Business & Economics",
     "aliases": [
@@ -332,10 +346,24 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
+    "name": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "literature, linguistics, foreign languages & film studies"
+    ]
+  },
+  {
     "name": "Department of Literature, Theatre and Film Studies",
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "literature, theatre and film studies"
+    ]
+  },
+  {
+    "name": "Department of Linguistics & Foreign Languages",
+    "school": "School of Arts & Social Sciences (SASS)",
+    "aliases": [
+      "linguistics & foreign languages"
     ]
   },
   {
@@ -364,13 +392,6 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     "school": "School of Law",
     "aliases": [
       "private law"
-    ]
-  },
-  {
-    "name": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "literature, linguistics, foreign languages & film studies"
     ]
   },
   {
@@ -409,13 +430,6 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
-    "name": "Department of Philosophy, Religion and Theology",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "philosophy, religion and theology"
-    ]
-  },
-  {
     "name": "Department of Mathematics, Physics and Computing",
     "school": "School of Sciences and Aerospace Studies",
     "aliases": [
@@ -448,6 +462,13 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     "school": "School of Education",
     "aliases": [
       "educational psychology"
+    ]
+  },
+  {
+    "name": "Department of Philosophy, Theology and Religious Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "philosophy, theology and religious studies"
     ]
   },
   {
@@ -487,7 +508,7 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
   }
 ];
 
-// 3. Static Offline Moi University Academic Units (128 Units)
+// 3. Static Offline Moi University Academic Units (141 Units)
 export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
   {
     "code": "ANT 311",
@@ -553,6 +574,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "BAS 301",
+    "name": "Religion and Science",
+    "department": "Department of Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "BAS 301 Religion and Science University Examination"
+    ]
+  },
+  {
     "code": "BBM 101",
     "name": "Principles of Management",
     "department": "Department of Business Administration",
@@ -606,6 +636,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Arts and Social Sciences",
     "aliases": [
       "BLL 221 Proficiency Course French Exam"
+    ]
+  },
+  {
+    "code": "BLL 310",
+    "name": "Business English",
+    "department": "Department of Literature, Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "BLL 310 Business English Degree Examination"
     ]
   },
   {
@@ -985,7 +1024,8 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "department": "Computer Science",
     "school": "School of Science & Aerospace Studies",
     "aliases": [
-      "Circuit Theory II Course overview"
+      "Circuit Theory II Course overview",
+      "ECE 211 Circuit Theory II Second Year Supplementary Special Examination September 2015"
     ]
   },
   {
@@ -995,6 +1035,19 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Engineering",
     "aliases": [
       "Basic Electrical Machines Exam"
+    ]
+  },
+  {
+    "code": "ECE 322",
+    "name": "Introduction to Telecommunication Engineering",
+    "department": "Department of Electrical & Communication Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "intro to telcom eng",
+      "telecommunications",
+      "telecom eng",
+      "intro to telecom engineering",
+      "telecommunication engineering"
     ]
   },
   {
@@ -1018,6 +1071,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "EDB 302E",
+    "name": "Company Accounts",
+    "department": "Department of Curriculum Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "Company Accounts"
+    ]
+  },
+  {
     "code": "EDE 111",
     "name": "Introduction to Education",
     "department": "Department of Curriculum Instruction & Educational Media",
@@ -1035,6 +1097,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
       "ed tech",
       "educational media",
       "audio visual"
+    ]
+  },
+  {
+    "code": "EDE 214",
+    "name": "English Language Education I",
+    "department": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDE 214 English Language Education I Special Supplementary Examination"
     ]
   },
   {
@@ -1065,6 +1136,33 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "ENG 323",
+    "name": "English for Diplomacy and Public Relations",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "English for Diplomacy and Public Relations"
+    ]
+  },
+  {
+    "code": "ENG 410",
+    "name": "Advance in the Description of English Grammar",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "Advance in the Description of English Grammar"
+    ]
+  },
+  {
+    "code": "ENG322",
+    "name": "Development of English as a Second Language",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "ENG 322: Development of English as a Second Language"
+    ]
+  },
+  {
     "code": "FMS 321",
     "name": "Film Editing",
     "department": "Department of Literature, Theatre and Film Studies",
@@ -1080,6 +1178,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Arts and Social Sciences",
     "aliases": [
       "FRE 121 Skills in Written Expression Exam Feb 2025"
+    ]
+  },
+  {
+    "code": "FRE 313",
+    "name": "Applied Linguistics",
+    "department": "Department of Linguistics & Foreign Languages",
+    "school": "School of Arts & Social Sciences (SASS)",
+    "aliases": [
+      "Applied Linguistics"
     ]
   },
   {
@@ -1176,6 +1283,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "LIN 325",
+    "name": "Comparative Study of Language",
+    "department": "Department of Linguistics & Foreign Languages",
+    "school": "School of Arts & Social Sciences (SASS)",
+    "aliases": [
+      "Comparative Study of Language"
+    ]
+  },
+  {
     "code": "LIT 410",
     "name": "Literature and Postmodernist Theory",
     "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
@@ -1200,6 +1316,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Arts and Social Sciences",
     "aliases": [
       "LIT 420 Modern African Poetry Exam"
+    ]
+  },
+  {
+    "code": "LMC 312",
+    "name": "Corporate Communication",
+    "department": "Department of Publishing & Media Studies",
+    "school": "School of Information Sciences",
+    "aliases": [
+      "Corporate Communication"
     ]
   },
   {
@@ -1518,12 +1643,30 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "REL 313",
+    "name": "History of Christianity in Africa",
+    "department": "Department of Philosophy, Theology and Religious Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "History of Christianity in Africa"
+    ]
+  },
+  {
     "code": "SAS 203",
     "name": "Ethnicity, Race Relations and Nation Building in Kenya",
     "department": "Department of History, Political Science and Public Administration",
     "school": "School of Arts and Social Sciences",
     "aliases": [
       "SAS 203 Ethnicity Race Relations Exam"
+    ]
+  },
+  {
+    "code": "SNE 316E",
+    "name": "Assessment and Identification of Learners with Emotional and Behaviour Disorders",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education (SOE)",
+    "aliases": [
+      "Assessment and Identification of Learners with Emotional and Behaviour Disorders"
     ]
   },
   {
