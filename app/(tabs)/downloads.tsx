@@ -11,8 +11,10 @@ import {
   Modal,
   Image,
   Dimensions,
-  Platform
+  Platform,
+  StatusBar
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import {
   getDownloadedPapers,
   removeOfflinePaper,
@@ -37,8 +39,52 @@ import {
   StarIcon,
   DownloadIcon,
   ChevronRightIcon,
-  CheckIcon
+  CheckIcon,
+  PlayIcon,
+  VideoIcon,
+  ImageIcon
 } from '../../src/components/Icons';
+
+export const isVideoDownload = (item?: OfflinePaper | null): boolean => {
+  if (!item) return false;
+  if (item.type === 'video') return true;
+  const ext = (item.fileType || '').toLowerCase();
+  if (['mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv', '3gp'].includes(ext)) return true;
+  const name = (item.title || '').toLowerCase();
+  const uri = (item.localUri || item.fileUrl || '').toLowerCase();
+  return Boolean(name.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp)$/i)) ||
+    Boolean(uri.match(/\.(mp4|mov|m4v|webm|mkv|avi|3gp)(\?.*)?$/i)) ||
+    uri.includes('/video/upload/');
+};
+
+export const isImageDownload = (item?: OfflinePaper | null): boolean => {
+  if (!item) return false;
+  if (item.type === 'image') return true;
+  const ext = (item.fileType || '').toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'svg'].includes(ext)) return true;
+  const name = (item.title || '').toLowerCase();
+  const uri = (item.localUri || item.fileUrl || '').toLowerCase();
+  return Boolean(name.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)$/i)) ||
+    Boolean(uri.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)(\?.*)?$/i)) ||
+    uri.includes('/image/upload/');
+};
+
+export const isMediaDownload = (item?: OfflinePaper | null): boolean => {
+  return isVideoDownload(item) || isImageDownload(item);
+};
+
+export const getCloudinaryVideoPreviewUrl = (url?: string): string => {
+  if (!url) return '';
+  if (!url.includes('/video/upload/')) return url;
+  const [path, query] = url.split('?');
+  const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
+  return query ? `${previewPath}?${query}` : previewPath;
+};
+
+export const getVideoPlayerHtml = (url: string): string => {
+  const safeUrl = (url || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" /><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#020617;overflow:hidden;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;background:#020617;outline:none}</style></head><body><video controls autoplay playsinline webkit-playsinline src="${safeUrl}"></video></body></html>`;
+};
 
 const FALLBACK_THUMBNAILS = [
   'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
@@ -59,6 +105,9 @@ export default function DownloadsScreen() {
   // PDF Preview State
   const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // Full-Screen Media Preview State (Images & Videos)
+  const [mediaPreviewDoc, setMediaPreviewDoc] = useState<OfflinePaper | null>(null);
 
   const router = useAppNavigation();
   const isFocused = useIsFocused();
@@ -140,6 +189,169 @@ export default function DownloadsScreen() {
     );
   };
 
+  const renderMediaCard = (item: OfflinePaper, index: number) => {
+    const isDownloading = item.status === 'downloading';
+    const isFailed = item.status === 'failed';
+    const isCompleted = !isDownloading && !isFailed;
+    const progress = item.progress || (isCompleted ? 100 : 5);
+    const isVideo = isVideoDownload(item);
+
+    const previewUri = isVideo
+      ? (item.thumbnail || getCloudinaryVideoPreviewUrl(item.fileUrl || item.localUri || ''))
+      : (item.localUri || item.fileUrl || item.thumbnail || '');
+
+    const formatText = (item.fileType || (isVideo ? 'mp4' : 'jpg')).toUpperCase();
+    const mediaCategory = isVideo ? 'CAMPUS VIDEO • MEDIA' : 'CAMPUS PHOTO • MEDIA';
+
+    return (
+      <TouchableOpacity
+        key={item._id}
+        style={[
+          styles.mediaSquareCard,
+          item.pinned && styles.squareCardPinned,
+          isDownloading && styles.squareCardDownloading
+        ]}
+        activeOpacity={0.88}
+        onPress={() => {
+          if (isDownloading) return;
+          setMediaPreviewDoc(item);
+        }}
+      >
+        {/* Media Filled Image / Video Preview */}
+        <View style={styles.mediaThumbnailContainer}>
+          {previewUri ? (
+            <Image
+              source={{ uri: previewUri }}
+              style={styles.mediaCoverImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.mediaCoverImage, styles.mediaPlaceholderBg]}>
+              {isVideo ? <VideoIcon color="#64748b" size={32} /> : <ImageIcon color="#64748b" size={32} />}
+            </View>
+          )}
+
+          {/* Video Center Play Circle Overlay */}
+          {isVideo && (
+            <View style={styles.videoPlayOverlay}>
+              <View style={styles.videoPlayCircle}>
+                <PlayIcon color="#ffffff" size={18} style={{ marginLeft: 2 }} />
+              </View>
+            </View>
+          )}
+
+          {/* Top-Left Dark Pill Badge (IMAGE / VIDEO / PINNED) */}
+          <View style={styles.topLeftBadge}>
+            {item.pinned ? (
+              <View style={styles.pinBadge}>
+                <PinIcon color="#fbbf24" size={10} />
+                <Text style={styles.pinBadgeText}>PINNED</Text>
+              </View>
+            ) : isVideo ? (
+              <View style={styles.videoTypeBadge}>
+                <VideoIcon color="#ffffff" size={10} />
+                <Text style={styles.mediaBadgeText}>VIDEO</Text>
+              </View>
+            ) : (
+              <View style={styles.imageTypeBadge}>
+                <ImageIcon color="#ffffff" size={10} />
+                <Text style={styles.mediaBadgeText}>PHOTO</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Top-Right 3-Dots Menu */}
+          <View style={styles.topRightBadge}>
+            <TouchableOpacity
+              style={styles.moreOptionsBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                setMenuPaper(item);
+              }}
+              activeOpacity={0.75}
+            >
+              <MoreVerticalIcon color="#0f172a" size={14} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Bottom-Left Status Pill */}
+          <View style={styles.bottomLeftStatus}>
+            {isDownloading ? (
+              <View style={styles.downloadingPill}>
+                <RefreshCwIcon color="#ffffff" size={10} />
+                <Text style={styles.statusPillText}>Downloading...</Text>
+              </View>
+            ) : isFailed ? (
+              <View style={styles.failedPill}>
+                <CloseIcon color="#ffffff" size={10} />
+                <Text style={styles.statusPillText}>Failed</Text>
+              </View>
+            ) : (
+              <View style={styles.solvedPill}>
+                <CheckIcon color="#ffffff" size={10} />
+                <Text style={styles.statusPillText}>Saved</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Bottom-Right Media Format Pill */}
+          <View style={styles.bottomRightFormatPill}>
+            <Text style={styles.bottomRightFormatText}>{formatText}</Text>
+          </View>
+        </View>
+
+        {/* Card Body */}
+        <View style={styles.mediaCardBody}>
+          <Text style={styles.mediaCategoryLabel} numberOfLines={1}>
+            {mediaCategory}
+          </Text>
+
+          <Text style={styles.mediaCardTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+
+          {/* Download Progress Bar & Cancel Row if in progress */}
+          {isDownloading && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressTrackAndPercent}>
+                <View style={styles.miniProgressTrack}>
+                  <View style={[styles.miniProgressBarFill, { width: `${Math.min(100, Math.max(5, progress))}%` }]} />
+                </View>
+                <Text style={styles.progressPercentText}>{progress}%</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.cancelDownloadBtn}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  removeOfflinePaper(item._id);
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.cancelDownloadText}>✕ Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.cardDivider} />
+
+          {/* Card Footer: Offline Ready & Action */}
+          <View style={styles.mediaCardFooter}>
+            <View style={styles.mediaFooterStatus}>
+              <CheckIcon color="#15803d" size={12} />
+              <Text style={styles.mediaFooterStatusText}>Offline Ready</Text>
+            </View>
+
+            <View style={styles.mediaFooterAction}>
+              <Text style={styles.mediaFooterActionText}>{isVideo ? 'Play' : 'View'}</Text>
+              <ChevronRightIcon color="#15803d" size={12} />
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -163,6 +375,10 @@ export default function DownloadsScreen() {
           />
         }
         renderItem={({ item, index }) => {
+          if (isMediaDownload(item)) {
+            return renderMediaCard(item, index);
+          }
+
           const isDownloading = item.status === 'downloading';
           const isFailed = item.status === 'failed';
           const isCompleted = !isDownloading && !isFailed;
@@ -363,17 +579,33 @@ export default function DownloadsScreen() {
                   </TouchableOpacity>
                 )}
 
-                {/* Action 3: Read Offline */}
+                {/* Action 3: Read Offline / Play / View */}
                 <TouchableOpacity
                   style={styles.optionRow}
                   onPress={() => {
                     const doc = menuPaper;
                     setMenuPaper(null);
-                    handleOpenPreview(doc);
+                    if (isMediaDownload(doc)) {
+                      setMediaPreviewDoc(doc);
+                    } else {
+                      handleOpenPreview(doc);
+                    }
                   }}
                 >
-                  <BookIcon color="#15803d" size={20} />
-                  <Text style={styles.optionText}>Read Offline Preview</Text>
+                  {isVideoDownload(menuPaper) ? (
+                    <PlayIcon color="#15803d" size={20} />
+                  ) : isImageDownload(menuPaper) ? (
+                    <ImageIcon color="#15803d" size={20} />
+                  ) : (
+                    <BookIcon color="#15803d" size={20} />
+                  )}
+                  <Text style={styles.optionText}>
+                    {isVideoDownload(menuPaper)
+                      ? 'Play Video Full Screen'
+                      : isImageDownload(menuPaper)
+                      ? 'View Image Full Screen'
+                      : 'Read Offline Preview'}
+                  </Text>
                 </TouchableOpacity>
 
                 {/* Action 4: Delete */}
@@ -402,6 +634,92 @@ export default function DownloadsScreen() {
         onClose={() => setShowPreviewModal(false)}
         onDownload={() => {}}
       />
+
+      {/* Full-Screen Media (Image & Video) Modal */}
+      <Modal
+        visible={!!mediaPreviewDoc}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setMediaPreviewDoc(null)}
+      >
+        <View style={styles.fullScreenMediaContainer}>
+          {/* Header Bar */}
+          <View style={styles.fullScreenMediaHeader}>
+            <TouchableOpacity
+              style={styles.fullScreenCloseBtn}
+              onPress={() => setMediaPreviewDoc(null)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Close media preview"
+            >
+              <CloseIcon color="#ffffff" size={18} />
+            </TouchableOpacity>
+
+            <View style={styles.fullScreenHeaderInfo}>
+              <Text style={styles.fullScreenHeaderTitle} numberOfLines={1}>
+                {mediaPreviewDoc?.title || (isVideoDownload(mediaPreviewDoc) ? 'Video Preview' : 'Image Preview')}
+              </Text>
+              <Text style={styles.fullScreenHeaderSub}>
+                {isVideoDownload(mediaPreviewDoc) ? 'Video Preview • Saved Offline' : 'Image Preview • Saved Offline'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.fullScreenDeleteBtn}
+              onPress={() => {
+                if (!mediaPreviewDoc) return;
+                const target = mediaPreviewDoc;
+                setMediaPreviewDoc(null);
+                handleRemoveCompletely(target);
+              }}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Delete media file"
+            >
+              <TrashIcon color="#ef4444" size={18} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Media Body */}
+          <View style={styles.fullScreenMediaBody}>
+            {mediaPreviewDoc && isVideoDownload(mediaPreviewDoc) ? (
+              Platform.OS === 'web' ? (
+                <video
+                  src={mediaPreviewDoc.localUri || mediaPreviewDoc.fileUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    backgroundColor: '#020617',
+                    outline: 'none'
+                  } as any}
+                />
+              ) : (
+                <WebView
+                  source={{ html: getVideoPlayerHtml(mediaPreviewDoc.localUri || mediaPreviewDoc.fileUrl) }}
+                  style={styles.fullScreenWebView}
+                  originWhitelist={['*']}
+                  allowsInlineMediaPlayback
+                  mediaPlaybackRequiresUserAction={false}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  allowsFullscreenVideo
+                />
+              )
+            ) : mediaPreviewDoc ? (
+              <Image
+                source={{ uri: mediaPreviewDoc.localUri || mediaPreviewDoc.fileUrl }}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -712,5 +1030,207 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#991b1b',
     marginTop: 1
+  },
+  /* Media Card Styles (Images & Videos) */
+  mediaSquareCard: {
+    flex: 1,
+    maxWidth: '48.5%',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3
+  },
+  mediaThumbnailContainer: {
+    height: 130,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden'
+  },
+  mediaCoverImage: {
+    width: '100%',
+    height: '100%'
+  },
+  mediaPlaceholderBg: {
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  videoPlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  videoPlayCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4
+  },
+  videoTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  imageTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  mediaBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3
+  },
+  bottomRightFormatPill: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  bottomRightFormatText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800'
+  },
+  mediaCardBody: {
+    padding: 10,
+    flex: 1,
+    justifyContent: 'space-between'
+  },
+  mediaCategoryLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#15803d',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.2
+  },
+  mediaCardTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+    lineHeight: 16,
+    marginBottom: 6
+  },
+  mediaCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 2
+  },
+  mediaFooterStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  mediaFooterStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b'
+  },
+  mediaFooterAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2
+  },
+  mediaFooterActionText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#15803d'
+  },
+  /* Full-Screen Media Modal Styles */
+  fullScreenMediaContainer: {
+    flex: 1,
+    backgroundColor: '#020617',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0
+  },
+  fullScreenMediaHeader: {
+    height: 60,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 10
+  },
+  fullScreenCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  fullScreenHeaderInfo: {
+    flex: 1,
+    marginHorizontal: 12
+  },
+  fullScreenHeaderTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  fullScreenHeaderSub: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 1
+  },
+  fullScreenDeleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  fullScreenMediaBody: {
+    flex: 1,
+    backgroundColor: '#020617',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  fullScreenImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#020617'
+  },
+  fullScreenWebView: {
+    flex: 1,
+    width: Dimensions.get('window').width,
+    backgroundColor: '#020617'
   }
 });

@@ -77,6 +77,7 @@ import {
   StudentPersonalDetails
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
+import { mediaDownloadManager, ActiveMediaDownload } from '../src/services/mediaDownloadManager';
 import { getAllowCommunityChatSetting, getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
@@ -475,6 +476,14 @@ export default function CommunityScreen() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<FileAttachment | null>(null);
+  const [activeMediaDownloads, setActiveMediaDownloads] = useState<Record<string, ActiveMediaDownload>>({});
+
+  useEffect(() => {
+    return mediaDownloadManager.subscribe((downloads) => {
+      setActiveMediaDownloads(downloads);
+    });
+  }, []);
+
   const [downloadingAttachmentKey, setDownloadingAttachmentKey] = useState<string | null>(null);
   const [downloadAttachmentProgress, setDownloadAttachmentProgress] = useState(0);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
@@ -2097,128 +2106,26 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleDownloadFileAttachment = async (file: FileAttachment) => {
+  const handleDownloadFileAttachment = (file: FileAttachment) => {
+    if (!file?.url) return;
     const downloadKey = file.paperId || file.url;
-    if (!file.url) return;
-    setDownloadingAttachmentKey(downloadKey);
-    setDownloadAttachmentProgress(0);
-    setDownloadAttachmentBytesText('Connecting…');
     setDownloadAttachmentFailedKey(null);
+    void mediaDownloadManager.startDownload({
+      url: file.url,
+      name: file.name,
+      title: file.title,
+      type: file.type,
+      paperId: file.paperId,
+      unitCode: file.unitCode,
+      unitName: file.unitName,
+      school: file.school,
+      author: file.author,
+      size: file.size
+    });
+  };
 
-    const formatBytes = (bytes: number) => {
-      if (!bytes || isNaN(bytes) || bytes <= 0) return '0 B';
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    };
-
-    try {
-      const rawUrl = file.url;
-      const cleanTitle = (file.title || file.name || 'media_attachment')
-        .replace(/[^a-zA-Z0-9_-]/g, '_');
-      
-      let fileExt = (file.name || file.url || '').split('?')[0].split('.').pop() || '';
-      if (!fileExt || fileExt.length > 5) {
-        fileExt = file.type === 'video' ? 'mp4' : file.type === 'image' ? 'jpg' : 'pdf';
-      }
-      const filename = `${cleanTitle}.${fileExt}`;
-
-      if (Platform.OS === 'web') {
-        try {
-          const response = await fetch(rawUrl);
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-        } catch (e) {
-          const link = document.createElement('a');
-          link.href = rawUrl;
-          link.download = filename;
-          link.target = '_blank';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      } else {
-        const targetPath = `${ExpoFileSystem.documentDirectory}${Date.now()}_${filename}`;
-        const downloadTask = ExpoFileSystem.createDownloadResumable(
-          rawUrl,
-          targetPath,
-          {},
-          (dp: any) => {
-            const written = dp.totalBytesWritten || 0;
-            const total = dp.totalBytesExpectedToWrite || 0;
-            const progress = total > 0
-              ? Math.round((written / total) * 100)
-              : 50;
-            setDownloadAttachmentProgress(progress);
-            if (total > 0) {
-              setDownloadAttachmentBytesText(`${formatBytes(written)} / ${formatBytes(total)}`);
-            } else if (written > 0) {
-              setDownloadAttachmentBytesText(formatBytes(written));
-            }
-          }
-        );
-
-        const downloadResult = await downloadTask.downloadAsync();
-        if (!downloadResult?.uri) throw new Error('Download failed.');
-
-        const paperId = file.paperId || `att_${Date.now()}`;
-        await saveDownloadedPaper({
-          _id: paperId,
-          school: file.school || 'Moi University',
-          department: file.unitName || file.unitCode || 'Academic Material',
-          courseCode: file.unitCode || 'MOI',
-          unitCode: file.unitCode || 'MOI',
-          unitName: file.unitName || filename,
-          type: file.type === 'image' ? 'image' : file.type === 'video' ? 'video' : 'notes',
-          title: file.title || file.name,
-          examYear: 2025,
-          fileUrl: rawUrl,
-          localUri: downloadResult.uri,
-          fileType: fileExt,
-          uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
-          status: 'completed',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }).catch(() => {});
-
-        showIceMessage(
-          'Saved for Offline',
-          `"${filename}" has been saved to your offline materials for offline viewing.`,
-          [
-            { text: 'OK' },
-            {
-              text: 'Share / Export',
-              onPress: async () => {
-                try {
-                  const Sharing = require('expo-sharing');
-                  if (await Sharing.isAvailableAsync()) {
-                    await Sharing.shareAsync(downloadResult.uri, {
-                      dialogTitle: `Share or save ${filename}`,
-                      mimeType: file.type === 'video' ? 'video/mp4' : 'image/jpeg'
-                    });
-                  }
-                } catch (sharingErr) {
-                  console.log('[MediaDownload] Sharing export fallback:', sharingErr);
-                }
-              }
-            }
-          ]
-        );
-      }
-    } catch (e: any) {
-      setDownloadAttachmentFailedKey(downloadKey);
-      showIceMessage('Download Error', e?.message || 'Could not download media file. Tap to retry.');
-    } finally {
-      setDownloadingAttachmentKey(null);
-      setDownloadAttachmentProgress(0);
-      setDownloadAttachmentBytesText('');
-    }
+  const handleCancelFileDownload = (key: string) => {
+    void mediaDownloadManager.cancelDownload(key);
   };
 
   const executeUpload = async (itemToUpload: {
@@ -2487,6 +2394,44 @@ export default function CommunityScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Floating Background Download Progress Banner */}
+        {(() => {
+          const bgDl = Object.values(activeMediaDownloads).find((dl) => dl.status === 'downloading');
+          if (!bgDl) return null;
+          return (
+            <View style={styles.floatingDownloadBanner}>
+              <View style={styles.floatingDownloadIconWrap}>
+                <ActivityIndicator color="#22c55e" size="small" />
+              </View>
+              <View style={styles.floatingDownloadInfo}>
+                <View style={styles.floatingDownloadTopRow}>
+                  <Text style={styles.floatingDownloadTitle} numberOfLines={1}>
+                    Downloading {bgDl.title || 'media'}
+                  </Text>
+                  <Text style={styles.floatingDownloadPercent}>
+                    {bgDl.progress}%
+                  </Text>
+                </View>
+                <View style={styles.floatingProgressBarBg}>
+                  <View style={[styles.floatingProgressBarFill, { width: `${bgDl.progress}%` }]} />
+                </View>
+                <Text style={styles.floatingDownloadBytes}>
+                  {bgDl.bytesText} • Runs in background
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.floatingDownloadCancelBtn}
+                onPress={() => handleCancelFileDownload(bgDl.key)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Cancel download"
+              >
+                <Text style={styles.floatingDownloadCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
+
         {/* WhatsApp-Style Chat Wallpaper */}
         <ImageBackground
           source={require('../assets/uni-space-wallpaper.png')}
@@ -2674,9 +2619,7 @@ export default function CommunityScreen() {
                                           handleDownloadFileAttachment(item.fileAttachment!);
                                           return;
                                         }
-                                        if (downloadingAttachmentKey === fileKey) {
-                                          return;
-                                        }
+
                                         setMediaPreview(item.fileAttachment || null);
                                       }}
                                       activeOpacity={0.88}
@@ -2704,20 +2647,35 @@ export default function CommunityScreen() {
                                         </View>
                                       )}
 
-                                      {/* WhatsApp-style Bit-by-bit Download Progress Overlay */}
-                                      {downloadingAttachmentKey === (item.fileAttachment.paperId || item.fileAttachment.url) && (
-                                        <View style={styles.chatMediaDownloadOverlay}>
-                                          <View style={styles.chatMediaDownloadCircle}>
-                                            <ActivityIndicator size="small" color="#22c55e" />
-                                            <Text style={styles.chatMediaDownloadPercentText}>
-                                              {downloadAttachmentProgress > 0 ? `${downloadAttachmentProgress}%` : '…'}
+                                      {/* WhatsApp-style Bit-by-bit Download Progress Overlay with Cancel */}
+                                      {(() => {
+                                        const bubbleFileKey = item.fileAttachment?.paperId || item.fileAttachment?.url || '';
+                                        const bubbleDl = bubbleFileKey ? activeMediaDownloads[bubbleFileKey] : undefined;
+                                        if (bubbleDl?.status !== 'downloading') return null;
+                                        return (
+                                          <View style={styles.chatMediaDownloadOverlay}>
+                                            <TouchableOpacity
+                                              style={styles.chatMediaDownloadCircle}
+                                              onPress={(e) => {
+                                                e.stopPropagation();
+                                                handleCancelFileDownload(bubbleFileKey);
+                                              }}
+                                              activeOpacity={0.7}
+                                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                              accessibilityLabel="Cancel download"
+                                            >
+                                              <ActivityIndicator size="small" color="#22c55e" />
+                                              <Text style={styles.chatMediaDownloadPercentText}>
+                                                {bubbleDl.progress > 0 ? `${bubbleDl.progress}%` : '…'}
+                                              </Text>
+                                              <Text style={styles.chatMediaCancelSmallText}>Cancel</Text>
+                                            </TouchableOpacity>
+                                            <Text style={styles.chatMediaDownloadBytesText}>
+                                              {bubbleDl.bytesText || 'Downloading…'}
                                             </Text>
                                           </View>
-                                          <Text style={styles.chatMediaDownloadBytesText}>
-                                            {downloadAttachmentBytesText || 'Downloading…'}
-                                          </Text>
-                                        </View>
-                                      )}
+                                        );
+                                      })()}
 
                                       {/* WhatsApp-style Download Interrupted / Failed Retry Overlay */}
                                       {downloadAttachmentFailedKey === (item.fileAttachment.paperId || item.fileAttachment.url) && (
@@ -2731,7 +2689,7 @@ export default function CommunityScreen() {
                                       )}
 
                                       {/* WhatsApp-style Save/Download button on media for incoming messages */}
-                                      {!item.isMe && downloadingAttachmentKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && downloadAttachmentFailedKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && (
+                                      {!item.isMe && (!activeMediaDownloads[item.fileAttachment.paperId || item.fileAttachment.url] || activeMediaDownloads[item.fileAttachment.paperId || item.fileAttachment.url]?.status !== 'downloading') && downloadAttachmentFailedKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && (
                                         <TouchableOpacity
                                           style={styles.chatMediaDownloadCornerBtn}
                                           onPress={(e) => {
@@ -3342,19 +3300,41 @@ export default function CommunityScreen() {
           <View style={styles.videoPlayerScreen}>
             <View style={styles.videoPlayerHeader}>
               <Text style={styles.videoPlayerTitle}>{mediaPreview?.type === 'video' ? 'Video' : 'Image'}</Text>
-              <TouchableOpacity
-                style={styles.videoPlayerDownload}
-                onPress={() => mediaPreview && handleDownloadFileAttachment(mediaPreview)}
-                disabled={!mediaPreview || downloadingAttachmentKey === (mediaPreview.paperId || mediaPreview.url)}
-                accessibilityRole="button"
-                accessibilityLabel="Download media"
-              >
-                {downloadingAttachmentKey === (mediaPreview?.paperId || mediaPreview?.url) ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
-                ) : (
-                  <DownloadIcon color="#ffffff" size={17} />
-                )}
-              </TouchableOpacity>
+              {(() => {
+                const previewKey = mediaPreview ? (mediaPreview.paperId || mediaPreview.url) : '';
+                const previewDl = previewKey ? activeMediaDownloads[previewKey] : undefined;
+                const isDownloading = previewDl?.status === 'downloading';
+
+                if (isDownloading) {
+                  return (
+                    <View style={styles.videoPlayerDownloadPill}>
+                      <ActivityIndicator color="#22c55e" size="small" />
+                      <Text style={styles.videoPlayerDownloadPillText}>
+                        {previewDl.progress}%
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.videoPlayerDownloadCancelBtn}
+                        onPress={() => previewKey && handleCancelFileDownload(previewKey)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Cancel download"
+                      >
+                        <Text style={styles.videoPlayerDownloadCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
+
+                return (
+                  <TouchableOpacity
+                    style={styles.videoPlayerDownload}
+                    onPress={() => mediaPreview && handleDownloadFileAttachment(mediaPreview)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Download media"
+                  >
+                    <DownloadIcon color="#ffffff" size={17} />
+                  </TouchableOpacity>
+                );
+              })()}
               <TouchableOpacity
                 style={styles.videoPlayerClose}
                 onPress={() => setMediaPreview(null)}
@@ -3378,12 +3358,38 @@ export default function CommunityScreen() {
             ) : mediaPreview ? (
               <Image source={{ uri: mediaPreview.url }} style={styles.fullScreenImagePreview} resizeMode="contain" />
             ) : null}
-            {downloadingAttachmentKey === (mediaPreview?.paperId || mediaPreview?.url) && (
-              <View style={styles.mediaDownloadProgress}>
-                <ActivityIndicator color="#ffffff" size="small" />
-                <Text style={styles.mediaDownloadProgressText}>Downloading {downloadAttachmentProgress}%</Text>
-              </View>
-            )}
+            {(() => {
+              const previewKey = mediaPreview ? (mediaPreview.paperId || mediaPreview.url) : '';
+              const previewDl = previewKey ? activeMediaDownloads[previewKey] : undefined;
+              if (previewDl?.status !== 'downloading') return null;
+
+              return (
+                <View style={styles.mediaDownloadProgressCard}>
+                  <View style={styles.mediaDownloadProgressRow}>
+                    <ActivityIndicator color="#22c55e" size="small" />
+                    <View style={styles.mediaDownloadProgressTextCol}>
+                      <View style={styles.mediaDownloadProgressHeaderRow}>
+                        <Text style={styles.mediaDownloadProgressTitle}>Downloading in background</Text>
+                        <Text style={styles.mediaDownloadProgressPercent}>{previewDl.progress}%</Text>
+                      </View>
+                      <View style={styles.mediaDownloadProgressBarBg}>
+                        <View style={[styles.mediaDownloadProgressBarFill, { width: `${previewDl.progress}%` }]} />
+                      </View>
+                      <Text style={styles.mediaDownloadProgressBytes}>{previewDl.bytesText || 'Connecting…'}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.mediaDownloadCardCancelBtn}
+                      onPress={() => previewKey && handleCancelFileDownload(previewKey)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Cancel download"
+                    >
+                      <Text style={styles.mediaDownloadCardCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })()}
           </View>
         </Modal>
       <PDFViewerModal
@@ -4123,6 +4129,191 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700'
+  },
+  videoPlayerDownloadPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(21, 128, 61, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    gap: 6,
+    marginLeft: 'auto',
+    marginRight: 8
+  },
+  videoPlayerDownloadPillText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  videoPlayerDownloadCancelBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.85)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+    marginLeft: 2
+  },
+  videoPlayerDownloadCancelText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  mediaDownloadProgressCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8
+  },
+  mediaDownloadProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  mediaDownloadProgressTextCol: {
+    flex: 1,
+    marginHorizontal: 10
+  },
+  mediaDownloadProgressHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  mediaDownloadProgressTitle: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  mediaDownloadProgressPercent: {
+    color: '#4ade80',
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  mediaDownloadProgressBarBg: {
+    height: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 3,
+    overflow: 'hidden'
+  },
+  mediaDownloadProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#22c55e',
+    borderRadius: 3
+  },
+  mediaDownloadProgressBytes: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 3
+  },
+  mediaDownloadCardCancelBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8
+  },
+  mediaDownloadCardCancelText: {
+    color: '#fca5a5',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  floatingDownloadBanner: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 52 : 44,
+    left: 12,
+    right: 12,
+    zIndex: 9999,
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 9
+  },
+  floatingDownloadIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10
+  },
+  floatingDownloadInfo: {
+    flex: 1,
+    marginRight: 10
+  },
+  floatingDownloadTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  floatingDownloadTitle: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 6
+  },
+  floatingDownloadPercent: {
+    color: '#4ade80',
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  floatingProgressBarBg: {
+    height: 4,
+    backgroundColor: '#334155',
+    borderRadius: 2,
+    overflow: 'hidden'
+  },
+  floatingProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#22c55e',
+    borderRadius: 2
+  },
+  floatingDownloadBytes: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 3
+  },
+  floatingDownloadCancelBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8
+  },
+  floatingDownloadCancelText: {
+    color: '#fca5a5',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  chatMediaCancelSmallText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 2,
+    textTransform: 'uppercase'
   },
   videoPlayerWebView: {
     flex: 1,

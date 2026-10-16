@@ -21,8 +21,10 @@ Notifications.setNotificationHandler({
 let registrationInFlight: Promise<string | null> | null = null;
 export const GENERAL_NOTIFICATION_CHANNEL_ID = 'mconnect_general_v2';
 export const COMMUNITY_NOTIFICATION_CHANNEL_ID = 'mconnect_messages_v2';
+export const DOWNLOADS_NOTIFICATION_CHANNEL_ID = 'mconnect_downloads_v2';
 const LOGIN_NOTIFICATION_CHANNEL_ID = 'mconnect_login_v2';
 const COMMUNITY_MESSAGE_CATEGORY = 'community_message';
+export const DOWNLOAD_NOTIFICATION_CATEGORY = 'media_download_action';
 let registrationEnabled = false;
 let registrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let registrationRetryAttempt = 0;
@@ -87,6 +89,13 @@ async function configureNotificationCategories() {
         options: { opensAppToForeground: true }
       }
     ]);
+    await Notifications.setNotificationCategoryAsync(DOWNLOAD_NOTIFICATION_CATEGORY, [
+      {
+        identifier: 'cancel_download_action',
+        buttonTitle: 'Cancel',
+        options: { opensAppToForeground: false }
+      }
+    ]);
   } catch (error) {
     console.warn('[Notifications]: Could not configure message actions:', error);
   }
@@ -136,6 +145,15 @@ async function configureAndroidChannels() {
     Notifications.setNotificationChannelAsync(LOGIN_NOTIFICATION_CHANNEL_ID, {
       ...common,
       name: 'MConnect Sign-in Alerts',
+    }),
+    Notifications.setNotificationChannelAsync(DOWNLOADS_NOTIFICATION_CHANNEL_ID, {
+      name: 'Media & File Downloads',
+      importance: Notifications.AndroidImportance.LOW,
+      vibrationPattern: [0],
+      lightColor: '#22c55e',
+      sound: null,
+      enableVibrate: false,
+      showBadge: false
     }),
   ]);
 }
@@ -425,6 +443,15 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
   // Handle taps while app is running or in background
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
+    if (response.actionIdentifier === 'cancel_download_action') {
+      const downloadKey = data?.downloadKey;
+      if (downloadKey) {
+        downloadCancelHandlers.forEach((h) => {
+          try { h(downloadKey); } catch (_) {}
+        });
+      }
+      return;
+    }
     if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
       void handleCommunityNotificationAction(response);
       onNavigate('/(tabs)/messages');
@@ -498,3 +525,94 @@ export function sendWebBrowserNotification(title: string, body: string, onClick?
     });
   }
 }
+
+type DownloadCancelHandler = (downloadKey: string) => void;
+const downloadCancelHandlers = new Set<DownloadCancelHandler>();
+
+export function registerDownloadCancelHandler(handler: DownloadCancelHandler): () => void {
+  downloadCancelHandlers.add(handler);
+  return () => {
+    downloadCancelHandlers.delete(handler);
+  };
+}
+
+let lastDownloadNotifyTime = 0;
+
+export async function showDownloadProgressNotification(
+  downloadKey: string,
+  filename: string,
+  progress: number,
+  bytesText: string
+) {
+  const now = Date.now();
+  if (progress < 100 && now - lastDownloadNotifyTime < 1200) {
+    return;
+  }
+  lastDownloadNotifyTime = now;
+
+  if (Platform.OS === 'web') return;
+
+  try {
+    const hasPermission = await ensureNotificationPermission();
+    if (!hasPermission) return;
+
+    if (Platform.OS === 'android') {
+      await configureAndroidChannels();
+    }
+
+    const identifier = `dl_${downloadKey}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48);
+
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: `Downloading ${filename}`,
+        body: `${progress}% • ${bytesText}`,
+        sound: false,
+        priority: Notifications.AndroidNotificationPriority.LOW,
+        categoryIdentifier: DOWNLOAD_NOTIFICATION_CATEGORY,
+        ...(Platform.OS === 'android' ? { channelId: DOWNLOADS_NOTIFICATION_CHANNEL_ID } : {}),
+        data: { downloadKey, filename, type: 'media_download' }
+      },
+      trigger: null
+    });
+  } catch (_) {}
+}
+
+export async function showDownloadCompleteNotification(
+  downloadKey: string,
+  filename: string
+) {
+  const identifier = `dl_${downloadKey}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48);
+
+  if (Platform.OS === 'web') {
+    sendWebBrowserNotification('Download Complete ✅', `"${filename}" saved for offline viewing.`);
+    return;
+  }
+
+  try {
+    const hasPermission = await ensureNotificationPermission();
+    if (!hasPermission) return;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: 'Download Complete ✅',
+        body: `"${filename}" saved for offline viewing.`,
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.DEFAULT,
+        ...(Platform.OS === 'android' ? { channelId: GENERAL_NOTIFICATION_CHANNEL_ID } : {}),
+        data: { downloadKey, filename, type: 'download_complete', screen: 'academics' }
+      },
+      trigger: null
+    });
+  } catch (_) {}
+}
+
+export async function dismissDownloadNotification(downloadKey: string) {
+  const identifier = `dl_${downloadKey}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48);
+  if (Platform.OS === 'web') return;
+  try {
+    await Notifications.dismissNotificationAsync(identifier);
+  } catch (_) {}
+}
+
