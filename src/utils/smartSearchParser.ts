@@ -397,7 +397,7 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
       const extras = [semester, materialType?.label, examYear].filter(Boolean).join(', ');
       didYouMeanText += ` (${extras})`;
     }
-    autoPivotSuggestion = detectedUnitCode;
+    autoPivotSuggestion = correctedQuery;
   } else if (isAcronymExpanded) {
     correctedQuery = expandedText;
     didYouMeanText = expandedText;

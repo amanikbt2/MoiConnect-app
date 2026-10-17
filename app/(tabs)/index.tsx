@@ -398,7 +398,7 @@ export default function HomeScreen() {
           <View style={styles.homeSmartSearchBox}>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setSearchQuery(smartIntent.autoPivotSuggestion || smartIntent.didYouMeanText!)}
+              onPress={() => setSearchQuery(smartIntent.correctedQuery || smartIntent.autoPivotSuggestion || smartIntent.didYouMeanText!)}
               style={styles.homeDidYouMeanRow}
             >
               <SparklesIcon color="#15803d" size={14} />

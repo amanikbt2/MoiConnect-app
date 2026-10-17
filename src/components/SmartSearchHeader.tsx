@@ -69,7 +69,7 @@ export function SmartSearchHeader({
       {showDidYouMean && (
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => onAcceptSuggestion(intent.autoPivotSuggestion || intent.didYouMeanText!)}
+          onPress={() => onAcceptSuggestion(intent.correctedQuery || intent.autoPivotSuggestion || intent.didYouMeanText!)}
           style={[styles.didYouMeanCard, isDark && styles.didYouMeanCardDark]}
         >
           <View style={styles.sparkleBadge}>
