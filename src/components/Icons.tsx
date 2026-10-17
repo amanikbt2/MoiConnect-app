@@ -30,47 +30,34 @@ export function HomeIcon({ color = '#15803d', size = 22, style }: IconProps) {
   );
 }
 
-export function CommunityIcon({ color = '#15803d', size = 24, style }: IconProps) {
+export function MCIcon({ color, size = 24, style }: IconProps) {
+  const isInactive = color === '#64748b' || color === '#94a3b8' || color === '#9ca3af';
+  const mColor = isInactive ? color : '#2E353C';
+  const cColor = isInactive ? color : (color || '#008B46');
+
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
-      {/* M Main Stems */}
+      {/* M Shape (Upper stem, left facet, and inner slope) */}
       <Path
-        d="M3.5 6.5V19.5M20.5 9.5V19.5M3.5 6.5L12 14.5L17.2 8.8"
-        stroke={color}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d="M2.5 2.2 L6.5 3.5 L10.8 9.2 L14.9 5.5 L10.5 13.5 L10.1 14.2 L6.0 8.8 L5.8 15.5 L3.2 15.5 L2.5 13.0 Z"
+        fill={mColor}
       />
-      {/* Graduation Cap */}
+      {/* M Bottom Chevron / Shield Base */}
       <Path
-        d="M13.5 4.5L17.5 2.5L21.5 4.5L17.5 6.5Z"
-        fill={color}
-        stroke={color}
-        strokeWidth="0.8"
-        strokeLinejoin="round"
+        d="M6.8 15.2 L12.0 21.8 L16.8 18.0 L12.0 16.2 L8.2 13.5 Z"
+        fill={mColor}
       />
+      {/* C Shape (Upper hook, spine, and lower interlocking jaw) */}
       <Path
-        d="M15.5 5.5V7C15.5 7.8 19.5 7.8 19.5 7V5.5"
-        stroke={color}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-      <Circle cx="21" cy="7" r="0.6" fill={color} />
-      {/* Open Book Wings */}
-      <Path
-        d="M8.5 16.5C10.2 15.3 12 16.5 12 16.5C12 16.5 13.8 15.3 15.5 16.5"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <Path
-        d="M8.5 19C10.2 17.8 12 19 12 19C12 19 13.8 17.8 15.5 19"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinecap="round"
+        d="M21.5 2.2 L21.8 2.5 L21.6 8.5 L18.4 9.8 L18.1 7.2 L15.8 8.0 L10.2 14.5 L10.2 13.8 L14.6 6.0 L15.4 5.0 Z M13.5 12.0 L17.5 12.0 L21.5 14.5 L17.5 19.5 L14.5 16.5 Z"
+        fill={cColor}
       />
     </Svg>
   );
+}
+
+export function CommunityIcon(props: IconProps) {
+  return <MCIcon {...props} />;
 }
 
 export function BookIcon({ color = '#15803d', size = 22, style }: IconProps) {
