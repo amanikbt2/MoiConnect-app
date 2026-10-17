@@ -742,8 +742,10 @@ export default function AcademicsScreen({ route }: any) {
   };
 
   const renderCarouselCard = (item: NoteItem) => {
-    const cleanTag = item.tag.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u, '').replace(/^#\d+\s*/, '').trim();
-    const cleanRating = item.rating.replace(/[^0-9.]/g, '').trim();
+    const rawTag = String(item.tag || (item as any).recommendationTag || 'Revision Pack');
+    const cleanTag = rawTag.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}]/u, '').replace(/^#\d+\s*/, '').trim();
+    const rawRating = String(item.rating || (item as any).ratingScore || '4.5');
+    const cleanRating = rawRating.replace(/[^0-9.]/g, '').trim();
 
     return (
       <TouchableOpacity
@@ -786,10 +788,12 @@ export default function AcademicsScreen({ route }: any) {
   };
 
   const renderGridCard = (item: NoteItem) => {
-    const cleanRating = item.rating.replace(/[^0-9.]/g, '').trim();
+    const rawRating = String(item.rating || (item as any).ratingScore || '4.5');
+    const cleanRating = rawRating.replace(/[^0-9.]/g, '').trim();
     const mtidText = item.mtid || 'P0001';
     const paperTag = item.paperType || 'Exam Pack';
-    const shortSchool = (item.school || 'School of Science')
+    const rawSchool = String(item.school || 'School of Science');
+    const shortSchool = rawSchool
       .replace('School of ', '')
       .replace('Information Sciences', 'INFO SCI')
       .toUpperCase();
