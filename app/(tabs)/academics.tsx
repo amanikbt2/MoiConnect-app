@@ -1092,6 +1092,17 @@ export default function AcademicsScreen({ route }: any) {
                         decelerationRate="fast"
                         onScrollBeginDrag={() => { isSearchCarouselInteracting.current = true; }}
                         onScrollEndDrag={() => { setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000); }}
+                        onMomentumScrollEnd={(event) => {
+                          const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+                          setSearchCarouselIndex(Math.max(0, Math.min(nextIndex, searchRecommendations.youMayAlsoLike.length - 1)));
+                          setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000);
+                        }}
+                        onScrollToIndexFailed={(info) => {
+                          searchCarouselListRef.current?.scrollToOffset({
+                            offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                            animated: true
+                          });
+                        }}
                         getItemLayout={(_, index) => ({
                           length: CAROUSEL_CARD_WIDTH + 14,
                           offset: (CAROUSEL_CARD_WIDTH + 14) * index,
