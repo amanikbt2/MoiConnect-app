@@ -349,16 +349,8 @@ export default function TabLayout() {
             lineHeight: 15,
             marginTop: -2
           },
-          tabBarIcon: ({ focused }: { focused: boolean }) => (
-            <Image
-              source={require('../../assets/splash-icon.png')}
-              style={{
-                width: 24,
-                height: 24,
-                opacity: focused ? 1 : 0.55
-              }}
-              resizeMode="contain"
-            />
+          tabBarIcon: ({ color }: { color: string }) => (
+            <CommunityIcon color={color} size={22} />
           )
         }}
       />

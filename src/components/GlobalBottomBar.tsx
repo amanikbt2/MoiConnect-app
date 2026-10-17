@@ -11,7 +11,7 @@ import {
   InteractionManager
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HomeIcon, DownloadIcon } from './Icons';
+import { HomeIcon, DownloadIcon, CommunityIcon } from './Icons';
 import {
   subscribeToUnreadSummaryUpdates,
   syncCommunityUnreadBackground,
@@ -186,15 +186,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
         activeOpacity={0.7}
       >
         <View style={styles.iconWrapper}>
-          <Image
-            source={require('../../assets/splash-icon.png')}
-            style={{
-              width: 24,
-              height: 24,
-              opacity: isCommunityActive ? 1 : 0.55
-            }}
-            resizeMode="contain"
-          />
+          <CommunityIcon color={isCommunityActive ? '#15803d' : '#64748b'} size={22} />
 
           {unreadMentions > 0 ? (
             <>
