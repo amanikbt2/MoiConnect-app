@@ -16,6 +16,7 @@ import {
 import { ACADEMIC_ACRONYMS } from '../utils/academicAcronyms';
 import { SearchIcon, SparklesIcon, ClockIcon, ChevronRightIcon } from './Icons';
 import { useTheme } from '../context/ThemeContext';
+import { HighlightText } from './HighlightText';
 
 export interface AutocompleteSuggestion {
   id: string;
@@ -59,6 +60,10 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
   const { isDark } = useTheme();
   const trimmed = query.trim().toLowerCase();
 
+  const queryTokens = useMemo(() => {
+    return trimmed.split(/[^a-z0-9]+/i).filter(Boolean);
+  }, [trimmed]);
+
   const suggestions = useMemo<AutocompleteSuggestion[]>(() => {
     // 1. If query is empty: Show Recent Searches & Popular Campus Searches
     if (!trimmed) {
@@ -90,86 +95,276 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
       return items;
     }
 
-    const results: AutocompleteSuggestion[] = [];
+    if (queryTokens.length === 0) {
+      return [];
+    }
+
     const cleanNoSpace = trimmed.replace(/[^a-z0-9]/g, '');
+
+    interface CandidateItem {
+      item: AutocompleteSuggestion;
+      matchedTokenCount: number;
+      totalScore: number;
+    }
+
+    const candidates: CandidateItem[] = [];
 
     // 2. Acronym Match (e.g. "os", "dbms", "dsa", "ai", "oop")
     if (ACADEMIC_ACRONYMS[trimmed]) {
       const exp = ACADEMIC_ACRONYMS[trimmed];
-      results.push({
-        id: `acronym-${trimmed}`,
-        type: 'acronym',
-        title: exp,
-        subtitle: `Acronym for "${trimmed.toUpperCase()}"`,
-        badge: '⚡ ACRONYM',
-        queryValue: exp
+      candidates.push({
+        item: {
+          id: `acronym-${trimmed}`,
+          type: 'acronym',
+          title: exp,
+          subtitle: `Acronym for "${trimmed.toUpperCase()}"`,
+          badge: '⚡ ACRONYM',
+          queryValue: exp
+        },
+        matchedTokenCount: queryTokens.length,
+        totalScore: 14000
       });
     }
 
-    // 3. Exact & Prefix Unit Code Matches (e.g. "csc 21", "com 110", "ant")
-    const unitMatches: AcademicUnitEntry[] = [];
+    // 3. Academic Units (Out-of-order word matching & token scoring)
     for (const unit of MOI_ACADEMIC_UNITS) {
-      const unitCodeClean = unit.code.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const unitNameLower = unit.name.toLowerCase();
+      const codeLower = unit.code.toLowerCase();
+      const codeClean = codeLower.replace(/[^a-z0-9]/g, '');
+      const codeTokens = codeLower.split(/[^a-z0-9]+/).filter(Boolean);
+      const nameLower = unit.name.toLowerCase();
+      const nameWords = nameLower.split(/[^a-z0-9]+/).filter(Boolean);
+      const deptSchoolLower = `${unit.department || ''} ${unit.school || ''}`.toLowerCase();
+      const deptSchoolWords = deptSchoolLower.split(/[^a-z0-9]+/).filter(Boolean);
 
-      if (unitCodeClean.startsWith(cleanNoSpace) || unitCodeClean.includes(cleanNoSpace)) {
-        unitMatches.push(unit);
-      } else if (unitNameLower.includes(trimmed)) {
-        unitMatches.push(unit);
+      let matchedTokenCount = 0;
+      let unitScore = 0;
+
+      // Exact code match bonus across full query (e.g. "sas 101" or "sas101")
+      if (cleanNoSpace === codeClean) {
+        unitScore += 8000;
+      } else if (codeClean.startsWith(cleanNoSpace)) {
+        unitScore += 4000;
       }
 
-      if (unitMatches.length >= 5) break;
-    }
+      for (const tok of queryTokens) {
+        let bestTokenScore = 0;
 
-    unitMatches.forEach((unit) => {
-      results.push({
-        id: `unit-${unit.code}`,
-        type: 'unit',
-        title: `${unit.code} • ${unit.name}`,
-        subtitle: `${unit.department || unit.school}`,
-        badge: 'UNIT',
-        queryValue: `${unit.code} ${unit.name}`
-      });
-    });
+        // Code match: exact token or prefix
+        if (codeTokens.includes(tok) || codeClean === tok) {
+          bestTokenScore = Math.max(bestTokenScore, 3500);
+        } else if (codeClean.startsWith(tok) || codeTokens.some((ct) => ct.startsWith(tok))) {
+          bestTokenScore = Math.max(bestTokenScore, 2500);
+        }
 
-    // 4. School Matches (e.g. "engineering", "ssas", "law")
-    for (const sch of MOI_ACADEMIC_SCHOOLS) {
-      if (
-        sch.name.toLowerCase().includes(trimmed) ||
-        sch.code.toLowerCase() === trimmed ||
-        sch.aliases.some((a) => a.includes(trimmed))
-      ) {
-        results.push({
-          id: `school-${sch.code}`,
-          type: 'school',
-          title: sch.name,
-          subtitle: `${sch.code} • Faculty`,
-          badge: 'SCHOOL',
-          queryValue: sch.name
+        // Title word match: exact word or prefix
+        if (nameWords.includes(tok)) {
+          bestTokenScore = Math.max(bestTokenScore, 1800);
+        } else if (nameWords.some((w) => w.startsWith(tok))) {
+          bestTokenScore = Math.max(bestTokenScore, 1200);
+        }
+
+        // Department & School words
+        if (deptSchoolWords.includes(tok)) {
+          bestTokenScore = Math.max(bestTokenScore, 600);
+        } else if (deptSchoolWords.some((w) => w.startsWith(tok))) {
+          bestTokenScore = Math.max(bestTokenScore, 400);
+        }
+
+        // Past paper / aliases
+        if (unit.aliases && unit.aliases.length > 0) {
+          for (const alias of unit.aliases) {
+            const aLower = alias.toLowerCase();
+            if (aLower.includes(tok)) {
+              bestTokenScore = Math.max(bestTokenScore, 300);
+              break;
+            }
+          }
+        }
+
+        // Internal substring fallback (e.g. "sas" inside "disasters")
+        // Minimal score (+15) ensures it never ranks above genuine prefix or word matches
+        if (bestTokenScore === 0 && tok.length >= 3) {
+          if (nameLower.includes(tok) || deptSchoolLower.includes(tok)) {
+            bestTokenScore = 15;
+          }
+        }
+
+        if (bestTokenScore > 0) {
+          matchedTokenCount++;
+          unitScore += bestTokenScore;
+        }
+      }
+
+      if (matchedTokenCount > 0) {
+        // Bonus if ALL query tokens matched this unit (regardless of word order)
+        if (matchedTokenCount === queryTokens.length) {
+          unitScore += 3000;
+        }
+
+        candidates.push({
+          item: {
+            id: `unit-${unit.code}`,
+            type: 'unit',
+            title: `${unit.code} • ${unit.name}`,
+            subtitle: `${unit.department || unit.school}`,
+            badge: 'UNIT',
+            queryValue: `${unit.code} ${unit.name}`
+          },
+          matchedTokenCount,
+          totalScore: unitScore
         });
-        break;
       }
     }
 
-    // 5. Department Matches
-    if (results.length < 5) {
-      for (const dept of MOI_ACADEMIC_DEPARTMENTS) {
-        if (dept.name.toLowerCase().includes(trimmed)) {
-          results.push({
+    // 4. Academic Schools
+    for (const sch of MOI_ACADEMIC_SCHOOLS) {
+      const schCodeLower = sch.code.toLowerCase();
+      const schCodeClean = schCodeLower.replace(/[^a-z0-9]/g, '');
+      const schNameLower = sch.name.toLowerCase();
+      const schNameWords = schNameLower.split(/[^a-z0-9]+/).filter(Boolean);
+      const schAliases = sch.aliases || [];
+
+      let matchedTokenCount = 0;
+      let schScore = 0;
+
+      if (cleanNoSpace === schCodeClean) {
+        schScore += 6000;
+      }
+
+      for (const tok of queryTokens) {
+        let bestTokenScore = 0;
+
+        if (schCodeClean === tok) {
+          bestTokenScore = Math.max(bestTokenScore, 3000);
+        } else if (schCodeClean.startsWith(tok)) {
+          bestTokenScore = Math.max(bestTokenScore, 2000);
+        }
+
+        if (schNameWords.includes(tok)) {
+          bestTokenScore = Math.max(bestTokenScore, 1500);
+        } else if (schNameWords.some((w) => w.startsWith(tok))) {
+          bestTokenScore = Math.max(bestTokenScore, 1000);
+        }
+
+        if (schAliases.some((a) => a.toLowerCase().includes(tok))) {
+          bestTokenScore = Math.max(bestTokenScore, 800);
+        }
+
+        if (bestTokenScore === 0 && tok.length >= 3 && schNameLower.includes(tok)) {
+          bestTokenScore = 15;
+        }
+
+        if (bestTokenScore > 0) {
+          matchedTokenCount++;
+          schScore += bestTokenScore;
+        }
+      }
+
+      if (matchedTokenCount > 0) {
+        if (matchedTokenCount === queryTokens.length) {
+          schScore += 2500;
+        }
+
+        candidates.push({
+          item: {
+            id: `school-${sch.code}`,
+            type: 'school',
+            title: sch.name,
+            subtitle: `${sch.code} • Faculty`,
+            badge: 'SCHOOL',
+            queryValue: sch.name
+          },
+          matchedTokenCount,
+          totalScore: schScore
+        });
+      }
+    }
+
+    // 5. Academic Departments
+    for (const dept of MOI_ACADEMIC_DEPARTMENTS) {
+      const deptNameLower = dept.name.toLowerCase();
+      const deptWords = deptNameLower.split(/[^a-z0-9]+/).filter(Boolean);
+      const deptSchoolLower = (dept.school || '').toLowerCase();
+      const deptSchoolWords = deptSchoolLower.split(/[^a-z0-9]+/).filter(Boolean);
+
+      let matchedTokenCount = 0;
+      let deptScore = 0;
+
+      for (const tok of queryTokens) {
+        let bestTokenScore = 0;
+
+        if (deptWords.includes(tok)) {
+          bestTokenScore = Math.max(bestTokenScore, 1400);
+        } else if (deptWords.some((w) => w.startsWith(tok))) {
+          bestTokenScore = Math.max(bestTokenScore, 900);
+        }
+
+        if (deptSchoolWords.includes(tok)) {
+          bestTokenScore = Math.max(bestTokenScore, 400);
+        }
+
+        if (bestTokenScore === 0 && tok.length >= 3 && deptNameLower.includes(tok)) {
+          bestTokenScore = 15;
+        }
+
+        if (bestTokenScore > 0) {
+          matchedTokenCount++;
+          deptScore += bestTokenScore;
+        }
+      }
+
+      if (matchedTokenCount > 0) {
+        if (matchedTokenCount === queryTokens.length) {
+          deptScore += 2000;
+        }
+
+        candidates.push({
+          item: {
             id: `dept-${dept.name}`,
             type: 'department',
             title: dept.name,
             subtitle: dept.school,
             badge: 'DEPT',
             queryValue: dept.name
-          });
-          if (results.length >= 6) break;
-        }
+          },
+          matchedTokenCount,
+          totalScore: deptScore
+        });
       }
     }
 
-    return results.slice(0, 6);
-  }, [trimmed, historyEntries]);
+    // 6. Deterministic Smart Sorting:
+    // Ranked strictly by most matched words (descending), then relevance score (descending)
+    candidates.sort((a, b) => {
+      // 1. Most matching words ranked top coming downwards
+      if (b.matchedTokenCount !== a.matchedTokenCount) {
+        return b.matchedTokenCount - a.matchedTokenCount;
+      }
+      // 2. Highest total score first
+      if (b.totalScore !== a.totalScore) {
+        return b.totalScore - a.totalScore;
+      }
+      // 3. Shorter title for cleaner matches
+      return a.item.title.length - b.item.title.length;
+    });
+
+    // 7. Deduplicate and return top 6
+    const seen = new Set<string>();
+    const topSuggestions: AutocompleteSuggestion[] = [];
+
+    for (const cand of candidates) {
+      const key = cand.item.queryValue.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        topSuggestions.push(cand.item);
+      }
+      if (topSuggestions.length >= 6) {
+        break;
+      }
+    }
+
+    return topSuggestions;
+  }, [trimmed, queryTokens, historyEntries]);
 
   if (!visible || suggestions.length === 0) {
     return null;
@@ -217,12 +412,18 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
 
             <View style={styles.itemTextContainer}>
               <View style={styles.titleRow}>
-                <Text
+                <HighlightText
+                  text={item.title}
+                  highlightWords={queryTokens}
                   style={[styles.itemTitle, isDark && styles.textDark]}
+                  highlightStyle={{
+                    color: isDark ? '#38bdf8' : '#0284c7',
+                    fontWeight: '800',
+                    backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.1)',
+                    borderRadius: 3
+                  }}
                   numberOfLines={1}
-                >
-                  {item.title}
-                </Text>
+                />
                 {item.badge && (
                   <View
                     style={[

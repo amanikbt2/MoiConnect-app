@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
-import { Text, TextStyle } from 'react-native';
+import { Text, TextStyle, StyleProp } from 'react-native';
 
 export interface HighlightTextProps {
   text: string;
   highlightWords?: string[];
-  style?: TextStyle;
-  highlightStyle?: TextStyle;
+  style?: StyleProp<TextStyle>;
+  highlightStyle?: StyleProp<TextStyle>;
   numberOfLines?: number;
 }
 
@@ -33,14 +33,14 @@ export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
       return [{ text, isMatch: false }];
     }
 
-    // Escape regex tokens and enforce whole word boundaries
+    // Escape regex tokens and match at word start boundary (\b)
     const escaped = cleanTokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const regex = new RegExp(`(\\b(?:${escaped})\\b)`, 'gi');
+    const regex = new RegExp(`(\\b(?:${escaped}))`, 'gi');
 
     const split = text.split(regex);
     return split.map((segment) => ({
       text: segment,
-      isMatch: cleanTokens.includes(segment.toLowerCase())
+      isMatch: cleanTokens.some((ct) => segment.toLowerCase() === ct)
     }));
   }, [text, highlightWords]);
 
