@@ -53,9 +53,9 @@ export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
             p.isMatch
               ? [
                   {
-                    color: '#15803d',
+                    color: '#ea580c',
                     fontWeight: '800',
-                    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                    backgroundColor: 'rgba(234, 88, 12, 0.12)',
                     borderRadius: 3
                   },
                   highlightStyle
