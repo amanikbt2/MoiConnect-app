@@ -20,7 +20,8 @@ def make_solid_icon(size, logo_width, bg_color=GREEN):
     img = Image.new('RGBA', (size, size), bg_color)
     logo_h = int(logo_width / aspect)
     resized_logo = logo.resize((logo_width, logo_h), Image.Resampling.LANCZOS)
-    x = (size - logo_width) // 2
+    # Optically center the 'M' body: the M stems are symmetric around x=240 (of 558)
+    x = size // 2 - int((240 / lw) * logo_width)
     y = (size - logo_h) // 2
     img.paste(resized_logo, (x, y), resized_logo)
     return img
@@ -29,7 +30,8 @@ def make_transparent_icon(size, logo_width):
     img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     logo_h = int(logo_width / aspect)
     resized_logo = logo.resize((logo_width, logo_h), Image.Resampling.LANCZOS)
-    x = (size - logo_width) // 2
+    # Optically center the 'M' body: the M stems are symmetric around x=240 (of 558)
+    x = size // 2 - int((240 / lw) * logo_width)
     y = (size - logo_h) // 2
     img.paste(resized_logo, (x, y), resized_logo)
     return img

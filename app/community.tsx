@@ -34,6 +34,8 @@ import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
 import { STICKERS } from '../src/data/stickers';
+import { GIFS, getLocalGifSource } from '../src/data/gifs';
+import { extractImageOrGifUrl, isGifUrl } from '../src/utils/mediaUrlUtils';
 import { useAppNavigation } from '../src/utils/navigation';
 import {
   SendIcon,
@@ -176,7 +178,11 @@ const isImageAttachment = (file?: { type?: string; url?: string; name?: string }
   const url = (file.url || '').toLowerCase();
   return Boolean(name.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)$/i)) ||
     Boolean(url.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|svg)(\?.*)?$/i)) ||
-    url.includes('/image/upload/');
+    Boolean(getLocalGifSource(file.url)) ||
+    url.includes('/image/upload/') ||
+    url.includes('giphy.com') ||
+    url.includes('tenor.com') ||
+    url.startsWith('data:image/');
 };
 
 const isMediaAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
@@ -482,6 +488,8 @@ export default function CommunityScreen() {
   const [downloadingAttachmentKey, setDownloadingAttachmentKey] = useState<string | null>(null);
   const [downloadAttachmentProgress, setDownloadAttachmentProgress] = useState(0);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [pickerTab, setPickerTab] = useState<'stickers' | 'gifs'>('stickers');
+  const [gifCategory, setGifCategory] = useState<string>('All');
   const [availableFiles, setAvailableFiles] = useState<FileAttachment[]>([]);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<CommunityMessage | null>(null);
@@ -504,6 +512,54 @@ export default function CommunityScreen() {
   const [showGuestSignInPrompt, setShowGuestSignInPrompt] = useState(false);
   const [goLiveNotice, setGoLiveNotice] = useState<{ title: string; message: string } | null>(null);
 
+  const stickerPickerRef = useRef<View>(null);
+  const smileButtonRef = useRef<TouchableOpacity>(null);
+
+  useEffect(() => {
+    if (!showStickerPicker || Platform.OS !== 'web') return;
+
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      if (stickerPickerRef.current) {
+        const pickerNode = (stickerPickerRef.current as any)?._nativeNode || (stickerPickerRef.current as any);
+        if (pickerNode && typeof pickerNode.contains === 'function' && pickerNode.contains(target)) {
+          return;
+        }
+      }
+
+      if (smileButtonRef.current) {
+        const smileNode = (smileButtonRef.current as any)?._nativeNode || (smileButtonRef.current as any);
+        if (smileNode && typeof smileNode.contains === 'function' && smileNode.contains(target)) {
+          return;
+        }
+      }
+
+      if (typeof target.closest === 'function' && target.closest('[data-sticker-picker], [data-sticker-toggle]')) {
+        return;
+      }
+
+      setShowStickerPicker(false);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowStickerPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showStickerPicker]);
+
   useEffect(() => {
     if (!authLoading && isForumFocused) setShowGuestSignInPrompt(!user);
     if (user) setShowGuestSignInPrompt(false);
@@ -512,6 +568,7 @@ export default function CommunityScreen() {
   useEffect(() => {
     getCommunityReactorId().then((id) => { reactorIdRef.current = id; });
   }, []);
+  const lastSendTimestampRef = useRef<number>(0);
 
   useEffect(() => {
     if (isForumLoading || !hasForumListLayout) return;
@@ -993,13 +1050,22 @@ export default function CommunityScreen() {
 
 
           setMessages((prev) => {
-            const existingIdx = prev.findIndex((m) =>
-              (serverMsg.clientMsgId && m.clientMsgId === serverMsg.clientMsgId) ||
-              (serverMsg.clientMsgId && m.id === serverMsg.clientMsgId) ||
-              m.id === formattedMsg.id ||
-              m.id === serverMsg._id ||
-              (m.isMe && isMyMsg && m.text.trim() === formattedMsg.text.trim() && Math.abs(new Date(m.isoDate || 0).getTime() - new Date(formattedMsg.isoDate || 0).getTime()) < 40000)
-            );
+            const existingIdx = prev.findIndex((m) => {
+              if (serverMsg.clientMsgId && (m.clientMsgId === serverMsg.clientMsgId || m.id === serverMsg.clientMsgId)) {
+                return true;
+              }
+              if (m.id === formattedMsg.id || m.id === serverMsg._id) {
+                return true;
+              }
+              if (m.isMe && isMyMsg) {
+                const timeDiff = Math.abs(new Date(m.isoDate || 0).getTime() - new Date(formattedMsg.isoDate || 0).getTime());
+                const textMatches = Boolean(m.text?.trim()) && Boolean(formattedMsg.text?.trim()) && m.text.trim() === formattedMsg.text.trim() && timeDiff < 40000;
+                const stickerMatches = Boolean(m.stickerId) && Boolean(formattedMsg.stickerId) && m.stickerId === formattedMsg.stickerId && timeDiff < 40000;
+                const fileMatches = Boolean(m.fileAttachment?.url) && m.fileAttachment?.url === formattedMsg.fileAttachment?.url && timeDiff < 40000;
+                return textMatches || stickerMatches || fileMatches;
+              }
+              return false;
+            });
 
             let updated: CommunityMessage[];
             if (existingIdx !== -1) {
@@ -1322,12 +1388,22 @@ export default function CommunityScreen() {
           const updated = [...baseMessages];
           let changed = false;
           for (const msg of fetchedMsgs) {
-            const existingIdx = updated.findIndex((m) =>
-              (msg.clientMsgId && m.clientMsgId === msg.clientMsgId) ||
-              (msg.clientMsgId && m.id === msg.clientMsgId) ||
-              m.id === msg.id ||
-              (m.isMe && msg.isMe && m.text.trim() === msg.text.trim() && Math.abs(new Date(m.isoDate || 0).getTime() - new Date(msg.isoDate || 0).getTime()) < 40000)
-            );
+            const existingIdx = updated.findIndex((m) => {
+              if (msg.clientMsgId && (m.clientMsgId === msg.clientMsgId || m.id === msg.clientMsgId)) {
+                return true;
+              }
+              if (m.id === msg.id) {
+                return true;
+              }
+              if (m.isMe && msg.isMe) {
+                const timeDiff = Math.abs(new Date(m.isoDate || 0).getTime() - new Date(msg.isoDate || 0).getTime());
+                const textMatches = Boolean(m.text?.trim()) && Boolean(msg.text?.trim()) && m.text.trim() === msg.text.trim() && timeDiff < 40000;
+                const stickerMatches = Boolean(m.stickerId) && Boolean(msg.stickerId) && m.stickerId === msg.stickerId && timeDiff < 40000;
+                const fileMatches = Boolean(m.fileAttachment?.url) && m.fileAttachment?.url === msg.fileAttachment?.url && timeDiff < 40000;
+                return textMatches || stickerMatches || fileMatches;
+              }
+              return false;
+            });
 
             if (existingIdx !== -1) {
               const wasMe = (msg.clientMsgId && tempSentIdsRef.current.has(msg.clientMsgId)) || msg.isMe;
@@ -1411,37 +1487,47 @@ export default function CommunityScreen() {
         };
       });
 
-      const mergedById = new Map<string, CommunityMessage>();
-      for (const message of baseMessages) {
-        const key = String(message.clientMsgId || message.id || (message as any)._id || '');
-        if (key) mergedById.set(key, message);
-      }
-      for (const message of recentMessages) {
-        const key = String(message.clientMsgId || message.id || (message as any)._id || '');
-        if (!key) continue;
-        mergedById.set(key, { ...mergedById.get(key), ...message });
-      }
+      const deduplicated: CommunityMessage[] = [];
+      const addOrMerge = (msg: CommunityMessage) => {
+        const id = String(msg.id || (msg as any)._id || '');
+        const clientMsgId = String(msg.clientMsgId || '');
+        const existingIdx = deduplicated.findIndex((existing) =>
+          (id && (existing.id === id || (existing as any)._id === id || existing.clientMsgId === id)) ||
+          (clientMsgId && (existing.clientMsgId === clientMsgId || existing.id === clientMsgId))
+        );
+        if (existingIdx !== -1) {
+          deduplicated[existingIdx] = { ...deduplicated[existingIdx], ...msg };
+        } else {
+          deduplicated.push(msg);
+        }
+      };
+
+      for (const message of baseMessages) addOrMerge(message);
+      for (const message of recentMessages) addOrMerge(message);
 
       const persistedMessages = await getStoredCommunityMessages();
-      for (const message of persistedMessages) {
-        const key = String(message.clientMsgId || message.id || message._id || '');
-        if (key && !mergedById.has(key)) mergedById.set(key, message);
-      }
+      for (const message of persistedMessages) addOrMerge(message);
 
-      const merged = Array.from(mergedById.values()).sort((a, b) =>
+      const merged = deduplicated.sort((a, b) =>
         String(a.isoDate || '').localeCompare(String(b.isoDate || ''))
       );
+
       setMessages((current) => {
-        const currentById = new Map<string, CommunityMessage>();
-        for (const message of current) {
-          const key = String(message.clientMsgId || message.id || (message as any)._id || '');
-          if (key) currentById.set(key, message);
+        const result = [...current];
+        for (const item of merged) {
+          const itemId = String(item.id || (item as any)._id || '');
+          const itemClientId = String(item.clientMsgId || '');
+          const idx = result.findIndex((c) =>
+            (itemId && (c.id === itemId || (c as any)._id === itemId || c.clientMsgId === itemId)) ||
+            (itemClientId && (c.clientMsgId === itemClientId || c.id === itemClientId))
+          );
+          if (idx !== -1) {
+            result[idx] = { ...result[idx], ...item };
+          } else {
+            result.push(item);
+          }
         }
-        for (const message of merged) {
-          const key = String(message.clientMsgId || message.id || (message as any)._id || '');
-          if (key) currentById.set(key, { ...currentById.get(key), ...message });
-        }
-        return Array.from(currentById.values()).sort((a, b) =>
+        return result.sort((a, b) =>
           String(a.isoDate || '').localeCompare(String(b.isoDate || ''))
         );
       });
@@ -1466,21 +1552,23 @@ export default function CommunityScreen() {
 
       if (storedCursor) lastSyncedISO.current = storedCursor;
       if (cachedMessages.length > 0) {
-        const cachedById = new Map<string, CommunityMessage>();
-        for (const cached of cachedMessages) {
-          const id = String(cached.clientMsgId || cached.id || cached._id || '');
-          if (id) cachedById.set(id, { ...cached, isMe: evalIsMe(cached.senderId, cached.senderEmail, cached.senderName, cached.clientMsgId) });
-        }
         setMessages((current) => {
-          const merged = new Map<string, CommunityMessage>();
-          for (const message of current) {
-            const id = String(message.clientMsgId || message.id || (message as any)._id || '');
-            if (id) merged.set(id, message);
+          const result = [...current];
+          for (const cached of cachedMessages) {
+            const cachedId = String(cached.id || cached._id || '');
+            const cachedClientId = String(cached.clientMsgId || '');
+            const enriched = { ...cached, isMe: evalIsMe(cached.senderId, cached.senderEmail, cached.senderName, cached.clientMsgId) };
+            const idx = result.findIndex((c) =>
+              (cachedId && (c.id === cachedId || (c as any)._id === cachedId || c.clientMsgId === cachedId)) ||
+              (cachedClientId && (c.clientMsgId === cachedClientId || c.id === cachedClientId))
+            );
+            if (idx !== -1) {
+              result[idx] = { ...result[idx], ...enriched };
+            } else {
+              result.push(enriched);
+            }
           }
-          for (const [id, cached] of cachedById) {
-            merged.set(id, { ...merged.get(id), ...cached });
-          }
-          return Array.from(merged.values()).sort((a, b) =>
+          return result.sort((a, b) =>
             String(a.isoDate || '').localeCompare(String(b.isoDate || ''))
           );
         });
@@ -1616,6 +1704,21 @@ export default function CommunityScreen() {
   };
 
   const handleInputChange = (text: string) => {
+    // Smart GIF & Image Paste / Keyboard insertion detector
+    const pastedDiff = text.length - prevInputTextLengthRef.current;
+    if (pastedDiff > 4 || (!selectedFile && (text.startsWith('http') || text.startsWith('data:image/')))) {
+      const detected = extractImageOrGifUrl(text);
+      if (detected && !selectedFile) {
+        setSelectedFile({
+          name: detected.isGif ? 'GIF' : 'Image',
+          url: detected.url,
+          size: detected.isGif ? 'GIF' : 'Image',
+          type: 'image'
+        });
+        text = detected.remainingText;
+      }
+    }
+
     const wasDeleting = text.length < prevInputTextLengthRef.current;
     prevInputTextLengthRef.current = text.length;
     setInputText(text);
@@ -1799,7 +1902,29 @@ export default function CommunityScreen() {
     };
   }, []);
   const handleSendMessage = (stickerId?: string, overrideFile?: FileAttachment) => {
-    const fileToSend = overrideFile || selectedFile;
+    const now = Date.now();
+    if (now - lastSendTimestampRef.current < 350) {
+      return;
+    }
+    lastSendTimestampRef.current = now;
+
+    // Never attach leftover selectedFile or draft text when sending a dedicated sticker
+    let fileToSend = stickerId ? undefined : (overrideFile || selectedFile);
+    let sentText = stickerId ? '' : inputText.trim();
+
+    // Auto-detect GIF / image link pasted directly into chat
+    if (!fileToSend && !stickerId && sentText) {
+      const detected = extractImageOrGifUrl(sentText);
+      if (detected) {
+        fileToSend = {
+          name: detected.isGif ? 'GIF' : 'Image',
+          url: detected.url,
+          size: detected.isGif ? 'GIF' : 'Image',
+          type: 'image'
+        };
+        sentText = detected.remainingText;
+      }
+    }
 
     if (isUploadingMedia && !overrideFile) {
       sendPendingAfterUploadRef.current = true;
@@ -1813,7 +1938,7 @@ export default function CommunityScreen() {
       return;
     }
 
-    if (!inputText.trim() && !fileToSend && !stickerId) return;
+    if (!sentText && !fileToSend && !stickerId) return;
 
     if (isTypingRef.current) {
       isTypingRef.current = false;
@@ -1837,7 +1962,6 @@ export default function CommunityScreen() {
       userId: user?._id
     }));
 
-    const sentText = inputText.trim();
     const isStopCommand = /^\s*@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\s+stop\b/i.test(sentText);
     const mentionMatch = sentText.match(/(^|\s)@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\b/i);
     const isDirectBotMention = !!mentionMatch && !isStopCommand;
@@ -1930,8 +2054,10 @@ export default function CommunityScreen() {
       return updated;
     });
 
-    setInputText('');
-    prevInputTextLengthRef.current = 0;
+    if (!stickerId) {
+      setInputText('');
+      prevInputTextLengthRef.current = 0;
+    }
     setPendingUploadItem(null);
     setUploadFailed(false);
     setSendPendingAfterUpload(false);
@@ -2455,6 +2581,7 @@ export default function CommunityScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             onScrollBeginDrag={() => {
+              if (showStickerPicker) setShowStickerPicker(false);
               isDraggingRef.current = true;
               userScrolledRef.current = true;
             }}
@@ -2554,6 +2681,7 @@ export default function CommunityScreen() {
                         {(() => {
                           const hasMedia = Boolean(item.fileAttachment && isMediaAttachment(item.fileAttachment));
                           const isMediaOnly = hasMedia && !item.text?.trim() && !item.replyTo && !item.stickerId;
+                          const isStickerOnly = Boolean(item.stickerId && !item.text?.trim() && !item.replyTo && !item.fileAttachment);
 
                           return (
                             <TouchableOpacity
@@ -2566,7 +2694,8 @@ export default function CommunityScreen() {
                                 styles.bubble,
                                 item.isMe ? styles.myBubble : styles.otherBubble,
                                 highlightedMsgId === item.id && styles.highlightedBubble,
-                                isMediaOnly && styles.mediaOnlyBubble
+                                isMediaOnly && styles.mediaOnlyBubble,
+                                isStickerOnly && styles.stickerOnlyBubble
                               ]}
                             >
                               {!item.isMe && (
@@ -2599,8 +2728,12 @@ export default function CommunityScreen() {
                                 </TouchableOpacity>
                               )}
 
-                              {item.stickerId && STICKER_SOURCES[item.stickerId] && (
-                                <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} />
+                              {item.stickerId && (
+                                STICKER_SOURCES[item.stickerId] ? (
+                                  <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} resizeMode="contain" />
+                                ) : (item.stickerId.startsWith('http://') || item.stickerId.startsWith('https://') || item.stickerId.startsWith('data:image/')) ? (
+                                  <Image source={{ uri: item.stickerId }} style={styles.sentStickerImage} resizeMode="contain" />
+                                ) : null
                               )}
 
                               {/* File Attachment or Pure Media Card */}
@@ -2728,23 +2861,23 @@ export default function CommunityScreen() {
                               )}
 
                               {/* Timestamp & Ticks */}
-                              <View style={[styles.metaRow, isMediaOnly && styles.mediaMetaRow]}>
+                              <View style={[styles.metaRow, isMediaOnly && styles.mediaMetaRow, isStickerOnly && styles.stickerMetaRow]}>
                                 <TouchableOpacity
                                   style={styles.reactionTriggerBtn}
                                   onPress={() => setActiveReactionMsgId(isPickerOpen ? null : item.id)}
                                 >
-                                  <SmileIcon color={item.isMe ? '#854d0e' : '#94a3b8'} size={12} />
+                                  <SmileIcon color={isStickerOnly ? '#ffffff' : (item.isMe ? '#854d0e' : '#94a3b8')} size={12} />
                                 </TouchableOpacity>
 
-                                <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp]}>
+                                <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp, isStickerOnly && styles.stickerTimestamp]}>
                                   {item.timestamp}
                                 </Text>
                                 {item.isMe && (
                                   item.deliveryStatus === 'queued' ? (
-                                    <Text style={styles.queuedClock}>◷</Text>
+                                    <Text style={[styles.queuedClock, isStickerOnly && styles.stickerTimestamp]}>◷</Text>
                                   ) : (
                                     <View style={styles.ticksWrapper}>
-                                      <CheckIcon color={item.deliveryStatus === 'delivered' ? '#38bdf8' : '#94a3b8'} size={14} />
+                                      <CheckIcon color={item.deliveryStatus === 'delivered' ? '#38bdf8' : (isStickerOnly ? '#e2e8f0' : '#94a3b8')} size={14} />
                                       {item.deliveryStatus === 'delivered' && (
                                         <CheckIcon color="#38bdf8" size={14} style={styles.secondTick} />
                                       )}
@@ -2780,6 +2913,15 @@ export default function CommunityScreen() {
               );
             }}
           />
+
+          {/* Dismiss sticker picker when tapping outside on chat area */}
+          {showStickerPicker && (
+            <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={() => setShowStickerPicker(false)}
+              accessible={false}
+            />
+          )}
 
           {/* WhatsApp Style Floating Unread / Scroll to Bottom Button */}
           {showUnreadBtn && (
@@ -2992,13 +3134,106 @@ export default function CommunityScreen() {
 
           {/* WhatsApp Style Bottom Input Bar */}
           {showStickerPicker && (
-            <View style={styles.stickerPicker}>
-              {STICKERS.map((sticker) => (
-                <TouchableOpacity key={sticker.id} style={styles.stickerOption} onPress={() => handleSendMessage(sticker.id)} activeOpacity={0.8}>
-                  <Image source={sticker.source} style={styles.stickerOptionImage} />
-                  <Text style={styles.stickerOptionLabel}>{sticker.label}</Text>
+            <View
+              ref={stickerPickerRef}
+              {...({ 'data-sticker-picker': 'true' } as any)}
+              style={styles.stickerPicker}
+            >
+              {/* WhatsApp-Style Tab Selector */}
+              <View style={styles.pickerTabRow}>
+                <TouchableOpacity
+                  style={[styles.pickerTabBtn, pickerTab === 'stickers' && styles.pickerTabBtnActive]}
+                  onPress={() => setPickerTab('stickers')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pickerTabLabel, pickerTab === 'stickers' && styles.pickerTabLabelActive]}>
+                    ✨ Stickers
+                  </Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  style={[styles.pickerTabBtn, pickerTab === 'gifs' && styles.pickerTabBtnActive]}
+                  onPress={() => setPickerTab('gifs')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pickerTabLabel, pickerTab === 'gifs' && styles.pickerTabLabelActive]}>
+                    🎬 GIFs
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {pickerTab === 'stickers' ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.stickerPickerScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {STICKERS.map((sticker) => (
+                    <TouchableOpacity
+                      key={sticker.id}
+                      style={styles.stickerOption}
+                      onPress={() => handleSendMessage(sticker.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Image source={sticker.source} style={styles.stickerOptionImage} resizeMode="contain" />
+                      <Text style={styles.stickerOptionLabel}>{sticker.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.gifPickerContainer}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.gifCategoryScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {['All', 'Laugh', 'Love', 'Party', 'Clap', 'Fire', 'Sad', 'Cool', 'Wow', 'Think', 'Agree', 'Bye'].map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.gifCategoryPill, gifCategory === cat && styles.gifCategoryPillActive]}
+                        onPress={() => setGifCategory(cat)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.gifCategoryText, gifCategory === cat && styles.gifCategoryTextActive]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.gifScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {GIFS
+                      .filter((g) => gifCategory === 'All' || g.category.toLowerCase() === gifCategory.toLowerCase())
+                      .map((gif) => (
+                        <TouchableOpacity
+                          key={gif.id}
+                          style={styles.gifCard}
+                          onPress={() => {
+                            handleSendMessage(undefined, {
+                              name: gif.fileName,
+                              url: gif.id,
+                              size: 'GIF',
+                              type: 'image'
+                            });
+                          }}
+                          activeOpacity={0.85}
+                        >
+                          <Image source={gif.source} style={styles.gifCardImage} resizeMode="cover" />
+                          <View style={styles.gifCardBadge}>
+                            <Text style={styles.gifCardBadgeText}>GIF</Text>
+                          </View>
+                          <Text style={styles.gifCardTitle} numberOfLines={1}>{gif.title}</Text>
+                        </TouchableOpacity>
+                      ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
           )}
           {showMentionSuggestions && (
@@ -3044,11 +3279,13 @@ export default function CommunityScreen() {
 
 
               <TouchableOpacity
+                ref={smileButtonRef}
+                {...({ 'data-sticker-toggle': 'true' } as any)}
                 style={styles.pillIconBtn}
                 onPress={() => setShowStickerPicker((visible) => !visible)}
                 activeOpacity={0.7}
               >
-                <SmileIcon color="#8696a0" size={21} />
+                <SmileIcon color={showStickerPicker ? '#15803d' : '#8696a0'} size={21} />
               </TouchableOpacity>
               <TextInput
                 style={styles.input}
@@ -3056,6 +3293,9 @@ export default function CommunityScreen() {
                 placeholderTextColor="#8696a0"
                 value={inputText}
                 onChangeText={handleInputChange}
+                onFocus={() => {
+                  if (showStickerPicker) setShowStickerPicker(false);
+                }}
                 returnKeyType="send"
                 onSubmitEditing={() => handleSendMessage()}
                 blurOnSubmit={false}
@@ -3065,6 +3305,41 @@ export default function CommunityScreen() {
                     handleSendMessage();
                   }
                 }}
+                {...({
+                  onPaste: (e: any) => {
+                    try {
+                      const clipboardData = e.clipboardData || (typeof window !== 'undefined' && (window as any).clipboardData);
+                      if (clipboardData?.items) {
+                        for (const item of clipboardData.items) {
+                          if (item.type?.startsWith('image/')) {
+                            e.preventDefault?.();
+                            const file = item.getAsFile();
+                            if (file) {
+                              const blobUrl = URL.createObjectURL(file);
+                              const isGif = item.type.includes('gif');
+                              const uploadItem = {
+                                uri: blobUrl,
+                                name: file.name || `pasted_media_${Date.now()}.${isGif ? 'gif' : 'png'}`,
+                                mimeType: item.type,
+                                kind: 'image' as const,
+                                rawFile: file
+                              };
+                              setPendingUploadItem(uploadItem);
+                              setSelectedFile({
+                                name: uploadItem.name,
+                                url: blobUrl,
+                                size: `${Math.round(file.size / 1024)} KB`,
+                                type: 'image'
+                              });
+                              void executeUpload(uploadItem);
+                              return;
+                            }
+                          }
+                        }
+                      }
+                    } catch {}
+                  }
+                } as any)}
               />
 
               <TouchableOpacity
@@ -3342,7 +3617,7 @@ export default function CommunityScreen() {
                 allowsFullscreenVideo
               />
             ) : mediaPreview ? (
-              <Image source={{ uri: mediaPreview.url }} style={styles.fullScreenImagePreview} resizeMode="contain" />
+              <Image source={getLocalGifSource(mediaPreview.url) || { uri: mediaPreview.url }} style={styles.fullScreenImagePreview} resizeMode="contain" />
             ) : null}
             {(() => {
               const previewKey = mediaPreview ? (mediaPreview.paperId || mediaPreview.url) : '';
@@ -3923,6 +4198,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     borderRadius: 16,
   },
+  stickerOnlyBubble: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+    padding: 0,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    marginVertical: 4,
+  },
+  stickerMetaRow: {
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: -22,
+    marginRight: 4,
+    alignSelf: 'flex-end',
+  },
+  stickerTimestamp: {
+    color: '#ffffff',
+    fontSize: 10,
+  },
   mediaAttachmentWrapper: {
     borderRadius: 13,
     overflow: 'hidden',
@@ -4475,19 +4774,119 @@ const styles = StyleSheet.create({
     fontSize: 16
   },
   stickerPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
-    paddingHorizontal: 8,
-    paddingVertical: 8
+    paddingTop: 8,
+    paddingBottom: 10
+  },
+  pickerTabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    gap: 8
+  },
+  pickerTabBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9'
+  },
+  pickerTabBtnActive: {
+    backgroundColor: '#15803d'
+  },
+  pickerTabLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  pickerTabLabelActive: {
+    color: '#ffffff'
+  },
+  gifPickerContainer: {
+    width: '100%'
+  },
+  gifCategoryScroll: {
+    paddingHorizontal: 12,
+    gap: 6,
+    marginBottom: 8
+  },
+  gifCategoryPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
+  },
+  gifCategoryPillActive: {
+    backgroundColor: '#e0f2fe',
+    borderColor: '#0284c7'
+  },
+  gifCategoryText: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500'
+  },
+  gifCategoryTextActive: {
+    color: '#0369a1',
+    fontWeight: '700'
+  },
+  gifScroll: {
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: 'center'
+  },
+  gifCard: {
+    width: 100,
+    height: 75,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#f1f5f9',
+    position: 'relative'
+  },
+  gifCardImage: {
+    width: '100%',
+    height: '100%'
+  },
+  gifCardBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1
+  },
+  gifCardBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 0.5
+  },
+  gifCardTitle: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    right: 4,
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
+  },
+  stickerPickerScroll: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 8
   },
   stickerOption: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 64
+    width: 66,
+    paddingVertical: 2
   },
   stickerOptionImage: {
     width: 48,
@@ -4495,8 +4894,9 @@ const styles = StyleSheet.create({
   },
   stickerOptionLabel: {
     color: '#64748b',
-    fontSize: 9,
-    marginTop: 2
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 4
   },
   mentionSuggestions: {
     marginHorizontal: 8,
@@ -4581,10 +4981,11 @@ const styles = StyleSheet.create({
     padding: 14
   },
   sentStickerImage: {
-    width: 132,
-    height: 132,
-    alignSelf: 'flex-start',
-    marginBottom: 4
+    width: 144,
+    height: 144,
+    alignSelf: 'center',
+    marginVertical: 2,
+    resizeMode: 'contain'
   },
   inputContainer: {
     flexDirection: 'row',

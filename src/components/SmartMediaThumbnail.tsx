@@ -18,7 +18,10 @@ export const isVideoUrlOrType = (url?: string, type?: string, name?: string): bo
     Boolean(url?.includes('/video/upload/'));
 };
 
+import { getLocalGifSource } from '../data/gifs';
+
 interface SmartMediaThumbnailProps {
+  source?: any;
   uri?: string;
   videoUrl?: string;
   type?: 'video' | 'image' | 'auto';
@@ -32,6 +35,7 @@ interface SmartMediaThumbnailProps {
 }
 
 export function SmartMediaThumbnail({
+  source,
   uri,
   videoUrl,
   type = 'auto',
@@ -45,6 +49,7 @@ export function SmartMediaThumbnail({
 }: SmartMediaThumbnailProps) {
   const [hasError, setHasError] = useState(false);
 
+  const localGif = source || getLocalGifSource(uri) || getLocalGifSource(title);
   const isVideo = type === 'video' || (type === 'auto' && isVideoUrlOrType(videoUrl || uri, undefined, title));
 
   // Determine viable image thumbnail URL (strictly an image, never pass raw video file to <Image>)
@@ -62,7 +67,13 @@ export function SmartMediaThumbnail({
 
   return (
     <View style={[styles.container, style]}>
-      {hasValidImageUri ? (
+      {localGif ? (
+        <Image
+          source={localGif}
+          style={[styles.mediaImage, imageStyle]}
+          resizeMode={resizeMode}
+        />
+      ) : hasValidImageUri ? (
         <Image
           source={{ uri: candidateUri }}
           style={[styles.mediaImage, imageStyle]}

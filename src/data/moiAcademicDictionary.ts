@@ -2,6 +2,7 @@
  * Moi University Master Academic Dictionary & Corpus (100% OFFLINE)
  * Statically compiled from the offline corpus: moi_academic_corpus.txt
  * Zero online API dependencies, instant sub-millisecond execution.
+ * Total Units: 303
  */
 
 export interface AcademicUnitEntry {
@@ -147,97 +148,20 @@ export const MOI_ACADEMIC_SCHOOLS: AcademicSchoolEntry[] = [
   }
 ];
 
-// 2. Comprehensive Moi University Departments
+// 2. Comprehensive Moi University Departments (127 Departments)
 export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
   {
-    "name": "Department of Anthropology and Human Ecology",
+    "name": "Arts and Social Sciences",
     "school": "School of Arts and Social Sciences",
     "aliases": [
-      "anthropology and human ecology"
+      "arts and social sciences"
     ]
   },
   {
-    "name": "Department of Anthropology, Gender & Diversity Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Chemical & Process / Mechanical Engineering",
+    "school": "School of Engineering",
     "aliases": [
-      "anthropology, gender & diversity studies"
-    ]
-  },
-  {
-    "name": "Department of Philosophy and Religious Studies",
-    "school": "School of Arts and Social Sciences",
-    "aliases": [
-      "philosophy and religious studies"
-    ]
-  },
-  {
-    "name": "Department of History, Political Science and Public Administration",
-    "school": "School of Arts and Social Sciences",
-    "aliases": [
-      "history, political science and public administration"
-    ]
-  },
-  {
-    "name": "Department of Philosophy, Religion and Theology",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "philosophy, religion and theology"
-    ]
-  },
-  {
-    "name": "Department of Business Administration",
-    "school": "School of Business & Economics",
-    "aliases": [
-      "business administration"
-    ]
-  },
-  {
-    "name": "Department of Accounting and Finance",
-    "school": "School of Business & Economics",
-    "aliases": [
-      "accounting and finance"
-    ]
-  },
-  {
-    "name": "Department of Marketing",
-    "school": "School of Business & Economics",
-    "aliases": [
-      "marketing"
-    ]
-  },
-  {
-    "name": "Department of Kiswahili and Other African Languages",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "kiswahili and other african languages"
-    ]
-  },
-  {
-    "name": "Department of French",
-    "school": "School of Arts and Social Sciences",
-    "aliases": [
-      "french"
-    ]
-  },
-  {
-    "name": "Department of Literature, Linguistics and Foreign Languages",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "literature, linguistics and foreign languages"
-    ]
-  },
-  {
-    "name": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
-    "school": "School of Arts and Social Sciences",
-    "aliases": [
-      "literature, linguistics, foreign languages and film studies"
-    ]
-  },
-  {
-    "name": "Department of Linguistics, Indigenous Languages and Media Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "linguistics, indigenous languages and media studies"
+      "chemical & process / mechanical engineering"
     ]
   },
   {
@@ -248,59 +172,17 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
-    "name": "Department of Chemistry and Biochemistry",
-    "school": "School of Sciences and Aerospace Studies",
+    "name": "Chemistry and Biochemistry",
+    "school": "School of Science and Aerospace Studies",
     "aliases": [
       "chemistry and biochemistry"
     ]
   },
   {
-    "name": "Department of Chemistry & Biochemistry",
-    "school": "School of Science and Aerospace Studies",
+    "name": "Civil and Structural Engineering",
+    "school": "School of Engineering",
     "aliases": [
-      "chemistry & biochemistry"
-    ]
-  },
-  {
-    "name": "Department of Curriculum Instruction and Educational Media",
-    "school": "School of Education",
-    "aliases": [
-      "curriculum instruction and educational media"
-    ]
-  },
-  {
-    "name": "Department of Curriculum, Instruction & Educational Media",
-    "school": "School of Education",
-    "aliases": [
-      "curriculum, instruction & educational media"
-    ]
-  },
-  {
-    "name": "Department of Curriculum, Instruction and Educational Media",
-    "school": "School of Education",
-    "aliases": [
-      "curriculum, instruction and educational media"
-    ]
-  },
-  {
-    "name": "Department of Sociology, Psychology & Anthropology",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "sociology, psychology & anthropology"
-    ]
-  },
-  {
-    "name": "Department of Computer Science",
-    "school": "School of Science and Aerospace Studies",
-    "aliases": [
-      "computer science"
-    ]
-  },
-  {
-    "name": "Department of Publishing & Media Studies",
-    "school": "School of Information Sciences",
-    "aliases": [
-      "publishing & media studies"
+      "civil and structural engineering"
     ]
   },
   {
@@ -311,6 +193,671 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
+    "name": "Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "curriculum, instruction & educational media"
+    ]
+  },
+  {
+    "name": "Department of Accounting & Finance",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of accounting & finance"
+    ]
+  },
+  {
+    "name": "Department of Accounting and Finance",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of accounting and finance"
+    ]
+  },
+  {
+    "name": "Department of Anthropology and Human Ecology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of anthropology and human ecology"
+    ]
+  },
+  {
+    "name": "Department of Anthropology, Gender & Diversity Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of anthropology, gender & diversity studies"
+    ]
+  },
+  {
+    "name": "Department of Biological Sciences",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of biological sciences"
+    ]
+  },
+  {
+    "name": "Department of Business Administration",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of business administration"
+    ]
+  },
+  {
+    "name": "Department of Chemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of chemistry"
+    ]
+  },
+  {
+    "name": "Department of Chemistry & Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of chemistry & biochemistry"
+    ]
+  },
+  {
+    "name": "Department of Chemistry and Biochemistry",
+    "school": "School of Sciences and Aerospace Studies",
+    "aliases": [
+      "department of chemistry and biochemistry"
+    ]
+  },
+  {
+    "name": "Department of Civil & Structural Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of civil & structural engineering"
+    ]
+  },
+  {
+    "name": "Department of Communication Studies",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of communication studies"
+    ]
+  },
+  {
+    "name": "Department of Computer Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of computer science"
+    ]
+  },
+  {
+    "name": "Department of Curriculum Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "department of curriculum instruction & educational media"
+    ]
+  },
+  {
+    "name": "Department of Curriculum Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "department of curriculum instruction and educational media"
+    ]
+  },
+  {
+    "name": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "department of curriculum, instruction & educational media"
+    ]
+  },
+  {
+    "name": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "department of curriculum, instruction and educational media"
+    ]
+  },
+  {
+    "name": "Department of Economics",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of economics"
+    ]
+  },
+  {
+    "name": "Department of Educational Foundations",
+    "school": "School of Education",
+    "aliases": [
+      "department of educational foundations"
+    ]
+  },
+  {
+    "name": "Department of Educational Management & Policy Studies",
+    "school": "School of Education",
+    "aliases": [
+      "department of educational management & policy studies"
+    ]
+  },
+  {
+    "name": "Department of Educational Management and Policy Studies",
+    "school": "School of Education",
+    "aliases": [
+      "department of educational management and policy studies"
+    ]
+  },
+  {
+    "name": "Department of Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "department of educational psychology"
+    ]
+  },
+  {
+    "name": "Department of Electrical & Communication Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of electrical & communication engineering"
+    ]
+  },
+  {
+    "name": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of electrical & communications engineering"
+    ]
+  },
+  {
+    "name": "Department of Electrical and Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of electrical and communications engineering"
+    ]
+  },
+  {
+    "name": "Department of Electrical and Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of electrical and computer engineering"
+    ]
+  },
+  {
+    "name": "Department of Engineering Mathematics",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of engineering mathematics"
+    ]
+  },
+  {
+    "name": "Department of French",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of french"
+    ]
+  },
+  {
+    "name": "Department of Geography",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of geography"
+    ]
+  },
+  {
+    "name": "Department of Geography / School of Arts and Social Sciences",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of geography / school of arts and social sciences"
+    ]
+  },
+  {
+    "name": "Department of Geography and Environmental Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of geography and environmental studies"
+    ]
+  },
+  {
+    "name": "Department of History, Political Science & Public Admin",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of history, political science & public admin"
+    ]
+  },
+  {
+    "name": "Department of History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of history, political science & public administration"
+    ]
+  },
+  {
+    "name": "Department of History, Political Science and Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of history, political science and public administration"
+    ]
+  },
+  {
+    "name": "Department of History, Political Science, Public Administration, Penology & Security Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of history, political science, public administration, penology & security studies"
+    ]
+  },
+  {
+    "name": "Department of Information Technology",
+    "school": "School of Information Sciences",
+    "aliases": [
+      "department of information technology"
+    ]
+  },
+  {
+    "name": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of kiswahili and other african languages"
+    ]
+  },
+  {
+    "name": "Department of Library, Records & Information Management",
+    "school": "School of Information Sciences",
+    "aliases": [
+      "department of library, records & information management"
+    ]
+  },
+  {
+    "name": "Department of Linguistics & Foreign Languages",
+    "school": "School of Arts & Social Sciences (SASS)",
+    "aliases": [
+      "department of linguistics & foreign languages"
+    ]
+  },
+  {
+    "name": "Department of Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics and foreign languages"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, foreign languages and film studies"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Foreign Languages and Media Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, foreign languages and media studies"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Indigenous Languages and Media Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of linguistics, indigenous languages and media studies"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Languages & Literature",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, languages & literature"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Languages, Foreign Languages and French Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, languages, foreign languages and french studies"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Literature, Foreign Languages & French Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, literature, foreign languages & french studies"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Media & Communication",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, media & communication"
+    ]
+  },
+  {
+    "name": "Department of Linguistics, Media and Communication",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of linguistics, media and communication"
+    ]
+  },
+  {
+    "name": "Department of Literature, Languages and Folklore Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, languages and folklore studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Languages, Linguistics and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, languages, linguistics and film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics & Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, linguistics & foreign languages"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of literature, linguistics and foreign languages"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, linguistics foreign languages and film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics, Foreign Languages & Film",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, linguistics, foreign languages & film"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of literature, linguistics, foreign languages & film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, linguistics, foreign languages and film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Linguistics, Foreign Languages, and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, linguistics, foreign languages, and film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Theatre & Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, theatre & film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Theatre and Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of literature, theatre and film studies"
+    ]
+  },
+  {
+    "name": "Department of Literature, Theatre, Film and Media",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of literature, theatre, film and media"
+    ]
+  },
+  {
+    "name": "Department of Management Science",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of management science"
+    ]
+  },
+  {
+    "name": "Department of Marketing",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "department of marketing"
+    ]
+  },
+  {
+    "name": "Department of Mathematics",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of mathematics"
+    ]
+  },
+  {
+    "name": "Department of Mathematics & Computer Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of mathematics & computer science"
+    ]
+  },
+  {
+    "name": "Department of Mathematics & Physics",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of mathematics & physics"
+    ]
+  },
+  {
+    "name": "Department of Mathematics and Aerospace Studies",
+    "school": "School of Sciences and Aerospace Studies",
+    "aliases": [
+      "department of mathematics and aerospace studies"
+    ]
+  },
+  {
+    "name": "Department of Mathematics and Computer Science",
+    "school": "School of Education",
+    "aliases": [
+      "department of mathematics and computer science"
+    ]
+  },
+  {
+    "name": "Department of Mathematics, Physics and Computing",
+    "school": "School of Sciences and Aerospace Studies",
+    "aliases": [
+      "department of mathematics, physics and computing"
+    ]
+  },
+  {
+    "name": "Department of Mathematics, Statistics and Computing",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of mathematics, statistics and computing"
+    ]
+  },
+  {
+    "name": "Department of Mechanical & Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of mechanical & production engineering"
+    ]
+  },
+  {
+    "name": "Department of Mechanical and Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "department of mechanical and production engineering"
+    ]
+  },
+  {
+    "name": "Department of Media and Communication Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of media and communication studies"
+    ]
+  },
+  {
+    "name": "Department of Philosophy & Religious Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of philosophy & religious studies"
+    ]
+  },
+  {
+    "name": "Department of Philosophy and Religious Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of philosophy and religious studies"
+    ]
+  },
+  {
+    "name": "Department of Philosophy, Religion & Theology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of philosophy, religion & theology"
+    ]
+  },
+  {
+    "name": "Department of Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of philosophy, religion and theology"
+    ]
+  },
+  {
+    "name": "Department of Philosophy, Theology & Religious Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of philosophy, theology & religious studies"
+    ]
+  },
+  {
+    "name": "Department of Philosophy, Theology and Religious Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of philosophy, theology and religious studies"
+    ]
+  },
+  {
+    "name": "Department of Physics",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of physics"
+    ]
+  },
+  {
+    "name": "Department of Private Law",
+    "school": "School of Law",
+    "aliases": [
+      "department of private law"
+    ]
+  },
+  {
+    "name": "Department of Psychology",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of psychology"
+    ]
+  },
+  {
+    "name": "Department of Public Law",
+    "school": "School of Law",
+    "aliases": [
+      "department of public law"
+    ]
+  },
+  {
+    "name": "Department of Publishing & Media Studies",
+    "school": "School of Information Sciences",
+    "aliases": [
+      "department of publishing & media studies"
+    ]
+  },
+  {
+    "name": "Department of Sociology and Psychology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of sociology and psychology"
+    ]
+  },
+  {
+    "name": "Department of Sociology, Psychology & Anthropology",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "department of sociology, psychology & anthropology"
+    ]
+  },
+  {
+    "name": "Department of Sociology, Psychology and Anthropology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of sociology, psychology and anthropology"
+    ]
+  },
+  {
+    "name": "Department of Sociology, Psychology and Social Work",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "department of sociology, psychology and social work"
+    ]
+  },
+  {
+    "name": "Department of Statistics & Computer Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "department of statistics & computer science"
+    ]
+  },
+  {
+    "name": "Department of Technology Education",
+    "school": "School of Education",
+    "aliases": [
+      "department of technology education"
+    ]
+  },
+  {
+    "name": "Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "educational psychology"
+    ]
+  },
+  {
+    "name": "Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "electrical & communications engineering"
+    ]
+  },
+  {
+    "name": "Electrical & Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "electrical & computer engineering"
+    ]
+  },
+  {
+    "name": "Electrical & Electronics Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "electrical & electronics engineering"
+    ]
+  },
+  {
+    "name": "Electrical and Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "electrical and computer engineering"
+    ]
+  },
+  {
+    "name": "Electrical and Electronics Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "electrical and electronics engineering"
+    ]
+  },
+  {
     "name": "Electrical Engineering",
     "school": "School of Engineering",
     "aliases": [
@@ -318,122 +865,66 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
-    "name": "Department of Electrical & Communication Engineering",
-    "school": "School of Engineering",
+    "name": "Geography",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "electrical & communication engineering"
+      "geography"
     ]
   },
   {
-    "name": "Department of Economics",
-    "school": "School of Business & Economics",
+    "name": "History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "economics"
+      "history, political science & public administration"
     ]
   },
   {
-    "name": "Department of Curriculum Instruction & Educational Media",
-    "school": "School of Education",
+    "name": "Kiswahili & Other African Languages",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "curriculum instruction & educational media"
+      "kiswahili & other african languages"
     ]
   },
   {
-    "name": "Department of Educational Foundations",
-    "school": "School of Education",
+    "name": "Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "educational foundations"
+      "kiswahili and other african languages"
     ]
   },
   {
-    "name": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Kiswahili na Lugha za Kiafrika",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "literature, linguistics, foreign languages & film studies"
+      "kiswahili na lugha za kiafrika"
     ]
   },
   {
-    "name": "Department of Literature, Theatre and Film Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "linguistics and foreign languages"
+    ]
+  },
+  {
+    "name": "Literature, Theatre and Film Studies",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
       "literature, theatre and film studies"
     ]
   },
   {
-    "name": "Department of Linguistics & Foreign Languages",
-    "school": "School of Arts & Social Sciences (SASS)",
-    "aliases": [
-      "linguistics & foreign languages"
-    ]
-  },
-  {
-    "name": "Department of Information Technology",
-    "school": "School of Information Sciences",
-    "aliases": [
-      "information technology"
-    ]
-  },
-  {
-    "name": "Department of Library, Records & Information Management",
-    "school": "School of Information Sciences",
-    "aliases": [
-      "library, records & information management"
-    ]
-  },
-  {
-    "name": "Department of Public Law",
-    "school": "School of Law",
-    "aliases": [
-      "public law"
-    ]
-  },
-  {
-    "name": "Department of Private Law",
-    "school": "School of Law",
-    "aliases": [
-      "private law"
-    ]
-  },
-  {
-    "name": "Department of Mathematics & Physics",
-    "school": "School of Science and Aerospace Studies",
-    "aliases": [
-      "mathematics & physics"
-    ]
-  },
-  {
-    "name": "Maths, Physics & Computing",
+    "name": "Manufacturing, Industrial & Textile Engineering",
     "school": "School of Engineering",
     "aliases": [
-      "maths, physics & computing"
+      "manufacturing, industrial & textile engineering"
     ]
   },
   {
-    "name": "Department of Mathematics",
+    "name": "Mathematics & Computer Science",
     "school": "School of Science and Aerospace Studies",
     "aliases": [
-      "mathematics"
-    ]
-  },
-  {
-    "name": "Mechanical Engineering",
-    "school": "School of Engineering",
-    "aliases": [
-      "mechanical engineering"
-    ]
-  },
-  {
-    "name": "Department of History, Political Science, Public Administration, Penology & Security Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
-    "aliases": [
-      "history, political science, public administration, penology & security studies"
-    ]
-  },
-  {
-    "name": "Department of Mathematics, Physics and Computing",
-    "school": "School of Sciences and Aerospace Studies",
-    "aliases": [
-      "mathematics, physics and computing"
+      "mathematics & computer science"
     ]
   },
   {
@@ -444,71 +935,113 @@ export const MOI_ACADEMIC_DEPARTMENTS: AcademicDepartmentEntry[] = [
     ]
   },
   {
-    "name": "Department of Mathematics and Aerospace Studies",
-    "school": "School of Sciences and Aerospace Studies",
+    "name": "Mathematics, Physics and Computing",
+    "school": "School of Science and Aerospace Studies",
     "aliases": [
-      "mathematics and aerospace studies"
+      "mathematics, physics and computing"
     ]
   },
   {
-    "name": "Department of History, Political Science & Public Administration",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Mathematics, Physics and Computing Department",
+    "school": "School of Science and Aerospace Studies",
     "aliases": [
-      "history, political science & public administration"
+      "mathematics, physics and computing department"
     ]
   },
   {
-    "name": "Department of Educational Psychology",
-    "school": "School of Education",
+    "name": "Mathematics, Statistics & Actuarial Science",
+    "school": "School of Science and Aerospace Studies",
     "aliases": [
-      "educational psychology"
+      "mathematics, statistics & actuarial science"
     ]
   },
   {
-    "name": "Department of Philosophy, Theology and Religious Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Maths & Physics",
+    "school": "School of Science and Aerospace Studies",
     "aliases": [
-      "philosophy, theology and religious studies"
+      "maths & physics"
     ]
   },
   {
-    "name": "Department of Psychology",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Maths, Physics & Computing",
+    "school": "School of Engineering",
     "aliases": [
-      "psychology"
+      "maths, physics & computing"
     ]
   },
   {
-    "name": "Department of Sociology, Psychology and Social Work",
+    "name": "Mechanical & Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "mechanical & production engineering"
+    ]
+  },
+  {
+    "name": "Mechanical and Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "mechanical and production engineering"
+    ]
+  },
+  {
+    "name": "Mechanical Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "mechanical engineering"
+    ]
+  },
+  {
+    "name": "Philosophy and Religious Studies",
     "school": "School of Arts and Social Sciences",
     "aliases": [
-      "sociology, psychology and social work"
+      "philosophy and religious studies"
     ]
   },
   {
-    "name": "Department of Sociology, Psychology and Anthropology",
+    "name": "Philosophy, Religion and Theology",
     "school": "School of Arts and Social Sciences",
     "aliases": [
-      "sociology, psychology and anthropology"
+      "philosophy, religion and theology"
     ]
   },
   {
-    "name": "Department of Sociology and Psychology",
+    "name": "Physics",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "physics"
+    ]
+  },
+  {
+    "name": "School of Arts and Social Sciences",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "school of arts and social sciences"
+    ]
+  },
+  {
+    "name": "School of Arts and Social Sciences (Common Course)",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "school of arts and social sciences (common course)"
+    ]
+  },
+  {
+    "name": "Sociology and Psychology",
     "school": "School of Arts and Social Sciences",
     "aliases": [
       "sociology and psychology"
     ]
   },
   {
-    "name": "Department of Philosophy & Religious Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "name": "Statistics & Computer Science",
+    "school": "School of Science and Aerospace Studies",
     "aliases": [
-      "philosophy & religious studies"
+      "statistics & computer science"
     ]
   }
 ];
 
-// 3. Static Offline Moi University Academic Units (141 Units)
+// 3. Static Offline Moi University Academic Units (303 Units)
 export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
   {
     "code": "ANT 311",
@@ -583,6 +1116,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "BAS 303",
+    "name": "Contemporary Political Ideologies",
+    "department": "Department of History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BAS 303: Contemporary Political Ideologies University Examination"
+    ]
+  },
+  {
     "code": "BBM 101",
     "name": "Principles of Management",
     "department": "Department of Business Administration",
@@ -598,6 +1140,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Business & Economics",
     "aliases": [
       "business studies"
+    ]
+  },
+  {
+    "code": "BBM 122",
+    "name": "Principles of Accounting II",
+    "department": "Department of Accounting & Finance",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "BBM 122 Principles of Accounting II Special Supplementary Examination March 2024"
     ]
   },
   {
@@ -620,6 +1171,96 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "BBM 213",
+    "name": "Financial Accounting I",
+    "department": "Department of Accounting and Finance",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "BBM 213: Financial Accounting I — Special and Supplementary Examinations"
+    ]
+  },
+  {
+    "code": "BBM 360",
+    "name": "Organizational Theory and Behaviour",
+    "department": "Department of Management Science",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "BBM 360 Organizational Theory and Behaviour Continuous Assessment Test April 2024"
+    ]
+  },
+  {
+    "code": "BKS 110",
+    "name": "Introduction to Language and Linguistics in Kiswahili",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 110 Introduction to Language and Linguistics in Kiswahili First Year First Semester Examination 2019/2020"
+    ]
+  },
+  {
+    "code": "BKS 111",
+    "name": "Introduction to Kiswahili Literature (Utangulizi wa Fasihi)",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 111: Introduction to Kiswahili Literature - University Examination December 2019"
+    ]
+  },
+  {
+    "code": "BKS 120",
+    "name": "Kiswahili History and Current Issues",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 120: Kiswahili History and Contemporary Issues - Regular University Examination"
+    ]
+  },
+  {
+    "code": "BKS 121",
+    "name": "Kiswahili Language and Culture",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences"
+  },
+  {
+    "code": "BKS 210",
+    "name": "Theory and Practice of Translation and Interpretation I",
+    "department": "Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 210 Theory and Practice of Translation and Interpretation I Bachelor of Arts Examination",
+      "Theory & Practice of Translation and Interpretation"
+    ]
+  },
+  {
+    "code": "BKS 211",
+    "name": "Phonetics and Phonology in Kiswahili",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 211: Phonetics and Phonology in Kiswahili - Regular Examination"
+    ]
+  },
+  {
+    "code": "BKS 220",
+    "name": "Oral Literature in Kiswahili",
+    "department": "Kiswahili & Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 220 Oral Literature in Kiswahili Second Year Examination August 2016",
+      "BKS 220: Oral Literature in Kiswahili - Second Year Second Semester Regular Examination (2020/2021)"
+    ]
+  },
+  {
+    "code": "BKS 221",
+    "name": "Kiswahili Morphology (Mofolojia ya Kiswahili)",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 221: Kiswahili Morphology - University Examination",
+      "BKS 221 Kiswahili Morphology Special Supplementary Examination June 2021"
+    ]
+  },
+  {
     "code": "BKS 310",
     "name": "Prose Works in Kiswahili",
     "department": "Department of Kiswahili and Other African Languages",
@@ -630,12 +1271,55 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "BKS 320",
+    "name": "Kiswahili Modern Poetry",
+    "department": "Kiswahili & Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BKS 320 Kiswahili Modern Poetry Third Year Regular Examination"
+    ]
+  },
+  {
+    "code": "BLL 111",
+    "name": "Introduction to French",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BLL 111: Introduction to French - Special & Supplementary Examination"
+    ]
+  },
+  {
+    "code": "BLL 112",
+    "name": "Beginners' German",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BLL 112 Beginners' German Regular University Examination"
+    ]
+  },
+  {
+    "code": "BLL 120",
+    "name": "The Art of Speaking",
+    "department": "Department of Linguistics, Media & Communication",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BLL 120 The Art of Speaking University Examination"
+    ]
+  },
+  {
+    "code": "BLL 211",
+    "name": "Intermediate French",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences"
+  },
+  {
     "code": "BLL 221",
     "name": "Proficiency Course in French",
     "department": "Department of French",
     "school": "School of Arts and Social Sciences",
     "aliases": [
-      "BLL 221 Proficiency Course French Exam"
+      "BLL 221 Proficiency Course French Exam",
+      "BLL 221: Proficiency Course in French - Special / Supplementary Examination (October 2023)"
     ]
   },
   {
@@ -666,6 +1350,24 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "BLL 410",
+    "name": "Intermediate French for Journalism",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "BLL 410: Intermediate French for Journalism - Regular University Examination (2021/2022)"
+    ]
+  },
+  {
+    "code": "BOT 112",
+    "name": "Cell Biology",
+    "department": "Department of Biological Sciences",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "BOT 112: Cell Biology First Year Second Semester Examination - December 2022"
+    ]
+  },
+  {
     "code": "CHE 103",
     "name": "Introduction to Kinetics and Thermodynamics",
     "department": "Chemistry & Biochemistry",
@@ -684,6 +1386,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "CHE 110",
+    "name": "Fundamentals of Chemistry",
+    "department": "Department of Chemistry and Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 110: Fundamentals of Chemistry First Year First Semester Examination - December 2022"
+    ]
+  },
+  {
     "code": "CHE 111",
     "name": "General Chemistry I",
     "department": "Department of Chemistry & Biochemistry",
@@ -691,6 +1402,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "aliases": [
       "general chemistry",
       "chemistry 1"
+    ]
+  },
+  {
+    "code": "CHE 112",
+    "name": "Introduction to Analytical Chemistry",
+    "department": "Chemistry and Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 112 Introduction to Analytical Chemistry Bachelor of Education Science Examination"
     ]
   },
   {
@@ -721,6 +1441,82 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "CHE 316",
+    "name": "Analytical Techniques in Structural Determination I",
+    "department": "Department of Chemistry & Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 316: Analytical Techniques in Structural Determination I — University Examination",
+      "CHE 316 Industrial Chemistry I CAT 1 March 2021"
+    ]
+  },
+  {
+    "code": "CHE 317",
+    "name": "Electrochemistry",
+    "department": "Department of Chemistry and Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 317: Electrochemistry — Continuous Assessment Test 1 (CAT 1)",
+      "CHE 317 Electrochemistry Third Year Second Semester Examination August 2022",
+      "CHE 317 Electrochemistry Third Year Second Semester Main Examination May 2021"
+    ]
+  },
+  {
+    "code": "CHE 318",
+    "name": "Coordination Chemistry",
+    "department": "Chemistry & Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 318 Coordination Chemistry Third Year Second Semester Regular Examination December 2022",
+      "CHE 318: Organometallic Chemistry — Third Year Second Semester Main Examination — December 2014",
+      "Co-ordination Chemistry",
+      "CHE 318: Organometallic Chemistry — University Examination"
+    ]
+  },
+  {
+    "code": "CHE 319",
+    "name": "Stereochemistry and Conformational Analysis",
+    "department": "Chemistry and Biochemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 319 Stereochemistry and Conformational Analysis Continuous Assessment Tests (CAT 1 & CAT 2)"
+    ]
+  },
+  {
+    "code": "CHE 320",
+    "name": "Industrial Chemistry I",
+    "department": "Department of Chemistry",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "CHE 320 Industrial Chemistry I Third Year Second Semester Examination May 2021"
+    ]
+  },
+  {
+    "code": "CIM 110",
+    "name": "Communication Skills",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "Communication Skills in Education",
+      "CIM 110 Communication Skills in Education First Year First Semester Examination December 2022"
+    ]
+  },
+  {
+    "code": "CIM 210",
+    "name": "General Methods of Teaching",
+    "department": "Department of Curriculum Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "CIM 210 General Methods of Teaching Second Year First Semester Examination 2022/2023"
+    ]
+  },
+  {
+    "code": "CIM 211",
+    "name": "Educational Media and Resources",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education"
+  },
+  {
     "code": "CIM 223",
     "name": "Physics Methods",
     "department": "Department of Curriculum Instruction and Educational Media",
@@ -740,6 +1536,16 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "CIM 322",
+    "name": "Chemistry Education",
+    "department": "Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "CIM 322 Chemistry Education Bachelor of Education Examination August 2014",
+      "CIM 322 Special Methods in Chemistry Education Comprehensive Examination Pack (2020 - 2023)"
+    ]
+  },
+  {
     "code": "CIM 323",
     "name": "Special Methods in Physics II",
     "department": "Department of Curriculum, Instruction and Educational Media",
@@ -755,6 +1561,55 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "Leadership and Management of Community Projects"
+    ]
+  },
+  {
+    "code": "CMD 312",
+    "name": "Human Service Organizations",
+    "department": "Department of Sociology, Psychology & Anthropology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "CMD 312: Human Service Organizations Special / Supplementary Examination",
+      "CMD 312 Human Service Organizations Third Year First Semester Examination 2013/2014"
+    ]
+  },
+  {
+    "code": "COE 121",
+    "name": "Introduction to Computers and Application",
+    "department": "Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "COE 121 Introduction to Computers and Application First Year First Semester Examination January 2015",
+      "COE 121 Introduction to Computers and Application Supplementary Special Examination September 2015",
+      "COE 121 Introduction to Computers and Application Supplementary Examination September 2015"
+    ]
+  },
+  {
+    "code": "COE 162",
+    "name": "Introduction to Computer Programming",
+    "department": "Department of Electrical and Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "COE 162: Introduction to Computer Programming — First Year Supplementary/Special Examination — September 2015"
+    ]
+  },
+  {
+    "code": "COE 251",
+    "name": "Operating Systems",
+    "department": "Electrical & Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "COE 251 Operating Systems Supplementary Special Examination September 2015",
+      "Computer Operating Systems"
+    ]
+  },
+  {
+    "code": "COE 361",
+    "name": "Object Oriented Programming",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "COE 361: Object Oriented Programming — University Examination"
     ]
   },
   {
@@ -1019,6 +1874,57 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "CVS 315",
+    "name": "Introduction to the Finite Element Method",
+    "department": "Civil and Structural Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "CVS 315 Introduction to the Finite Element Method Degree Examination"
+    ]
+  },
+  {
+    "code": "CVS 345",
+    "name": "Flow in Non-Erodible Open Channels",
+    "department": "Civil and Structural Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "CVS 345 Flow in Non-Erodible Open Channels Degree Examination"
+    ]
+  },
+  {
+    "code": "CVS 355",
+    "name": "Traffic Engineering",
+    "department": "Department of Civil & Structural Engineering",
+    "school": "School of Engineering"
+  },
+  {
+    "code": "CVS 467",
+    "name": "Building Physics and Services",
+    "department": "Department of Civil & Structural Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "CVS 467: Building Physics & Services — Continuous Assessment Test 1 Model Answer"
+    ]
+  },
+  {
+    "code": "DSS 102",
+    "name": "Introduction to Anthropology",
+    "department": "Department of Sociology, Psychology and Anthropology",
+    "school": "School of Arts and Social Sciences"
+  },
+  {
+    "code": "ECE 112",
+    "name": "Circuit Theory I",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering"
+  },
+  {
+    "code": "ECE 152",
+    "name": "Electrical Engineering Materials",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering"
+  },
+  {
     "code": "ECE 211",
     "name": "Circuit Theory II",
     "department": "Computer Science",
@@ -1026,6 +1932,22 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "aliases": [
       "Circuit Theory II Course overview",
       "ECE 211 Circuit Theory II Second Year Supplementary Special Examination September 2015"
+    ]
+  },
+  {
+    "code": "ECE 231",
+    "name": "Electrical Measurements",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering"
+  },
+  {
+    "code": "ECE 252",
+    "name": "Analogue Electronics I",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "ECE 252: Analogue Electronics I — Second Year First Semester Examination — April 2022",
+      "ECE 252 Analogue Electronics I Second Year Second Semester Examination September 2022"
     ]
   },
   {
@@ -1038,6 +1960,32 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "ECE 272",
+    "name": "Basic Electrical Power",
+    "department": "Electrical and Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "ECE 272 Basic Electrical Power Supplementary Examination 2012 2013",
+      "ECE 272 Basic Electrical Power Second Year Second Semester Regular Examination April 2022"
+    ]
+  },
+  {
+    "code": "ECE 281",
+    "name": "Basic Electronics",
+    "department": "Electrical and Electronics Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "ECE 281 Basic Electronics Second Year Examination",
+      "ECE 281: Basic Electronics — Second Year First Semester Examination — November 2021"
+    ]
+  },
+  {
+    "code": "ECE 301",
+    "name": "Basic Electronics",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering"
+  },
+  {
     "code": "ECE 322",
     "name": "Introduction to Telecommunication Engineering",
     "department": "Department of Electrical & Communication Engineering",
@@ -1047,7 +1995,37 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
       "telecommunications",
       "telecom eng",
       "intro to telecom engineering",
-      "telecommunication engineering"
+      "telecommunication engineering",
+      "ECE 322 Introduction to Telecommunication Engineering Degree Examination"
+    ]
+  },
+  {
+    "code": "ECE 342",
+    "name": "Transmission Lines",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "ECE 342 Transmission Lines Third Year Second Semester Examination May 2022"
+    ]
+  },
+  {
+    "code": "ECE 351",
+    "name": "Control Systems I",
+    "department": "Electrical and Computer Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "ECE 351 Control Systems I CAT Collection 2011 2012 2014"
+    ]
+  },
+  {
+    "code": "ECE 382",
+    "name": "Microprocessors and Assembly Language",
+    "department": "Department of Electrical & Communications Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "ECE 382: Microprocessors and Assembly Language — University Examination",
+      "ECE 382: Microprocessors and Assembly Language — Third Year First Semester Examination — November 2022",
+      "ECE 382 Microprocessors and Assembly Language Third Year Second Semester Examination May 2023"
     ]
   },
   {
@@ -1071,12 +2049,98 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "EDB 200",
+    "name": "Business Statistics",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 200 Business Statistics Second Year First Semester Examination January 2022"
+    ]
+  },
+  {
+    "code": "EDB 201",
+    "name": "Principles of Marketing",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 201: Principles of Marketing - Second Year Regular Examination (January 2022)"
+    ]
+  },
+  {
+    "code": "EDB 212",
+    "name": "Principles of Management",
+    "department": "Department of Educational Management & Policy Studies",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 212 Principles of Management Second Year First Semester Regular Examination",
+      "Principles and Practices of Management"
+    ]
+  },
+  {
+    "code": "EDB 213",
+    "name": "Business Studies Methods I",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 213 Business Studies Methods I Second Year First Semester Regular Examination",
+      "EDB 213: Business Studies Methods I - Regular University Examination"
+    ]
+  },
+  {
+    "code": "EDB 300",
+    "name": "Business Finance I",
+    "department": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 300: Business Finance I - University Examination Past Paper"
+    ]
+  },
+  {
+    "code": "EDB 301",
+    "name": "Money and Banking Theory",
+    "department": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 301: Money and Banking Theory - University Examination Past Paper"
+    ]
+  },
+  {
     "code": "EDB 302E",
     "name": "Company Accounts",
     "department": "Department of Curriculum Instruction and Educational Media",
     "school": "School of Education",
     "aliases": [
       "Company Accounts"
+    ]
+  },
+  {
+    "code": "EDB 312",
+    "name": "History of Economic Thought",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education"
+  },
+  {
+    "code": "EDB 313E",
+    "name": "Business Finance II",
+    "department": "Department of Curriculum Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 313E: Business Finance II - Examination"
+    ]
+  },
+  {
+    "code": "EDB 400",
+    "name": "Financial Management",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education"
+  },
+  {
+    "code": "EDB 413E",
+    "name": "Principles of Auditing",
+    "department": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDB 413E: Principles of Auditing - University Examination Past Paper"
     ]
   },
   {
@@ -1123,7 +2187,10 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "department": "Department of Educational Foundations",
     "school": "School of Education",
     "aliases": [
-      "history of ed"
+      "history of ed",
+      "Philosophy of Education",
+      "EDF 111: Philosophy of Education - Regular University Examination (2021/2022)",
+      "EDF 111: Philosophy of Education First Year Second Semester Examination - March 2024"
     ]
   },
   {
@@ -1132,7 +2199,118 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "department": "Department of Educational Foundations",
     "school": "School of Education",
     "aliases": [
-      "philosophy of ed"
+      "philosophy of ed",
+      "EDF 211: History of Education University Examination"
+    ]
+  },
+  {
+    "code": "EDK 216",
+    "name": "Mbinu za Kufundisha Kiswahili na Fasihi I",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "Mbinu za Kufundishia Lugha na Fasihi I",
+      "Mbinu za Kufundisha Kiswahili I"
+    ]
+  },
+  {
+    "code": "EDK 306",
+    "name": "Literary Texts Translated into Kiswahili",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDK 306: Literary Texts Translated into Kiswahili - Regular University Examination (2013/2014)"
+    ]
+  },
+  {
+    "code": "EDL 315",
+    "name": "Literature Education II",
+    "department": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDL 315: Literature Education II - University Examination Past Paper"
+    ]
+  },
+  {
+    "code": "EDM 211",
+    "name": "Mathematics Education I",
+    "department": "Department of Curriculum, Instruction and Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDM 211 Mathematics Education I Special Supplementary Examination"
+    ]
+  },
+  {
+    "code": "EDR 318",
+    "name": "Religious Education II",
+    "department": "Department of Curriculum, Instruction & Educational Media",
+    "school": "School of Education",
+    "aliases": [
+      "EDR 318: Religious Education II - Examination",
+      "EDR 318 Religious Education II Bachelor of Education School-Based Examination"
+    ]
+  },
+  {
+    "code": "EGC 111",
+    "name": "Theories, Techniques & Principles of Counseling",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education"
+  },
+  {
+    "code": "EGC 201",
+    "name": "Counselling People with Special Needs",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "EGC 201 Counselling People with Special Needs Second Year First Semester Examination August 2022"
+    ]
+  },
+  {
+    "code": "EGC 211",
+    "name": "Children and Adolescent Counselling",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "EGC 211: Children and Adolescent Counselling - Special / Supplementary Examination (2023/2024)"
+    ]
+  },
+  {
+    "code": "EMP 310",
+    "name": "Educational Planning",
+    "department": "Department of Educational Management and Policy Studies",
+    "school": "School of Education",
+    "aliases": [
+      "EMP 310: Educational Planning - Examination"
+    ]
+  },
+  {
+    "code": "ENG 210",
+    "name": "English Phonetics",
+    "department": "Department of Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "ENG 210: English Phonetics University Examination",
+      "ENG 210: English Phonetics Regular University Examination",
+      "ENG 210: English Phonetics Special / Supplementary Examination",
+      "ENG 210: English Phonetics - Special / Supplementary Examination (2023/2024)"
+    ]
+  },
+  {
+    "code": "ENG 220",
+    "name": "Development of English as a Native Language",
+    "department": "Department of Linguistics, Languages & Literature",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "ENG 220 Development of English as a Native Language Special Supplementary Examination"
+    ]
+  },
+  {
+    "code": "ENG 322",
+    "name": "Development of English as a Second Language",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "ENG 322: Development of English as a Second Language"
     ]
   },
   {
@@ -1154,12 +2332,21 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
-    "code": "ENG322",
-    "name": "Development of English as a Second Language",
-    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "code": "ENG 411",
+    "name": "Practical English Stylistics",
+    "department": "Department of Literature, Linguistics, Foreign Languages, and Film Studies",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "ENG 322: Development of English as a Second Language"
+      "ENG 411 Practical English Stylistics University Examination 2022/2023"
+    ]
+  },
+  {
+    "code": "FMS 110",
+    "name": "History of Film upto 1975",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "FMS 110: History of Film upto 1975 Continuous Assessment Test (CAT)"
     ]
   },
   {
@@ -1190,6 +2377,97 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "GEO 110",
+    "name": "Introduction to Geography",
+    "department": "Department of Geography and Environmental Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "GEO 110: Introduction to Geography - University Examination"
+    ]
+  },
+  {
+    "code": "GEO 111",
+    "name": "Introduction to Remote Sensing and GIS",
+    "department": "Department of Geography",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "GEO 111 Introduction to Remote Sensing and GIS Examination January 2022"
+    ]
+  },
+  {
+    "code": "GEO 310",
+    "name": "Climatology",
+    "department": "Geography",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "GEO 310 Climatology Special Supplementary Examination 2023 2024"
+    ]
+  },
+  {
+    "code": "HIS 110",
+    "name": "Introduction to African History to 1884",
+    "department": "Department of History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "HIS 110 Introduction to African History to 1884 First Year First Semester Supplementary Special Examination March 2024",
+      "HIS 110 Introduction to African History to 1884 First Year Second Semester Main Examination 2021/2022"
+    ]
+  },
+  {
+    "code": "HIS 111",
+    "name": "Introduction to Historical Studies",
+    "department": "Department of History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "HIS 111: Introduction to Historical Studies - University Examination"
+    ]
+  },
+  {
+    "code": "HIS 211",
+    "name": "Themes in East African History",
+    "department": "Department of History, Political Science and Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "HIS 211: Themes in East African History - University Examination"
+    ]
+  },
+  {
+    "code": "HIS 220",
+    "name": "History of Kenya Since 1895",
+    "department": "Department of History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "HIS 220 History of Kenya Since 1895 Examination December 2022"
+    ]
+  },
+  {
+    "code": "HIS 221",
+    "name": "History of International Organizations Since 1919",
+    "department": "History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "HIS 221 History of International Organizations Since 1919 Second Year Second Semester Examination December 2022"
+    ]
+  },
+  {
+    "code": "HIS 325",
+    "name": "Africa and Black Diaspora",
+    "department": "Department of History, Political Science and Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "HIS 325: Africa and Black Diaspora Special/Supplementary Examination"
+    ]
+  },
+  {
+    "code": "HRD 100",
+    "name": "Communication Skills I",
+    "department": "Department of Communication Studies",
+    "school": "School of Business & Economics",
+    "aliases": [
+      "HRD 100 Communication Skills I University Examination December 2015"
+    ]
+  },
+  {
     "code": "INF 110",
     "name": "Foundations of Information Sciences",
     "department": "Department of Information Technology",
@@ -1208,12 +2486,49 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "KIS 120",
+    "name": "Communication Skills in Kiswahili",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "KIS 120 Communication Skills in Kiswahili Supplementary Examination October 2023"
+    ]
+  },
+  {
+    "code": "KIS 210",
+    "name": "Theory and Practice of Translation and Interpretation I",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "KIS 210 Theory and Practice of Translation and Interpretation I Second Year Second Semester Examination April 2023"
+    ]
+  },
+  {
+    "code": "KIS 220",
+    "name": "Oral Literature in Kiswahili",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "KIS 220: Oral Literature in Kiswahili — Special/Supplementary Examination — July 2016",
+      "KIS 220 Kiswahili Oral Literature School Based Examination April"
+    ]
+  },
+  {
     "code": "KIS 314",
     "name": "Linguistics and the Language of Translation",
     "department": "Department of Kiswahili and Other African Languages",
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "KIS 314 Linguistics and the Language of Translation 3rd Year Examination 1st Semester 2014"
+    ]
+  },
+  {
+    "code": "KIS 320",
+    "name": "Translation and Social Change",
+    "department": "Department of Kiswahili and Other African Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "KIS 320: Translation and Social Change — Third Year Examination — August 2016"
     ]
   },
   {
@@ -1274,6 +2589,24 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "LIN 120",
+    "name": "The Structure of Language",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIN 120: The Structure of Language - University Examination Past Paper"
+    ]
+  },
+  {
+    "code": "LIN 210",
+    "name": "Introduction to Sociolinguistics",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIN 210 Introduction to Sociolinguistics Special Supplementary Examination March 2024"
+    ]
+  },
+  {
     "code": "LIN 312",
     "name": "Second Language Acquisition",
     "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
@@ -1289,6 +2622,79 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Arts & Social Sciences (SASS)",
     "aliases": [
       "Comparative Study of Language"
+    ]
+  },
+  {
+    "code": "LIN 420",
+    "name": "Pragmatics and Discourse Analysis",
+    "department": "Department of Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIN 420 Pragmatics and Discourse Analysis Fourth Year Second Semester Examination April 2023"
+    ]
+  },
+  {
+    "code": "LIT 120",
+    "name": "Reading and Writing Skills in Literature",
+    "department": "Department of Literature, Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 120: Reading and Writing Skills in Literature - Examination"
+    ]
+  },
+  {
+    "code": "LIT 210",
+    "name": "Humanist Literary Theory",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 210: Humanist Literary Theory Special/Supplementary Examination"
+    ]
+  },
+  {
+    "code": "LIT 310",
+    "name": "Critical Theory",
+    "department": "Department of Literature, Linguistics & Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 310 Critical Theory Bachelor of Arts Regular Examination"
+    ]
+  },
+  {
+    "code": "LIT 311",
+    "name": "Stylistics",
+    "department": "Literature, Theatre and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 311 Stylistics Bachelor of Arts and Education Special Supplementary Examination"
+    ]
+  },
+  {
+    "code": "LIT 312",
+    "name": "European Drama",
+    "department": "Literature, Theatre and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 312 European Drama Bachelor of Education Arts Special Supplementary Examination",
+      "LIT 312: Elements of European Drama Regular University Examination"
+    ]
+  },
+  {
+    "code": "LIT 323",
+    "name": "Kenyan Fiction and History",
+    "department": "Department of Literature, Theatre & Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 323 Kenyan Fiction and History Degree Examination Collection 2022"
+    ]
+  },
+  {
+    "code": "LIT 324",
+    "name": "West African Drama",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LIT 324: West African Drama - University Examination Past Paper"
     ]
   },
   {
@@ -1319,6 +2725,64 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "LMC 110",
+    "name": "Introduction to Media and Society",
+    "department": "Department of Linguistics and Foreign Languages",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 110 Introduction to Media and Society Regular University Examination 2014/2015",
+      "LMC 110: Introduction to Media and Society - Regular Examination",
+      "LMC 110: Introduction to Media and Society - Regular University Examination (2013/2014)"
+    ]
+  },
+  {
+    "code": "LMC 111",
+    "name": "Understanding Communication",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 111 Understanding Communication First Year First Semester Examination 2019/2020",
+      "LMC 111: Understanding Communication - First Year First Semester Examination (October 2013)",
+      "LMC 111 Understanding Communication Regular University Examination"
+    ]
+  },
+  {
+    "code": "LMC 210",
+    "name": "Communication Theory",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 210 Communication Theory Supplementary Special Exam October 2019"
+    ]
+  },
+  {
+    "code": "LMC 221",
+    "name": "Media Studies",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 221 Media Studies Second Year Second Semester Special Supplementary Examination 2023"
+    ]
+  },
+  {
+    "code": "LMC 222",
+    "name": "Non-Verbal Communication",
+    "department": "Department of Media and Communication Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 222 Non-Verbal Communication Supplementary Special Exam October 2023"
+    ]
+  },
+  {
+    "code": "LMC 311",
+    "name": "Introduction to Media Law",
+    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
+    "school": "School of Arts and Social Sciences (SASS)",
+    "aliases": [
+      "LMC 311: Introduction to Media Law"
+    ]
+  },
+  {
     "code": "LMC 312",
     "name": "Corporate Communication",
     "department": "Department of Publishing & Media Studies",
@@ -1328,12 +2792,86 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
-    "code": "LMC311",
-    "name": "Introduction to Media Law",
-    "department": "Department of Literature, Linguistics, Foreign Languages & Film Studies",
-    "school": "School of Arts and Social Sciences (SASS)",
+    "code": "LMC 320",
+    "name": "Marketing Communication",
+    "department": "Department of Linguistics, Languages, Foreign Languages and French Studies",
+    "school": "School of Arts and Social Sciences",
     "aliases": [
-      "LMC 311: Introduction to Media Law"
+      "LMC 320: Marketing Communication - Regular University Examination"
+    ]
+  },
+  {
+    "code": "LMC 321",
+    "name": "Language in the Media",
+    "department": "Department of Literature, Languages and Folklore Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 321 Language in the Media Third Year Second Semester Regular Examination 2021/2022",
+      "LMC 321: Language in the Media - Special / Supplementary Examination (March 2024)"
+    ]
+  },
+  {
+    "code": "LMC 411",
+    "name": "Comparative Media Law and Governance",
+    "department": "Department of Linguistics, Media and Communication",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 411: Comparative Media Law & Governance - Regular Examination",
+      "LMC 411: Contemporary Media Law and Governance - Continuous Assessment Test 2 (CAT 2)"
+    ]
+  },
+  {
+    "code": "LMC 420",
+    "name": "Video Production",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 420: Video Production - Regular University Examination"
+    ]
+  },
+  {
+    "code": "LMC 421",
+    "name": "Reporting Disasters",
+    "department": "Department of Literature, Linguistics Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 421 Reporting Disasters Fourth Year Second Semester Regular Examination 2022/2023"
+    ]
+  },
+  {
+    "code": "LMC 422",
+    "name": "Organizational Communication",
+    "department": "Department of Literature, Languages and Folklore Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LMC 422 Organizational Communication Fourth Year Second Semester Regular Examination 2022/2023"
+    ]
+  },
+  {
+    "code": "LTF 210",
+    "name": "Fundamentals of Literature I - (Drama)",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LTF 210: Fundamentals of Literature I - (Drama) Special/Supplementary Examination"
+    ]
+  },
+  {
+    "code": "LTF 211",
+    "name": "Art and Communication",
+    "department": "Department of Literature, Languages, Linguistics and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LTF 211 Art and Communication Second Year First Semester Examination December 2023"
+    ]
+  },
+  {
+    "code": "LTF 411",
+    "name": "Literary Journalism",
+    "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "LTF 411: Literary Journalism - Degree Examination Collection (Regular & Special / Supplementary)"
     ]
   },
   {
@@ -1359,6 +2897,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "MAT 113",
+    "name": "Differential Calculus",
+    "department": "Mathematics, Physics and Computing",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "MAT 113 Differential Calculus First Year Semester 1 University Examination"
+    ]
+  },
+  {
     "code": "MAT 120",
     "name": "Integral Calculus",
     "department": "Department of Mathematics & Physics",
@@ -1378,6 +2925,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
       "linear algebra",
       "matrices",
       "vectors"
+    ]
+  },
+  {
+    "code": "MAT 205",
+    "name": "Ordinary Differential Equation I",
+    "department": "Department of Mathematics, Physics and Computing",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "MAT 205: Ordinary Differential Equation I - Second Year First Semester Examination (May 2022)"
     ]
   },
   {
@@ -1401,6 +2957,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "MAT 208",
+    "name": "Engineering Mathematics",
+    "department": "Mathematics & Physics",
+    "school": "School of Engineering",
+    "aliases": [
+      "MAT 208 Engineering Mathematics Second Year Second Semester Regular Examination May 2023"
+    ]
+  },
+  {
     "code": "MAT 210",
     "name": "Calculus III / Multivariable Calculus",
     "department": "Department of Mathematics & Physics",
@@ -1419,6 +2984,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "aliases": [
       "linear algebra 2",
       "vector spaces"
+    ]
+  },
+  {
+    "code": "MAT 214",
+    "name": "Vector Analysis",
+    "department": "Mathematics, Physics and Computing",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "MAT 214: Vector Analysis - University Examination May 2022"
     ]
   },
   {
@@ -1459,6 +3033,31 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "MAT 312",
+    "name": "Complex Analysis I",
+    "department": "Mathematics & Computer Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "MAT 312 Complex Analysis I Third Year First Semester Regular Examination August 2021",
+      "Complex Analysis"
+    ]
+  },
+  {
+    "code": "MAT 315",
+    "name": "Operations Research I",
+    "department": "Department of Mathematics & Computer Science",
+    "school": "School of Science and Aerospace Studies"
+  },
+  {
+    "code": "MAT 317",
+    "name": "Numerical Analysis I",
+    "department": "Mathematics, Physics and Computing Department",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "MAT 317: Numerical Analysis I — Third Year Second Semester Main Examination — December 2021"
+    ]
+  },
+  {
     "code": "MAT 318",
     "name": "MAT 318 Fluid Mechanics I Main Examination 2014/2015",
     "department": "Department of Mathematics",
@@ -1486,6 +3085,71 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "MIT 312",
+    "name": "Engineering Design I",
+    "department": "Manufacturing, Industrial & Textile Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "MIT 312 Engineering Design I Third Year Regular Examination 2012/2013"
+    ]
+  },
+  {
+    "code": "MPE 162",
+    "name": "Engineering Drawing II",
+    "department": "Mechanical & Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "MPE 162 Engineering Drawing II First Year Supplementary Special Examination August 2015"
+    ]
+  },
+  {
+    "code": "MPE 203",
+    "name": "Thermodynamics and Fluid Mechanics",
+    "department": "Department of Mechanical & Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "Thermodynamics and Fluid Mechanics Degree Examination June 2014",
+      "Thermo-Fluids",
+      "Fluid Mechanics and Thermodynamics"
+    ]
+  },
+  {
+    "code": "MPE 222",
+    "name": "Solid Mechanics I",
+    "department": "Department of Mechanical & Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "MPE 222 Solid Mechanics I Second Year Second Semester Examination April 2011",
+      "MPE 222 Solid Mechanics I Degree Examination"
+    ]
+  },
+  {
+    "code": "MPE 241",
+    "name": "Mechanics of Machines I",
+    "department": "Department of Mechanical & Production Engineering",
+    "school": "School of Engineering"
+  },
+  {
+    "code": "MPE 321",
+    "name": "Solid Mechanics II",
+    "department": "Department of Mechanical and Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "MPE 321: Solid Mechanics II — Third Year First Semester Examination — February 2021",
+      "MPE 321 Solid Mechanics II Degree Examination 2018/2019",
+      "MPE 321 Solid Mechanics II Continuous Assessment Tests (CAT 1 & CAT 2) 2018-2020"
+    ]
+  },
+  {
+    "code": "MPE 351",
+    "name": "Metrology",
+    "department": "Department of Mechanical & Production Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "MPE 351 Metrology Third Year First Semester Examination February 2021"
+    ]
+  },
+  {
     "code": "MPE 361",
     "name": "Mechanical Engineering Design I",
     "department": "Mechanical Engineering",
@@ -1500,7 +3164,9 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "department": "Mechanical Engineering",
     "school": "School of Engineering",
     "aliases": [
-      "Thermodynamics II Exam"
+      "Thermodynamics II Exam",
+      "MPE 371: Thermodynamics II — Third Year First Semester Examination — February 2021",
+      "MPE 371: Thermodynamics II — University Examination"
     ]
   },
   {
@@ -1510,6 +3176,15 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "PCA 313 Community Correction Examination"
+    ]
+  },
+  {
+    "code": "PHL 110",
+    "name": "Introduction to Philosophy of Human Nature",
+    "department": "Department of Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "PHL 110: Introduction to Philosophy of Human Nature - Examination"
     ]
   },
   {
@@ -1547,6 +3222,16 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "school": "School of Sciences and Aerospace Studies",
     "aliases": [
       "PHY 112 Mechanics Exam Jan 2022"
+    ]
+  },
+  {
+    "code": "PHY 113",
+    "name": "Heat and Thermodynamics",
+    "department": "Department of Mathematics, Physics and Computing",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "PHY 113: Heat and Thermodynamics University Examination",
+      "PHY 113: Heat and Thermodynamics - Regular University Examination (2021/2022)"
     ]
   },
   {
@@ -1616,12 +3301,69 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "PHY 316",
+    "name": "Introduction to Material Science",
+    "department": "Physics",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "PHY 316 Introduction to Material Science Third Year Degree Examination"
+    ]
+  },
+  {
+    "code": "PRT 120",
+    "name": "Introduction to Ethics",
+    "department": "Department of Philosophy & Religious Studies",
+    "school": "School of Arts and Social Sciences"
+  },
+  {
+    "code": "PRT 210",
+    "name": "History of Religions I",
+    "department": "Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "PRT 210 History of Religions I Second Year First Semester Examination 2021/2022"
+    ]
+  },
+  {
+    "code": "PSA 212",
+    "name": "Decentralization and County Governance in Kenya",
+    "department": "Department of History, Political Science and Public Administration",
+    "school": "School of Arts and Social Sciences"
+  },
+  {
+    "code": "PSA 310",
+    "name": "Research Methods in Political Science",
+    "department": "History, Political Science & Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "PSA 310 Research Methods in Political Science Bachelor of Arts Special Supplementary Examination 2023 2024"
+    ]
+  },
+  {
+    "code": "PSA 323",
+    "name": "Development Administration",
+    "department": "Department of History, Political Science & Public Admin",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "PSA 323 Development Administration University Examination"
+    ]
+  },
+  {
     "code": "PSS 222",
     "name": "Criminal Procedure and Practice",
     "department": "Department of History, Political Science & Public Administration",
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "Criminal Procedure and Practice"
+    ]
+  },
+  {
+    "code": "PSS 312",
+    "name": "Incarceration and Rehabilitation Process",
+    "department": "Department of History, Political Science and Public Administration",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "PSS 312 Incarceration and Rehabilitation Process Special / Supplementary Examination March 2024"
     ]
   },
   {
@@ -1643,12 +3385,131 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "PSY 210",
+    "name": "Human Growth and Development",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "PSY 210: Human Growth and Development - Regular University Examination (2021/2022)",
+      "PSY 210 Human Growth and Development Special Supplementary Examination 2024"
+    ]
+  },
+  {
+    "code": "PSY 211",
+    "name": "Educational Guidance and Counselling",
+    "department": "Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "PSY 211 Educational Guidance and Counselling Bachelor of Education Special Supplementary Examination",
+      "PSY 211 Educational Guidance and Counselling Second Year Second Semester Examination November 2022"
+    ]
+  },
+  {
+    "code": "PSY 311",
+    "name": "Educational Measurement and Evaluation",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "PSY 311: Educational Measurement and Evaluation - Special / Supplementary Examination Past Paper",
+      "PSY 311: Educational Measurement and Evaluation - Examination"
+    ]
+  },
+  {
+    "code": "REL 110",
+    "name": "Traditional African Worldview",
+    "department": "Philosophy and Religious Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "REL 110 Traditional African Worldview Bachelor of Arts Regular Examination"
+    ]
+  },
+  {
+    "code": "REL 213",
+    "name": "Studies in the New Testament I",
+    "department": "Department of Philosophy, Theology & Religious Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "REL 213: Studies in the New Testament I - Special / Supplementary Examination"
+    ]
+  },
+  {
+    "code": "REL 221",
+    "name": "History of Religions II",
+    "department": "Department of Philosophy, Religion & Theology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "REL 221: History of Religions II Second Year First Semester Examination - December 2022"
+    ]
+  },
+  {
+    "code": "REL 222",
+    "name": "History of Christianity II",
+    "department": "Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "REL 222 History of Christianity II Second Year Second Semester Examination 2022/2023",
+      "REL 222: History of Christianity II - Special / Supplementary Examination"
+    ]
+  },
+  {
     "code": "REL 313",
     "name": "History of Christianity in Africa",
     "department": "Department of Philosophy, Theology and Religious Studies",
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "History of Christianity in Africa"
+    ]
+  },
+  {
+    "code": "REL 314",
+    "name": "Studies in the New Testament II",
+    "department": "Philosophy and Religious Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "REL 314 Studies in the New Testament II Bachelor of Arts Special Supplementary Examination"
+    ]
+  },
+  {
+    "code": "REL 321",
+    "name": "Religions in Kenya",
+    "department": "Department of Philosophy, Religion and Theology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "REL 321: Religions in Kenya - Examination",
+      "REL 321 Religions in Kenya Bachelor of Arts Second Semester Examination 2015"
+    ]
+  },
+  {
+    "code": "SAS 101",
+    "name": "Introduction to Reading and Writing Skills",
+    "department": "School of Arts and Social Sciences",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SAS 101: Introduction to Reading and Writing Skills - Special / Supplementary Examination",
+      "SAS 101: Introduction to Reading and Writing Skills - University Examination August 2020",
+      "SAS 101 Reading and Writing Skills First Year First Semester Examination 2021/2022",
+      "SAS 101: Introduction to Reading and Writing Skills - First Year First Semester Examination (October 2013)"
+    ]
+  },
+  {
+    "code": "SAS 102",
+    "name": "Computer Literacy and Skills",
+    "department": "Department of Geography / School of Arts and Social Sciences",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SAS 102: Computer Literacy and Skills First Year First Semester Examination - 2017/2018",
+      "SAS 102 Computer Literacy and Skills Regular Examination",
+      "SAS 102: Computer Literacy and Skills - Special / Supplementary Examination (2016/2017)"
+    ]
+  },
+  {
+    "code": "SAS 201",
+    "name": "Introduction to Research Methods",
+    "department": "Sociology and Psychology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SAS 201 Introduction to Research Methods Bachelor of Arts University Examination",
+      "SAS 201 Introduction to Research Methods Second Year Second Semester Examination 2013/2014"
     ]
   },
   {
@@ -1661,12 +3522,76 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "SAS 302",
+    "name": "Entrepreneurship",
+    "department": "School of Arts and Social Sciences",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SAS 302: Entrepreneurship - Regular Examination"
+    ]
+  },
+  {
+    "code": "SAS 402",
+    "name": "Disaster and Conflict Management",
+    "department": "Department of Geography and Environmental Studies",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SAS 402 Disaster and Conflict Management Fourth Year Second Semester Regular Examination 2022/2023"
+    ]
+  },
+  {
+    "code": "SNE 101",
+    "name": "HIV/AIDS, Drugs & Special Needs in Educational Institutions",
+    "department": "Department of Educational Psychology",
+    "school": "School of Education",
+    "aliases": [
+      "SNE 101 HIV/AIDS, Drugs & Special Needs in Educational Institutions Examination December 2022"
+    ]
+  },
+  {
     "code": "SNE 316E",
     "name": "Assessment and Identification of Learners with Emotional and Behaviour Disorders",
     "department": "Department of Educational Psychology",
     "school": "School of Education (SOE)",
     "aliases": [
       "Assessment and Identification of Learners with Emotional and Behaviour Disorders"
+    ]
+  },
+  {
+    "code": "SOC 120",
+    "name": "Psychology of Individual Development and Social Life",
+    "department": "Department of Sociology, Psychology and Anthropology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SOC 120: Psychology of Individual Development and Social Life Special/Supplementary Examination"
+    ]
+  },
+  {
+    "code": "SOC 221",
+    "name": "Gerontology",
+    "department": "Department of Sociology, Psychology & Anthropology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SOC 221 Gerontology Special / Supplementary Examination March 2024"
+    ]
+  },
+  {
+    "code": "SOC 313",
+    "name": "Sociology of Sex and Gender",
+    "department": "Department of Sociology, Psychology & Anthropology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SOC 313 Sociology of Sex and Gender Special Supplementary Examination 2015/2016",
+      "SOC 313: Sociology of Sex and Gender - Third Year First Semester Special / Supplementary Examination Past Paper"
+    ]
+  },
+  {
+    "code": "SPC 312",
+    "name": "Counselling of Exceptional Populations Programmes",
+    "department": "Department of Sociology, Psychology & Anthropology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SPC 312: Counselling of Exceptional Populations Programmes - University Examination Past Paper"
     ]
   },
   {
@@ -1679,12 +3604,30 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
-    "code": "SPY322",
+    "code": "SPY 311",
+    "name": "Methods of Psychological Research",
+    "department": "Sociology and Psychology",
+    "school": "School of Arts and Social Sciences",
+    "aliases": [
+      "SPY 311 Methods of Psychological Research Bachelor of Arts Special Supplementary Examination"
+    ]
+  },
+  {
+    "code": "SPY 322",
     "name": "Psychology of Human Behaviour and Learning",
     "department": "Department of Psychology",
     "school": "School of Arts and Social Sciences (SASS)",
     "aliases": [
       "SPY 322: Psychology of Human Behaviour and Learning"
+    ]
+  },
+  {
+    "code": "STA 100",
+    "name": "Probability & Statistics 1",
+    "department": "Department of Mathematics & Physics",
+    "school": "School of Education",
+    "aliases": [
+      "STA 100 Probability & Statistics 1 Examination April 2023"
     ]
   },
   {
@@ -1734,6 +3677,43 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "aliases": [
       "regression models",
       "econometrics stats"
+    ]
+  },
+  {
+    "code": "STA 319",
+    "name": "Sampling Theory and Methods I",
+    "department": "Statistics & Computer Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "STA 319 Sampling Theory and Methods I Third Year Second Semester Main Examination December 2021",
+      "STA 319 Sampling Theory and Methods I Third Year Second Semester Examination December 2021"
+    ]
+  },
+  {
+    "code": "STA 320",
+    "name": "Design and Analysis of Experiments I",
+    "department": "Mathematics, Statistics & Actuarial Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "STA 320 Design and Analysis of Experiments I Main Examination December 2021"
+    ]
+  },
+  {
+    "code": "STA 321",
+    "name": "Tests of Hypothesis",
+    "department": "Mathematics, Physics and Computing",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "STA 321 Tests of Hypothesis Degree Examination December 2021"
+    ]
+  },
+  {
+    "code": "STA 328",
+    "name": "Applied Linear Regression II",
+    "department": "Department of Statistics & Computer Science",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": [
+      "STA 328 Applied Linear Regression II Main Examination January 2022"
     ]
   },
   {
@@ -1845,6 +3825,34 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
+    "code": "TEC 102",
+    "name": "Computers and Management of Information in Education",
+    "department": "Department of Technology Education",
+    "school": "School of Education",
+    "aliases": [
+      "TEC 102 Computers and Management of Information in Education Regular Examination April 2023",
+      "TEC 102 Computers and Management of Information in Education First Year Second Semester Examination April 2019"
+    ]
+  },
+  {
+    "code": "TEC 103",
+    "name": "Basic Engineering Mathematics II",
+    "department": "Department of Engineering Mathematics",
+    "school": "School of Engineering",
+    "aliases": [
+      "TEC 103 Basic Engineering Mathematics II First Year Second Semester Examination May 2013"
+    ]
+  },
+  {
+    "code": "TEC 111",
+    "name": "Introduction to Material Science",
+    "department": "Chemical & Process / Mechanical Engineering",
+    "school": "School of Engineering",
+    "aliases": [
+      "TEC 111 Introduction to Material Science First Year Second Semester Regular Examination March 2018"
+    ]
+  },
+  {
     "code": "THE 320",
     "name": "Costume Design",
     "department": "Department of Literature, Linguistics, Foreign Languages and Film Studies",
@@ -1854,7 +3862,7 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     ]
   },
   {
-    "code": "THL320",
+    "code": "THL 320",
     "name": "Studies in the Old Testament 1",
     "department": "Department of Philosophy & Religious Studies",
     "school": "School of Arts and Social Sciences (SASS)",
