@@ -420,7 +420,14 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
     materialType: materialType?.type,
     school: detectedSchool,
     department: detectedDepartment,
-    keywords: allTokens,
+    keywords: (() => {
+      const STOP_WORDS = new Set([
+        'and', 'the', 'of', 'in', 'for', 'to', 'with', 'a', 'an', 'at', 'by', 'from',
+        'on', 'or', 'as', 'is', 'it', 'all', 'any', 'are', 'be', 'but', 'not', 'that', 'this'
+      ]);
+      const meaningful = allTokens.filter((t) => t.length > 1 && !STOP_WORDS.has(t.toLowerCase()));
+      return meaningful.length > 0 ? meaningful : allTokens;
+    })(),
     stemmedKeywords,
     hasCorrection: (hasCorrection || isAcronymExpanded) && Boolean(didYouMeanText),
     correctedQuery,

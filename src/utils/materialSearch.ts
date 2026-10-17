@@ -113,7 +113,104 @@ export function normalizeSchoolName(school?: string): string {
   return s;
 }
 
-/** Lower scores are better. Exact MTID, Canonical Unit Code, School & Department are always ranked ahead of ordinary text matches. */
+export const SEARCH_STOP_WORDS = new Set([
+  'and', 'the', 'of', 'in', 'for', 'to', 'with', 'a', 'an', 'at', 'by', 'from',
+  'on', 'or', 'as', 'is', 'it', 'all', 'any', 'are', 'be', 'but', 'not', 'that', 'this'
+]);
+
+export function extractMeaningfulSearchTokens(query: string): { allTokens: string[]; meaningfulTokens: string[] } {
+  const norm = normalize(query);
+  const allTokens = norm.split(/[^a-z0-9]+/).filter((t) => t.length >= 2);
+  const meaningful = allTokens.filter((t) => !SEARCH_STOP_WORDS.has(t));
+  return {
+    allTokens,
+    meaningfulTokens: meaningful.length > 0 ? meaningful : allTokens
+  };
+}
+
+export interface MaterialMatchMetrics {
+  exactMtid: boolean;
+  exactUnitCode: boolean;
+  exactPhraseInTitle: boolean;
+  titleStartsWithQuery: boolean;
+  matchedTitleWordsCount: number;
+  matchedCodeWordsCount: number;
+  matchedTotalWordsCount: number;
+  meaningfulQueryWordsCount: number;
+  matchScore: number | null;
+}
+
+/**
+ * Calculates exact word match counts and priority tiers for an item against a search query.
+ * Counts how many meaningful query words match in the Title, Unit Code, and other fields.
+ */
+export function calculateMaterialMatchMetrics(
+  item: MaterialSearchFields,
+  query: string,
+  parsedIntent?: ParsedSearchIntent
+): MaterialMatchMetrics {
+  const q = normalize(query);
+  const intent = parsedIntent || parseSmartSearchQuery(query);
+  const { meaningfulTokens } = extractMeaningfulSearchTokens(query);
+
+  const id = normalizeId(item.mtid);
+  const normalizedQueryId = normalizeId(q);
+  const exactMtid = Boolean(id && normalizedQueryId && id === normalizedQueryId);
+
+  const itemUnitCodeNorm = normalizeId(item.unitCode);
+  const itemCourseCodeNorm = normalizeId(item.courseCode);
+  const intentCodeNorm = intent.unitCode ? normalizeId(intent.unitCode) : '';
+  const exactUnitCode = Boolean(
+    (normalizedQueryId && (itemUnitCodeNorm === normalizedQueryId || itemCourseCodeNorm === normalizedQueryId)) ||
+    (intentCodeNorm && (itemUnitCodeNorm === intentCodeNorm || itemCourseCodeNorm === intentCodeNorm))
+  );
+
+  const itemTitle = normalize(item.title);
+  const itemUnitName = normalize(item.unitName);
+  const exactPhraseInTitle = Boolean(
+    q.length >= 3 && (itemTitle.includes(q) || itemUnitName.includes(q))
+  );
+  const titleStartsWithQuery = Boolean(
+    q.length >= 3 && (itemTitle.startsWith(q) || itemUnitName.startsWith(q))
+  );
+
+  const itemUnitCodeRaw = normalize(item.unitCode);
+  const itemCourseCodeRaw = normalize(item.courseCode);
+  const allFieldsText = `${itemTitle} ${itemUnitCodeRaw} ${itemCourseCodeRaw} ${itemUnitName} ${normalize(item.school)} ${normalize(item.department)} ${normalize(item.description)}`;
+
+  let matchedTitleWordsCount = 0;
+  let matchedCodeWordsCount = 0;
+  let matchedTotalWordsCount = 0;
+
+  for (const token of meaningfulTokens) {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wordBoundaryRegex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+
+    const inTitleOrUnit = wordBoundaryRegex.test(itemTitle) || wordBoundaryRegex.test(itemUnitName);
+    const inCode = wordBoundaryRegex.test(itemUnitCodeRaw) || wordBoundaryRegex.test(itemCourseCodeRaw);
+    const inAny = inTitleOrUnit || inCode || wordBoundaryRegex.test(allFieldsText);
+
+    if (inTitleOrUnit) matchedTitleWordsCount += 1;
+    if (inCode) matchedCodeWordsCount += 1;
+    if (inAny) matchedTotalWordsCount += 1;
+  }
+
+  const matchScore = getMaterialSearchScore(item, query, intent);
+
+  return {
+    exactMtid,
+    exactUnitCode,
+    exactPhraseInTitle,
+    titleStartsWithQuery,
+    matchedTitleWordsCount,
+    matchedCodeWordsCount,
+    matchedTotalWordsCount,
+    meaningfulQueryWordsCount: meaningfulTokens.length,
+    matchScore
+  };
+}
+
+/** Lower scores are better. Exact MTID, Canonical Unit Code, and title keyword matches are ranked ahead of generic school fallbacks. */
 export function getMaterialSearchScore(item: MaterialSearchFields, query: string, parsedIntent?: ParsedSearchIntent): number | null {
   const q = normalize(query);
   if (!q) return 0;
@@ -187,56 +284,59 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
     return 7;
   }
 
-  // 5. School and Department match when school/department intent was recognized
-  const schoolMatches = Boolean(intentSchoolNorm && itemSchoolNorm && intentSchoolNorm === itemSchoolNorm);
-  const deptMatches = Boolean(intentDeptNorm && itemDeptNorm && (itemDeptNorm.includes(intentDeptNorm) || intentDeptNorm.includes(itemDeptNorm)));
-
-  if (schoolMatches && deptMatches) return 6;
-  if (deptMatches) return 7;
-  if (schoolMatches) return 8;
-
-  // 6. Year and Semester matches (THIRD PRIORITY)
-  const hasYearIntent = Boolean(intent.examYear && itemExamYear === String(intent.examYear));
-  const hasSemesterIntent = Boolean(intent.semester && itemSemester.includes(normalize(intent.semester)));
-
-  // If user searched for a school or department, penalize or exclude papers from conflicting schools
-  const hasSchoolOrDeptIntent = Boolean(intentSchoolNorm || intentDeptNorm);
-  const schoolConflicts = hasSchoolOrDeptIntent && itemSchoolNorm && intentSchoolNorm && itemSchoolNorm !== intentSchoolNorm;
-
+  // Word boundary regex matching to evaluate query keywords BEFORE school fallback
   const fields = [
     item.title, item.unitCode, item.unitName, item.school, item.department,
     item.courseCode, item.semester, item.academicYear, item.examYear,
     item.type, item.description, item.author
   ].map(normalize).filter(Boolean);
 
-  const queryTokens = q.split(/\s+/).filter((token) => token.length > 1);
-  
-  // Word boundary regex matching to avoid arbitrary fragments matching (e.g. 'mat' in 'automata')
-  const matchedTokens = queryTokens.filter((token) => {
+  const queryTokens = q.split(/\s+/).filter((token) => token.length > 1 && !SEARCH_STOP_WORDS.has(token));
+  const activeTokens = queryTokens.length > 0 ? queryTokens : q.split(/\s+/).filter((t) => t.length > 1);
+
+  const matchedTokens = activeTokens.filter((token) => {
     const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const wordRegex = new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
     return fields.some((field) => wordRegex.test(field));
   });
 
-  const titleOrCodeTokens = queryTokens.filter((token) => {
+  const titleOrCodeTokens = activeTokens.filter((token) => {
     const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const wordRegex = new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
     return wordRegex.test(itemTitle) || wordRegex.test(itemUnitCodeRaw) || wordRegex.test(itemUnitName);
   });
 
-  // 7. General Keywords Matching (FOURTH PRIORITY)
-  if (queryTokens.length > 0 && matchedTokens.length === queryTokens.length) {
-    let score = titleOrCodeTokens.length === queryTokens.length ? 7 : 8;
+  const hasYearIntent = Boolean(intent.examYear && itemExamYear === String(intent.examYear));
+  const hasSemesterIntent = Boolean(intent.semester && itemSemester.includes(normalize(intent.semester)));
+  const hasSchoolOrDeptIntent = Boolean(intentSchoolNorm || intentDeptNorm);
+  const schoolConflicts = hasSchoolOrDeptIntent && itemSchoolNorm && intentSchoolNorm && itemSchoolNorm !== intentSchoolNorm;
+
+  // 5. Keyword Matching in Title / Unit Code (THIRD PRIORITY)
+  if (activeTokens.length > 0 && matchedTokens.length === activeTokens.length) {
+    let score = titleOrCodeTokens.length === activeTokens.length ? 5 : 6;
     if (hasYearIntent || hasSemesterIntent) score -= 1;
     return schoolConflicts ? score + 6 : score;
   }
 
-  // Partial word matches
-  if (matchedTokens.length >= Math.max(1, Math.ceil(queryTokens.length / 2))) {
-    let score = titleOrCodeTokens.length > 0 ? 9 : 10;
+  if (activeTokens.length > 0 && matchedTokens.length >= Math.max(1, Math.ceil(activeTokens.length / 2))) {
+    let score = titleOrCodeTokens.length > 0 ? 6 : 7;
     if (hasYearIntent || hasSemesterIntent) score -= 1;
     return schoolConflicts ? score + 6 : score;
   }
+
+  // 6. School and Department match (Only when user explicitly targeted school or as loose fallback)
+  const userExplicitSchool = intent.school && q.includes(normalize(intent.school).slice(0, 8));
+  const userExplicitDept = intent.department && q.includes(normalize(intent.department).slice(0, 8));
+  const schoolMatches = Boolean(intentSchoolNorm && itemSchoolNorm && intentSchoolNorm === itemSchoolNorm);
+  const deptMatches = Boolean(intentDeptNorm && itemDeptNorm && (itemDeptNorm.includes(intentDeptNorm) || intentDeptNorm.includes(itemDeptNorm)));
+
+  if ((userExplicitSchool || userExplicitDept) && schoolMatches && deptMatches) return 6;
+  if (userExplicitDept && deptMatches) return 7;
+  if (userExplicitSchool && schoolMatches) return 8;
+
+  if (schoolMatches && deptMatches) return 8;
+  if (deptMatches) return 9;
+  if (schoolMatches && !schoolConflicts) return 9;
 
   if (hasYearIntent || hasSemesterIntent) {
     return schoolConflicts ? null : 10;
@@ -245,58 +345,91 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   return null;
 }
 
+/**
+ * Smart Multi-Tiered Search Ranker:
+ * Counts matching words smartly and ranks strictly from most matching words to least.
+ * 1. Exact MTID / Exact Unit Code
+ * 2. Exact Title Phrase Match
+ * 3. Title Starts-With
+ * 4. Title / Unit Code Meaningful Word Match Count (DESCENDING - 5 words > 4 words > 3 words > 2 words > 1 word)
+ * 5. Total Word Match Count (DESCENDING)
+ * 6. Match Score (lower score is better)
+ * 7. Downloads & Rating (tie-breaker only when words matched and tiers are identical)
+ * 8. Stable index (NEVER randomly shuffled)
+ */
 export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string, parsedIntent?: ParsedSearchIntent): T[] {
   if (!query.trim()) return items;
-  const intent = parsedIntent || parseSmartSearchQuery(query);
-  const currentYear = new Date().getFullYear();
+  const cleanQ = query.trim();
+  const intent = parsedIntent || parseSmartSearchQuery(cleanQ);
 
   return items
     .map((item, index) => {
-      const matchScore = getMaterialSearchScore(item, query, intent);
-      if (matchScore === null) return null;
+      const metrics = calculateMaterialMatchMetrics(item, cleanQ, intent);
+      if (
+        metrics.matchScore === null &&
+        metrics.matchedTotalWordsCount === 0 &&
+        !metrics.exactUnitCode &&
+        !metrics.exactMtid
+      ) {
+        return null;
+      }
 
       const downloads = Number((item as any).downloads || (item as any).downloadsCount || 0);
       const rating = Number((item as any).ratingScore || (item as any).rating || 4.0);
-      const examYear = Number(item.examYear || 0);
-
-      // 1. Normalized Relevance: matchScore is 0..10 (0 is perfect MTID, 1 is exact code, 10 is loosest)
-      // Convert to 0..1 scale where 1 is highest relevance
-      const normRelevance = Math.max(0, 1 - (matchScore / 10));
-
-      // 2. Normalized Popularity: log scale of downloads (0 to 10k+) + rating (0 to 10)
-      const normDownloads = Math.min(1, Math.log10(Math.max(1, downloads) + 1) / 4); // 10,000 DLs = 1.0
-      const normRating = Math.min(1, rating / 10);
-      const normPopularity = (normDownloads * 0.7) + (normRating * 0.3);
-
-      // 3. Normalized Freshness: recent exam years (2020 - 2026+) get high freshness score
-      let normFreshness = 0.5;
-      if (examYear >= 2000) {
-        const yearDiff = currentYear - examYear;
-        normFreshness = Math.max(0, Math.min(1, 1 - (yearDiff / 15)));
-      }
-
-      // Composite Weighted Score: 65% Relevance + 20% Popularity + 15% Freshness
-      // Higher composite score ranks first
-      const compositeScore = (normRelevance * 0.65) + (normPopularity * 0.20) + (normFreshness * 0.15);
 
       return {
         item,
         index,
-        matchScore,
+        metrics,
         downloads,
-        compositeScore
+        rating
       };
     })
-    .filter((entry): entry is { item: T; index: number; matchScore: number; downloads: number; compositeScore: number } => entry !== null)
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .sort((a, b) => {
-      // Primary tier check: if one is exact MTID/unitCode (matchScore <= 1) and other is not, exact always wins
-      if (a.matchScore <= 1 && b.matchScore > 1) return -1;
-      if (b.matchScore <= 1 && a.matchScore > 1) return 1;
+      // 1. Exact MTID
+      if (a.metrics.exactMtid !== b.metrics.exactMtid) {
+        return a.metrics.exactMtid ? -1 : 1;
+      }
 
-      // Otherwise sort by composite score (descending)
-      const diff = b.compositeScore - a.compositeScore;
-      if (Math.abs(diff) > 0.005) return diff;
-      return b.downloads - a.downloads || a.index - b.index;
+      // 2. Exact Unit Code
+      if (a.metrics.exactUnitCode !== b.metrics.exactUnitCode) {
+        return a.metrics.exactUnitCode ? -1 : 1;
+      }
+
+      // 3. Exact Phrase in Title / Unit Name
+      if (a.metrics.exactPhraseInTitle !== b.metrics.exactPhraseInTitle) {
+        return a.metrics.exactPhraseInTitle ? -1 : 1;
+      }
+
+      // 4. Starts with in Title
+      if (a.metrics.titleStartsWithQuery !== b.metrics.titleStartsWithQuery) {
+        return a.metrics.titleStartsWithQuery ? -1 : 1;
+      }
+
+      // 5. WORD COUNT MATCH in Title / Code (DESCENDING - Most words matched wins!)
+      const titleWordDiff = (b.metrics.matchedTitleWordsCount + b.metrics.matchedCodeWordsCount) -
+                            (a.metrics.matchedTitleWordsCount + a.metrics.matchedCodeWordsCount);
+      if (titleWordDiff !== 0) return titleWordDiff;
+
+      // 6. TOTAL WORD COUNT MATCH across all fields (DESCENDING)
+      const totalWordDiff = b.metrics.matchedTotalWordsCount - a.metrics.matchedTotalWordsCount;
+      if (totalWordDiff !== 0) return totalWordDiff;
+
+      // 7. Match Score (lower score is better)
+      const aScore = a.metrics.matchScore ?? 99;
+      const bScore = b.metrics.matchScore ?? 99;
+      if (aScore !== bScore) return aScore - bScore;
+
+      // 8. Tie-breaker when word matches and scores are identical:
+      const dlDiff = b.downloads - a.downloads;
+      if (Math.abs(dlDiff) > 50) return dlDiff;
+
+      const ratingDiff = b.rating - a.rating;
+      if (Math.abs(ratingDiff) > 0.05) return ratingDiff;
+
+      // 9. Deterministic tie-breaker: NEVER shuffle or randomize
+      return a.index - b.index;
     })
     .map(({ item }) => item);
 }

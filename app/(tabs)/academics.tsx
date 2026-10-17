@@ -29,7 +29,7 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
-import { getMaterialSearchScore, rankMaterials, rankMaterialsForProfile, getSearchRecommendationSections } from '../../src/utils/materialSearch';
+import { getMaterialSearchScore, calculateMaterialMatchMetrics, rankMaterials, rankMaterialsForProfile, getSearchRecommendationSections } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
@@ -444,7 +444,7 @@ export default function AcademicsScreen({ route }: any) {
         if (seenIds.has(item.id) || !filterByDisc(item)) return;
         seenIds.add(item.id);
 
-        const score = getMaterialSearchScore({
+        const metrics = calculateMaterialMatchMetrics({
           mtid: item.mtid,
           title: item.title,
           unitCode: item.unitCode,
@@ -460,9 +460,16 @@ export default function AcademicsScreen({ route }: any) {
           author: item.author
         }, targetQuery, intent);
 
-        if (score !== null && score <= 5) {
+        const isDirectMatch = metrics.exactMtid ||
+          metrics.exactUnitCode ||
+          metrics.exactPhraseInTitle ||
+          metrics.titleStartsWithQuery ||
+          (metrics.matchedTitleWordsCount + metrics.matchedCodeWordsCount) >= Math.max(1, Math.ceil(metrics.meaningfulQueryWordsCount * 0.4)) ||
+          (metrics.matchScore !== null && metrics.matchScore <= 5);
+
+        if (isDirectMatch) {
           topMatches.push(item);
-        } else if (score !== null) {
+        } else if (metrics.matchScore !== null || metrics.matchedTotalWordsCount > 0) {
           relatedMatches.push(item);
         }
       });
@@ -482,15 +489,10 @@ export default function AcademicsScreen({ route }: any) {
       }
     }
 
-    const scoreList = (items: NoteItem[], targetQ: string) => items.sort((a, b) =>
-      (getMaterialSearchScore({ ...a, type: a.paperType }, targetQ, intent) ?? Number.MAX_SAFE_INTEGER) -
-      (getMaterialSearchScore({ ...b, type: b.paperType }, targetQ, intent) ?? Number.MAX_SAFE_INTEGER)
-    );
-
     return {
       isSearching: true,
-      topMatches: scoreList(topMatches, effectiveQuery),
-      relatedMatches: scoreList(relatedMatches, effectiveQuery),
+      topMatches: rankMaterials(topMatches, effectiveQuery, intent),
+      relatedMatches: rankMaterials(relatedMatches, effectiveQuery, intent),
       intent,
       isAutoPivoted,
       effectiveQuery
