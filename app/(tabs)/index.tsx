@@ -24,6 +24,7 @@ import { CompleteProfilePromptModal } from '../../src/components/CompleteProfile
 import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
+import Constants from 'expo-constants';
 
 import {
   SearchIcon,
@@ -645,7 +646,7 @@ export default function HomeScreen() {
           <Text style={styles.footerLink}>Support</Text>
         </TouchableOpacity>
         <Text style={styles.footerDivider}>·</Text>
-        <Text style={styles.footerVersion}>MConnect v1.0.0</Text>
+        <Text style={styles.footerVersion}>MConnect v{Constants.expoConfig?.version || '3.0.0'}</Text>
       </View>
 
       {/* Built-in Portal Viewer Modal with Header & Back Button */}
