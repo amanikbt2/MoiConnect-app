@@ -209,6 +209,7 @@ export default function PastPapersScreen({ route }: any) {
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [papersData, setPapersData] = useState<PastPaperItem[]>([]);
+  const [campusLibrary, setCampusLibrary] = useState<PastPaperItem[]>([]);
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
   // Paginated feed state: only one small page is fetched at a time.
@@ -289,6 +290,13 @@ export default function PastPapersScreen({ route }: any) {
             });
           });
 
+        if (realPastPapers.length > 0) {
+          setCampusLibrary((prev) => {
+            const merged = [...prev, ...realPastPapers];
+            return Array.from(new Map(merged.map((p) => [p.id, p])).values());
+          });
+        }
+
         const nextPapers = realPastPapers.length > 0
           ? (demoSetting && !isSearch ? [...realPastPapers, ...INITIAL_PAST_PAPERS_DATA] : realPastPapers)
           : [];
@@ -318,6 +326,51 @@ export default function PastPapersScreen({ route }: any) {
       console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
     }
   };
+
+  // Pre-load campus library catalog in background so recommendations are always available
+  useEffect(() => {
+    if (campusLibrary.length === 0) {
+      apiRequest<{ data: IPaper[] }>('/papers?limit=50&type=past_paper')
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const mapped: PastPaperItem[] = res.data
+              .filter((p) => p.type === 'past_paper' || p.type === 'solution' || p.type === 'exam')
+              .map((p) => {
+                const materialId = p.mtid || `P${(p._id || '').substring(0, 4)}`;
+                return {
+                  id: p._id || (p as any).id,
+                  mtid: materialId,
+                  title: p.title,
+                  unitCode: p.unitCode || p.courseCode || 'MOI',
+                  unitName: p.unitName || p.title,
+                  school: p.school || 'Moi University',
+                  examYear: String(p.examYear || 2025),
+                  semester: p.semester || 'Semester 1',
+                  academicYear: p.academicYear || '',
+                  department: p.department || '',
+                  description: p.description || '',
+                  type: p.type,
+                  downloadsCount: p.downloads || 4500,
+                  starsCount: 28,
+                  ratingScore: p.ratingScore || '4.8',
+                  thumbnail: p.thumbnail 
+                    || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+                    || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+                  fileUrl: p.fileUrl,
+                  ttsTextUrl: (p as any).ttsTextUrl,
+                  hasSolutions: p.type === 'solution',
+                  tag: `MTID: ${materialId}`
+                };
+              });
+            setCampusLibrary((prev) => {
+              const combined = [...prev, ...mapped];
+              return Array.from(new Map(combined.map((item) => [item.id, item])).values());
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -405,11 +458,20 @@ export default function PastPapersScreen({ route }: any) {
     : (filteredPapers.length <= 3 ? filteredPapers : filteredPapers.slice(carouselPapers.length));
 
   const allPool = React.useMemo(() => {
-    return [
+    const combined = [
       ...papersData,
-      ...(showDemoMaterials ? RECOMMENDED_PAST_PAPERS : [])
+      ...campusLibrary,
+      ...INITIAL_PAST_PAPERS_DATA,
+      ...RECOMMENDED_PAST_PAPERS
     ];
-  }, [papersData, showDemoMaterials]);
+    const seen = new Set<string>();
+    return combined.filter((p) => {
+      const key = p.id || p.mtid;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [papersData, campusLibrary]);
 
   const searchRecommendations = React.useMemo(() => {
     if (!isSearching) return { youMayAlsoLike: [] as PastPaperItem[], continuationFeed: [] as PastPaperItem[], contextLabel: '' };
@@ -899,17 +961,18 @@ export default function PastPapersScreen({ route }: any) {
                 <>
                   <View style={[styles.sectionHeaderRow, { marginTop: 8 }]}>
                     <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
-                      <BookIcon color="#15803d" size={18} />
+                      <SparklesIcon color="#15803d" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>
-                        {smartSearch.isAutoPivoted
-                          ? `Matched for "${smartSearch.effectiveQuery}"`
-                          : (filteredPapers.length <= 4 ? 'Search Results' : 'All Matching Exam Papers')}
-                      </Text>
+                      <Text style={styles.sectionTitle}>Top Match Results</Text>
                       <Text style={styles.sectionSub}>
-                        {filteredPapers.length} paper{filteredPapers.length === 1 ? '' : 's'} found
-                        {isSearchLoading ? ' • updating...' : ''}
+                        {smartSearch.isAutoPivoted
+                          ? `Auto-matched for "${smartSearch.effectiveQuery}"`
+                          : (smartSearch.intent.school
+                              ? `Auto-matched for ${smartSearch.intent.school}`
+                              : smartSearch.intent.unitCode
+                                ? `Auto-matched for ${smartSearch.intent.unitCode}`
+                                : `${filteredPapers.length} paper${filteredPapers.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
                       </Text>
                     </View>
                   </View>
@@ -997,6 +1060,17 @@ export default function PastPapersScreen({ route }: any) {
                     decelerationRate="fast"
                     onScrollBeginDrag={() => { isSearchCarouselInteracting.current = true; }}
                     onScrollEndDrag={() => { setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000); }}
+                    onMomentumScrollEnd={(event) => {
+                      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+                      setSearchCarouselIndex(Math.max(0, Math.min(nextIndex, searchRecommendations.youMayAlsoLike.length - 1)));
+                      setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000);
+                    }}
+                    onScrollToIndexFailed={(info) => {
+                      searchCarouselListRef.current?.scrollToOffset({
+                        offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                        animated: true
+                      });
+                    }}
                     getItemLayout={(_, index) => ({
                       length: CAROUSEL_CARD_WIDTH + 14,
                       offset: (CAROUSEL_CARD_WIDTH + 14) * index,
@@ -1060,7 +1134,7 @@ export default function PastPapersScreen({ route }: any) {
                       <TrendingUpIcon color="#2563eb" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>More Recommended for You</Text>
+                      <Text style={styles.sectionTitle}>Trending & Recommended Past Papers</Text>
                       <Text style={styles.sectionSub}>
                         Continue browsing popular campus exams & model papers
                       </Text>

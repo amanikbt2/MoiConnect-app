@@ -61,7 +61,7 @@ for (const file of files) {
   lines.push(`    id: '${id}',`);
   lines.push(`    title: '${meta.title}',`);
   lines.push(`    category: '${meta.category}',`);
-  lines.push(`    source: require('../../assets/gifs/${file}'),`);
+  lines.push(`    source: null,`);
   lines.push(`    fileName: '${file}'`);
   lines.push(`  },`);
 }

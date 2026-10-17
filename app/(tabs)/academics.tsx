@@ -145,6 +145,7 @@ export default function AcademicsScreen({ route }: any) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [realUploadedNotes, setRealUploadedNotes] = useState<NoteItem[]>([]);
+  const [campusLibraryNotes, setCampusLibraryNotes] = useState<NoteItem[]>([]);
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
@@ -196,6 +197,13 @@ export default function AcademicsScreen({ route }: any) {
           fileUrl: p.fileUrl,
           ttsTextUrl: (p as any).ttsTextUrl
         }));
+        if (mapped.length > 0) {
+          setCampusLibraryNotes((prev) => {
+            const merged = [...prev, ...mapped];
+            return Array.from(new Map(merged.map((n) => [n.id, n])).values());
+          });
+        }
+
         setRealUploadedNotes((previous) => {
           if (isSearch && !append) {
             return rankMaterials(mapped, searchQueryParam!.trim());
@@ -222,6 +230,49 @@ export default function AcademicsScreen({ route }: any) {
       console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
     }
   };
+
+  // Pre-load campus library notes in background so recommendations are always available
+  useEffect(() => {
+    if (campusLibraryNotes.length === 0) {
+      apiRequest<{ data: IPaper[] }>('/papers?limit=50&type=notes')
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const noteMaterials = res.data.filter((p) =>
+              ['notes', 'revision', 'lecture_notes'].includes(String(p.type || '').toLowerCase()) || !p.type
+            );
+            const mapped: NoteItem[] = noteMaterials.map((p) => ({
+              id: p._id || (p as any).id,
+              mtid: p.mtid || `N${(p._id || '').substring(0, 4)}`,
+              title: p.title,
+              unitCode: p.unitCode || p.courseCode || 'MOI',
+              unitName: p.unitName || p.title,
+              school: p.school || 'Moi University',
+              department: p.department || '',
+              courseCode: p.courseCode || '',
+              semester: p.semester || 'Semester 1',
+              academicYear: p.academicYear || '',
+              examYear: String(p.examYear || 2025),
+              paperType: p.type === 'notes' ? 'Revision Notes' : (p.type === 'cat' ? 'CAT Paper' : (p.type === 'past_paper' ? 'Past Paper' : 'Study Guide')),
+              downloads: formatCount(p.downloads || 4200),
+              rating: `${p.ratingScore || '4.8'} ⭐`,
+              description: p.description || '',
+              tag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
+              thumbnail: p.thumbnail 
+                || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+                || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+              author: typeof p.submittedBy === 'object' && p.submittedBy ? (p.submittedBy as any).name || 'Moi Student' : 'Moi Student',
+              fileUrl: p.fileUrl,
+              ttsTextUrl: (p as any).ttsTextUrl
+            }));
+            setCampusLibraryNotes((prev) => {
+              const combined = [...prev, ...mapped];
+              return Array.from(new Map(combined.map((item) => [item.id, item])).values());
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const initialSearch = route?.params?.search ? String(route.params.search).trim() : searchQuery.trim();
@@ -450,16 +501,17 @@ export default function AcademicsScreen({ route }: any) {
     const seen = new Set<string>();
     return [
       ...realUploadedNotes,
-      ...(showDemoMaterials ? FOR_YOU_CAROUSEL : []),
-      ...(showDemoMaterials ? GRID_SECTION_1 : []),
-      ...(showDemoMaterials ? TRENDING_CAROUSEL : []),
-      ...(showDemoMaterials ? GRID_SECTION_2 : [])
+      ...campusLibraryNotes,
+      ...FOR_YOU_CAROUSEL,
+      ...GRID_SECTION_1,
+      ...TRENDING_CAROUSEL,
+      ...GRID_SECTION_2
     ].filter((item) => {
       if (seen.has(item.id)) return false;
       seen.add(item.id);
       return true;
     });
-  }, [realUploadedNotes, showDemoMaterials]);
+  }, [realUploadedNotes, campusLibraryNotes]);
 
   const searchRecommendations = React.useMemo(() => {
     if (!smartSearchResults.isSearching) return { youMayAlsoLike: [] as NoteItem[], continuationFeed: [] as NoteItem[], contextLabel: '' };
@@ -1131,7 +1183,7 @@ export default function AcademicsScreen({ route }: any) {
                           <TrendingUpIcon color="#2563eb" size={18} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.sectionTitle}>More Recommended for You</Text>
+                          <Text style={styles.sectionTitle}>Trending & Recommended Revision Notes</Text>
                           <Text style={styles.sectionSub}>
                             Continue browsing popular lecture notes & revision guides
                           </Text>

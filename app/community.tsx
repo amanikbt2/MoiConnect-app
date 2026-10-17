@@ -323,6 +323,106 @@ function SwipeableMessageItem({
   );
 }
 
+const SmartGifCardItem = React.memo(function SmartGifCardItem({
+  gif,
+  onPress,
+  shouldLoad
+}: {
+  gif: any;
+  onPress: () => void;
+  shouldLoad: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!loaded && !hasError && shouldLoad) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, {
+            toValue: 1,
+            duration: 850,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          }),
+          Animated.timing(shimmerAnim, {
+            toValue: 0,
+            duration: 850,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          })
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+  }, [loaded, hasError, shouldLoad]);
+
+  const handleImageLoad = () => {
+    setLoaded(true);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true
+    }).start();
+  };
+
+  const shimmerOpacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.35, 0.85]
+  });
+
+  return (
+    <TouchableOpacity
+      style={styles.gifCard}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      {/* Smart Shimmer Skeleton (shown while image is loading or before reached) */}
+      {(!loaded || !shouldLoad) && (
+        <View style={styles.gifShimmerContainer}>
+          <Animated.View style={[styles.gifShimmerPulse, { opacity: shimmerOpacity }]} />
+          <View style={styles.gifShimmerCenterBadge}>
+            <Text style={styles.gifShimmerCenterText}>GIF</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Only start fetching online GIF image when GIFs tab is active and visible */}
+      {shouldLoad && !hasError && (
+        <Animated.Image
+          source={{ uri: gif.previewUrl || gif.url }}
+          style={[styles.gifCardImage, { opacity: fadeAnim }]}
+          resizeMode="cover"
+          onLoad={handleImageLoad}
+          onError={() => setHasError(true)}
+        />
+      )}
+
+      {/* Fallback if network fails */}
+      {hasError && (
+        <View style={styles.gifFallbackContainer}>
+          <Text style={styles.gifFallbackText}>GIF</Text>
+        </View>
+      )}
+
+      {/* WhatsApp-style bottom badge */}
+      {loaded && (
+        <View style={styles.gifCardBadge}>
+          <Text style={styles.gifCardBadgeText}>GIF</Text>
+        </View>
+      )}
+
+      {/* Title */}
+      <Text style={styles.gifCardTitle} numberOfLines={1}>
+        {gif.title}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
 interface TypingUser {
   userId: string;
   userName: string;
@@ -3211,25 +3311,19 @@ export default function CommunityScreen() {
                     {GIFS
                       .filter((g) => gifCategory === 'All' || g.category.toLowerCase() === gifCategory.toLowerCase())
                       .map((gif) => (
-                        <TouchableOpacity
+                        <SmartGifCardItem
                           key={gif.id}
-                          style={styles.gifCard}
+                          gif={gif}
+                          shouldLoad={showStickerPicker && pickerTab === 'gifs'}
                           onPress={() => {
                             handleSendMessage(undefined, {
-                              name: gif.fileName,
-                              url: gif.id,
+                              name: gif.fileName || `${gif.title}.gif`,
+                              url: gif.url,
                               size: 'GIF',
                               type: 'image'
                             });
                           }}
-                          activeOpacity={0.85}
-                        >
-                          <Image source={gif.source} style={styles.gifCardImage} resizeMode="cover" />
-                          <View style={styles.gifCardBadge}>
-                            <Text style={styles.gifCardBadgeText}>GIF</Text>
-                          </View>
-                          <Text style={styles.gifCardTitle} numberOfLines={1}>{gif.title}</Text>
-                        </TouchableOpacity>
+                        />
                       ))}
                   </ScrollView>
                 </View>
@@ -4876,6 +4970,39 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2
+  },
+  gifShimmerContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden'
+  },
+  gifShimmerPulse: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#cbd5e1'
+  },
+  gifShimmerCenterBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6
+  },
+  gifShimmerCenterText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b'
+  },
+  gifFallbackContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  gifFallbackText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94a3b8'
   },
   stickerPickerScroll: {
     paddingHorizontal: 12,

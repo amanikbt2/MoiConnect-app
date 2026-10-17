@@ -645,12 +645,32 @@ export function getSearchRecommendationSections<T extends MaterialSearchFields>(
     a.relatedScore - b.relatedScore || b.downloads - a.downloads || b.rating - a.rating || a.index - b.index
   );
 
-  // Top 4 to 8 closest items for "You May Also Like" carousel
-  const youMayAlsoLike = sortedByRelatedness.slice(0, Math.min(8, sortedByRelatedness.length)).map((e) => e.item);
+  // Intelligently distribute between "You May Also Like" carousel and the continuation feed
+  // so BOTH sections are guaranteed to have content whenever materials exist.
+  const totalCount = sortedByRelatedness.length;
+  let carouselCount = 0;
+  if (totalCount >= 10) {
+    carouselCount = 6;
+  } else if (totalCount >= 6) {
+    carouselCount = Math.min(4, Math.floor(totalCount / 2));
+  } else if (totalCount >= 2) {
+    carouselCount = Math.floor(totalCount / 2);
+  } else if (totalCount === 1) {
+    carouselCount = 1;
+  }
+
+  const youMayAlsoLike = sortedByRelatedness.slice(0, carouselCount).map((e) => e.item);
   const carouselIds = new Set(youMayAlsoLike.map((item) => String((item as any).id || (item as any)._id || item.mtid || '')));
 
   // The rest form the endless continuation feed, personalized by profile and popularity
-  const continuationPool = remaining.filter((item) => !carouselIds.has(String((item as any).id || (item as any)._id || item.mtid || '')));
+  let continuationPool = remaining.filter((item) => !carouselIds.has(String((item as any).id || (item as any)._id || item.mtid || '')));
+
+  // If continuation feed would be empty but carousel has more than 1 item, share with continuation feed
+  if (continuationPool.length === 0 && youMayAlsoLike.length > 1) {
+    const moved = youMayAlsoLike.pop()!;
+    continuationPool.push(moved);
+  }
+
   const continuationFeed = rankMaterialsForProfile(continuationPool, profile, searchHistory);
 
   return {

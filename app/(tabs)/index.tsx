@@ -393,36 +393,20 @@ export default function HomeScreen() {
           containerStyle={{ marginTop: 8, marginHorizontal: 0 }}
         />
 
-        {/* Smart Recognized Intent & "Did You Mean" Helper Card */}
-        {smartIntent && (smartIntent.didYouMeanText || smartIntent.chips.length > 0) && (
+        {/* Smart "Did You Mean" Helper Card */}
+        {smartIntent && smartIntent.didYouMeanText && (
           <View style={styles.homeSmartSearchBox}>
-            {smartIntent.didYouMeanText && (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setSearchQuery(smartIntent.autoPivotSuggestion || smartIntent.didYouMeanText!)}
-                style={styles.homeDidYouMeanRow}
-              >
-                <SparklesIcon color="#15803d" size={14} />
-                <Text style={styles.homeDidYouMeanText}>
-                  Did you mean:{' '}
-                  <Text style={styles.homeDidYouMeanBold}>{smartIntent.didYouMeanText}</Text>?
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {smartIntent.chips.length > 0 && (
-              <View style={styles.homeChipsRow}>
-                {smartIntent.chips.map((chip, idx) => (
-                  <TouchableOpacity
-                    key={`${chip.label}-${idx}`}
-                    onPress={() => setSearchQuery(chip.label)}
-                    style={styles.homeChip}
-                  >
-                    <Text style={styles.homeChipText}>{chip.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setSearchQuery(smartIntent.autoPivotSuggestion || smartIntent.didYouMeanText!)}
+              style={styles.homeDidYouMeanRow}
+            >
+              <SparklesIcon color="#15803d" size={14} />
+              <Text style={styles.homeDidYouMeanText}>
+                Did you mean:{' '}
+                <Text style={styles.homeDidYouMeanBold}>{smartIntent.didYouMeanText}</Text>?
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.8}

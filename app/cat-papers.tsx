@@ -191,6 +191,7 @@ export default function CatPapersScreen({ route }: any) {
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [catsData, setCatsData] = useState<CATPaperItem[]>([]);
+  const [campusLibrary, setCampusLibrary] = useState<CATPaperItem[]>([]);
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
   const [papersPage, setPapersPage] = useState(1);
@@ -270,6 +271,13 @@ export default function CatPapersScreen({ route }: any) {
             });
           });
 
+        if (realCatPapers.length > 0) {
+          setCampusLibrary((prev) => {
+            const merged = [...prev, ...realCatPapers];
+            return Array.from(new Map(merged.map((p) => [p.id, p])).values());
+          });
+        }
+
         const nextPapers = realCatPapers.length > 0
           ? (demoSetting && !isSearch ? [...realCatPapers, ...INITIAL_CAT_PAPERS_DATA] : realCatPapers)
           : [];
@@ -299,6 +307,57 @@ export default function CatPapersScreen({ route }: any) {
       console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
     }
   };
+
+  // Pre-load campus CAT assessments in background so recommendations are always available
+  useEffect(() => {
+    if (campusLibrary.length === 0) {
+      apiRequest<{ data: IPaper[] }>('/papers?limit=50&type=cat')
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const mapped: CATPaperItem[] = res.data
+              .filter((p) => p.type === 'cat' || p.type === 'quiz')
+              .map((p) => {
+                const materialId = p.mtid || `C${(p._id || '').substring(0, 4)}`;
+                const rawCatType = (p.title + ' ' + (p.description || '')).toUpperCase();
+                const detectedType: 'CAT 1' | 'CAT 2' | 'Mid-Sem Quiz' = rawCatType.includes('CAT 2') || rawCatType.includes('CAT II')
+                  ? 'CAT 2'
+                  : rawCatType.includes('QUIZ')
+                    ? 'Mid-Sem Quiz'
+                    : 'CAT 1';
+                return {
+                  id: p._id || (p as any).id,
+                  mtid: materialId,
+                  title: p.title,
+                  unitCode: p.unitCode || p.courseCode || 'MOI',
+                  unitName: p.unitName || p.title,
+                  school: p.school || 'Moi University',
+                  catType: detectedType,
+                  type: p.type,
+                  examYear: String(p.examYear || 2025),
+                  semester: p.semester || 'Semester 1',
+                  academicYear: p.academicYear || '',
+                  department: p.department || '',
+                  description: p.description || '',
+                  downloadsCount: p.downloads || 3200,
+                  starsCount: 15,
+                  ratingScore: p.ratingScore || '4.7',
+                  thumbnail: p.thumbnail 
+                    || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
+                    || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
+                  fileUrl: p.fileUrl,
+                  ttsTextUrl: (p as any).ttsTextUrl,
+                  tag: `MTID: ${materialId}`
+                };
+              });
+            setCampusLibrary((prev) => {
+              const combined = [...prev, ...mapped];
+              return Array.from(new Map(combined.map((item) => [item.id, item])).values());
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -373,11 +432,19 @@ export default function CatPapersScreen({ route }: any) {
   const isSearching = searchQuery.trim().length > 0;
 
   const allPool = React.useMemo(() => {
-    return [
+    const combined = [
       ...catsData,
-      ...(showDemoMaterials ? RECOMMENDED_CAT_PAPERS : [])
+      ...campusLibrary,
+      ...RECOMMENDED_CAT_PAPERS
     ];
-  }, [catsData, showDemoMaterials]);
+    const seen = new Set<string>();
+    return combined.filter((c) => {
+      const key = c.id || c.mtid;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [catsData, campusLibrary]);
 
   const searchRecommendations = React.useMemo(() => {
     if (!isSearching) return { youMayAlsoLike: [] as CATPaperItem[], continuationFeed: [] as CATPaperItem[], contextLabel: '' };
@@ -840,17 +907,18 @@ export default function CatPapersScreen({ route }: any) {
                 <>
                   <View style={[styles.sectionHeaderRow, { marginTop: 8 }]}>
                     <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
-                      <BookIcon color="#15803d" size={18} />
+                      <SparklesIcon color="#15803d" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>
-                        {smartSearch.isAutoPivoted
-                          ? `Matched for "${smartSearch.effectiveQuery}"`
-                          : (filteredCats.length <= 4 ? 'Search Results' : 'All Matching CAT Quizzes')}
-                      </Text>
+                      <Text style={styles.sectionTitle}>Top Match Results</Text>
                       <Text style={styles.sectionSub}>
-                        {filteredCats.length} assessment{filteredCats.length === 1 ? '' : 's'} found
-                        {isSearchLoading ? ' • updating...' : ''}
+                        {smartSearch.isAutoPivoted
+                          ? `Auto-matched for "${smartSearch.effectiveQuery}"`
+                          : (smartSearch.intent.school
+                              ? `Auto-matched for ${smartSearch.intent.school}`
+                              : smartSearch.intent.unitCode
+                                ? `Auto-matched for ${smartSearch.intent.unitCode}`
+                                : `${filteredCats.length} assessment${filteredCats.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
                       </Text>
                     </View>
                   </View>
@@ -938,6 +1006,17 @@ export default function CatPapersScreen({ route }: any) {
                     decelerationRate="fast"
                     onScrollBeginDrag={() => { isSearchCarouselInteracting.current = true; }}
                     onScrollEndDrag={() => { setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000); }}
+                    onMomentumScrollEnd={(event) => {
+                      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+                      setSearchCarouselIndex(Math.max(0, Math.min(nextIndex, searchRecommendations.youMayAlsoLike.length - 1)));
+                      setTimeout(() => { isSearchCarouselInteracting.current = false; }, 3000);
+                    }}
+                    onScrollToIndexFailed={(info) => {
+                      searchCarouselListRef.current?.scrollToOffset({
+                        offset: info.index * (CAROUSEL_CARD_WIDTH + 14),
+                        animated: true
+                      });
+                    }}
                     getItemLayout={(_, index) => ({
                       length: CAROUSEL_CARD_WIDTH + 14,
                       offset: (CAROUSEL_CARD_WIDTH + 14) * index,
@@ -1001,7 +1080,7 @@ export default function CatPapersScreen({ route }: any) {
                       <TrendingUpIcon color="#2563eb" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>More Recommended for You</Text>
+                      <Text style={styles.sectionTitle}>Trending & Recommended CAT Quizzes</Text>
                       <Text style={styles.sectionSub}>
                         Continue browsing popular continuous assessments & quizzes
                       </Text>
