@@ -646,7 +646,7 @@ export default function HomeScreen() {
           <Text style={styles.footerLink}>Support</Text>
         </TouchableOpacity>
         <Text style={styles.footerDivider}>·</Text>
-        <Text style={styles.footerVersion}>MConnect v{Constants.expoConfig?.version || '3.0.0'}</Text>
+        <Text style={styles.footerVersion}>MConnect v3.0.0</Text>
       </View>
 
       {/* Built-in Portal Viewer Modal with Header & Back Button */}
