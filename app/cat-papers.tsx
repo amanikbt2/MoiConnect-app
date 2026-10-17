@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
-import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../src/services/offlineStorage';
+import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
@@ -28,6 +28,8 @@ import { OfflineState } from '../src/components/OfflineState';
 import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
 import { SmartMirrorSkeleton } from '../src/components/SmartMirrorSkeleton';
 import { parseSmartSearchQuery } from '../src/utils/smartSearchParser';
+import { SmartSearchAutocomplete } from '../src/components/SmartSearchAutocomplete';
+import { HighlightText } from '../src/components/HighlightText';
 import { IPaper } from '@moi/shared';
 import {
   SearchIcon,
@@ -212,6 +214,7 @@ export default function CatPapersScreen({ route }: any) {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     if (typeof route?.params?.search === 'string') setSearchQuery(route.params.search);
@@ -532,7 +535,16 @@ export default function CatPapersScreen({ route }: any) {
             </View>
             <View style={styles.gridBody}>
               <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
-              <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+              {searchQuery.trim().length > 0 && smartSearch.intent.keywords.length > 0 ? (
+                <HighlightText
+                  text={item.title}
+                  highlightWords={smartSearch.intent.keywords}
+                  style={styles.gridTitle}
+                  numberOfLines={2}
+                />
+              ) : (
+                <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+              )}
               <Text style={styles.gridSub}>{item.school}</Text>
               <View style={styles.gridFooter}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><DownloadIcon color="#15803d" size={12} /><Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text></View>
@@ -601,13 +613,18 @@ export default function CatPapersScreen({ route }: any) {
               placeholder="Describe what you want..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
               onChangeText={(text) => {
                 setSearchQuery(text);
                 if (requestedQuery && text.trim() !== requestedQuery) {
                   setRequestedQuery(null);
                 }
               }}
-              onSubmitEditing={() => { void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory)); void reportMaterialSearch(searchQuery, 'cats'); }}
+              onSubmitEditing={() => {
+                setIsSearchFocused(false);
+                void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+                void reportMaterialSearch(searchQuery, 'cats');
+              }}
               returnKeyType="search"
               style={styles.searchInput}
               underlineColorAndroid="transparent"
@@ -618,6 +635,24 @@ export default function CatPapersScreen({ route }: any) {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Instant As-You-Type Autocomplete Dropdown */}
+          <SmartSearchAutocomplete
+            query={searchQuery}
+            visible={isSearchFocused}
+            historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
+            onSelectSuggestion={(suggestion) => {
+              setSearchQuery(suggestion);
+              setIsSearchFocused(false);
+              setForcedOriginalQuery(null);
+              void saveMaterialSearchQuery(suggestion, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+              void reportMaterialSearch(suggestion, 'cats');
+            }}
+            onClearHistory={() => {
+              void clearMaterialSearchHistory().then(() => setSearchHistory([]));
+            }}
+            containerStyle={{ marginHorizontal: 0, marginTop: 8 }}
+          />
         </View>
 
         {/* Google-Style Smart Search Header */}
@@ -634,6 +669,11 @@ export default function CatPapersScreen({ route }: any) {
           }}
           onChipPress={(chip) => {
             setSearchQuery(chip);
+            setForcedOriginalQuery(null);
+          }}
+          onRemoveChip={(chip) => {
+            const remainingQuery = searchQuery.replace(new RegExp(`\\b${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
+            setSearchQuery(remainingQuery);
             setForcedOriginalQuery(null);
           }}
         />

@@ -11,6 +11,7 @@ export interface SmartSearchHeaderProps {
   onAcceptSuggestion: (suggestion: string) => void;
   onSearchInsteadOriginal?: () => void;
   onChipPress?: (chipLabel: string) => void;
+  onRemoveChip?: (chipLabel: string) => void;
 }
 
 export function SmartSearchHeader({
@@ -19,7 +20,8 @@ export function SmartSearchHeader({
   totalResultsCount = 0,
   onAcceptSuggestion,
   onSearchInsteadOriginal,
-  onChipPress
+  onChipPress,
+  onRemoveChip
 }: SmartSearchHeaderProps) {
   const { isDark } = useTheme();
 
@@ -97,16 +99,28 @@ export function SmartSearchHeader({
                   : styles.chipDefault;
 
               return (
-                <TouchableOpacity
+                <View
                   key={`${chip.label}-${index}`}
-                  activeOpacity={0.7}
-                  onPress={() => onChipPress?.(chip.label)}
-                  style={[styles.chip, chipColorStyle, isDark && styles.chipDark]}
+                  style={[styles.chip, chipColorStyle, isDark && styles.chipDark, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
                 >
-                  <Text style={[styles.chipText, isDark && styles.textDark]}>
-                    {chip.label}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => onChipPress?.(chip.label)}
+                  >
+                    <Text style={[styles.chipText, isDark && styles.textDark]}>
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                  {onRemoveChip && (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      onPress={() => onRemoveChip(chip.label)}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748b', marginLeft: 2 }}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               );
             })}
           </View>

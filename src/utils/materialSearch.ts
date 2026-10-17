@@ -242,15 +242,56 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
 export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string, parsedIntent?: ParsedSearchIntent): T[] {
   if (!query.trim()) return items;
   const intent = parsedIntent || parseSmartSearchQuery(query);
+  const currentYear = new Date().getFullYear();
+
   return items
-    .map((item, index) => ({
-      item,
-      index,
-      score: getMaterialSearchScore(item, query, intent),
-      downloads: Number((item as any).downloads || (item as any).downloadsCount || 0)
-    }))
-    .filter((entry): entry is { item: T; index: number; score: number; downloads: number } => entry.score !== null)
-    .sort((a, b) => a.score - b.score || b.downloads - a.downloads || a.index - b.index)
+    .map((item, index) => {
+      const matchScore = getMaterialSearchScore(item, query, intent);
+      if (matchScore === null) return null;
+
+      const downloads = Number((item as any).downloads || (item as any).downloadsCount || 0);
+      const rating = Number((item as any).ratingScore || (item as any).rating || 4.0);
+      const examYear = Number(item.examYear || 0);
+
+      // 1. Normalized Relevance: matchScore is 0..20 (0 is perfect exact match, 10 is loose match)
+      // Convert to 0..1 scale where 1 is highest relevance
+      const normRelevance = Math.max(0, 1 - (matchScore / 12));
+
+      // 2. Normalized Popularity: log scale of downloads (0 to 10k+) + rating (0 to 10)
+      const normDownloads = Math.min(1, Math.log10(Math.max(1, downloads) + 1) / 4); // 10,000 DLs = 1.0
+      const normRating = Math.min(1, rating / 10);
+      const normPopularity = (normDownloads * 0.7) + (normRating * 0.3);
+
+      // 3. Normalized Freshness: recent exam years (2020 - 2026+) get high freshness score
+      let normFreshness = 0.5;
+      if (examYear >= 2000) {
+        const yearDiff = currentYear - examYear;
+        normFreshness = Math.max(0, Math.min(1, 1 - (yearDiff / 15)));
+      }
+
+      // Composite Weighted Score: 65% Relevance + 20% Popularity + 15% Freshness
+      // Higher composite score ranks first
+      const compositeScore = (normRelevance * 0.65) + (normPopularity * 0.20) + (normFreshness * 0.15);
+
+      return {
+        item,
+        index,
+        matchScore,
+        downloads,
+        compositeScore
+      };
+    })
+    .filter((entry): entry is { item: T; index: number; matchScore: number; downloads: number; compositeScore: number } => entry !== null)
+    .sort((a, b) => {
+      // Primary tier check: if one is exact MTID/unitCode (matchScore <= 1) and other is not, exact always wins
+      if (a.matchScore <= 1 && b.matchScore > 1) return -1;
+      if (b.matchScore <= 1 && a.matchScore > 1) return 1;
+
+      // Otherwise sort by composite score (descending)
+      const diff = b.compositeScore - a.compositeScore;
+      if (Math.abs(diff) > 0.005) return diff;
+      return b.downloads - a.downloads || a.index - b.index;
+    })
     .map(({ item }) => item);
 }
 

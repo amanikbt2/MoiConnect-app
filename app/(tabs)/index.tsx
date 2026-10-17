@@ -18,12 +18,13 @@ import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
-import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
+import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../../src/services/offlineStorage';
 import { PortalViewerModal, PortalConfig } from '../../src/components/PortalViewerModal';
 import { CompleteProfilePromptModal } from '../../src/components/CompleteProfilePromptModal';
 import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
+import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
 import Constants from 'expo-constants';
 
 import {
@@ -125,13 +126,16 @@ export default function HomeScreen() {
     setShowPortalModal(true);
   };
 
-  const handleGlobalSearch = () => {
-    const query = searchQuery.trim();
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const handleGlobalSearch = (overrideQuery?: string) => {
+    const query = (overrideQuery ?? searchQuery).trim();
     if (!query) return;
     void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
     void reportMaterialSearch(query, 'home');
     router.push(getGlobalSearchDestination(query));
     setSearchQuery('');
+    setIsSearchFocused(false);
   };
 
   const handleSearchKeyPress = (event: any) => {
@@ -356,7 +360,8 @@ export default function HomeScreen() {
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onSubmitEditing={handleGlobalSearch}
+            onFocus={() => setIsSearchFocused(true)}
+            onSubmitEditing={() => handleGlobalSearch()}
             onKeyPress={handleSearchKeyPress}
             returnKeyType="search"
             blurOnSubmit={false}
@@ -365,13 +370,28 @@ export default function HomeScreen() {
           {searchQuery.trim().length > 0 && (
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={handleGlobalSearch}
+              onPress={() => handleGlobalSearch()}
               style={styles.searchSendBtn}
             >
               <SendIcon color="#ffffff" size={14} />
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Instant As-You-Type Autocomplete Dropdown */}
+        <SmartSearchAutocomplete
+          query={searchQuery}
+          visible={isSearchFocused}
+          historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
+          onSelectSuggestion={(suggestion) => {
+            setSearchQuery(suggestion);
+            handleGlobalSearch(suggestion);
+          }}
+          onClearHistory={() => {
+            void clearMaterialSearchHistory().then(() => setSearchHistory([]));
+          }}
+          containerStyle={{ marginTop: 8, marginHorizontal: 0 }}
+        />
 
         {/* Smart Recognized Intent & "Did You Mean" Helper Card */}
         {smartIntent && (smartIntent.didYouMeanText || smartIntent.chips.length > 0) && (
@@ -406,7 +426,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={handleGlobalSearch}
+              onPress={() => handleGlobalSearch()}
               style={styles.homeInstantSearchJump}
             >
               <Text style={styles.homeInstantSearchJumpText}>

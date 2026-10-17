@@ -27,7 +27,7 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
-import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery } from '../../src/services/offlineStorage';
+import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { getMaterialSearchScore, rankMaterials, rankMaterialsForProfile, getSearchRecommendationSections } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
@@ -35,6 +35,8 @@ import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/componen
 import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
 import { SmartMirrorSkeleton } from '../../src/components/SmartMirrorSkeleton';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
+import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
+import { HighlightText } from '../../src/components/HighlightText';
 import Constants from 'expo-constants';
 
 import {
@@ -148,6 +150,7 @@ export default function AcademicsScreen({ route }: any) {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     getMaterialSearchHistoryEntries().then(setSearchHistory);
@@ -761,7 +764,16 @@ export default function AcademicsScreen({ route }: any) {
           <Text style={styles.gridMetaLine} numberOfLines={1}>
             MTID: {mtidText} • {item.unitCode} • {shortSchool}
           </Text>
-          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+          {smartSearchResults.isSearching && smartSearchResults.intent.keywords.length > 0 ? (
+            <HighlightText
+              text={item.title}
+              highlightWords={smartSearchResults.intent.keywords}
+              style={styles.gridTitle}
+              numberOfLines={2}
+            />
+          ) : (
+            <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+          )}
 
           <View style={styles.gridDivider} />
 
@@ -837,13 +849,18 @@ export default function AcademicsScreen({ route }: any) {
                 placeholder="Describe what you want..."
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
+                onFocus={() => setIsSearchFocused(true)}
                 onChangeText={(text) => {
                   setSearchQuery(text);
                   if (requestedQuery && text.trim() !== requestedQuery) {
                     setRequestedQuery(null);
                   }
                 }}
-                onSubmitEditing={() => { void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory)); void reportMaterialSearch(searchQuery, 'notes'); }}
+                onSubmitEditing={() => {
+                  setIsSearchFocused(false);
+                  void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+                  void reportMaterialSearch(searchQuery, 'notes');
+                }}
                 returnKeyType="search"
                 style={styles.searchInput}
               />
@@ -853,6 +870,24 @@ export default function AcademicsScreen({ route }: any) {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Instant As-You-Type Autocomplete Dropdown */}
+            <SmartSearchAutocomplete
+              query={searchQuery}
+              visible={isSearchFocused}
+              historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
+              onSelectSuggestion={(suggestion) => {
+                setSearchQuery(suggestion);
+                setIsSearchFocused(false);
+                setForcedOriginalQuery(null);
+                void saveMaterialSearchQuery(suggestion, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+                void reportMaterialSearch(suggestion, 'notes');
+              }}
+              onClearHistory={() => {
+                void clearMaterialSearchHistory().then(() => setSearchHistory([]));
+              }}
+              containerStyle={{ marginHorizontal: 0, marginTop: 8 }}
+            />
           </View>
 
           {/* Filter Discs Header */}
@@ -914,6 +949,11 @@ export default function AcademicsScreen({ route }: any) {
                 }}
                 onChipPress={(chip) => {
                   setSearchQuery(chip);
+                  setForcedOriginalQuery(null);
+                }}
+                onRemoveChip={(chip) => {
+                  const remainingQuery = searchQuery.replace(new RegExp(`\\b${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
+                  setSearchQuery(remainingQuery);
                   setForcedOriginalQuery(null);
                 }}
               />

@@ -14,9 +14,12 @@ import {
   AcademicUnitEntry
 } from '../data/moiAcademicDictionary';
 
+import { expandQueryAcronyms, stemToken, PHONETIC_SPELL_CORRECTIONS } from './academicAcronyms';
+
 export interface ParsedSearchIntent {
   rawQuery: string;
   cleanedQuery: string;
+  expandedQuery?: string;
   unitCode?: string;
   unitName?: string;
   semester?: string;
@@ -26,6 +29,7 @@ export interface ParsedSearchIntent {
   school?: string;
   department?: string;
   keywords: string[];
+  stemmedKeywords?: string[];
   hasCorrection: boolean;
   correctedQuery?: string;
   didYouMeanText?: string;
@@ -263,7 +267,17 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
   const cleaned = rawQuery.trim();
   // Pre-split glued keywords e.g. "examcsc 111" -> "exam csc 111", "notescsc" -> "notes csc"
   const separatedQuery = cleaned.replace(/\b(exam|exams|pastpaper|pastpapers|paper|papers|cat|cats|note|notes|quiz|solution|solutions)([a-zA-Z]{2,4}\d{0,3})\b/gi, '$1 $2');
+  
+  // 0. Expand Acronyms and Synonyms (e.g. "os" -> "Operating Systems", "dbms" -> "Database Management Systems")
+  const { expandedText, addedKeywords } = expandQueryAcronyms(separatedQuery);
+  const isAcronymExpanded = expandedText.toLowerCase() !== separatedQuery.toLowerCase();
+
+  const activeQueryText = isAcronymExpanded ? `${separatedQuery} ${expandedText}` : separatedQuery;
   const tokens = separatedQuery.split(/\s+/).filter(Boolean);
+  const expandedTokens = expandedText.split(/\s+/).filter(Boolean);
+  const allTokens = Array.from(new Set([...tokens, ...expandedTokens]));
+  const stemmedKeywords = allTokens.map(stemToken);
+
   const chips: ParsedSearchIntent['chips'] = [];
 
   let detectedUnitCode: string | undefined;
@@ -306,35 +320,38 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
     }
   }
 
-  // 2. Check for Unit Name / Subject (e.g. "differetial calulus" -> "Differential Calculus")
+  // 2. Check for Unit Name / Subject (testing raw query first, then expanded acronyms)
   if (!detectedUnitCode || !detectedUnitName) {
-    // Try full query or multi-word segments
-    const nameMatch = matchClosestUnitName(cleaned);
-    if (nameMatch) {
-      detectedUnitCode = detectedUnitCode || nameMatch.unit.code;
-      detectedUnitName = nameMatch.unit.name;
-      detectedSchool = detectedSchool || nameMatch.unit.school;
-      detectedDepartment = detectedDepartment || nameMatch.unit.department;
+    const queriesToTest = isAcronymExpanded ? [cleaned, expandedText] : [cleaned];
+    for (const qTest of queriesToTest) {
+      const nameMatch = matchClosestUnitName(qTest);
+      if (nameMatch) {
+        detectedUnitCode = detectedUnitCode || nameMatch.unit.code;
+        detectedUnitName = nameMatch.unit.name;
+        detectedSchool = detectedSchool || nameMatch.unit.school;
+        detectedDepartment = detectedDepartment || nameMatch.unit.department;
 
-      if (!chips.some((c) => c.label === nameMatch.unit.code)) {
-        chips.push({ label: nameMatch.unit.code, type: 'unit' });
-      }
+        if (!chips.some((c) => c.label === nameMatch.unit.code)) {
+          chips.push({ label: nameMatch.unit.code, type: 'unit' });
+        }
 
-      if (nameMatch.distance > 0) {
-        hasCorrection = true;
-        typoFixedFrom = cleaned;
+        if (nameMatch.distance > 0 || isAcronymExpanded) {
+          hasCorrection = true;
+          typoFixedFrom = cleaned;
+        }
+        break;
       }
     }
   }
 
   // 3. Detect Semester (e.g. "sem1", "sem 2", "s1")
-  const semester = detectSemester(tokens);
+  const semester = detectSemester(allTokens);
   if (semester) {
     chips.push({ label: semester, type: 'semester' });
   }
 
   // 4. Detect Year of Study (e.g. "yr 1", "year 2", "y3")
-  const yearOfStudy = detectYearOfStudy(tokens);
+  const yearOfStudy = detectYearOfStudy(allTokens);
   if (yearOfStudy) {
     chips.push({ label: yearOfStudy, type: 'year' });
   }
@@ -346,14 +363,14 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
   }
 
   // 6. Detect Material Type (e.g. "past paper", "cat", "notes")
-  const materialType = detectMaterialType(tokens);
+  const materialType = detectMaterialType(allTokens);
   if (materialType) {
     chips.push({ label: materialType.label, type: 'material' });
   }
 
   // 7. Detect School / Department if not already matched
   if (!detectedSchool) {
-    const schoolOrDept = detectSchoolOrDepartment(cleaned);
+    const schoolOrDept = detectSchoolOrDepartment(activeQueryText);
     if (schoolOrDept.school) {
       detectedSchool = schoolOrDept.school;
       chips.push({ label: schoolOrDept.school, type: 'school' });
@@ -381,6 +398,11 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
       didYouMeanText += ` (${extras})`;
     }
     autoPivotSuggestion = detectedUnitCode;
+  } else if (isAcronymExpanded) {
+    correctedQuery = expandedText;
+    didYouMeanText = expandedText;
+    autoPivotSuggestion = expandedText;
+    hasCorrection = true;
   } else if (hasCorrection && typoFixedFrom) {
     correctedQuery = cleaned.replace(new RegExp(typoFixedFrom, 'i'), detectedUnitCode || '');
     didYouMeanText = correctedQuery;
@@ -389,6 +411,7 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
   return {
     rawQuery,
     cleanedQuery: cleaned,
+    expandedQuery: isAcronymExpanded ? expandedText : undefined,
     unitCode: detectedUnitCode,
     unitName: detectedUnitName,
     semester,
@@ -397,8 +420,9 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
     materialType: materialType?.type,
     school: detectedSchool,
     department: detectedDepartment,
-    keywords: tokens,
-    hasCorrection: hasCorrection && Boolean(didYouMeanText),
+    keywords: allTokens,
+    stemmedKeywords,
+    hasCorrection: (hasCorrection || isAcronymExpanded) && Boolean(didYouMeanText),
     correctedQuery,
     didYouMeanText,
     autoPivotSuggestion,
