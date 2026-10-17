@@ -33,9 +33,9 @@ export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
       return [{ text, isMatch: false }];
     }
 
-    // Escape regex tokens
+    // Escape regex tokens and enforce whole word boundaries
     const escaped = cleanTokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const regex = new RegExp(`(${escaped})`, 'gi');
+    const regex = new RegExp(`(\\b(?:${escaped})\\b)`, 'gi');
 
     const split = text.split(regex);
     return split.map((segment) => ({

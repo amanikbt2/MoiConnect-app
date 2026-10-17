@@ -128,7 +128,7 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
         title: `${unit.code} • ${unit.name}`,
         subtitle: `${unit.department || unit.school}`,
         badge: 'UNIT',
-        queryValue: unit.code
+        queryValue: `${unit.code} ${unit.name}`
       });
     });
 

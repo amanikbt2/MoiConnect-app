@@ -131,10 +131,19 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   const itemDeptNorm = normalize(item.department);
   const intentDeptNorm = intent.department ? normalize(intent.department) : '';
 
+  const itemUnitCodeRaw = String(item.unitCode || item.courseCode || '').toLowerCase();
+  const itemTitle = normalize(item.title);
+  const itemUnitName = normalize(item.unitName);
+  const itemExamYear = String(item.examYear || '');
+  const itemSemester = normalize(item.semester);
   const itemPrefix = (item.unitCode || item.courseCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
   const intentPrefix = (intent.unitCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
 
-  // 1. Matched by canonical unit code from intent parser (e.g. "CSC 111", "CSC 112", "EDE 211")
+  // 1. Exact Course Code / Unit Code Match (HIGHEST PRIORITY)
+  // e.g. "MAT 210", "MAT210", "CSC 214"
+  if (normalizedQueryId && (itemUnitCodeNorm === normalizedQueryId || itemCourseCodeNorm === normalizedQueryId)) {
+    return 1;
+  }
   if (intent.unitCode) {
     const targetCodeNorm = normalizeId(intent.unitCode);
     if (itemUnitCodeNorm === targetCodeNorm || itemCourseCodeNorm === targetCodeNorm) {
@@ -142,42 +151,53 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
     }
   }
 
-  // 2. Direct exact match on unitCode with space stripped (e.g. "com110" matches "COM 110")
-  if (normalizedQueryId && (itemUnitCodeNorm === normalizedQueryId || itemCourseCodeNorm === normalizedQueryId)) {
-    return 1;
+  // 2. Unit Code Prefix or Sub-Code Match
+  // e.g. "CSC 2" or "MAT"
+  if (normalizedQueryId && normalizedQueryId.length >= 2) {
+    if (itemUnitCodeNorm.startsWith(normalizedQueryId) || itemCourseCodeNorm.startsWith(normalizedQueryId)) {
+      return 2;
+    }
   }
 
-  // 3. Matched by parsed unit name (e.g. "Differential Calculus")
+  // 3. Document Title / Unit Name Exact or Starts-With Match (SECOND PRIORITY)
+  // e.g. "Formal Language and Automata theory"
+  if (itemTitle === q || itemUnitName === q) {
+    return 3;
+  }
+  if (itemTitle.startsWith(q) || itemUnitName.startsWith(q)) {
+    return 4;
+  }
+  if (itemTitle.includes(q) || itemUnitName.includes(q)) {
+    return 5;
+  }
+
+  // If parsed intent matched a unit name from dictionary
   if (intent.unitName) {
     const targetNameNorm = normalize(intent.unitName);
-    const itemTitleNorm = normalize(item.title);
-    const itemUnitNameNorm = normalize(item.unitName);
-    if (itemTitleNorm.includes(targetNameNorm) || itemUnitNameNorm.includes(targetNameNorm)) {
-      return 2;
+    if (itemTitle.includes(targetNameNorm) || itemUnitName.includes(targetNameNorm)) {
+      return 5;
     }
   }
 
-  // 4. Same unit prefix + same school or department (e.g. search has "CSC 111", item is "CSC 211" in Science)
+  // 4. Same unit prefix (e.g. searching "CSC 111", item is "CSC 214")
   if (intentPrefix && itemPrefix && itemPrefix === intentPrefix) {
     if (intentSchoolNorm && itemSchoolNorm && intentSchoolNorm === itemSchoolNorm) {
-      return 2;
+      return 6;
     }
-    return 3;
+    return 7;
   }
 
   // 5. School and Department match when school/department intent was recognized
   const schoolMatches = Boolean(intentSchoolNorm && itemSchoolNorm && intentSchoolNorm === itemSchoolNorm);
   const deptMatches = Boolean(intentDeptNorm && itemDeptNorm && (itemDeptNorm.includes(intentDeptNorm) || intentDeptNorm.includes(itemDeptNorm)));
 
-  if (schoolMatches && deptMatches) {
-    return 2;
-  }
-  if (deptMatches) {
-    return 3;
-  }
-  if (schoolMatches) {
-    return 3;
-  }
+  if (schoolMatches && deptMatches) return 6;
+  if (deptMatches) return 7;
+  if (schoolMatches) return 8;
+
+  // 6. Year and Semester matches (THIRD PRIORITY)
+  const hasYearIntent = Boolean(intent.examYear && itemExamYear === String(intent.examYear));
+  const hasSemesterIntent = Boolean(intent.semester && itemSemester.includes(normalize(intent.semester)));
 
   // If user searched for a school or department, penalize or exclude papers from conflicting schools
   const hasSchoolOrDeptIntent = Boolean(intentSchoolNorm || intentDeptNorm);
@@ -189,54 +209,40 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
     item.type, item.description, item.author
   ].map(normalize).filter(Boolean);
 
-  const primaryFields = [item.title, item.unitCode, item.unitName, item.courseCode]
-    .map(normalize)
-    .filter(Boolean);
   const queryTokens = q.split(/\s+/).filter((token) => token.length > 1);
-  const matchedTokens = queryTokens.filter((token) => fields.some((field) => field.includes(token)));
-  const primaryMatchedTokens = queryTokens.filter((token) => primaryFields.some((field) => field.includes(token)));
+  
+  // Word boundary regex matching to avoid arbitrary fragments matching (e.g. 'mat' in 'automata')
+  const matchedTokens = queryTokens.filter((token) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wordRegex = new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
+    return fields.some((field) => wordRegex.test(field));
+  });
 
-  const idText = normalize(item.mtid);
-  if (idText && idText.startsWith(q)) return 2;
-  if (id && normalizedQueryId && id.includes(normalizedQueryId)) return 2;
+  const titleOrCodeTokens = queryTokens.filter((token) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wordRegex = new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
+    return wordRegex.test(itemTitle) || wordRegex.test(itemUnitCodeRaw) || wordRegex.test(itemUnitName);
+  });
 
-  const title = normalize(item.title);
-  const unitCode = normalize(item.unitCode);
-  const unitName = normalize(item.unitName);
-
-  if (q.length <= 2) {
-    const wordBoundaryRegex = new RegExp(`(^|\\s)${q}`, 'i');
-    const matchesCodeOrWord = Boolean(
-      (idText && idText.startsWith(q)) ||
-      (unitCode && (unitCode.startsWith(q) || unitCode.replace(/[^a-z0-9]/g, '').startsWith(q))) ||
-      (title && (title === q || wordBoundaryRegex.test(title))) ||
-      (unitName && (unitName === q || wordBoundaryRegex.test(unitName)))
-    );
-    if (matchesCodeOrWord) {
-      return schoolConflicts ? 12 : 4;
-    }
-    return null;
-  }
-
-  if (title === q || unitCode === q || unitName === q) return 3;
-  if ([title, unitCode, unitName].some((field) => field.startsWith(q))) return 4;
-  if ([title, unitCode, unitName].some((field) => field.includes(q))) return 5;
-
-  // Search by meaningful words, not only by exact sentence/order
+  // 7. General Keywords Matching (FOURTH PRIORITY)
   if (queryTokens.length > 0 && matchedTokens.length === queryTokens.length) {
-    const base = primaryMatchedTokens.length === queryTokens.length ? 5 : 6;
-    return schoolConflicts ? base + 10 : base;
+    let score = titleOrCodeTokens.length === queryTokens.length ? 7 : 8;
+    if (hasYearIntent || hasSemesterIntent) score -= 1;
+    return schoolConflicts ? score + 6 : score;
   }
 
   // Partial word matches
   if (matchedTokens.length >= Math.max(1, Math.ceil(queryTokens.length / 2))) {
-    return schoolConflicts ? 18 : 8;
-  }
-  if (matchedTokens.length > 0) {
-    return schoolConflicts ? null : 9;
+    let score = titleOrCodeTokens.length > 0 ? 9 : 10;
+    if (hasYearIntent || hasSemesterIntent) score -= 1;
+    return schoolConflicts ? score + 6 : score;
   }
 
-  return fields.some((field) => field.includes(q)) ? (schoolConflicts ? null : 10) : null;
+  if (hasYearIntent || hasSemesterIntent) {
+    return schoolConflicts ? null : 10;
+  }
+
+  return null;
 }
 
 export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string, parsedIntent?: ParsedSearchIntent): T[] {
@@ -253,9 +259,9 @@ export function rankMaterials<T extends MaterialSearchFields>(items: T[], query:
       const rating = Number((item as any).ratingScore || (item as any).rating || 4.0);
       const examYear = Number(item.examYear || 0);
 
-      // 1. Normalized Relevance: matchScore is 0..20 (0 is perfect exact match, 10 is loose match)
+      // 1. Normalized Relevance: matchScore is 0..10 (0 is perfect MTID, 1 is exact code, 10 is loosest)
       // Convert to 0..1 scale where 1 is highest relevance
-      const normRelevance = Math.max(0, 1 - (matchScore / 12));
+      const normRelevance = Math.max(0, 1 - (matchScore / 10));
 
       // 2. Normalized Popularity: log scale of downloads (0 to 10k+) + rating (0 to 10)
       const normDownloads = Math.min(1, Math.log10(Math.max(1, downloads) + 1) / 4); // 10,000 DLs = 1.0

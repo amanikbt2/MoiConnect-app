@@ -31,11 +31,17 @@ export function SmartSearchHeader({
   }
 
   const hasCorrection = intent.hasCorrection && intent.didYouMeanText;
+  const showAutoPivot = isAutoPivoted && intent.didYouMeanText;
+  const showDidYouMean = !isAutoPivoted && hasCorrection && intent.didYouMeanText;
+
+  if (!showAutoPivot && !showDidYouMean) {
+    return null;
+  }
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
       {/* 1. Google-Style: Auto-Pivoted Mode ("Showing results for...") */}
-      {isAutoPivoted && intent.didYouMeanText && (
+      {showAutoPivot && (
         <View style={styles.autoPivotBox}>
           <View style={styles.inlineRow}>
             <SparklesIcon size={16} color="#15803d" />
@@ -60,7 +66,7 @@ export function SmartSearchHeader({
       )}
 
       {/* 2. Suggestion Mode: "Did you mean...?" */}
-      {!isAutoPivoted && hasCorrection && intent.didYouMeanText && (
+      {showDidYouMean && (
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => onAcceptSuggestion(intent.autoPivotSuggestion || intent.didYouMeanText!)}
@@ -79,52 +85,6 @@ export function SmartSearchHeader({
             <Text style={styles.tapToSearchHint}>Tap to switch query ➔</Text>
           </View>
         </TouchableOpacity>
-      )}
-
-      {/* 3. Smart Detected Chips (Intent Breakdown) */}
-      {intent.chips.length > 0 && (
-        <View style={styles.chipsContainer}>
-          <Text style={[styles.chipsHeading, isDark && styles.textMutedDark]}>
-            Recognized Intent:
-          </Text>
-          <View style={styles.chipsRow}>
-            {intent.chips.map((chip, index) => {
-              const chipColorStyle =
-                chip.type === 'unit'
-                  ? styles.chipUnit
-                  : chip.type === 'semester'
-                  ? styles.chipSemester
-                  : chip.type === 'material'
-                  ? styles.chipMaterial
-                  : styles.chipDefault;
-
-              return (
-                <View
-                  key={`${chip.label}-${index}`}
-                  style={[styles.chip, chipColorStyle, isDark && styles.chipDark, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
-                >
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => onChipPress?.(chip.label)}
-                  >
-                    <Text style={[styles.chipText, isDark && styles.textDark]}>
-                      {chip.label}
-                    </Text>
-                  </TouchableOpacity>
-                  {onRemoveChip && (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      onPress={() => onRemoveChip(chip.label)}
-                    >
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748b', marginLeft: 2 }}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        </View>
       )}
     </View>
   );
@@ -214,54 +174,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500'
   },
-  chipsContainer: {
-    marginTop: 4
-  },
-  chipsHeading: {
-    fontSize: 11,
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-    fontWeight: '600'
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1
-  },
-  chipDark: {
-    backgroundColor: '#1e293b'
-  },
-  chipUnit: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe'
-  },
-  chipSemester: {
-    backgroundColor: '#faf5ff',
-    borderColor: '#e9d5ff'
-  },
-  chipMaterial: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a'
-  },
-  chipDefault: {
-    backgroundColor: '#f1f5f9',
-    borderColor: '#cbd5e1'
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155'
-  },
   textDark: {
-    color: '#f8fafc'
+    color: '#e2e8f0'
   },
   textMutedDark: {
     color: '#94a3b8'
