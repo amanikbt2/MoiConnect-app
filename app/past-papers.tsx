@@ -203,6 +203,7 @@ function PastPaperCarouselSection({
 
 export default function PastPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
+  const [requestedQuery, setRequestedQuery] = useState<string | null>(null);
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [papersData, setPapersData] = useState<PastPaperItem[]>([]);
@@ -598,6 +599,31 @@ export default function PastPapersScreen({ route }: any) {
     </View>
   );
 
+  const handleRequestMissingMaterial = () => {
+    const courseCode = searchQuery.trim();
+    if (!courseCode) return;
+
+    setRequestedQuery(courseCode);
+
+    void apiRequest('/reports', {
+      method: 'POST',
+      body: JSON.stringify({
+        targetType: 'missing_material',
+        targetId: `missing_${courseCode.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}`,
+        reason: `Missing Past Paper: ${courseCode}`,
+        details: `User searched for "${courseCode}" under Past Exam Papers (no exact matches). Requested this material to be uploaded.`
+      })
+    }).catch((err) => {
+      console.warn('[PastPapers] Failed to submit missing material report:', err);
+    });
+
+    showIceMessage(
+      'Past Paper Requested',
+      `Your request for ${courseCode} has been received successfully and we'll be working on it shortly, you'll receive a notification once its available`,
+      [{ text: 'OK' }]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -628,13 +654,18 @@ export default function PastPapersScreen({ route }: any) {
               placeholder="Describe what you want..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                if (requestedQuery && text.trim() !== requestedQuery) {
+                  setRequestedQuery(null);
+                }
+              }}
               onSubmitEditing={() => { void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory)); void reportMaterialSearch(searchQuery, 'past_papers'); }}
               returnKeyType="search"
               style={styles.searchInput}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => { setSearchQuery(''); setRequestedQuery(null); }}>
                 <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
               </TouchableOpacity>
             )}
@@ -849,30 +880,54 @@ export default function PastPapersScreen({ route }: any) {
               {/* ZERO DIRECT RESULTS FALLBACK */}
               {filteredPapers.length === 0 && !isSearchLoading && (
                 <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                  <DocumentIcon color="#94a3b8" size={36} />
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 10, textAlign: 'center' }}>
-                    No exact matches for "{searchQuery}"
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
-                    {smartSearch.intent.didYouMeanText
-                      ? `We found a related recommendation: "${smartSearch.intent.didYouMeanText}". Tap the recommendation above, or browse related papers below.`
-                      : 'Explore related papers and recommendations from campus below.'}
-                  </Text>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={{ marginTop: 14, backgroundColor: '#15803d', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                    onPress={() => {
-                      showIceMessage(
-                        'Past Paper Requested',
-                        `We've recorded your request for "${searchQuery}". Class reps & peer contributors will be notified to upload it!`
-                      );
-                    }}
-                  >
-                    <SparklesIcon color="#ffffff" size={14} />
-                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
-                      Request this Past Paper
-                    </Text>
-                  </TouchableOpacity>
+                  {requestedQuery === searchQuery.trim() ? (
+                    <>
+                      <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                        <CheckIcon color="#15803d" size={24} />
+                      </View>
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#15803d', textAlign: 'center' }}>
+                        Request Sent Successfully
+                      </Text>
+                      <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 320, lineHeight: 18 }}>
+                        Your request for "{searchQuery.trim()}" has been recorded. You'll receive a notification once it's available.
+                      </Text>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={{ marginTop: 14, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        onPress={() => {
+                          setSearchQuery('');
+                          setRequestedQuery(null);
+                        }}
+                      >
+                        <ChevronRightIcon color="#0f172a" size={13} style={{ transform: [{ rotate: '180deg' }] }} />
+                        <Text style={{ color: '#0f172a', fontWeight: '700', fontSize: 12 }}>
+                          Back to Past Papers
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <DocumentIcon color="#94a3b8" size={36} />
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 10, textAlign: 'center' }}>
+                        No exact matches for "{searchQuery}"
+                      </Text>
+                      <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+                        {smartSearch.intent.didYouMeanText
+                          ? `We found a related recommendation: "${smartSearch.intent.didYouMeanText}". Tap the recommendation above, or browse related papers below.`
+                          : 'Explore related papers and recommendations from campus below.'}
+                      </Text>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={{ marginTop: 14, backgroundColor: '#15803d', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        onPress={handleRequestMissingMaterial}
+                      >
+                        <SparklesIcon color="#ffffff" size={14} />
+                        <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                          Request this Past Paper
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               )}
 

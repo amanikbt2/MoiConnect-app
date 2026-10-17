@@ -7,6 +7,7 @@ import {
   dismissDownloadNotification,
   registerDownloadCancelHandler
 } from './notificationService';
+import { getCloudinaryVideoPreviewUrl } from '../components/SmartMediaThumbnail';
 
 export interface ActiveMediaDownload {
   key: string;
@@ -95,6 +96,7 @@ class MediaDownloadManager {
     name?: string;
     title?: string;
     type?: string;
+    thumbnail?: string;
     paperId?: string;
     unitCode?: string;
     unitName?: string;
@@ -205,6 +207,9 @@ class MediaDownloadManager {
 
         // Save safely into offline materials index
         const paperId = file.paperId || `att_${Date.now()}`;
+        const computedThumbnail = file.thumbnail
+          || (kind === 'video' ? getCloudinaryVideoPreviewUrl(file.url) : (kind === 'image' ? file.url : undefined));
+
         await saveDownloadedPaper({
           _id: paperId,
           school: file.school || 'Moi University',
@@ -218,6 +223,7 @@ class MediaDownloadManager {
           fileUrl: file.url,
           localUri: result.uri,
           fileType: fileExt,
+          thumbnail: computedThumbnail,
           uploadedBy: { _id: 'moi_student', name: file.author || 'Moi Student' } as any,
           status: 'completed',
           createdAt: new Date().toISOString(),

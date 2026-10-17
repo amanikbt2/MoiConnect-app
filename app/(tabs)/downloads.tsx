@@ -44,6 +44,7 @@ import {
   VideoIcon,
   ImageIcon
 } from '../../src/components/Icons';
+import { SmartMediaThumbnail, getCloudinaryVideoPreviewUrl } from '../../src/components/SmartMediaThumbnail';
 
 export const isVideoDownload = (item?: OfflinePaper | null): boolean => {
   if (!item) return false;
@@ -71,14 +72,6 @@ export const isImageDownload = (item?: OfflinePaper | null): boolean => {
 
 export const isMediaDownload = (item?: OfflinePaper | null): boolean => {
   return isVideoDownload(item) || isImageDownload(item);
-};
-
-export const getCloudinaryVideoPreviewUrl = (url?: string): string => {
-  if (!url) return '';
-  if (!url.includes('/video/upload/')) return url;
-  const [path, query] = url.split('?');
-  const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
-  return query ? `${previewPath}?${query}` : previewPath;
 };
 
 export const getVideoPlayerHtml = (url: string): string => {
@@ -219,26 +212,15 @@ export default function DownloadsScreen() {
       >
         {/* Media Filled Image / Video Preview */}
         <View style={styles.mediaThumbnailContainer}>
-          {previewUri ? (
-            <Image
-              source={{ uri: previewUri }}
-              style={styles.mediaCoverImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.mediaCoverImage, styles.mediaPlaceholderBg]}>
-              {isVideo ? <VideoIcon color="#64748b" size={32} /> : <ImageIcon color="#64748b" size={32} />}
-            </View>
-          )}
-
-          {/* Video Center Play Circle Overlay */}
-          {isVideo && (
-            <View style={styles.videoPlayOverlay}>
-              <View style={styles.videoPlayCircle}>
-                <PlayIcon color="#ffffff" size={18} style={{ marginLeft: 2 }} />
-              </View>
-            </View>
-          )}
+          <SmartMediaThumbnail
+            uri={previewUri}
+            videoUrl={item.fileUrl}
+            type={isVideo ? 'video' : 'image'}
+            title={item.title}
+            fileType={item.fileType}
+            showPlayBadge={true}
+            style={styles.mediaCoverImage}
+          />
 
           {/* Top-Left Dark Pill Badge (IMAGE / VIDEO / PINNED) */}
           <View style={styles.topLeftBadge}>

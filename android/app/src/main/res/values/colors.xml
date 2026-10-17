@@ -1,8 +1,8 @@
 <resources>
   <color name="splashscreen_background">#00000000</color>
-  <color name="iconBackground">#14532d</color>
-  <color name="ic_launcher_background">#006400</color>
-  <color name="notification_icon_color">#15803d</color>
+  <color name="iconBackground">#055D06</color>
+  <color name="ic_launcher_background">#055D06</color>
+  <color name="notification_icon_color">#055D06</color>
   <color name="colorPrimary">#023c69</color>
   <color name="colorPrimaryDark">#14532d</color>
 </resources>

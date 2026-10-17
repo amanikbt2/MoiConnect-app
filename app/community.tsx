@@ -85,6 +85,7 @@ import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModa
 import { UserBadge } from '../src/components/UserBadge';
 import { useNetwork } from '../src/context/NetworkContext';
 import { getSmartReplySnippet, getReplyAttachmentThumbnail } from '../src/utils/chatReplyUtils';
+import { SmartMediaThumbnail, getCloudinaryVideoPreviewUrl } from '../src/components/SmartMediaThumbnail';
 
 export interface FileAttachment {
   name: string;
@@ -157,12 +158,6 @@ const matchesMentionEntry = (entry: MentionUser, query: string): boolean => {
   return normalizedName.includes(normalizedQuery) ||
     (normalizedQuery === 'bot' && entry.id === 'campus-bot') ||
     (normalizedQuery === 'ai' && entry.id === 'campus-ai');
-};
-const getCloudinaryVideoPreviewUrl = (url: string): string => {
-  if (!url.includes('/video/upload/')) return url;
-  const [path, query] = url.split('?');
-  const previewPath = path.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^./]+$/, '.jpg');
-  return query ? `${previewPath}?${query}` : previewPath;
 };
 const isVideoAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
   if (!file) return false;
@@ -2120,7 +2115,8 @@ export default function CommunityScreen() {
       unitName: file.unitName,
       school: file.school,
       author: file.author,
-      size: file.size
+      size: file.size,
+      thumbnail: isVideoAttachment(file) ? getCloudinaryVideoPreviewUrl(file.url) : file.url
     });
   };
 
@@ -2624,28 +2620,18 @@ export default function CommunityScreen() {
                                       }}
                                       activeOpacity={0.88}
                                     >
-                                      <Image
-                                        source={{
-                                          uri: isVideoAttachment(item.fileAttachment)
-                                            ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url)
-                                            : item.fileAttachment.url
-                                        }}
+                                      <SmartMediaThumbnail
+                                        uri={isVideoAttachment(item.fileAttachment)
+                                          ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url)
+                                          : item.fileAttachment.url}
+                                        videoUrl={item.fileAttachment.url}
+                                        type={isVideoAttachment(item.fileAttachment) ? 'video' : 'image'}
+                                        title={item.fileAttachment.name}
+                                        fileSize={item.fileAttachment.size}
+                                        fileType={item.fileAttachment.type}
+                                        showPlayBadge={true}
                                         style={styles.chatMediaImage}
-                                        resizeMode="cover"
                                       />
-                                      {isVideoAttachment(item.fileAttachment) && (
-                                        <View style={styles.chatVideoOverlay}>
-                                          <View style={styles.chatVideoPlay}>
-                                            <Text style={styles.chatVideoPlayText}>▶</Text>
-                                          </View>
-                                          <View style={styles.chatVideoBadge}>
-                                            <VideoIcon color="#ffffff" size={12} />
-                                            <Text style={styles.chatVideoBadgeText}>
-                                              {item.fileAttachment.size ? `${item.fileAttachment.size} • ` : ''}Tap to play
-                                            </Text>
-                                          </View>
-                                        </View>
-                                      )}
 
                                       {/* WhatsApp-style Bit-by-bit Download Progress Overlay with Cancel */}
                                       {(() => {

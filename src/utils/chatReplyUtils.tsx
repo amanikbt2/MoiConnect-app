@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
+import { getCloudinaryVideoPreviewUrl } from '../components/SmartMediaThumbnail';
 
 export interface ReplyAttachmentLike {
   name?: string;
@@ -105,6 +106,11 @@ export function getReplyAttachmentThumbnail(reply?: ReplyLike | null) {
     fileUrl.includes('/image/upload/') ||
     (fileUrl.includes('res.cloudinary.com') && /\.(jpg|jpeg|png|webp)/i.test(fileUrl));
 
+  const isVideo =
+    type === 'video' ||
+    /\.(mp4|mov|mkv|webm|avi|3gp|m4v)(\?.*)?$/i.test(nameOrUrl) ||
+    fileUrl.includes('/video/upload/');
+
   if (isImage) {
     return (
       <Image
@@ -113,6 +119,19 @@ export function getReplyAttachmentThumbnail(reply?: ReplyLike | null) {
         resizeMode="cover"
       />
     );
+  }
+
+  if (isVideo) {
+    const videoThumb = getCloudinaryVideoPreviewUrl(fileUrl);
+    if (videoThumb) {
+      return (
+        <Image
+          source={{ uri: videoThumb }}
+          style={styles.replyThumb}
+          resizeMode="cover"
+        />
+      );
+    }
   }
 
   return null;

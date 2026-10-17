@@ -4,7 +4,7 @@
     "slug": "moiconnect",
     "version": "1.2.9",
     "orientation": "portrait",
-    "icon": "./assets/playstore_assets/icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
       "**/*"
@@ -15,7 +15,11 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "icon": "./assets/playstore_assets/icon.png",
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#055D06"
+      },
       "package": "com.amanikbt1.moiconnect",
       "allowBackup": false,
       "permissions": [
@@ -42,14 +46,14 @@
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
-      "color": "#15803d"
+      "color": "#055D06"
     },
     "plugins": [
       [
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#15803d"
+          "color": "#055D06"
         }
       ],
       [

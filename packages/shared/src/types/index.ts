@@ -160,7 +160,7 @@ export interface IFavorite {
 export interface IReport {
   _id: string;
   reporterId: IUser | string;
-  targetType: 'paper' | 'house';
+  targetType: 'paper' | 'house' | 'community_message' | 'account_deletion' | 'missing_material';
   targetId: string;
   reason: string;
   details: string;
