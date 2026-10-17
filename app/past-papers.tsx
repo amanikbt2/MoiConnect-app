@@ -474,7 +474,7 @@ export default function PastPapersScreen({ route }: any) {
   }, [papersData, campusLibrary]);
 
   const searchRecommendations = React.useMemo(() => {
-    if (!isSearching) return { youMayAlsoLike: [] as PastPaperItem[], continuationFeed: [] as PastPaperItem[], contextLabel: '' };
+    if (!isSearching) return { youMayAlsoLike: [] as PastPaperItem[], continuationFeed: [] as PastPaperItem[], feedBlocks: [], contextLabel: '' };
     return getSearchRecommendationSections(
       allPool,
       filteredPapers,
@@ -1126,7 +1126,7 @@ export default function PastPapersScreen({ route }: any) {
                 </View>
               )}
 
-              {/* SECTION 3: CONTINUATION FEED (ENDLESS GRID) */}
+              {/* SECTION 3: CONTINUATION FEED (SMART RHYTHM GRID & CAROUSELS) */}
               {searchRecommendations.continuationFeed.length > 0 && (
                 <View style={{ marginTop: 28 }}>
                   <View style={styles.sectionHeaderRow}>
@@ -1140,7 +1140,25 @@ export default function PastPapersScreen({ route }: any) {
                       </Text>
                     </View>
                   </View>
-                  {renderGridItems(searchRecommendations.continuationFeed)}
+
+                  {(searchRecommendations.feedBlocks || []).map((block, bIdx) => {
+                    if (block.kind === 'carousel') {
+                      return (
+                        <PastPaperCarouselSection
+                          key={`search-carousel-${block.title}-${bIdx}`}
+                          title={block.title || 'Recommended For You'}
+                          subtitle={block.subtitle || 'Personalized study resources'}
+                          items={block.items}
+                          onOpenPreview={handleOpenPreview}
+                        />
+                      );
+                    }
+                    return (
+                      <React.Fragment key={`search-grid-${bIdx}`}>
+                        {renderGridItems(block.items)}
+                      </React.Fragment>
+                    );
+                  })}
                 </View>
               )}
             </View>

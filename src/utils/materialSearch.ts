@@ -706,9 +706,17 @@ export function rankMaterialsForProfile<T extends MaterialSearchFields>(
     .map(({ item }) => item);
 }
 
+export interface SearchRecommendationBlock<T> {
+  kind: 'grid' | 'carousel';
+  title?: string;
+  subtitle?: string;
+  items: T[];
+}
+
 export interface SearchRecommendationSections<T> {
   youMayAlsoLike: T[];
   continuationFeed: T[];
+  feedBlocks: SearchRecommendationBlock<T>[];
   contextLabel: string;
 }
 
@@ -806,9 +814,50 @@ export function getSearchRecommendationSections<T extends MaterialSearchFields>(
 
   const continuationFeed = rankMaterialsForProfile(continuationPool, profile, searchHistory);
 
+  // Break up long endless grid into engaging rhythm of grid blocks interspersed with horizontal carousels
+  const carouselThemes = [
+    { title: 'Based on Your Profile', subtitle: 'Personalized recommendations for your course and year' },
+    { title: 'Recently Searched & Related', subtitle: 'Topics connected to your active revision searches' },
+    { title: 'Top Rated by Campus Students', subtitle: 'Highest community ratings and revision guides' },
+    { title: 'Popular Examination Materials', subtitle: 'Most downloaded resources across university faculties' }
+  ];
+
+  const feedBlocks: SearchRecommendationBlock<T>[] = [];
+  let feedCursor = 0;
+  let themeIndex = 0;
+  const GRID_CHUNK_SIZE = 6;
+  const CAROUSEL_CHUNK_SIZE = 4;
+
+  while (feedCursor < continuationFeed.length) {
+    // 1. First append a grid chunk
+    const gridChunk = continuationFeed.slice(feedCursor, feedCursor + GRID_CHUNK_SIZE);
+    feedBlocks.push({
+      kind: 'grid',
+      items: gridChunk
+    });
+    feedCursor += gridChunk.length;
+
+    // 2. If there are remaining items (at least 2), insert an auto-scrolling horizontal carousel
+    if (feedCursor < continuationFeed.length) {
+      const carouselChunk = continuationFeed.slice(feedCursor, feedCursor + CAROUSEL_CHUNK_SIZE);
+      if (carouselChunk.length >= 2) {
+        const theme = carouselThemes[themeIndex % carouselThemes.length];
+        feedBlocks.push({
+          kind: 'carousel',
+          title: theme.title,
+          subtitle: theme.subtitle,
+          items: carouselChunk
+        });
+        themeIndex += 1;
+        feedCursor += carouselChunk.length;
+      }
+    }
+  }
+
   return {
     youMayAlsoLike,
     continuationFeed,
+    feedBlocks,
     contextLabel
   };
 }

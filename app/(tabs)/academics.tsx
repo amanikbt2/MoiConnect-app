@@ -115,6 +115,82 @@ function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: 
   );
 }
 
+function NoteCarouselSection({
+  title,
+  subtitle,
+  items,
+  onOpenPreview,
+  renderCard
+}: {
+  title: string;
+  subtitle: string;
+  items: NoteItem[];
+  onOpenPreview: (item: NoteItem) => void;
+  renderCard: (item: NoteItem) => React.ReactNode;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const carouselRef = useRef<FlatList>(null);
+  const isInteracting = useRef(false);
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const timer = setInterval(() => {
+      if (!isInteracting.current && carouselRef.current) {
+        setActiveIndex((prev) => {
+          const next = (prev + 1) % items.length;
+          try {
+            carouselRef.current?.scrollToIndex({ index: next, animated: true });
+          } catch (_) {}
+          return next;
+        });
+      }
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [items.length]);
+
+  return (
+    <View style={{ marginTop: 20 }}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
+          <SparklesIcon color="#d97706" size={18} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSub}>{subtitle}</Text>
+        </View>
+      </View>
+      <FlatList
+        ref={carouselRef}
+        horizontal
+        data={items}
+        keyExtractor={(item) => `note-c-${title}-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.carouselListContent}
+        snapToInterval={CAROUSEL_CARD_WIDTH + 14}
+        decelerationRate="fast"
+        onScrollBeginDrag={() => { isInteracting.current = true; }}
+        onScrollEndDrag={() => { setTimeout(() => { isInteracting.current = false; }, 3000); }}
+        onMomentumScrollEnd={(event) => {
+          const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + 14));
+          setActiveIndex(Math.max(0, Math.min(nextIndex, items.length - 1)));
+          setTimeout(() => { isInteracting.current = false; }, 3000);
+        }}
+        getItemLayout={(_, index) => ({ length: CAROUSEL_CARD_WIDTH + 14, offset: (CAROUSEL_CARD_WIDTH + 14) * index, index })}
+        onScrollToIndexFailed={(info) => carouselRef.current?.scrollToOffset({ offset: info.index * (CAROUSEL_CARD_WIDTH + 14), animated: true })}
+        renderItem={({ item }) => <>{renderCard(item)}</>}
+      />
+      <View style={styles.dotsRow}>
+        {items.map((_, index) => (
+          <View
+            key={`${title}-dot-${index}`}
+            style={[styles.dot, index === activeIndex ? styles.activeDot : styles.inactiveDot]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function AcademicsScreen({ route }: any) {
   const router = useAppNavigation();
   const { user } = useAuth();
@@ -516,7 +592,7 @@ export default function AcademicsScreen({ route }: any) {
   }, [realUploadedNotes, campusLibraryNotes]);
 
   const searchRecommendations = React.useMemo(() => {
-    if (!smartSearchResults.isSearching) return { youMayAlsoLike: [] as NoteItem[], continuationFeed: [] as NoteItem[], contextLabel: '' };
+    if (!smartSearchResults.isSearching) return { youMayAlsoLike: [] as NoteItem[], continuationFeed: [] as NoteItem[], feedBlocks: [], contextLabel: '' };
     const matching = [...smartSearchResults.topMatches, ...smartSearchResults.relatedMatches];
     return getSearchRecommendationSections(
       allBrowseNotes,
@@ -1181,7 +1257,7 @@ export default function AcademicsScreen({ route }: any) {
                     </View>
                   )}
 
-                  {/* SECTION 4: CONTINUATION FEED (ENDLESS GRID) */}
+                  {/* SECTION 4: CONTINUATION FEED (SMART RHYTHM GRID & CAROUSELS) */}
                   {searchRecommendations.continuationFeed.length > 0 && (
                     <View style={{ marginTop: 28 }}>
                       <View style={styles.sectionHeaderRow}>
@@ -1195,9 +1271,26 @@ export default function AcademicsScreen({ route }: any) {
                           </Text>
                         </View>
                       </View>
-                      <View style={styles.gridContainer}>
-                        {searchRecommendations.continuationFeed.map((item) => renderGridCard(item))}
-                      </View>
+
+                      {(searchRecommendations.feedBlocks || []).map((block, bIdx) => {
+                        if (block.kind === 'carousel') {
+                          return (
+                            <NoteCarouselSection
+                              key={`search-note-carousel-${block.title}-${bIdx}`}
+                              title={block.title || 'Recommended Notes'}
+                              subtitle={block.subtitle || 'Personalized study resources'}
+                              items={block.items}
+                              onOpenPreview={handleOpenPreview}
+                              renderCard={(item) => renderCarouselCard(item)}
+                            />
+                          );
+                        }
+                        return (
+                          <View key={`search-note-grid-${bIdx}`} style={styles.gridContainer}>
+                            {block.items.map((item) => renderGridCard(item))}
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </>
