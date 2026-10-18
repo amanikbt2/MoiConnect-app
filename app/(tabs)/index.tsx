@@ -25,6 +25,7 @@ import { getGlobalSearchDestination, rankMaterialsForProfile } from '../../src/u
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
+import { useSearchFocus } from '../../src/hooks/useSearchFocus';
 import Constants from 'expo-constants';
 
 import {
@@ -126,16 +127,22 @@ export default function HomeScreen() {
     setShowPortalModal(true);
   };
 
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const {
+    isSearchFocused,
+    searchContainerRef,
+    handleSearchFocus,
+    handleSearchBlur,
+    closeSearch,
+  } = useSearchFocus();
 
   const handleGlobalSearch = (overrideQuery?: string) => {
     const query = (overrideQuery ?? searchQuery).trim();
     if (!query) return;
+    closeSearch();
     void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
     void reportMaterialSearch(query, 'home');
     router.push(getGlobalSearchDestination(query));
     setSearchQuery('');
-    setIsSearchFocused(false);
   };
 
   const handleSearchKeyPress = (event: any) => {
@@ -343,6 +350,8 @@ export default function HomeScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      onScrollBeginDrag={closeSearch}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#15803d']} />}
     >
       {/* Welcome Banner */}
@@ -352,46 +361,50 @@ export default function HomeScreen() {
         </Text>
         <Text style={styles.bannerSub}>Find past papers, revision notes, and verified rental houses.</Text>
 
-        {/* Global Search Bar */}
-        <View style={styles.searchBox}>
-          <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
-          <TextInput
-            placeholder="Describe what you want..."
-            placeholderTextColor="#94a3b8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={() => setIsSearchFocused(true)}
-            onSubmitEditing={() => handleGlobalSearch()}
-            onKeyPress={handleSearchKeyPress}
-            returnKeyType="search"
-            blurOnSubmit={false}
-            style={styles.searchInput}
-          />
-          {searchQuery.trim().length > 0 && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handleGlobalSearch()}
-              style={styles.searchSendBtn}
-            >
-              <SendIcon color="#ffffff" size={14} />
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Global Search Bar & Autocomplete Dropdown Container */}
+        <View ref={searchContainerRef} style={{ position: 'relative', zIndex: 100 }}>
+          <View style={styles.searchBox}>
+            <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
+            <TextInput
+              placeholder="Describe what you want..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
+              onSubmitEditing={() => handleGlobalSearch()}
+              onKeyPress={handleSearchKeyPress}
+              returnKeyType="search"
+              blurOnSubmit={false}
+              style={styles.searchInput}
+            />
+            {searchQuery.trim().length > 0 && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleGlobalSearch()}
+                style={styles.searchSendBtn}
+              >
+                <SendIcon color="#ffffff" size={14} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-        {/* Instant As-You-Type Autocomplete Dropdown */}
-        <SmartSearchAutocomplete
-          query={searchQuery}
-          visible={isSearchFocused}
-          historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
-          onSelectSuggestion={(suggestion) => {
-            setSearchQuery(suggestion);
-            handleGlobalSearch(suggestion);
-          }}
-          onClearHistory={() => {
-            void clearMaterialSearchHistory().then(() => setSearchHistory([]));
-          }}
-          containerStyle={{ marginTop: 8, marginHorizontal: 0 }}
-        />
+          {/* Instant As-You-Type Autocomplete Dropdown */}
+          <SmartSearchAutocomplete
+            query={searchQuery}
+            visible={isSearchFocused}
+            historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
+            onSelectSuggestion={(suggestion) => {
+              closeSearch();
+              setSearchQuery(suggestion);
+              handleGlobalSearch(suggestion);
+            }}
+            onClearHistory={() => {
+              void clearMaterialSearchHistory().then(() => setSearchHistory([]));
+            }}
+            containerStyle={{ marginTop: 8, marginHorizontal: 0 }}
+          />
+        </View>
 
         {/* Smart "Did You Mean" Helper Card */}
         {smartIntent && smartIntent.didYouMeanText && (

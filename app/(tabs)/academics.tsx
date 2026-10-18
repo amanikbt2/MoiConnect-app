@@ -36,6 +36,7 @@ import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
 import { SmartMirrorSkeleton } from '../../src/components/SmartMirrorSkeleton';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
+import { useSearchFocus } from '../../src/hooks/useSearchFocus';
 import { HighlightText } from '../../src/components/HighlightText';
 import Constants from 'expo-constants';
 
@@ -227,7 +228,13 @@ export default function AcademicsScreen({ route }: any) {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const {
+    isSearchFocused,
+    searchContainerRef,
+    handleSearchFocus,
+    handleSearchBlur,
+    closeSearch,
+  } = useSearchFocus();
 
   useEffect(() => {
     getMaterialSearchHistoryEntries().then(setSearchHistory);
@@ -957,6 +964,8 @@ export default function AcademicsScreen({ route }: any) {
         style={styles.feedScroll}
         contentContainerStyle={styles.feedContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={closeSearch}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         refreshControl={
@@ -976,14 +985,15 @@ export default function AcademicsScreen({ route }: any) {
         }
       >
           {/* Top Search Bar */}
-          <View style={styles.searchSection}>
+          <View ref={searchContainerRef} style={styles.searchSection}>
             <View style={styles.searchBar}>
               <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
               <TextInput
                 placeholder="Describe what you want..."
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
-                onFocus={() => setIsSearchFocused(true)}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
                 onChangeText={(text) => {
                   setSearchQuery(text);
                   if (requestedQuery && text.trim() !== requestedQuery) {
@@ -991,7 +1001,7 @@ export default function AcademicsScreen({ route }: any) {
                   }
                 }}
                 onSubmitEditing={() => {
-                  setIsSearchFocused(false);
+                  closeSearch();
                   void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
                   void reportMaterialSearch(searchQuery, 'notes');
                 }}
@@ -1011,8 +1021,8 @@ export default function AcademicsScreen({ route }: any) {
               visible={isSearchFocused}
               historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
               onSelectSuggestion={(suggestion) => {
+                closeSearch();
                 setSearchQuery(suggestion);
-                setIsSearchFocused(false);
                 setForcedOriginalQuery(null);
                 void saveMaterialSearchQuery(suggestion, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
                 void reportMaterialSearch(suggestion, 'notes');
