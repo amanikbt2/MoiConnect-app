@@ -80,6 +80,7 @@ const RECOMMENDED_CAT_PAPERS: CATPaperItem[] = [];
 const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [];
 const PAPER_PAGE_SIZE = 60;
 const DISCOVERY_BLOCK_SIZE = 6;
+const SEARCH_TOP_MATCH_LIMIT = 6;
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All CAT Papers', iconType: 'all' },
@@ -89,6 +90,16 @@ const FILTER_DISCS = [
   { id: 'hot', label: 'Top Downloaded', iconType: 'trending' },
   { id: '2025', label: '2025 CATs', iconType: 'calendar' }
 ];
+
+function shuffleBySeed<T extends { id: string }>(items: T[], seed: number): T[] {
+  if (!seed || items.length < 2) return items;
+  const hashId = (id: string) => {
+    let value = seed;
+    for (let index = 0; index < id.length; index += 1) value = (value * 31 + id.charCodeAt(index)) % 1000003;
+    return value;
+  };
+  return [...items].sort((a, b) => hashId(a.id) - hashId(b.id));
+}
 
 function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
@@ -193,6 +204,7 @@ export default function CatPapersScreen({ route }: any) {
   const latestSearchRequest = useRef(0);
   const [requestedQuery, setRequestedQuery] = useState<string | null>(null);
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
+  const [discShuffleSeed, setDiscShuffleSeed] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [catsData, setCatsData] = useState<CATPaperItem[]>([]);
   const [campusLibrary, setCampusLibrary] = useState<CATPaperItem[]>([]);
@@ -405,15 +417,24 @@ export default function CatPapersScreen({ route }: any) {
     return smart;
   }, [searchableCats, submittedSearchQuery, forcedOriginalQuery]);
 
-  const filteredCats = smartSearch.results.filter((item) => {
-    if (activeFilterDisc === 'cat1') return item.catType === 'CAT 1';
-    if (activeFilterDisc === 'cat2') return item.catType === 'CAT 2';
-    if (activeFilterDisc === 'quiz') return item.catType === 'Mid-Sem Quiz';
-    if (activeFilterDisc === 'hot') return item.downloadsCount > 1800;
-    if (activeFilterDisc === '2025') return item.examYear === '2025';
-
-    return true;
-  });
+  const filteredCats = React.useMemo(() => {
+    const filtered = smartSearch.results.filter((item) => {
+      if (activeFilterDisc === 'cat1') return item.catType === 'CAT 1';
+      if (activeFilterDisc === 'cat2') return item.catType === 'CAT 2';
+      if (activeFilterDisc === 'quiz') return item.catType === 'Mid-Sem Quiz';
+      if (activeFilterDisc === 'hot') return item.downloadsCount > 1800;
+      if (activeFilterDisc === '2025') return item.examYear === '2025';
+      return true;
+    });
+    if (!discShuffleSeed) return filtered;
+    const hashId = (id: string) => {
+      let value = discShuffleSeed;
+      for (let index = 0; index < id.length; index += 1) value = (value * 31 + id.charCodeAt(index)) % 1000003;
+      return value;
+    };
+    return [...filtered].sort((a, b) => hashId(a.id) - hashId(b.id));
+  }, [smartSearch.results, activeFilterDisc, discShuffleSeed]);
+  const visibleTopMatches = React.useMemo(() => filteredCats.slice(0, SEARCH_TOP_MATCH_LIMIT), [filteredCats]);
 
   const isSearching = submittedSearchQuery.trim().length > 0;
 
@@ -437,13 +458,13 @@ export default function CatPapersScreen({ route }: any) {
     if (!isSearching) return { youMayAlsoLike: [] as CATPaperItem[], continuationFeed: [] as CATPaperItem[], feedBlocks: [], contextLabel: '' };
     return getSearchRecommendationSections(
       allPool,
-      filteredCats,
+      visibleTopMatches,
       submittedSearchQuery,
       smartSearch.intent,
       user,
       searchHistory
     );
-  }, [allPool, filteredCats, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
+  }, [allPool, visibleTopMatches, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
 
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
@@ -545,9 +566,10 @@ export default function CatPapersScreen({ route }: any) {
     }
   };
 
-  const recommendedCats = !isSearching && catsData.length > 0
-    ? (catsData.length <= 3 ? catsData.slice(0, Math.min(2, catsData.length)) : catsData.slice(0, 4))
-    : (!isSearching && showDemoMaterials ? RECOMMENDED_CAT_PAPERS : []);
+  const shuffledCarouselSource = React.useMemo(() => shuffleBySeed(catsData, discShuffleSeed), [catsData, discShuffleSeed]);
+  const recommendedCats = !isSearching && shuffledCarouselSource.length > 0
+    ? (shuffledCarouselSource.length <= 3 ? shuffledCarouselSource.slice(0, Math.min(2, shuffledCarouselSource.length)) : shuffledCarouselSource.slice(0, 4))
+    : (!isSearching && showDemoMaterials ? shuffleBySeed(RECOMMENDED_CAT_PAPERS, discShuffleSeed) : []);
   const feedItems = isSearching
     ? filteredCats
     : (filteredCats.length <= 3 ? filteredCats : filteredCats.slice(recommendedCats.length));
@@ -771,7 +793,15 @@ export default function CatPapersScreen({ route }: any) {
               <TouchableOpacity
                 key={disc.id}
                 style={[styles.discPill, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
-                onPress={() => setActiveFilterDisc(disc.id)}
+                onPress={() => {
+                  setActiveFilterDisc(disc.id);
+                  setDiscShuffleSeed((seed) => seed + 1);
+                  setCarouselIndex(0);
+                  setPapersPage(1);
+                  setHasMorePapers(true);
+                  setInitialLoading(true);
+                  void fetchRealCatPapers(submittedSearchQuery.trim(), 1, false);
+                }}
                 activeOpacity={0.75}
               >
                 {renderDiscIcon(disc.iconType)}
@@ -784,7 +814,7 @@ export default function CatPapersScreen({ route }: any) {
         </ScrollView>
 
         {/* AUTO-SCROLLING SUGGESTIONS / TOP MATCHES CAROUSEL */}
-        {recommendedCats.length > 0 && (
+        {!initialLoading && recommendedCats.length > 0 && (
           <>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionIconCircle}>
@@ -915,10 +945,11 @@ export default function CatPapersScreen({ route }: any) {
                               : smartSearch.intent.unitCode
                                 ? `Auto-matched for ${smartSearch.intent.unitCode}`
                                 : `${filteredCats.length} assessment${filteredCats.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
+                        {filteredCats.length > visibleTopMatches.length ? ` • showing ${visibleTopMatches.length} top matches first` : ''}
                       </Text>
                     </View>
                   </View>
-                  {renderGridItems(filteredCats)}
+                  {renderGridItems(visibleTopMatches)}
                 </>
               )}
 

@@ -17,7 +17,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
 import { apiRequest } from '../src/services/api';
-import { saveDownloadedPaper } from '../src/services/offlineStorage';
 import {
   UploadIcon,
   FileTextIcon,
@@ -266,41 +265,12 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
         attachments: uploadedAttachments,
       };
 
-      let serverPaperId = `paper_${Date.now()}`;
       const res = await apiRequest<any>('/papers', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
       if (!res.success || !res.data?._id) {
         throw new Error(res.error || 'The material could not be submitted. Please check the highlighted fields and try again.');
-      }
-      serverPaperId = res.data._id;
-
-      try {
-        await saveDownloadedPaper({
-          _id: serverPaperId,
-          title: payload.title,
-          school: payload.school,
-          department: payload.department,
-          courseCode: payload.courseCode,
-          unitCode: payload.unitCode,
-          academicYear: payload.academicYear,
-          semester: payload.semester,
-          description: payload.description,
-          unitName: payload.unitName,
-          type: payload.type as any,
-          examYear: payload.examYear,
-          fileUrl: payload.fileUrl,
-          thumbnail: payload.thumbnail,
-          fileType: payload.fileType as any,
-          attachments: payload.attachments as any,
-          uploadedBy: { _id: user?._id || 'guest', name: user?.name || 'Guest Student' } as any,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      } catch (cacheError) {
-        console.warn('Submission succeeded but local cache could not be updated:', cacheError);
       }
 
       setUploading(false);

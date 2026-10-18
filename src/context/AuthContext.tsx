@@ -10,7 +10,6 @@ interface AuthContextType {
   user: IUser | null;
   loading: boolean;
   userPoints: number;
-  addPoints: (amount: number, reason?: string) => void;
   updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy'>>) => Promise<void>;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => Promise<{ success: boolean; error?: string }>;
@@ -36,10 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (accessToken && !accessToken.startsWith('demo_')) {
       void registerForPushNotificationsAsync();
     }
-  };
-
-  const addPoints = (amount: number, reason?: string) => {
-    setUserPoints((prev) => prev + amount);
   };
 
   const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy'>>) => {
@@ -340,7 +335,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         userPoints,
-        addPoints,
         updateUserProfile,
         login,
         googleLogin,

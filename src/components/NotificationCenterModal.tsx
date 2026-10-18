@@ -131,21 +131,29 @@ export function NotificationCenterModal() {
     } catch (err) {}
   };
 
-  const markAllAsRead = async (items: INotificationItem[]) => {
+  const markAllAsRead = (items: INotificationItem[]) => {
     const unreadItems = items.filter(item => !item.isRead);
     const allIds = items.map(i => i._id);
 
-    try {
-      await saveReadNotificationIdsBatch(allIds);
+    // Update the UI immediately; persistence and the server request can finish in the background.
+    setNotifications(prev => prev.map(item => ({ ...item, isRead: true })));
+    setUnreadCount(0);
+
+    void (async () => {
+      try {
+        await saveReadNotificationIdsBatch(allIds);
+      } catch (err) {}
       if (unreadItems.length > 0) {
-        await apiRequest('/notifications/read-all', { method: 'POST' });
+        try {
+          await apiRequest('/notifications/read-all', { method: 'POST' });
+        } catch (err) {}
       }
-      setNotifications(prev => prev.map(item => ({ ...item, isRead: true })));
-      setUnreadCount(0);
-    } catch (err) {
-      setNotifications(prev => prev.map(item => ({ ...item, isRead: true })));
-      setUnreadCount(0);
-    }
+    })();
+  };
+
+  const handleClose = () => {
+    setModalVisible(false);
+    markAllAsRead(notifications);
   };
 
   const handleMarkRead = async (id: string) => {
@@ -188,10 +196,7 @@ export function NotificationCenterModal() {
         style={styles.bellButton}
         onPress={async () => {
           setModalVisible(true);
-          const latest = await fetchNotifications();
-          if (latest) {
-            await markAllAsRead(latest);
-          }
+          void fetchNotifications();
         }}
         activeOpacity={0.7}
       >
@@ -210,7 +215,7 @@ export function NotificationCenterModal() {
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleClose}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -224,7 +229,7 @@ export function NotificationCenterModal() {
                   </View>
                 )}
               </View>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={{ padding: 4 }}>
+              <TouchableOpacity onPress={handleClose} style={{ padding: 4 }}>
                 <CloseIcon color="#ef4444" size={20} />
               </TouchableOpacity>
             </View>
@@ -271,6 +276,9 @@ export function NotificationCenterModal() {
                 ))
               )}
             </ScrollView>
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.75}>
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -352,6 +360,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     gap: 12
+  },
+  closeButton: {
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    marginTop: 2
+  },
+  closeButtonText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '700'
   },
   centerContainer: {
     padding: 40,

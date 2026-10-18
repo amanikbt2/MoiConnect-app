@@ -103,6 +103,7 @@ const FILTER_DISCS = [
   { id: 'date', label: 'Filter by Date', iconType: 'calendar' },
   { id: 'hot', label: 'Hot Now', iconType: 'flame' },
 ];
+const SEARCH_TOP_MATCH_LIMIT = 6;
 
 function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
@@ -582,7 +583,10 @@ export default function AcademicsScreen({ route }: any) {
 
   const searchRecommendations = React.useMemo(() => {
     if (!smartSearchResults.isSearching) return { youMayAlsoLike: [] as NoteItem[], continuationFeed: [] as NoteItem[], feedBlocks: [], contextLabel: '' };
-    const matching = [...smartSearchResults.topMatches, ...smartSearchResults.relatedMatches];
+    const visibleTopMatches = smartSearchResults.topMatches.slice(0, SEARCH_TOP_MATCH_LIMIT);
+    const remainingSlots = Math.max(0, SEARCH_TOP_MATCH_LIMIT - visibleTopMatches.length);
+    const visibleRelatedMatches = smartSearchResults.relatedMatches.slice(0, remainingSlots);
+    const matching = [...visibleTopMatches, ...visibleRelatedMatches];
     return getSearchRecommendationSections(
       allBrowseNotes,
       matching,
@@ -592,6 +596,12 @@ export default function AcademicsScreen({ route }: any) {
       searchHistory
     );
   }, [allBrowseNotes, smartSearchResults, submittedSearchQuery, user, searchHistory]);
+
+  const visibleSearchTopMatches = smartSearchResults.topMatches.slice(0, SEARCH_TOP_MATCH_LIMIT);
+  const visibleSearchRelatedMatches = smartSearchResults.relatedMatches.slice(
+    0,
+    Math.max(0, SEARCH_TOP_MATCH_LIMIT - visibleSearchTopMatches.length)
+  );
 
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
@@ -617,7 +627,7 @@ export default function AcademicsScreen({ route }: any) {
     return () => clearInterval(timer);
   }, [smartSearchResults.isSearching, searchRecommendations.youMayAlsoLike.length]);
 
-  const isRandomFilter = ['hot', 'profile', 'new', 'trending'].includes(activeFilterDisc);
+  const isRandomFilter = filterShuffleSeed > 0 || ['hot', 'profile', 'new', 'trending'].includes(activeFilterDisc);
   const randomizedFilterNotes = React.useMemo(() => {
     if (!isRandomFilter) return [];
     const shuffled = [...allBrowseNotes].sort((a, b) => {
@@ -1038,9 +1048,11 @@ export default function AcademicsScreen({ route }: any) {
                       router.push('/cat-papers');
                     } else {
                       setActiveFilterDisc(disc.id);
-                      if (['hot', 'profile', 'new', 'trending'].includes(disc.id)) {
-                        setFilterShuffleSeed(Date.now());
-                      }
+                      setFilterShuffleSeed((seed) => seed + 1);
+                      setPapersPage(1);
+                      setHasMoreNotes(true);
+                      setInitialLoading(true);
+                      void fetchRealAcademicPapers(submittedSearchQuery.trim(), 1, false);
                     }
                   }}
                   activeOpacity={0.75}
@@ -1110,7 +1122,7 @@ export default function AcademicsScreen({ route }: any) {
                   </View>
 
                   {/* SECTION 1: TOP MATCH / TOP RESULTS */}
-                  <View style={[styles.sectionHeaderRow, smartSearchResults.topMatches.length === 0 && { display: 'none' }]}>
+                  <View style={[styles.sectionHeaderRow, visibleSearchTopMatches.length === 0 && { display: 'none' }]}>
                     <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}>
                       <SparklesIcon color="#15803d" size={18} />
                     </View>
@@ -1120,14 +1132,14 @@ export default function AcademicsScreen({ route }: any) {
                     </View>
                   </View>
 
-                  {smartSearchResults.topMatches.length > 0 && (
+                  {visibleSearchTopMatches.length > 0 && (
                     <View style={styles.gridContainer}>
-                      {smartSearchResults.topMatches.map((item) => renderGridCard(item))}
+                      {visibleSearchTopMatches.map((item) => renderGridCard(item))}
                     </View>
                   )}
 
                   {/* SECTION 2: RELATED MATERIALS (SCROLL DOWN) */}
-                  <View style={[styles.sectionHeaderRow, { marginTop: 28 }, smartSearchResults.relatedMatches.length === 0 && { display: 'none' }]}>
+                  <View style={[styles.sectionHeaderRow, { marginTop: 28 }, visibleSearchRelatedMatches.length === 0 && { display: 'none' }]}>
                     <View style={[styles.sectionIconCircle, { backgroundColor: '#eff6ff' }]}>
                       <BookIcon color="#2563eb" size={18} />
                     </View>
@@ -1137,9 +1149,9 @@ export default function AcademicsScreen({ route }: any) {
                     </View>
                   </View>
 
-                  {smartSearchResults.relatedMatches.length > 0 && (
+                  {visibleSearchRelatedMatches.length > 0 && (
                     <View style={styles.gridContainer}>
-                      {smartSearchResults.relatedMatches.map((item) => renderGridCard(item))}
+                      {visibleSearchRelatedMatches.map((item) => renderGridCard(item))}
                     </View>
                   )}
 

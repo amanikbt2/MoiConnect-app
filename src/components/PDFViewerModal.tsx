@@ -11,12 +11,14 @@ import {
   Platform,
   Animated,
   Easing,
-  ActivityIndicator
+  ActivityIndicator,
+  useWindowDimensions
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
-import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon } from './Icons';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, RotateDeviceIcon } from './Icons';
 import { OfflineState } from './OfflineState';
 import { subscribeToDownloadUpdates, OfflinePaper, personalizeLectureText, readOfflineWebPdfBase64 } from '../services/offlineStorage';
 import { ttsService, TTSState } from '../services/ttsService';
@@ -176,6 +178,43 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfEngineSources, setPdfEngineSources] = useState<{ core: string; worker: string } | null>(null);
   const pdfReadyRef = useRef(false);
+  const [isLandscape, setIsLandscape] = useState(false);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  useEffect(() => {
+    if (!visible) {
+      setIsLandscape(false);
+      return;
+    }
+    if (Platform.OS === 'web') return;
+    setIsLandscape(false);
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((error) => {
+      console.warn('[PDF Reader] Could not set portrait orientation:', error);
+    });
+    return () => {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((error) => {
+        console.warn('[PDF Reader] Could not restore portrait orientation:', error);
+      });
+    };
+  }, [visible]);
+
+  const toggleReaderOrientation = async () => {
+    const nextIsLandscape = !isLandscape;
+    if (Platform.OS === 'web') {
+      // Browsers commonly reject screen-orientation locks outside fullscreen.
+      // Rotate the reader surface itself as a reliable web fallback.
+      setIsLandscape(nextIsLandscape);
+      return;
+    }
+    try {
+      await ScreenOrientation.lockAsync(nextIsLandscape
+        ? ScreenOrientation.OrientationLock.LANDSCAPE
+        : ScreenOrientation.OrientationLock.PORTRAIT);
+      setIsLandscape(nextIsLandscape);
+    } catch (error) {
+      console.warn('[PDF Reader] Could not change screen orientation:', error);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -535,6 +574,16 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     : '';
 
   const nativeWebViewSource = { html: pdfJsHtml, baseUrl: config.apiUrl };
+  const webLandscapeStyle = Platform.OS === 'web' && isLandscape
+    ? {
+        position: 'absolute' as const,
+        width: windowHeight,
+        height: windowWidth,
+        top: (windowHeight - windowWidth) / 2,
+        left: (windowWidth - windowHeight) / 2,
+        transform: [{ rotate: '90deg' }]
+      }
+    : undefined;
 
   return (
     <Modal
@@ -543,7 +592,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       transparent={false}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, webLandscapeStyle]}>
         {/* Top Header Navigation Bar */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -564,7 +613,15 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.orientationIconBtn, isLandscape && styles.orientationIconBtnActive]}
+              onPress={() => { void toggleReaderOrientation(); }}
+              activeOpacity={0.8}
+              accessibilityLabel={isLandscape ? 'Return PDF reader to portrait' : 'Rotate PDF reader to landscape'}
+            >
+              <RotateDeviceIcon color="#ffffff" size={17} />
+            </TouchableOpacity>
             {/* Audio TTS Voice Mode Toggle Button */}
             <TouchableOpacity
               style={[
@@ -581,7 +638,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               ) : ttsState.isSpeaking || isReadingTTS ? (
                 <View style={styles.ttsStopIcon} />
               ) : (
-                <VolumeIcon color="#ffffff" size={20} />
+                <VolumeIcon color="#ffffff" size={17} />
               )}
             </TouchableOpacity>
 
@@ -603,9 +660,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   <Text style={styles.progressPercentText}>{downloadInfo.progress || 5}%</Text>
                 </View>
               ) : isCompleted ? (
-                <CheckIcon color="#ffffff" size={20} />
+                <CheckIcon color="#ffffff" size={17} />
               ) : (
-                <DownloadIcon color="#ffffff" size={20} />
+                <DownloadIcon color="#ffffff" size={17} />
               )}
             </TouchableOpacity>
           </View>
@@ -1015,14 +1072,33 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 1
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  orientationIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)'
+  },
+  orientationIconBtnActive: {
+    backgroundColor: '#166534',
+    borderColor: '#86efac'
+  },
   downloadIconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#22c55e',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#4ade80'
   },
   downloadIconBtnSuccess: {
@@ -1034,18 +1110,18 @@ const styles = StyleSheet.create({
     borderColor: '#86efac'
   },
   spinnerWrapper: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   spinRing: {
     position: 'absolute',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2.5,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.25)',
     borderTopColor: '#ffffff'
   },
@@ -1409,9 +1485,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   audioIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',

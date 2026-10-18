@@ -92,6 +92,7 @@ import { SmartMediaThumbnail, getCloudinaryVideoPreviewUrl } from '../src/compon
 export interface FileAttachment {
   name: string;
   url: string;
+  publicId?: string;
   size: string;
   type: 'pdf' | 'doc' | 'image' | 'video';
   paperId?: string;
@@ -610,7 +611,6 @@ export default function CommunityScreen() {
   const [myProfile, setMyProfile] = useState<StudentPersonalDetails | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<CommunityMessage | null>(null);
   const [showGuestSignInPrompt, setShowGuestSignInPrompt] = useState(false);
-  const [goLiveNotice, setGoLiveNotice] = useState<{ title: string; message: string } | null>(null);
 
   const stickerPickerRef = useRef<View>(null);
   const smileButtonRef = useRef<TouchableOpacity>(null);
@@ -757,7 +757,7 @@ export default function CommunityScreen() {
 
   const handleGoLivePress = () => {
     if (!user) {
-      setGoLiveNotice({ title: 'Sign in required', message: 'Please sign in before requesting access to Go Live.' });
+      showIceMessage('Sign in required', 'Please sign in before requesting access to Go Live.');
       return;
     }
 
@@ -766,17 +766,11 @@ export default function CommunityScreen() {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
     if (!Number.isNaN(createdAt.getTime()) && createdAt > sixMonthsAgo) {
-      setGoLiveNotice({
-        title: 'Go Live eligibility',
-        message: 'You are not eligible to go live yet. Your account must be at least 6 months old.'
-      });
+      showIceMessage('Go Live eligibility', 'You are not eligible to go live yet. Your account must be at least 6 months old.');
       return;
     }
 
-    setGoLiveNotice({
-      title: 'Live temporarily unavailable',
-      message: 'Live streaming is temporarily unavailable right now. Please try again later.'
-    });
+    showIceMessage('Live temporarily unavailable', 'Live streaming is temporarily unavailable right now. Please try again later.');
   };
 
   const flatListRef = useRef<FlatList>(null);
@@ -2395,6 +2389,7 @@ export default function CommunityScreen() {
         const uploadedFileObj: FileAttachment = {
           name: res.data.name || itemToUpload.name,
           url: res.data.url,
+          publicId: res.data.publicId,
           size: res.data.size || 'Media file',
           type: finalType
         };
@@ -2830,9 +2825,13 @@ export default function CommunityScreen() {
 
                               {item.stickerId && (
                                 STICKER_SOURCES[item.stickerId] ? (
-                                  <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} resizeMode="contain" />
+                                  <TouchableOpacity activeOpacity={1} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                    <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} resizeMode="contain" />
+                                  </TouchableOpacity>
                                 ) : (item.stickerId.startsWith('http://') || item.stickerId.startsWith('https://') || item.stickerId.startsWith('data:image/')) ? (
-                                  <Image source={{ uri: item.stickerId }} style={styles.sentStickerImage} resizeMode="contain" />
+                                  <TouchableOpacity activeOpacity={1} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                    <Image source={{ uri: item.stickerId }} style={styles.sentStickerImage} resizeMode="contain" />
+                                  </TouchableOpacity>
                                 ) : null
                               )}
 
@@ -2842,6 +2841,7 @@ export default function CommunityScreen() {
                                   {hasMedia ? (
                                     <TouchableOpacity
                                       style={styles.chatMediaPreview}
+                                      onLongPress={() => setSelectedMsgForOptions(item)}
                                       onPress={() => {
                                         const fileKey = item.fileAttachment?.paperId || item.fileAttachment?.url;
                                         if (downloadAttachmentFailedKey === fileKey) {
@@ -3502,30 +3502,6 @@ export default function CommunityScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={styles.guestPromptSignInText}>Sign in</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal
-          visible={Boolean(goLiveNotice)}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setGoLiveNotice(null)}
-        >
-          <View style={styles.guestPromptOverlay}>
-            <View style={styles.guestPromptCard}>
-              <View style={styles.guestPromptIcon}>
-                <TransmitterIcon color="#15803d" size={27} />
-              </View>
-              <Text style={styles.guestPromptTitle}>{goLiveNotice?.title}</Text>
-              <Text style={styles.guestPromptText}>{goLiveNotice?.message}</Text>
-              <TouchableOpacity
-                style={styles.guestPromptSignInBtn}
-                onPress={() => setGoLiveNotice(null)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.guestPromptSignInText}>OK</Text>
               </TouchableOpacity>
             </View>
           </View>

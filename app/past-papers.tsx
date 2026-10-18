@@ -80,6 +80,7 @@ const RECOMMENDED_PAST_PAPERS: PastPaperItem[] = [];
 const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [];
 const PAPER_PAGE_SIZE = 60;
 const DISCOVERY_BLOCK_SIZE = 6;
+const SEARCH_TOP_MATCH_LIMIT = 6;
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All Past Papers', iconType: 'all' },
@@ -90,6 +91,16 @@ const FILTER_DISCS = [
   { id: 'info', label: 'Info Sciences', iconType: 'laptop' },
   { id: 'science', label: 'Science', iconType: 'book' }
 ];
+
+function shuffleBySeed<T extends { id: string }>(items: T[], seed: number): T[] {
+  if (!seed || items.length < 2) return items;
+  const hashId = (id: string) => {
+    let value = seed;
+    for (let index = 0; index < id.length; index += 1) value = (value * 31 + id.charCodeAt(index)) % 1000003;
+    return value;
+  };
+  return [...items].sort((a, b) => hashId(a.id) - hashId(b.id));
+}
 
 function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
@@ -211,6 +222,7 @@ export default function PastPapersScreen({ route }: any) {
   const latestSearchRequest = useRef(0);
   const [requestedQuery, setRequestedQuery] = useState<string | null>(null);
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
+  const [discShuffleSeed, setDiscShuffleSeed] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [papersData, setPapersData] = useState<PastPaperItem[]>([]);
   const [campusLibrary, setCampusLibrary] = useState<PastPaperItem[]>([]);
@@ -376,10 +388,11 @@ export default function PastPapersScreen({ route }: any) {
   }, [submittedSearchQuery]);
 
   const isSearching = submittedSearchQuery.trim().length > 0;
+  const shuffledCarouselSource = React.useMemo(() => shuffleBySeed(papersData, discShuffleSeed), [papersData, discShuffleSeed]);
 
-  const carouselPapers = !isSearching && papersData.length > 0
-    ? (papersData.length <= 3 ? papersData.slice(0, Math.min(2, papersData.length)) : papersData.slice(0, 4))
-    : (!isSearching && showDemoMaterials ? RECOMMENDED_PAST_PAPERS : []);
+  const carouselPapers = !isSearching && shuffledCarouselSource.length > 0
+    ? (shuffledCarouselSource.length <= 3 ? shuffledCarouselSource.slice(0, Math.min(2, shuffledCarouselSource.length)) : shuffledCarouselSource.slice(0, 4))
+    : (!isSearching && showDemoMaterials ? shuffleBySeed(RECOMMENDED_PAST_PAPERS, discShuffleSeed) : []);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -434,16 +447,25 @@ export default function PastPapersScreen({ route }: any) {
     return smart;
   }, [searchablePastPapers, submittedSearchQuery, forcedOriginalQuery]);
 
-  const filteredPapers = smartSearch.results.filter((item) => {
-    if (activeFilterDisc === 'solutions') return item.hasSolutions;
-    if (activeFilterDisc === 'hot') return item.downloadsCount > 2500;
-    if (activeFilterDisc === '2025') return item.examYear === '2025';
-    if (activeFilterDisc === '2024') return item.examYear === '2024';
-    if (activeFilterDisc === 'info') return item.school.toLowerCase().includes('information');
-    if (activeFilterDisc === 'science') return item.school.toLowerCase().includes('science');
-
-    return true;
-  });
+  const filteredPapers = React.useMemo(() => {
+    const filtered = smartSearch.results.filter((item) => {
+      if (activeFilterDisc === 'solutions') return item.hasSolutions;
+      if (activeFilterDisc === 'hot') return item.downloadsCount > 2500;
+      if (activeFilterDisc === '2025') return item.examYear === '2025';
+      if (activeFilterDisc === '2024') return item.examYear === '2024';
+      if (activeFilterDisc === 'info') return item.school.toLowerCase().includes('information');
+      if (activeFilterDisc === 'science') return item.school.toLowerCase().includes('science');
+      return true;
+    });
+    if (!discShuffleSeed) return filtered;
+    const hashId = (id: string) => {
+      let value = discShuffleSeed;
+      for (let index = 0; index < id.length; index += 1) value = (value * 31 + id.charCodeAt(index)) % 1000003;
+      return value;
+    };
+    return [...filtered].sort((a, b) => hashId(a.id) - hashId(b.id));
+  }, [smartSearch.results, activeFilterDisc, discShuffleSeed]);
+  const visibleTopMatches = React.useMemo(() => filteredPapers.slice(0, SEARCH_TOP_MATCH_LIMIT), [filteredPapers]);
 
   const feedItems = isSearching
     ? filteredPapers
@@ -470,13 +492,13 @@ export default function PastPapersScreen({ route }: any) {
     if (!isSearching) return { youMayAlsoLike: [] as PastPaperItem[], continuationFeed: [] as PastPaperItem[], feedBlocks: [], contextLabel: '' };
     return getSearchRecommendationSections(
       allPool,
-      filteredPapers,
+      visibleTopMatches,
       submittedSearchQuery,
       smartSearch.intent,
       user,
       searchHistory
     );
-  }, [allPool, filteredPapers, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
+  }, [allPool, visibleTopMatches, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
 
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
@@ -826,7 +848,15 @@ export default function PastPapersScreen({ route }: any) {
               <TouchableOpacity
                 key={disc.id}
                 style={[styles.discPill, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
-                onPress={() => setActiveFilterDisc(disc.id)}
+                onPress={() => {
+                  setActiveFilterDisc(disc.id);
+                  setDiscShuffleSeed((seed) => seed + 1);
+                  setCarouselIndex(0);
+                  setPapersPage(1);
+                  setHasMorePapers(true);
+                  setInitialLoading(true);
+                  void fetchRealPastPapers(submittedSearchQuery.trim(), 1, false);
+                }}
                 activeOpacity={0.75}
               >
                 {renderDiscIcon(disc.iconType)}
@@ -839,7 +869,7 @@ export default function PastPapersScreen({ route }: any) {
         </ScrollView>
 
         {/* AUTO-SCROLLING SUGGESTIONS CAROUSEL */}
-        {carouselPapers.length > 0 && (
+        {!initialLoading && carouselPapers.length > 0 && (
           <>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionIconCircle}>
@@ -927,14 +957,14 @@ export default function PastPapersScreen({ route }: any) {
         />
 
         {/* Carousel Pagination Indicator Dots */}
-        <View style={styles.dotsRow}>
+        {!initialLoading && <View style={styles.dotsRow}>
           {carouselPapers.map((_, i) => (
             <View
               key={i}
               style={[styles.dot, i === carouselIndex ? styles.activeDot : styles.inactiveDot]}
             />
           ))}
-        </View>
+        </View>}
       </>
     )}
 
@@ -974,11 +1004,12 @@ export default function PastPapersScreen({ route }: any) {
                               ? `Auto-matched for ${smartSearch.intent.school}`
                               : smartSearch.intent.unitCode
                                 ? `Auto-matched for ${smartSearch.intent.unitCode}`
-                                : `${filteredPapers.length} paper${filteredPapers.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
+                              : `${filteredPapers.length} paper${filteredPapers.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
+                        {filteredPapers.length > visibleTopMatches.length ? ` • showing ${visibleTopMatches.length} top matches first` : ''}
                       </Text>
                     </View>
                   </View>
-                  {renderGridItems(filteredPapers)}
+                  {renderGridItems(visibleTopMatches)}
                 </>
               )}
 

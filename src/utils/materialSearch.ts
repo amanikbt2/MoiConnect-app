@@ -794,7 +794,9 @@ export function getSearchRecommendationSections<T extends MaterialSearchFields>(
   } else if (totalCount >= 2) {
     carouselCount = Math.floor(totalCount / 2);
   } else if (totalCount === 1) {
-    carouselCount = 1;
+    // Keep the only available recommendation in the scrolling continuation
+    // so search never ends with a lone carousel card and no follow-on feed.
+    carouselCount = 0;
   }
 
   const youMayAlsoLike = sortedByRelatedness.slice(0, carouselCount).map((e) => e.item);

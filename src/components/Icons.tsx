@@ -507,6 +507,15 @@ export function PhoneIcon({ color = '#64748b', size = 18, style }: IconProps) {
   );
 }
 
+export function RotateDeviceIcon({ color = '#ffffff', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M7 4H4V7M4.5 5.5A8.5 8.5 0 0 1 19 7M17 20H20V17M19.5 18.5A8.5 8.5 0 0 1 5 17" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x="8" y="8" width="8" height="8" rx="1.3" stroke={color} strokeWidth="1.8" />
+    </Svg>
+  );
+}
+
 export function DollarIcon({ color = '#15803d', size = 20, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>

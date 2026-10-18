@@ -123,6 +123,16 @@ export default function LoginScreen() {
         />
 
         <Button title="Sign In" onPress={handleLogin} loading={loading} style={styles.btn} />
+
+        <View style={styles.footerLinks}>
+          <TouchableOpacity onPress={() => router.push('/privacy')} activeOpacity={0.7}>
+            <Text style={styles.footerLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerDivider}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/faq')} activeOpacity={0.7}>
+            <Text style={styles.footerLink}>Support</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -291,6 +301,23 @@ const styles = StyleSheet.create({
   },
   btn: {
     marginTop: 12
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 56,
+    gap: 10
+  },
+  footerLink: {
+    color: '#2563eb',
+    fontSize: 11,
+    fontWeight: '600',
+    textDecorationLine: 'underline'
+  },
+  footerDivider: {
+    color: '#94a3b8',
+    fontSize: 11
   },
   linkContainer: {
     marginTop: 20,
