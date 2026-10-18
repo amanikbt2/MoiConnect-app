@@ -14,13 +14,14 @@ import {
   AcademicUnitEntry
 } from '../data/moiAcademicDictionary';
 import { ACADEMIC_ACRONYMS } from '../utils/academicAcronyms';
+import { parseSmartSearchQuery } from '../utils/smartSearchParser';
 import { SearchIcon, SparklesIcon, ClockIcon, ChevronRightIcon } from './Icons';
 import { useTheme } from '../context/ThemeContext';
 import { HighlightText } from './HighlightText';
 
 export interface AutocompleteSuggestion {
   id: string;
-  type: 'unit' | 'school' | 'department' | 'acronym' | 'history' | 'trending';
+  type: 'unit' | 'school' | 'department' | 'acronym' | 'history' | 'trending' | 'material';
   title: string;
   subtitle?: string;
   badge?: string;
@@ -32,6 +33,8 @@ export interface SmartSearchAutocompleteProps {
   visible: boolean;
   historyEntries?: string[];
   onSelectSuggestion: (query: string) => void;
+  showMaterialTypeSuggestion?: boolean;
+  onSelectMaterialTypeSuggestion?: (query: string) => void;
   onClearHistory?: () => void;
   containerStyle?: object;
 }
@@ -54,6 +57,8 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
   visible,
   historyEntries = [],
   onSelectSuggestion,
+  showMaterialTypeSuggestion = false,
+  onSelectMaterialTypeSuggestion,
   onClearHistory,
   containerStyle
 }) => {
@@ -368,8 +373,29 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
       }
     }
 
-    return topSuggestions;
-  }, [trimmed, queryTokens, historyEntries]);
+    if (showMaterialTypeSuggestion) {
+      const intent = parseSmartSearchQuery(query.trim());
+      const materialLabels: Record<string, { label: string; badge: string }> = {
+        past_paper: { label: 'Past Papers', badge: 'EXAMS' },
+        cat: { label: 'CATs', badge: 'CATs' },
+        notes: { label: 'Notes PDF', badge: 'NOTES' },
+        solution: { label: 'Exam Solutions', badge: 'SOLUTIONS' }
+      };
+      const material = intent.materialType ? materialLabels[intent.materialType] : undefined;
+      if (material) {
+        topSuggestions.unshift({
+          id: `material-${intent.materialType}-${trimmed}`,
+          type: 'material',
+          title: `${query.trim()} | ${material.label}`,
+          subtitle: `Search directly in ${material.label}`,
+          badge: material.badge,
+          queryValue: query.trim()
+        });
+      }
+    }
+
+    return topSuggestions.slice(0, 6);
+  }, [trimmed, queryTokens, historyEntries, showMaterialTypeSuggestion, query]);
 
   if (!visible || suggestions.length === 0) {
     return null;
@@ -398,7 +424,9 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
           <TouchableOpacity
             key={item.id}
             activeOpacity={0.7}
-            onPress={() => onSelectSuggestion(item.queryValue)}
+            onPress={() => item.type === 'material' && onSelectMaterialTypeSuggestion
+              ? onSelectMaterialTypeSuggestion(item.queryValue)
+              : onSelectSuggestion(item.queryValue)}
             style={[
               styles.itemRow,
               index !== suggestions.length - 1 && styles.itemBorder,
@@ -408,7 +436,7 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
             <View style={[styles.iconCircle, isDark && styles.iconCircleDark]}>
               {item.type === 'history' ? (
                 <ClockIcon size={14} color="#64748b" />
-              ) : item.type === 'unit' ? (
+              ) : item.type === 'unit' || item.type === 'material' ? (
                 <SparklesIcon size={14} color="#15803d" />
               ) : (
                 <SearchIcon size={14} color="#0284c7" />
@@ -433,7 +461,7 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
                   <View
                     style={[
                       styles.badge,
-                      item.type === 'unit'
+                      item.type === 'unit' || item.type === 'material'
                         ? styles.badgeUnit
                         : item.type === 'acronym'
                         ? styles.badgeAcronym

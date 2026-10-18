@@ -40,31 +40,28 @@ export function getMaterialCategoryFromId(query: string): 'past_paper' | 'notes'
 
 import { parseSmartSearchQuery, ParsedSearchIntent } from './smartSearchParser';
 
-export function getGlobalSearchDestination(query: string): string {
-  const value = normalize(query);
+export function getGlobalSearchDestination(query: string, materialTypeOverride?: string): string {
   const encodedQuery = encodeURIComponent(query.trim());
   const parsed = parseSmartSearchQuery(query);
+  const materialType = materialTypeOverride || parsed.materialType;
 
   // If parsed intent specifically found a material type:
-  if (parsed.materialType === 'cat') return `/cat-papers?search=${encodedQuery}`;
-  if (parsed.materialType === 'past_paper') return `/past-papers?search=${encodedQuery}`;
-  if (parsed.materialType === 'notes') return `/(tabs)/academics?search=${encodedQuery}`;
-
-  const hasAny = (words: string[]) => words.some((word) => value.includes(word));
+  if (materialType === 'cat') return `/cat-papers?search=${encodedQuery}`;
+  if (materialType === 'past_paper') return `/past-papers?search=${encodedQuery}`;
+  if (materialType === 'notes') return `/(tabs)/academics?search=${encodedQuery}`;
+  if (materialType === 'solution') return `/past-papers?search=${encodedQuery}`;
 
   const idCategory = getMaterialCategoryFromId(query);
   if (idCategory === 'past_paper') return `/past-papers?search=${encodedQuery}`;
   if (idCategory === 'notes') return `/(tabs)/academics?search=${encodedQuery}`;
   if (idCategory === 'cat') return `/cat-papers?search=${encodedQuery}`;
 
-  if (hasAny(['cat', 'continuous assessment', 'quiz', 'test'])) {
-    return `/cat-papers?search=${encodedQuery}`;
-  }
-  if (hasAny(['rent', 'rental', 'house', 'hostel', 'accommodation', 'room', 'bedsitter', 'apartment', 'housing', 'landlord', 'stage', 'kesses', 'mabs'])) {
+  const hasPhrase = (words: string[]) => words.some((word) => {
+    const escaped = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(query);
+  });
+  if (hasPhrase(['rent', 'rental', 'house', 'hostel', 'accommodation', 'room', 'bedsitter', 'apartment', 'housing', 'landlord', 'stage', 'kesses', 'mabs'])) {
     return `/rentals?search=${encodedQuery}`;
-  }
-  if (hasAny(['exam', 'past paper', 'pastpaper', 'revision', 'semester exam', 'final paper', 'solution', 'marking scheme'])) {
-    return `/past-papers?search=${encodedQuery}`;
   }
   return `/(tabs)/academics?search=${encodedQuery}`;
 }

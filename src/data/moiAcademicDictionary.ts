@@ -4007,22 +4007,42 @@ export const MOI_MATERIAL_TYPE_MAPPINGS = {
   PAST_PAPER: {
     type: 'past_paper',
     label: 'Past Paper',
-    aliases: ['past paper', 'pastpaper', 'exam paper', 'exam', 'examination', 'main exam', 'special exam']
+    aliases: [
+      'past paper', 'past papers', 'pastpaper', 'pastpapers', 'exam paper', 'exam papers',
+      'exam', 'exams', 'examination', 'examinations', 'past exam', 'past exams',
+      'previous paper', 'previous papers', 'previous exam', 'previous exams', 'old paper', 'old papers',
+      'question paper', 'question papers', 'final exam', 'final exams', 'final paper', 'final papers',
+      'end term exam', 'end of term exam', 'end semester exam', 'end of semester exam', 'semester exam',
+      'main exam', 'special exam', 'supplementary exam', 'deferred exam', 'resit exam', 'retake exam',
+      'mock exam', 'model exam', 'model paper', 'revision paper', 'revision exam', 'solved past paper'
+    ]
   },
   NOTES: {
     type: 'notes',
     label: 'Revision Notes',
-    aliases: ['notes', 'revision notes', 'lecture notes', 'pdf notes', 'slides', 'handout', 'reading material']
+    aliases: [
+      'notes', 'note', 'revision notes', 'lecture notes', 'class notes', 'course notes', 'unit notes',
+      'study notes', 'pdf notes', 'notes pdf', 'notes pdfs', 'lecture pdf', 'lecture slides', 'slides',
+      'lecture handout', 'lecture handouts', 'handout', 'handouts', 'reading material', 'reading materials',
+      'study material', 'study materials', 'course material', 'course materials', 'learning material',
+      'revision material', 'study guide', 'study guides', 'summary notes', 'summarized notes', 'summaries'
+    ]
   },
   CAT: {
     type: 'cat',
     label: 'CAT / Quiz',
-    aliases: ['cat', 'cats', 'cat paper', 'quiz', 'continuous assessment', 'cat 1', 'cat 2', 'midterm', 'mid-term']
+    aliases: [
+      'cat', 'cats', 'cat paper', 'cat papers', 'cat 1', 'cat 2', 'cat 3', 'cat one', 'cat two', 'cat three',
+      'continuous assessment', 'continuous assessment test', 'continuous assessment tests',
+      'assessment test', 'assessment tests', 'class test', 'class tests', 'quiz', 'quizzes', 'quiz paper',
+      'quiz papers', 'midterm', 'midterms', 'mid-term', 'mid-terms', 'mid term', 'mid terms',
+      'mid semester test', 'mid-semester test', 'topical test', 'topical tests', 'test', 'tests'
+    ]
   },
   SOLUTION: {
     type: 'solution',
     label: 'Exam Solution',
-    aliases: ['solution', 'answers', 'marking scheme', 'worked solutions', 'solved paper']
+      aliases: ['solution', 'solutions', 'answer', 'answers', 'answer key', 'marking scheme', 'marking schemes', 'worked solution', 'worked solutions', 'solved paper', 'solved papers']
   }
 };
 export const MOI_MATERIAL_TYPES = [

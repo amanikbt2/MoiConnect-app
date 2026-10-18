@@ -216,10 +216,20 @@ export function detectExamYear(tokens: string[]): number | undefined {
  */
 export function detectMaterialType(tokens: string[]): { type: string; label: string } | undefined {
   const fullText = tokens.join(' ').toLowerCase();
+  const matchesAlias = (aliases: string[]) => aliases.some((alias) => {
+    const escaped = alias.toLowerCase()
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\s+/g, '\\s+');
+    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(fullText);
+  });
 
-  for (const mat of Object.values(MOI_MATERIAL_TYPE_MAPPINGS)) {
-    if (mat.aliases.some((alias) => fullText.includes(alias))) {
-      return { type: mat.type, label: mat.label };
+  // Specific study categories outrank generic exam words. For example,
+  // "CAT exam" should go to CATs and "exam notes" should go to Notes PDF.
+  const preferredTypes = ['cat', 'notes', 'solution', 'past_paper'];
+  for (const type of preferredTypes) {
+    const material = Object.values(MOI_MATERIAL_TYPE_MAPPINGS).find((entry) => entry.type === type);
+    if (material && matchesAlias(material.aliases)) {
+      return { type: material.type, label: material.label };
     }
   }
 
@@ -406,6 +416,18 @@ export function parseSmartSearchQuery(rawQuery: string): ParsedSearchIntent {
   } else if (hasCorrection && typoFixedFrom) {
     correctedQuery = cleaned.replace(new RegExp(typoFixedFrom, 'i'), detectedUnitCode || '');
     didYouMeanText = correctedQuery;
+  }
+
+  // A unit can be recognized correctly even when its display label adds
+  // punctuation (for example, "CSC 321: Computer Networks"). Don't show a
+  // correction card when accepting it would leave the user's query unchanged.
+  const comparableQuery = (value: string | undefined) =>
+    normalize(value).replace(/[^a-z0-9]/g, '');
+  if (
+    didYouMeanText &&
+    comparableQuery(correctedQuery || didYouMeanText) === comparableQuery(rawQuery)
+  ) {
+    didYouMeanText = undefined;
   }
 
   return {

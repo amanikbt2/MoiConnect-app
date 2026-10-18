@@ -135,13 +135,13 @@ export default function HomeScreen() {
     closeSearch,
   } = useSearchFocus();
 
-  const handleGlobalSearch = (overrideQuery?: string) => {
+  const handleGlobalSearch = (overrideQuery?: string, materialTypeOverride?: string) => {
     const query = (overrideQuery ?? searchQuery).trim();
     if (!query) return;
     closeSearch();
     void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
     void reportMaterialSearch(query, 'home');
-    router.push(getGlobalSearchDestination(query));
+    router.push(getGlobalSearchDestination(query, materialTypeOverride));
     setSearchQuery('');
   };
 
@@ -393,11 +393,13 @@ export default function HomeScreen() {
           <SmartSearchAutocomplete
             query={searchQuery}
             visible={isSearchFocused}
+            showMaterialTypeSuggestion
+            onSelectMaterialTypeSuggestion={(query) => handleGlobalSearch(query, smartIntent?.materialType)}
             historyEntries={searchHistory.map((h) => (typeof h === 'string' ? h : h.query))}
             onSelectSuggestion={(suggestion) => {
               closeSearch();
               setSearchQuery(suggestion);
-              handleGlobalSearch(suggestion);
+              handleGlobalSearch(suggestion, smartIntent?.materialType);
             }}
             onClearHistory={() => {
               void clearMaterialSearchHistory().then(() => setSearchHistory([]));
