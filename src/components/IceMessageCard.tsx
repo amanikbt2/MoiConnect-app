@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -34,20 +34,14 @@ export const showIceMessage = (
 
 export const IceMessageHost: React.FC = () => {
   const [message, setMessage] = useState<IceMessage | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     listener = (nextMessage) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setMessage(nextMessage);
-      if (!nextMessage.buttons?.length) {
-        timeoutRef.current = setTimeout(() => setMessage(null), 3800);
-      }
     };
 
     return () => {
       listener = null;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
@@ -62,7 +56,7 @@ export const IceMessageHost: React.FC = () => {
     <Modal transparent visible animationType="fade" onRequestClose={close}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <View style={styles.iceOrb}><Text style={styles.iceOrbText}>✦</Text></View>
+          <View style={styles.iceOrb}><Text style={styles.iceOrbText}>M</Text></View>
           <Text style={styles.title}>{message.title}</Text>
           {!!message.message && <Text style={styles.message}>{message.message}</Text>}
           <View style={styles.actions}>
@@ -91,9 +85,8 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     padding: 18,
-    paddingBottom: 34,
     backgroundColor: 'rgba(15, 23, 42, 0.22)'
   },
   card: {
@@ -118,15 +111,15 @@ const styles = StyleSheet.create({
   iceOrb: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#dff6ff',
+    backgroundColor: '#e0f7ff',
     borderWidth: 1,
     borderColor: '#7dd3fc',
     marginBottom: 12
   },
-  iceOrbText: { color: '#0284c7', fontSize: 22, fontWeight: '800' },
+  iceOrbText: { color: '#0284a8', fontSize: 22, fontWeight: '900', letterSpacing: -1 },
   title: { color: '#0f172a', fontSize: 18, fontWeight: '800', marginBottom: 6 },
   message: { color: '#475569', fontSize: 14, lineHeight: 21 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 18, flexWrap: 'wrap' },
