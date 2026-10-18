@@ -344,7 +344,12 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
       if (b.totalScore !== a.totalScore) {
         return b.totalScore - a.totalScore;
       }
-      // 3. Shorter title for cleaner matches
+      // 3. For units with identical scores, sort by unit code naturally (e.g. SAS 101 before SAS 302)
+      if (a.item.type === 'unit' && b.item.type === 'unit') {
+        const codeCmp = a.item.title.localeCompare(b.item.title, undefined, { numeric: true });
+        if (codeCmp !== 0) return codeCmp;
+      }
+      // 4. Shorter title for cleaner matches
       return a.item.title.length - b.item.title.length;
     });
 
