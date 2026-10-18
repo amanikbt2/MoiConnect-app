@@ -4,18 +4,21 @@ Extracted from Database + Official Curriculum
 100% Offline Static Knowledge Base - No Online Sync Required
 ================================================================================
 
-### SECTION 1: SCHOOLS ###
-SCHOOL | SSAS | School of Science and Aerospace Studies | science and aerospace, science, aerospace, ssas, aviation, pure sciences
-SCHOOL | SIS | School of Information Sciences | information sciences, sis, it, informatics, information science, media
-SCHOOL | SOL | School of Law | law, sol, annex, legal studies, school of law
-SCHOOL | SOM | School of Medicine | medicine, som, mbchb, med school, school of medicine, medical
-SCHOOL | SOE | School of Engineering | engineering, soe, eng, civil, mechanical, electrical
-SCHOOL | SOBE | School of Business & Economics | business, economics, sobe, commerce, finance, accounting
-SCHOOL | SOE_ED | School of Education | education, teaching, school of education, pedagogy
-SCHOOL | SASS | School of Arts and Social Sciences | sass, arts, social sciences, humanities, anthropology, sociology
-SCHOOL | SPH | School of Public Health | public health, sph, epidemiology
-SCHOOL | SON | School of Nursing Sciences | nursing, son, nursing sciences
-SCHOOL | SOD | School of Dentistry | dentistry, dental
+### SECTION 1: SCHOOLS (14 CURRENT MOI UNIVERSITY SCHOOLS) ###
+SCHOOL | SSAS | School of Science and Aerospace Studies | science and aerospace, science, sciences, aerospace, ssas, aviation, pure sciences, school of science, school of science and aerospace studies
+SCHOOL | SIS | School of Information Sciences | information sciences, information science, sis, school of information science, informatics, information technology, it, media, library and information studies
+SCHOOL | SOL | School of Law | law, sol, annex, legal studies, legal, llb, school of law
+SCHOOL | SOM | School of Medicine | medicine, som, mbchb, med school, medical school, school of medicine, medical, surgery
+SCHOOL | SOE | School of Engineering | engineering, soe, eng, civil, mechanical, electrical, chemical engineering, school of engineering
+SCHOOL | SOBE | School of Business and Economics | business, economics, sobe, commerce, finance, accounting, management, school of business, school of business and economics
+SCHOOL | SOE_ED | School of Education | education, teaching, school of education, teacher education, pedagogy, educational studies
+SCHOOL | SASS | School of Arts and Social Sciences | sass, arts, social sciences, humanities, anthropology, sociology, school of arts, school of arts and social sciences
+SCHOOL | SPH | School of Public Health | public health, sph, epidemiology, community health, school of public health
+SCHOOL | SONM | School of Nursing and Midwifery | nursing, son, sonm, nursing sciences, nursing and midwifery, midwifery, school of nursing
+SCHOOL | SOD | School of Dentistry | dentistry, dental, dental surgery, oral health, school of dentistry
+SCHOOL | SANR | School of Agriculture and Natural Resources | agriculture, agricultural sciences, agriculture and natural resources, agriculture & natural resources, natural resources, agribusiness, crop science, animal science, school of agriculture
+SCHOOL | SPGRI | School of Postgraduate Studies, Research and Innovation | postgraduate studies, post graduate studies, graduate studies, research and innovation, research & innovation, graduate school, postgraduate school, phd studies, masters studies
+SCHOOL | STHEM | School of Tourism, Hospitality and Events Management | tourism, hospitality, events management, tourism hospitality and events management, tourism, hospitality and events management, hotel management, travel and tourism, school of tourism
 
 ### SECTION 2: SEMESTERS ###
 SEMESTER | Semester 1 | sem 1, sem1, s1, first semester, semester 1, semester1
@@ -342,3 +345,94 @@ UNIT | TEC 103 | Basic Engineering Mathematics II | Department of Engineering Ma
 UNIT | TEC 111 | Introduction to Material Science | Chemical & Process / Mechanical Engineering | School of Engineering | TEC 111 Introduction to Material Science First Year Second Semester Regular Examination March 2018
 UNIT | THE 320 | Costume Design | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | THE 320 Costume Design Exam
 UNIT | THL 320 | Studies in the Old Testament 1 | Department of Philosophy & Religious Studies | School of Arts and Social Sciences (SASS) | THL 320: Studies in the Old Testament 1
+
+### SECTION 7: KENYAN UNIVERSITIES (OFFLINE SEARCH NAMES AND ALIASES; CUE APPROVED LIST PLUS EXISTING APP ENTRIES) ###
+UNIVERSITY | UON | University of Nairobi | UON, University of Nairobi, Uni of Nairobi, Nairobi
+UNIVERSITY | KU | Kenyatta University | KU, Kenyatta University, Kenyatta Uni, Kenyatta
+UNIVERSITY | JKUAT | Jomo Kenyatta University of Agriculture and Technology | JKUAT, Jomo Kenyatta University of Agriculture and Technology, Jomo Kenyatta Uni of Agriculture and Technology, Jomo Kenyatta Agriculture and Technology
+UNIVERSITY | Egerton | Egerton University | Egerton, Egerton University, Egerton Uni
+UNIVERSITY | Moi | Moi University | Moi, Moi University, Moi Uni
+UNIVERSITY | Maseno | Maseno University | Maseno, Maseno University, Maseno Uni
+UNIVERSITY | MMUST | Masinde Muliro University of Science and Technology | MMUST, Masinde Muliro University of Science and Technology, Masinde Muliro Uni of Science and Technology, Masinde Muliro Science and Technology
+UNIVERSITY | TUK | Technical University of Kenya | TUK, Technical University of Kenya, Technical Uni of Kenya, Technical Kenya
+UNIVERSITY | TUM | Technical University of Mombasa | TUM, Technical University of Mombasa, Technical Uni of Mombasa, Technical Mombasa
+UNIVERSITY | DeKUT | Dedan Kimathi University of Technology | DeKUT, Dedan Kimathi University of Technology, Dedan Kimathi Uni of Technology, Dedan Kimathi Technology, DKUT
+UNIVERSITY | UoE | University of Eldoret | UoE, University of Eldoret, Uni of Eldoret, Eldoret
+UNIVERSITY | Kisii | Kisii University | Kisii, Kisii University, Kisii Uni
+UNIVERSITY | Chuka | Chuka University | Chuka, Chuka University, Chuka Uni
+UNIVERSITY | Pwani | Pwani University | Pwani, Pwani University, Pwani Uni
+UNIVERSITY | SEKU | South Eastern Kenya University | SEKU, South Eastern Kenya University, South Eastern Kenya Uni, South Eastern Kenya
+UNIVERSITY | MUST | Meru University of Science and Technology | MUST, Meru University of Science and Technology, Meru Uni of Science and Technology, Meru Science and Technology
+UNIVERSITY | Embu | University of Embu | Embu, University of Embu, Uni of Embu
+UNIVERSITY | Rongo | Rongo University | Rongo, Rongo University, Rongo Uni
+UNIVERSITY | JOOUST | Jaramogi Oginga Odinga University of Science and Technology | JOOUST, Jaramogi Oginga Odinga University of Science and Technology, Jaramogi Oginga Odinga Uni of Science and Technology, Jaramogi Oginga Odinga Science and Technology
+UNIVERSITY | Laikipia | Laikipia University | Laikipia, Laikipia University, Laikipia Uni
+UNIVERSITY | Karatina | Karatina University | Karatina, Karatina University, Karatina Uni
+UNIVERSITY | Kibabii | Kibabii University | Kibabii, Kibabii University, Kibabii Uni
+UNIVERSITY | TTU | Taita Taveta University | TTU, Taita Taveta University, Taita Taveta Uni, Taita Taveta
+UNIVERSITY | Maasai Mara | Maasai Mara University | Maasai Mara, Maasai Mara University, Maasai Mara Uni, MMU, Masaai Mara University
+UNIVERSITY | KAFU | Kaimosi Friends University | KAFU, Kaimosi Friends University, Kaimosi Friends Uni, Kaimosi Friends, KFU
+UNIVERSITY | Alupe | Alupe University | Alupe, Alupe University, Alupe Uni
+UNIVERSITY | Bomet | Bomet University | Bomet, Bomet University, Bomet Uni, Bomet University College, BUC
+UNIVERSITY | Tharaka | Tharaka University | Tharaka, Tharaka University, Tharaka Uni
+UNIVERSITY | Garissa | Garissa University | Garissa, Garissa University, Garissa Uni
+UNIVERSITY | Murang'a | Murang'a University of Technology | Murang'a, Murang'a University of Technology, Murang'a Uni of Technology, Murang a Technology, MaUT
+UNIVERSITY | Koitaleel | Koitaleel Samoei University College | Koitaleel, Koitaleel Samoei University College, Koitaleel Samoei Uni College, Koitaleel Samoei College, KSUC
+UNIVERSITY | NDU-K | National Defence University-Kenya | NDU-K, National Defence University-Kenya, National Defence Uni-Kenya, National Defence -Kenya, NDUK
+UNIVERSITY | OUK | Open University of Kenya | OUK, Open University of Kenya, Open Uni of Kenya, Open Kenya
+UNIVERSITY | CUK | Co-operative University of Kenya | CUK, Co-operative University of Kenya, Co-operative Uni of Kenya, Co-operative Kenya, CoUK, The Co-operative University of Kenya
+UNIVERSITY | Kabianga | University of Kabianga | Kabianga, University of Kabianga, Uni of Kabianga
+UNIVERSITY | KU | Kenyatta University Ruiru Campus | KU, Kenyatta University Ruiru Campus, Kenyatta Uni Ruiru Campus, Kenyatta Ruiru Campus, KURC
+UNIVERSITY | USIU-A | United States International University-Africa | USIU-A, United States International University-Africa, United States International Uni-Africa, United States International -Africa, USIUA, USIU, United States International University, USIU Africa
+UNIVERSITY | Strathmore | Strathmore University | Strathmore, Strathmore University, Strathmore Uni
+UNIVERSITY | Daystar | Daystar University | Daystar, Daystar University, Daystar Uni
+UNIVERSITY | CUEA | Catholic University of Eastern Africa | CUEA, Catholic University of Eastern Africa, Catholic Uni of Eastern Africa, Catholic Eastern Africa
+UNIVERSITY | MKU | Mount Kenya University | MKU, Mount Kenya University, Mount Kenya Uni, Mount Kenya
+UNIVERSITY | Kabarak | Kabarak University | Kabarak, Kabarak University, Kabarak Uni
+UNIVERSITY | ANU | Africa Nazarene University | ANU, Africa Nazarene University, Africa Nazarene Uni, Africa Nazarene
+UNIVERSITY | UEAB | University of Eastern Africa, Baraton | UEAB, University of Eastern Africa, Baraton, Uni of Eastern Africa, Baraton, Eastern Africa Baraton
+UNIVERSITY | Riara | Riara University | Riara, Riara University, Riara Uni
+UNIVERSITY | Zetech | Zetech University | Zetech, Zetech University, Zetech Uni
+UNIVERSITY | KAG East | KAG East University | KAG East, KAG East University, KAG East Uni, KEU
+UNIVERSITY | St. Paul's | St. Paul's University | St. Paul's, St. Paul's University, St. Paul's Uni, St Paul s, SPsU
+UNIVERSITY | PACU | Pan Africa Christian University | PACU, Pan Africa Christian University, Pan Africa Christian Uni, Pan Africa Christian
+UNIVERSITY | PUEA | Presbyterian University of East Africa | PUEA, Presbyterian University of East Africa, Presbyterian Uni of East Africa, Presbyterian East Africa
+UNIVERSITY | AUA | Adventist University of Africa | AUA, Adventist University of Africa, Adventist Uni of Africa, Adventist Africa
+UNIVERSITY | ILU | International Leadership University | ILU, International Leadership University, International Leadership Uni, International Leadership
+UNIVERSITY | AKU | Aga Khan University | AKU, Aga Khan University, Aga Khan Uni, Aga Khan
+UNIVERSITY | Gretsa | Gretsa University | Gretsa, Gretsa University, Gretsa Uni
+UNIVERSITY | Umma | Umma University | Umma, Umma University, Umma Uni
+UNIVERSITY | MUA | Management University of Africa | MUA, Management University of Africa, Management Uni of Africa, Management Africa
+UNIVERSITY | Scott Christian | Scott Christian University | Scott Christian, Scott Christian University, Scott Christian Uni, SCU
+UNIVERSITY | GLUK | Great Lakes University of Kisumu | GLUK, Great Lakes University of Kisumu, Great Lakes Uni of Kisumu, Great Lakes Kisumu
+UNIVERSITY | Uzima | Uzima University | Uzima, Uzima University, Uzima Uni
+UNIVERSITY | KeMU | Kenya Methodist University | KeMU, Kenya Methodist University, Kenya Methodist Uni, Kenya Methodist, KMU
+UNIVERSITY | Kiriri Women's | Kiriri Women's University of Science and Technology | Kiriri Women's, Kiriri Women's University of Science and Technology, Kiriri Women's Uni of Science and Technology, Kiriri Women s Science and Technology, KWsUST
+UNIVERSITY | Regina Pacis | Regina Pacis University | Regina Pacis, Regina Pacis University, Regina Pacis Uni, RPU
+UNIVERSITY | CIU | Consolata International University | CIU, Consolata International University, Consolata International Uni, Consolata International
+UNIVERSITY | MMUK | Multimedia University of Kenya | MMUK, Multimedia University of Kenya, Multimedia Uni of Kenya, Multimedia Kenya, MUK, Multimedia University, MMU Kenya
+UNIVERSITY | Machakos | Machakos University | Machakos, Machakos University, Machakos Uni, MU Machakos
+UNIVERSITY | Kirinyaga | Kirinyaga University | Kirinyaga, Kirinyaga University, Kirinyaga Uni, KYU
+UNIVERSITY | TMU | Tom Mboya University | TMU, Tom Mboya University, Tom Mboya Uni, Tom Mboya, TMU Kenya
+UNIVERSITY | AIU | Africa International University | AIU, Africa International University, Africa International Uni, Africa International
+UNIVERSITY | KHEU | Kenya Highlands Evangelical University | KHEU, Kenya Highlands Evangelical University, Kenya Highlands Evangelical Uni, Kenya Highlands Evangelical, Kenya Highlands University
+UNIVERSITY | KCA | KCA University | KCA, KCA University, KCA Uni, Kenya College of Accountancy
+UNIVERSITY | TEAU | The East African University | TEAU, The East African University, The East African Uni, The East African, EAU, East African University
+UNIVERSITY | Lukenya | Lukenya University | Lukenya, Lukenya University, Lukenya Uni
+UNIVERSITY | Tangaza | Tangaza University | Tangaza, Tangaza University, Tangaza Uni
+UNIVERSITY | IUK | Islamic University of Kenya | IUK, Islamic University of Kenya, Islamic Uni of Kenya, Islamic Kenya, IUKenya
+UNIVERSITY | AMIU | Amref International University | AMIU, Amref International University, Amref International Uni, Amref International, AIU, Amref University
+UNIVERSITY | NIRU | National Intelligence Research University | NIRU, National Intelligence Research University, National Intelligence Research Uni, National Intelligence Research
+UNIVERSITY | KAIST | Kenya Advanced Institute of Science and Technology | KAIST, Kenya Advanced Institute of Science and Technology, Kenya Advanced Institute Science and Technology, Kenya AIST
+UNIVERSITY | KEMRI | Kenya Medical Research Institute | KEMRI, Kenya Medical Research Institute, KMRI, KEMRI university
+UNIVERSITY | Turkana UC | Turkana University College | Turkana UC, Turkana University College, Turkana Uni College, Turkana College, TUC, Turkana University
+UNIVERSITY | Mama Ngina | Mama Ngina University College | Mama Ngina, Mama Ngina University College, Mama Ngina Uni College, Mama Ngina College, MNUC, Mama Ngina University
+UNIVERSITY | Nyandarua UC | Nyandarua University College | Nyandarua UC, Nyandarua University College, Nyandarua Uni College, Nyandarua College, NUC, Nyandarua University
+UNIVERSITY | Kabarnet UC | Kabarnet University College | Kabarnet UC, Kabarnet University College, Kabarnet Uni College, Kabarnet College, KUC, Kabarnet University
+UNIVERSITY | Makueni UC | Makueni University College | Makueni UC, Makueni University College, Makueni Uni College, Makueni College, MUC, Makueni University
+UNIVERSITY | Hekima | Hekima University College | Hekima, Hekima University College, Hekima Uni College, Hekima College, HUC
+UNIVERSITY | MIUC | Marist International University College | MIUC, Marist International University College, Marist International Uni College, Marist International College, Marist International
+UNIVERSITY | PIU | Pioneer International University | PIU, Pioneer International University, Pioneer International Uni, Pioneer International
+UNIVERSITY | OGU | Outspan Global University | OGU, Outspan Global University, Outspan Global Uni, Outspan Global, Outspan University
+UNIVERSITY | ATU | The African Talent University | ATU, The African Talent University, The African Talent Uni, The African Talent, African Talent University
+UNIVERSITY | EKIU | East Kenya Integrated University | EKIU, East Kenya Integrated University, East Kenya Integrated Uni, East Kenya Integrated

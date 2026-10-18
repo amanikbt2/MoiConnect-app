@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
-import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
+import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
@@ -206,6 +206,9 @@ function PastPaperCarouselSection({
 
 export default function PastPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState(route?.params?.search || '');
+  const [downloadedPapers, setDownloadedPapers] = useState<any[]>([]);
+  const latestSearchRequest = useRef(0);
   const [requestedQuery, setRequestedQuery] = useState<string | null>(null);
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -244,15 +247,36 @@ export default function PastPapersScreen({ route }: any) {
   } = useSearchFocus();
 
   useEffect(() => {
-    if (typeof route?.params?.search === 'string') setSearchQuery(route.params.search);
+    if (typeof route?.params?.search === 'string') {
+      setSearchQuery(route.params.search);
+      setSubmittedSearchQuery(route.params.search);
+    }
   }, [route?.params?.search]);
 
   useEffect(() => {
     getMaterialSearchHistoryEntries().then(setSearchHistory);
+    getDownloadedPapers().then((saved) => {
+      const localMaterials = saved.filter((paper) => paper.status === 'completed' && ['past_paper', 'solution', 'exam'].includes(String(paper.type || '').toLowerCase()));
+      setDownloadedPapers(localMaterials as any[]);
+      setPapersData((previous) => {
+        const merged = [...previous, ...localMaterials.map((paper: any): PastPaperItem => ({
+        id: paper._id, mtid: paper.mtid || `P${String(paper._id || '').substring(0, 4)}`, title: paper.title,
+        unitCode: paper.unitCode || paper.courseCode || 'MOI', unitName: paper.unitName || paper.title,
+        school: paper.school || 'Moi University', examYear: String(paper.examYear || ''),
+        semester: paper.semester || '', academicYear: paper.academicYear || '', department: paper.department || '',
+        description: paper.description || '', type: paper.type, downloadsCount: paper.downloadsCount || 0,
+        starsCount: 0, ratingScore: paper.ratingScore || '', thumbnail: paper.thumbnail || '',
+        fileUrl: paper.localUri || paper.fileUrl, ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl,
+        hasSolutions: paper.type === 'solution', tag: 'Downloaded offline'
+      }))];
+        return Array.from(new Map(merged.map((item) => [item.id, item])).values());
+      });
+    }).catch(() => {});
   }, []);
 
   // Fetch real uploaded past papers from Cloudinary / backend API
   const fetchRealPastPapers = async (searchTerm = '', page = 1, append = false) => {
+    const requestId = ++latestSearchRequest.current;
     try {
       const isSearch = searchTerm.trim().length > 0;
       if (append) setLoadingMore(true);
@@ -260,11 +284,13 @@ export default function PastPapersScreen({ route }: any) {
       else setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
+      if (requestId !== latestSearchRequest.current) return;
       setShowDemoMaterials(demoSetting);
 
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
       const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=past_paper${searchParam}&refresh=${Date.now()}`);
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=past_paper${searchParam}`);
+      if (requestId !== latestSearchRequest.current) return;
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realPastPapers: PastPaperItem[] = res.data
           .filter((p) => p.type === 'past_paper' || p.type === 'solution' || p.type === 'exam')
@@ -330,76 +356,26 @@ export default function PastPapersScreen({ route }: any) {
         setHasMorePapers(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       }
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return;
       console.log('Error fetching real past papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
     }
   };
 
-  // Pre-load campus library catalog in background so recommendations are always available
-  useEffect(() => {
-    if (campusLibrary.length === 0) {
-      apiRequest<{ data: IPaper[] }>('/papers?limit=50&type=past_paper')
-        .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            const mapped: PastPaperItem[] = res.data
-              .filter((p) => p.type === 'past_paper' || p.type === 'solution' || p.type === 'exam')
-              .map((p) => {
-                const materialId = p.mtid || `P${(p._id || '').substring(0, 4)}`;
-                return {
-                  id: p._id || (p as any).id,
-                  mtid: materialId,
-                  title: p.title,
-                  unitCode: p.unitCode || p.courseCode || 'MOI',
-                  unitName: p.unitName || p.title,
-                  school: p.school || 'Moi University',
-                  examYear: String(p.examYear || 2025),
-                  semester: p.semester || 'Semester 1',
-                  academicYear: p.academicYear || '',
-                  department: p.department || '',
-                  description: p.description || '',
-                  type: p.type,
-                  downloadsCount: p.downloads || 4500,
-                  starsCount: 28,
-                  ratingScore: p.ratingScore || '4.8',
-                  thumbnail: p.thumbnail 
-                    || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
-                    || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
-                  fileUrl: p.fileUrl,
-                  ttsTextUrl: (p as any).ttsTextUrl,
-                  hasSolutions: p.type === 'solution',
-                  tag: `MTID: ${materialId}`
-                };
-              });
-            setCampusLibrary((prev) => {
-              const combined = [...prev, ...mapped];
-              return Array.from(new Map(combined.map((item) => [item.id, item])).values());
-            });
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') fetchRealPastPapers(searchQuery.trim());
+      if (state === 'active') fetchRealPastPapers(submittedSearchQuery.trim());
     });
     return () => subscription.remove();
-  }, [searchQuery]);
+  }, [submittedSearchQuery]);
 
   useEffect(() => {
-    const trimmed = searchQuery.trim();
-    if (trimmed) {
-      setIsSearchLoading(true);
-    }
-    const timer = setTimeout(() => {
-      setPapersPage(1);
-      setHasMorePapers(true);
-      void fetchRealPastPapers(trimmed);
-    }, 280);
-    return () => clearTimeout(timer);
-  }, [searchQuery, user, searchHistory]);
+    setPapersPage(1);
+    setHasMorePapers(true);
+    void fetchRealPastPapers(submittedSearchQuery.trim());
+  }, [submittedSearchQuery]);
 
-  const isSearching = searchQuery.trim().length > 0;
+  const isSearching = submittedSearchQuery.trim().length > 0;
 
   const carouselPapers = !isSearching && papersData.length > 0
     ? (papersData.length <= 3 ? papersData.slice(0, Math.min(2, papersData.length)) : papersData.slice(0, 4))
@@ -427,18 +403,27 @@ export default function PastPapersScreen({ route }: any) {
   }, [carouselIndex, carouselPapers.length]);
 
   const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
+  const downloadedPastPaperItems = React.useMemo<PastPaperItem[]>(() => downloadedPapers.map((paper: any) => ({
+    id: paper._id, mtid: paper.mtid, title: paper.title, unitCode: paper.unitCode || paper.courseCode || 'MOI',
+    unitName: paper.unitName || paper.title, school: paper.school || 'Moi University', examYear: String(paper.examYear || ''),
+    semester: paper.semester || '', academicYear: paper.academicYear || '', department: paper.department || '',
+    description: paper.description || '', type: paper.type, downloadsCount: paper.downloadsCount || 0, starsCount: 0,
+    ratingScore: paper.ratingScore || '', thumbnail: paper.thumbnail || '', fileUrl: paper.localUri || paper.fileUrl,
+    ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl, hasSolutions: paper.type === 'solution', tag: 'Downloaded offline'
+  })), [downloadedPapers]);
+  const searchablePastPapers = React.useMemo(() => Array.from(new Map([...papersData, ...downloadedPastPaperItems].map((item) => [item.id, item])).values()), [papersData, downloadedPastPaperItems]);
 
   const smartSearch = React.useMemo(() => {
-    const q = searchQuery.trim();
+    const q = submittedSearchQuery.trim();
     if (!q) {
       return {
-        results: papersData,
+        results: searchablePastPapers,
         intent: parseSmartSearchQuery(''),
         isAutoPivoted: false,
         effectiveQuery: ''
       };
     }
-    const smart = smartSearchMaterials(papersData, q);
+    const smart = smartSearchMaterials(searchablePastPapers, q);
     if (forcedOriginalQuery === q) {
       return {
         ...smart,
@@ -447,7 +432,7 @@ export default function PastPapersScreen({ route }: any) {
       };
     }
     return smart;
-  }, [papersData, searchQuery, forcedOriginalQuery]);
+  }, [searchablePastPapers, submittedSearchQuery, forcedOriginalQuery]);
 
   const filteredPapers = smartSearch.results.filter((item) => {
     if (activeFilterDisc === 'solutions') return item.hasSolutions;
@@ -467,6 +452,7 @@ export default function PastPapersScreen({ route }: any) {
   const allPool = React.useMemo(() => {
     const combined = [
       ...papersData,
+      ...downloadedPastPaperItems,
       ...campusLibrary,
       ...INITIAL_PAST_PAPERS_DATA,
       ...RECOMMENDED_PAST_PAPERS
@@ -478,19 +464,19 @@ export default function PastPapersScreen({ route }: any) {
       seen.add(key);
       return true;
     });
-  }, [papersData, campusLibrary]);
+  }, [papersData, downloadedPastPaperItems, campusLibrary]);
 
   const searchRecommendations = React.useMemo(() => {
     if (!isSearching) return { youMayAlsoLike: [] as PastPaperItem[], continuationFeed: [] as PastPaperItem[], feedBlocks: [], contextLabel: '' };
     return getSearchRecommendationSections(
       allPool,
       filteredPapers,
-      searchQuery,
+      submittedSearchQuery,
       smartSearch.intent,
       user,
       searchHistory
     );
-  }, [allPool, filteredPapers, searchQuery, smartSearch.intent, user, searchHistory, isSearching]);
+  }, [allPool, filteredPapers, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
 
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
@@ -521,7 +507,7 @@ export default function PastPapersScreen({ route }: any) {
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
     if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
-      void fetchRealPastPapers(searchQuery.trim().length > 1 ? searchQuery : '', papersPage + 1, true);
+      void fetchRealPastPapers(submittedSearchQuery.trim().length > 1 ? submittedSearchQuery : '', papersPage + 1, true);
     }
   };
 
@@ -722,7 +708,7 @@ export default function PastPapersScreen({ route }: any) {
               setRefreshing(true);
               setPapersPage(1);
               setHasMorePapers(true);
-              await fetchRealPastPapers();
+              await fetchRealPastPapers(submittedSearchQuery);
               setRefreshing(false);
             }}
             colors={['#15803d']}
@@ -747,6 +733,7 @@ export default function PastPapersScreen({ route }: any) {
               }}
               onSubmitEditing={() => {
                 closeSearch();
+                setSubmittedSearchQuery(searchQuery.trim());
                 void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
                 void reportMaterialSearch(searchQuery, 'past_papers');
               }}
@@ -754,7 +741,7 @@ export default function PastPapersScreen({ route }: any) {
               style={styles.searchInput}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => { setSearchQuery(''); setRequestedQuery(null); }}>
+              <TouchableOpacity onPress={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setRequestedQuery(null); }}>
                 <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
               </TouchableOpacity>
             )}
@@ -768,6 +755,7 @@ export default function PastPapersScreen({ route }: any) {
             onSelectSuggestion={(suggestion) => {
               closeSearch();
               setSearchQuery(suggestion);
+              setSubmittedSearchQuery(suggestion.trim());
               setForcedOriginalQuery(null);
               void saveMaterialSearchQuery(suggestion, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
               void reportMaterialSearch(suggestion, 'past_papers');
@@ -786,18 +774,22 @@ export default function PastPapersScreen({ route }: any) {
           totalResultsCount={filteredPapers.length}
           onAcceptSuggestion={(suggestion) => {
             setSearchQuery(suggestion);
+            setSubmittedSearchQuery(suggestion.trim());
             setForcedOriginalQuery(null);
           }}
           onSearchInsteadOriginal={() => {
             setForcedOriginalQuery(searchQuery);
+            setSubmittedSearchQuery(searchQuery.trim());
           }}
           onChipPress={(chip) => {
             setSearchQuery(chip);
+            setSubmittedSearchQuery(chip.trim());
             setForcedOriginalQuery(null);
           }}
           onRemoveChip={(chip) => {
             const remainingQuery = searchQuery.replace(new RegExp(`\\b${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
             setSearchQuery(remainingQuery);
+            setSubmittedSearchQuery(remainingQuery);
             setForcedOriginalQuery(null);
           }}
         />
@@ -959,8 +951,8 @@ export default function PastPapersScreen({ route }: any) {
 
         {initialLoading ? (
           <ShimmerGridLoader title="loading more resources" count={6} />
-        ) : fetchError && papersData.length === 0 && !showDemoMaterials ? (
-          <OfflineState onRetry={() => fetchRealPastPapers(searchQuery.trim())} />
+        ) : fetchError && papersData.length === 0 && downloadedPastPaperItems.length === 0 && !showDemoMaterials ? (
+          <OfflineState onRetry={() => fetchRealPastPapers(submittedSearchQuery.trim())} />
         ) : isSearching ? (
           isSearchLoading && filteredPapers.length === 0 ? (
             <ShimmerGridLoader title={`Searching past papers for "${searchQuery}"...`} count={4} />

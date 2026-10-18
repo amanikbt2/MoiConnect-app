@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
-import { saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
+import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
 import { getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
@@ -188,6 +188,9 @@ function CatFeedCarousel({
 
 export default function CatPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState(route?.params?.search || '');
+  const [downloadedPapers, setDownloadedPapers] = useState<any[]>([]);
+  const latestSearchRequest = useRef(0);
   const [requestedQuery, setRequestedQuery] = useState<string | null>(null);
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -225,15 +228,35 @@ export default function CatPapersScreen({ route }: any) {
   } = useSearchFocus();
 
   useEffect(() => {
-    if (typeof route?.params?.search === 'string') setSearchQuery(route.params.search);
+    if (typeof route?.params?.search === 'string') {
+      setSearchQuery(route.params.search);
+      setSubmittedSearchQuery(route.params.search);
+    }
   }, [route?.params?.search]);
 
   useEffect(() => {
     getMaterialSearchHistoryEntries().then(setSearchHistory);
+    getDownloadedPapers().then((saved) => {
+      const localMaterials = saved.filter((paper) => paper.status === 'completed' && ['cat', 'quiz'].includes(String(paper.type || '').toLowerCase()));
+      setDownloadedPapers(localMaterials as any[]);
+      setCatsData((previous) => {
+        const merged = [...previous, ...localMaterials.map((paper: any): CATPaperItem => ({
+        id: paper._id, mtid: paper.mtid || `C${String(paper._id || '').substring(0, 4)}`, title: paper.title,
+        unitCode: paper.unitCode || paper.courseCode || 'MOI', unitName: paper.unitName || paper.title,
+        school: paper.school || 'Moi University', catType: /cat 2/i.test(paper.title) ? 'CAT 2' : /quiz/i.test(paper.title) ? 'Mid-Sem Quiz' : 'CAT 1',
+        type: paper.type, downloadsCount: paper.downloadsCount || 0, starsCount: 0, ratingScore: paper.ratingScore || '',
+        thumbnail: paper.thumbnail || '', fileUrl: paper.localUri || paper.fileUrl, ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl,
+        examYear: String(paper.examYear || ''), semester: paper.semester || '', academicYear: paper.academicYear || '',
+        department: paper.department || '', description: paper.description || '', tag: 'Downloaded offline'
+      }))];
+        return Array.from(new Map(merged.map((item) => [item.id, item])).values());
+      });
+    }).catch(() => {});
   }, []);
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
   const fetchRealCatPapers = async (searchTerm = '', page = 1, append = false) => {
+    const requestId = ++latestSearchRequest.current;
     try {
       const isSearch = searchTerm.trim().length > 0;
       if (append) setLoadingMore(true);
@@ -241,11 +264,13 @@ export default function CatPapersScreen({ route }: any) {
       else setInitialLoading(true);
       setFetchError(false);
       const demoSetting = await getShowDemoMaterialsSetting();
+      if (requestId !== latestSearchRequest.current) return;
       setShowDemoMaterials(demoSetting);
 
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
       const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=cat${searchParam}&refresh=${Date.now()}`);
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=cat${searchParam}`);
+      if (requestId !== latestSearchRequest.current) return;
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
           .filter((p) => p.type === 'cat' || p.type === 'quiz')
@@ -311,80 +336,24 @@ export default function CatPapersScreen({ route }: any) {
         setHasMorePapers(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       }
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return;
       console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
     }
   };
 
-  // Pre-load campus CAT assessments in background so recommendations are always available
-  useEffect(() => {
-    if (campusLibrary.length === 0) {
-      apiRequest<{ data: IPaper[] }>('/papers?limit=50&type=cat')
-        .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            const mapped: CATPaperItem[] = res.data
-              .filter((p) => p.type === 'cat' || p.type === 'quiz')
-              .map((p) => {
-                const materialId = p.mtid || `C${(p._id || '').substring(0, 4)}`;
-                const rawCatType = (p.title + ' ' + (p.description || '')).toUpperCase();
-                const detectedType: 'CAT 1' | 'CAT 2' | 'Mid-Sem Quiz' = rawCatType.includes('CAT 2') || rawCatType.includes('CAT II')
-                  ? 'CAT 2'
-                  : rawCatType.includes('QUIZ')
-                    ? 'Mid-Sem Quiz'
-                    : 'CAT 1';
-                return {
-                  id: p._id || (p as any).id,
-                  mtid: materialId,
-                  title: p.title,
-                  unitCode: p.unitCode || p.courseCode || 'MOI',
-                  unitName: p.unitName || p.title,
-                  school: p.school || 'Moi University',
-                  catType: detectedType,
-                  type: p.type,
-                  examYear: String(p.examYear || 2025),
-                  semester: p.semester || 'Semester 1',
-                  academicYear: p.academicYear || '',
-                  department: p.department || '',
-                  description: p.description || '',
-                  downloadsCount: p.downloads || 3200,
-                  starsCount: 15,
-                  ratingScore: p.ratingScore || '4.7',
-                  thumbnail: p.thumbnail 
-                    || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
-                    || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
-                  fileUrl: p.fileUrl,
-                  ttsTextUrl: (p as any).ttsTextUrl,
-                  tag: `MTID: ${materialId}`
-                };
-              });
-            setCampusLibrary((prev) => {
-              const combined = [...prev, ...mapped];
-              return Array.from(new Map(combined.map((item) => [item.id, item])).values());
-            });
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') fetchRealCatPapers(searchQuery.trim());
+      if (state === 'active') fetchRealCatPapers(submittedSearchQuery.trim());
     });
     return () => subscription.remove();
-  }, [searchQuery]);
+  }, [submittedSearchQuery]);
 
   useEffect(() => {
-    const trimmed = searchQuery.trim();
-    if (trimmed) {
-      setIsSearchLoading(true);
-    }
-    const timer = setTimeout(() => {
-      setPapersPage(1);
-      setHasMorePapers(true);
-      void fetchRealCatPapers(trimmed);
-    }, 280);
-    return () => clearTimeout(timer);
-  }, [searchQuery, user, searchHistory]);
+    setPapersPage(1);
+    setHasMorePapers(true);
+    void fetchRealCatPapers(submittedSearchQuery.trim());
+  }, [submittedSearchQuery]);
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -404,18 +373,28 @@ export default function CatPapersScreen({ route }: any) {
   }, [carouselIndex]);
 
   const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
+  const downloadedCatItems = React.useMemo<CATPaperItem[]>(() => downloadedPapers.map((paper: any) => ({
+    id: paper._id, mtid: paper.mtid, title: paper.title, unitCode: paper.unitCode || paper.courseCode || 'MOI',
+    unitName: paper.unitName || paper.title, school: paper.school || 'Moi University',
+    catType: /cat 2/i.test(paper.title) ? 'CAT 2' : /quiz/i.test(paper.title) ? 'Mid-Sem Quiz' : 'CAT 1',
+    type: paper.type, downloadsCount: paper.downloadsCount || 0, starsCount: 0, ratingScore: paper.ratingScore || '',
+    thumbnail: paper.thumbnail || '', fileUrl: paper.localUri || paper.fileUrl, ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl,
+    examYear: String(paper.examYear || ''), semester: paper.semester || '', academicYear: paper.academicYear || '',
+    department: paper.department || '', description: paper.description || '', tag: 'Downloaded offline'
+  })), [downloadedPapers]);
+  const searchableCats = React.useMemo(() => Array.from(new Map([...catsData, ...downloadedCatItems].map((item) => [item.id, item])).values()), [catsData, downloadedCatItems]);
 
   const smartSearch = React.useMemo(() => {
-    const q = searchQuery.trim();
+    const q = submittedSearchQuery.trim();
     if (!q) {
       return {
-        results: catsData,
+        results: searchableCats,
         intent: parseSmartSearchQuery(''),
         isAutoPivoted: false,
         effectiveQuery: ''
       };
     }
-    const smart = smartSearchMaterials(catsData, q);
+    const smart = smartSearchMaterials(searchableCats, q);
     if (forcedOriginalQuery === q) {
       return {
         ...smart,
@@ -424,7 +403,7 @@ export default function CatPapersScreen({ route }: any) {
       };
     }
     return smart;
-  }, [catsData, searchQuery, forcedOriginalQuery]);
+  }, [searchableCats, submittedSearchQuery, forcedOriginalQuery]);
 
   const filteredCats = smartSearch.results.filter((item) => {
     if (activeFilterDisc === 'cat1') return item.catType === 'CAT 1';
@@ -436,11 +415,12 @@ export default function CatPapersScreen({ route }: any) {
     return true;
   });
 
-  const isSearching = searchQuery.trim().length > 0;
+  const isSearching = submittedSearchQuery.trim().length > 0;
 
   const allPool = React.useMemo(() => {
     const combined = [
       ...catsData,
+      ...downloadedCatItems,
       ...campusLibrary,
       ...RECOMMENDED_CAT_PAPERS
     ];
@@ -451,19 +431,19 @@ export default function CatPapersScreen({ route }: any) {
       seen.add(key);
       return true;
     });
-  }, [catsData, campusLibrary]);
+  }, [catsData, downloadedCatItems, campusLibrary]);
 
   const searchRecommendations = React.useMemo(() => {
     if (!isSearching) return { youMayAlsoLike: [] as CATPaperItem[], continuationFeed: [] as CATPaperItem[], feedBlocks: [], contextLabel: '' };
     return getSearchRecommendationSections(
       allPool,
       filteredCats,
-      searchQuery,
+      submittedSearchQuery,
       smartSearch.intent,
       user,
       searchHistory
     );
-  }, [allPool, filteredCats, searchQuery, smartSearch.intent, user, searchHistory, isSearching]);
+  }, [allPool, filteredCats, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
 
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
@@ -494,7 +474,7 @@ export default function CatPapersScreen({ route }: any) {
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
     if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
-      void fetchRealCatPapers(searchQuery.trim().length > 1 ? searchQuery : '', papersPage + 1, true);
+      void fetchRealCatPapers(submittedSearchQuery.trim().length > 1 ? submittedSearchQuery : '', papersPage + 1, true);
     }
   };
 
@@ -674,7 +654,7 @@ export default function CatPapersScreen({ route }: any) {
               setRefreshing(true);
               setPapersPage(1);
               setHasMorePapers(true);
-              await fetchRealCatPapers();
+              await fetchRealCatPapers(submittedSearchQuery);
               setRefreshing(false);
             }}
             colors={['#15803d']}
@@ -699,6 +679,7 @@ export default function CatPapersScreen({ route }: any) {
               }}
               onSubmitEditing={() => {
                 closeSearch();
+                setSubmittedSearchQuery(searchQuery.trim());
                 void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
                 void reportMaterialSearch(searchQuery, 'cats');
               }}
@@ -707,7 +688,7 @@ export default function CatPapersScreen({ route }: any) {
               underlineColorAndroid="transparent"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => { setSearchQuery(''); setRequestedQuery(null); }}>
+              <TouchableOpacity onPress={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setRequestedQuery(null); }}>
                 <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
               </TouchableOpacity>
             )}
@@ -721,6 +702,7 @@ export default function CatPapersScreen({ route }: any) {
             onSelectSuggestion={(suggestion) => {
               closeSearch();
               setSearchQuery(suggestion);
+              setSubmittedSearchQuery(suggestion.trim());
               setForcedOriginalQuery(null);
               void saveMaterialSearchQuery(suggestion, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
               void reportMaterialSearch(suggestion, 'cats');
@@ -739,18 +721,22 @@ export default function CatPapersScreen({ route }: any) {
           totalResultsCount={filteredCats.length}
           onAcceptSuggestion={(suggestion) => {
             setSearchQuery(suggestion);
+            setSubmittedSearchQuery(suggestion.trim());
             setForcedOriginalQuery(null);
           }}
           onSearchInsteadOriginal={() => {
             setForcedOriginalQuery(searchQuery);
+            setSubmittedSearchQuery(searchQuery.trim());
           }}
           onChipPress={(chip) => {
             setSearchQuery(chip);
+            setSubmittedSearchQuery(chip.trim());
             setForcedOriginalQuery(null);
           }}
           onRemoveChip={(chip) => {
             const remainingQuery = searchQuery.replace(new RegExp(`\\b${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
             setSearchQuery(remainingQuery);
+            setSubmittedSearchQuery(remainingQuery);
             setForcedOriginalQuery(null);
           }}
         />
@@ -905,8 +891,8 @@ export default function CatPapersScreen({ route }: any) {
 
         {initialLoading ? (
           <ShimmerGridLoader title="loading more resources" count={6} />
-        ) : fetchError && catsData.length === 0 && !showDemoMaterials ? (
-          <OfflineState onRetry={() => fetchRealCatPapers(searchQuery.trim())} />
+        ) : fetchError && catsData.length === 0 && downloadedCatItems.length === 0 && !showDemoMaterials ? (
+          <OfflineState onRetry={() => fetchRealCatPapers(submittedSearchQuery.trim())} />
         ) : isSearching ? (
           isSearchLoading && filteredCats.length === 0 ? (
             <ShimmerGridLoader title={`Searching CAT assessments for "${searchQuery}"...`} count={4} />

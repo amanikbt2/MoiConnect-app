@@ -18,10 +18,11 @@ import { parseSmartSearchQuery } from '../utils/smartSearchParser';
 import { SearchIcon, SparklesIcon, ClockIcon, ChevronRightIcon } from './Icons';
 import { useTheme } from '../context/ThemeContext';
 import { HighlightText } from './HighlightText';
+import { KENYAN_UNIVERSITIES, getKenyanUniversitySearchAliases } from '../data/kenyanUniversities';
 
 export interface AutocompleteSuggestion {
   id: string;
-  type: 'unit' | 'school' | 'department' | 'acronym' | 'history' | 'trending' | 'material';
+  type: 'unit' | 'school' | 'department' | 'university' | 'acronym' | 'history' | 'trending' | 'material';
   title: string;
   subtitle?: string;
   badge?: string;
@@ -281,6 +282,47 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
           },
           matchedTokenCount,
           totalScore: schScore
+        });
+      }
+    }
+
+    // 4. Kenyan universities: local aliases provide offline name, abbreviation,
+    // and common-short-name suggestions (e.g. "Moi", "JKUAT", or "university").
+    for (const university of KENYAN_UNIVERSITIES) {
+      const aliases = getKenyanUniversitySearchAliases(university).map((alias) => alias.toLowerCase());
+      const aliasWords = Array.from(new Set(aliases.flatMap((alias) => alias.split(/[^a-z0-9]+/).filter(Boolean))));
+      const normalizedAliases = aliases.map((alias) => alias.replace(/[^a-z0-9]/g, ''));
+      let matchedTokenCount = 0;
+      let universityScore = 0;
+
+      if (aliases.some((alias) => alias === trimmed)) universityScore += 12000;
+      else if (normalizedAliases.some((alias) => alias.startsWith(cleanNoSpace))) universityScore += 5000;
+
+      for (const tok of queryTokens) {
+        let bestTokenScore = 0;
+        if (aliasWords.includes(tok)) bestTokenScore = 1800;
+        else if (aliasWords.some((word) => word.startsWith(tok))) bestTokenScore = 1200;
+        else if (tok.length >= 3 && aliases.some((alias) => alias.includes(tok))) bestTokenScore = 300;
+
+        if (bestTokenScore > 0) {
+          matchedTokenCount++;
+          universityScore += bestTokenScore;
+        }
+      }
+
+      if (matchedTokenCount > 0) {
+        if (matchedTokenCount === queryTokens.length) universityScore += 3000;
+        candidates.push({
+          item: {
+            id: `university-${university.shortName}-${university.name}`,
+            type: 'university',
+            title: university.name,
+            subtitle: 'Kenyan university • tap to use in search',
+            badge: university.shortName,
+            queryValue: university.name
+          },
+          matchedTokenCount,
+          totalScore: universityScore
         });
       }
     }

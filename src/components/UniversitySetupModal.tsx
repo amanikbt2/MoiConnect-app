@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { KENYAN_UNIVERSITIES, KenyanUniversity } from '../data/kenyanUniversities';
+import { KENYAN_UNIVERSITIES, KenyanUniversity, getKenyanUniversitySearchAliases } from '../data/kenyanUniversities';
 import { useUniversity } from '../context/UniversityContext';
 
 export function UniversitySetupModal() {
@@ -10,7 +10,7 @@ export function UniversitySetupModal() {
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
     if (!search) return KENYAN_UNIVERSITIES;
-    return KENYAN_UNIVERSITIES.filter((item) => `${item.name} ${item.shortName}`.toLowerCase().includes(search));
+    return KENYAN_UNIVERSITIES.filter((item) => getKenyanUniversitySearchAliases(item).some((alias) => alias.toLowerCase().includes(search)));
   }, [query]);
 
   const choose = async (university: KenyanUniversity) => {

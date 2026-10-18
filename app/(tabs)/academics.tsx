@@ -199,6 +199,8 @@ export default function AcademicsScreen({ route }: any) {
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
   const [filterShuffleSeed, setFilterShuffleSeed] = useState(0);
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState(route?.params?.search || '');
+  const latestSearchRequest = useRef(0);
   const [requestedQuery, setRequestedQuery] = useState<string | null>(null);
   const [papers, setPapers] = useState<IPaper[]>([]);
   const [mySubmissions, setMySubmissions] = useState<IPaper[]>([]);
@@ -238,9 +240,12 @@ export default function AcademicsScreen({ route }: any) {
 
   useEffect(() => {
     getMaterialSearchHistoryEntries().then(setSearchHistory);
+    // Read only the metadata already stored on this device; never fetch metadata for offline search.
+    getDownloadedPapers().then((saved) => setDownloadedPapers(saved.filter((paper) => paper.status === 'completed') as any as IPaper[])).catch(() => {});
   }, []);
 
   const fetchRealAcademicPapers = async (searchQueryParam?: string, page = 1, append = false) => {
+    const requestId = ++latestSearchRequest.current;
     try {
       const isSearch = Boolean(searchQueryParam && searchQueryParam.trim());
       if (append) setLoadingMoreSection1(true);
@@ -249,8 +254,9 @@ export default function AcademicsScreen({ route }: any) {
       setFetchError(false);
       const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchQueryParam!.trim())}` : '';
-      const url = `/papers?limit=${limit}&page=${page}&type=notes${searchParam}&refresh=${Date.now()}`;
+      const url = `/papers?limit=${limit}&page=${page}&type=notes${searchParam}`;
       const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(url);
+      if (requestId !== latestSearchRequest.current) return;
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const noteMaterials = res.data.filter((p) =>
           ['notes', 'revision', 'lecture_notes'].includes(String(p.type || '').toLowerCase()) || !p.type
@@ -310,65 +316,22 @@ export default function AcademicsScreen({ route }: any) {
         setHasMoreNotes(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
       }
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return;
       console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
     }
   };
 
-  // Pre-load campus library notes in background so recommendations are always available
-  useEffect(() => {
-    if (campusLibraryNotes.length === 0) {
-      apiRequest<{ data: IPaper[] }>('/papers?limit=50&type=notes')
-        .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            const noteMaterials = res.data.filter((p) =>
-              ['notes', 'revision', 'lecture_notes'].includes(String(p.type || '').toLowerCase()) || !p.type
-            );
-            const mapped: NoteItem[] = noteMaterials.map((p) => ({
-              id: p._id || (p as any).id,
-              mtid: p.mtid || `N${(p._id || '').substring(0, 4)}`,
-              title: p.title,
-              unitCode: p.unitCode || p.courseCode || 'MOI',
-              unitName: p.unitName || p.title,
-              school: p.school || 'Moi University',
-              department: p.department || '',
-              courseCode: p.courseCode || '',
-              semester: p.semester || 'Semester 1',
-              academicYear: p.academicYear || '',
-              examYear: String(p.examYear || 2025),
-              paperType: p.type === 'notes' ? 'Revision Notes' : (p.type === 'cat' ? 'CAT Paper' : (p.type === 'past_paper' ? 'Past Paper' : 'Study Guide')),
-              downloads: formatCount(p.downloads || 4200),
-              rating: `${p.ratingScore || '4.8'} ⭐`,
-              description: p.description || '',
-              tag: p.mtid ? `MTID: ${p.mtid}` : '✨ Real Uploaded',
-              thumbnail: p.thumbnail 
-                || (p.fileType === 'image' || p.fileUrl?.match(/\.(jpg|jpeg|png|webp|gif)/i) ? p.fileUrl : undefined)
-                || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
-              author: typeof p.submittedBy === 'object' && p.submittedBy ? (p.submittedBy as any).name || 'Moi Student' : 'Moi Student',
-              fileUrl: p.fileUrl,
-              ttsTextUrl: (p as any).ttsTextUrl
-            }));
-            setCampusLibraryNotes((prev) => {
-              const combined = [...prev, ...mapped];
-              return Array.from(new Map(combined.map((item) => [item.id, item])).values());
-            });
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   useEffect(() => {
-    const initialSearch = route?.params?.search ? String(route.params.search).trim() : searchQuery.trim();
-    fetchRealAcademicPapers(initialSearch);
     getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        fetchRealAcademicPapers(searchQuery.trim());
+        fetchRealAcademicPapers(submittedSearchQuery.trim());
         getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
       }
     });
     return () => subscription.remove();
-  }, [user, searchHistory]);
+  }, [submittedSearchQuery]);
 
   const handleOpenPreview = (item: NoteItem) => {
     setPreviewDoc({
@@ -434,7 +397,7 @@ export default function AcademicsScreen({ route }: any) {
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
     if (distanceToBottom < 500 && hasMoreNotes && !loadingMoreSection1 && !initialLoading) {
-      void fetchRealAcademicPapers(searchQuery, papersPage + 1, true);
+      void fetchRealAcademicPapers(submittedSearchQuery, papersPage + 1, true);
     }
   };
 
@@ -462,28 +425,20 @@ export default function AcademicsScreen({ route }: any) {
     }
     if (route?.params?.search) {
       setSearchQuery(route.params.search);
+      setSubmittedSearchQuery(route.params.search);
     }
   }, [route?.params]);
 
-  // Debounced API Search with Smart Parser
+  // Only fetch materials after the student commits a search.
   useEffect(() => {
-    const trimmed = searchQuery.trim();
-    if (trimmed) {
-      setIsSearchLoading(true);
-      const timer = setTimeout(() => {
-        fetchRealAcademicPapers(trimmed);
-      }, 280);
-      return () => clearTimeout(timer);
-    } else {
-      fetchRealAcademicPapers();
-    }
-  }, [searchQuery]);
+    fetchRealAcademicPapers(submittedSearchQuery.trim());
+  }, [submittedSearchQuery]);
 
   const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
 
   // Categorize items into Top Matches vs Related Materials (supporting hidden metadata like semester, academicYear, examYear, etc.)
   const smartSearchResults = React.useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = submittedSearchQuery.toLowerCase().trim();
     if (!q) {
       return {
         isSearching: false,
@@ -501,6 +456,9 @@ export default function AcademicsScreen({ route }: any) {
 
     const allPool: NoteItem[] = [
       ...realUploadedNotes,
+      ...downloadedPapers
+        .filter((paper: any) => ['notes', 'revision', 'lecture_notes'].includes(String(paper.type || '').toLowerCase()))
+        .map((paper: any) => ({ id: paper._id, mtid: paper.mtid, title: paper.title, unitCode: paper.unitCode || paper.courseCode || 'MOI', unitName: paper.unitName || paper.title, school: paper.school || 'Moi University', department: paper.department || '', courseCode: paper.courseCode || '', semester: paper.semester || '', academicYear: paper.academicYear || '', examYear: String(paper.examYear || ''), paperType: 'Revision Notes', downloads: formatCount(paper.downloadsCount || 0), rating: `${paper.ratingScore || '—'} ⭐`, description: paper.description || '', tag: 'Downloaded offline', thumbnail: paper.thumbnail || '', author: paper.uploadedBy?.name || 'Moi Student', fileUrl: paper.localUri || paper.fileUrl, ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl } as NoteItem)),
       ...(showDemoMaterials ? FOR_YOU_CAROUSEL : []),
       ...(showDemoMaterials ? GRID_SECTION_1 : []),
       ...(showDemoMaterials ? TRENDING_CAROUSEL : []),
@@ -580,13 +538,37 @@ export default function AcademicsScreen({ route }: any) {
       isAutoPivoted,
       effectiveQuery
     };
-  }, [searchQuery, realUploadedNotes, activeFilterDisc, showDemoMaterials, forcedOriginalQuery]);
+  }, [submittedSearchQuery, realUploadedNotes, downloadedPapers, activeFilterDisc, showDemoMaterials, forcedOriginalQuery]);
 
   const allBrowseNotes = React.useMemo(() => {
     const seen = new Set<string>();
     return [
       ...realUploadedNotes,
       ...campusLibraryNotes,
+      ...downloadedPapers
+        .filter((paper: any) => ['notes', 'revision', 'lecture_notes'].includes(String(paper.type || '').toLowerCase()))
+        .map((paper: any): NoteItem => ({
+          id: paper._id,
+          mtid: paper.mtid || `N${String(paper._id || '').substring(0, 4)}`,
+          title: paper.title,
+          unitCode: paper.unitCode || paper.courseCode || 'MOI',
+          unitName: paper.unitName || paper.title,
+          school: paper.school || 'Moi University',
+          department: paper.department || '',
+          courseCode: paper.courseCode || '',
+          semester: paper.semester || '',
+          academicYear: paper.academicYear || '',
+          examYear: String(paper.examYear || ''),
+          paperType: 'Revision Notes',
+          downloads: formatCount(paper.downloadsCount || 0),
+          rating: `${paper.ratingScore || '—'} ⭐`,
+          description: paper.description || '',
+          tag: 'Downloaded offline',
+          thumbnail: paper.thumbnail || '',
+          author: paper.uploadedBy?.name || 'Moi Student',
+          fileUrl: paper.localUri || paper.fileUrl,
+          ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl
+        })),
       ...FOR_YOU_CAROUSEL,
       ...GRID_SECTION_1,
       ...TRENDING_CAROUSEL,
@@ -596,7 +578,7 @@ export default function AcademicsScreen({ route }: any) {
       seen.add(item.id);
       return true;
     });
-  }, [realUploadedNotes, campusLibraryNotes]);
+  }, [realUploadedNotes, campusLibraryNotes, downloadedPapers]);
 
   const searchRecommendations = React.useMemo(() => {
     if (!smartSearchResults.isSearching) return { youMayAlsoLike: [] as NoteItem[], continuationFeed: [] as NoteItem[], feedBlocks: [], contextLabel: '' };
@@ -604,12 +586,12 @@ export default function AcademicsScreen({ route }: any) {
     return getSearchRecommendationSections(
       allBrowseNotes,
       matching,
-      searchQuery,
+      submittedSearchQuery,
       smartSearchResults.intent,
       user,
       searchHistory
     );
-  }, [allBrowseNotes, smartSearchResults, searchQuery, user, searchHistory]);
+  }, [allBrowseNotes, smartSearchResults, submittedSearchQuery, user, searchHistory]);
 
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
@@ -1002,6 +984,7 @@ export default function AcademicsScreen({ route }: any) {
                 }}
                 onSubmitEditing={() => {
                   closeSearch();
+                  setSubmittedSearchQuery(searchQuery.trim());
                   void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
                   void reportMaterialSearch(searchQuery, 'notes');
                 }}
@@ -1009,7 +992,7 @@ export default function AcademicsScreen({ route }: any) {
                 style={styles.searchInput}
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => { setSearchQuery(''); setRequestedQuery(null); }}>
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setRequestedQuery(null); }}>
                   <Text style={{ fontSize: 13, color: '#94a3b8', fontWeight: '700', paddingHorizontal: 6 }}>✕</Text>
                 </TouchableOpacity>
               )}
@@ -1023,6 +1006,7 @@ export default function AcademicsScreen({ route }: any) {
               onSelectSuggestion={(suggestion) => {
                 closeSearch();
                 setSearchQuery(suggestion);
+                setSubmittedSearchQuery(suggestion.trim());
                 setForcedOriginalQuery(null);
                 void saveMaterialSearchQuery(suggestion, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
                 void reportMaterialSearch(suggestion, 'notes');
@@ -1075,8 +1059,8 @@ export default function AcademicsScreen({ route }: any) {
             <View style={{ marginTop: 16 }}>
               <ShimmerGridLoader title="loading more resources" count={6} />
             </View>
-          ) : fetchError && realUploadedNotes.length === 0 && !showDemoMaterials ? (
-            <OfflineState onRetry={() => fetchRealAcademicPapers(searchQuery)} />
+          ) : fetchError && realUploadedNotes.length === 0 && !allBrowseNotes.some((item) => item.tag === 'Downloaded offline') && !showDemoMaterials ? (
+            <OfflineState onRetry={() => fetchRealAcademicPapers(submittedSearchQuery)} />
           ) : smartSearchResults.isSearching ? (
             <View style={{ marginTop: 16 }}>
               {/* Google-Style Smart Search Header with Did You Mean & Intent Breakdown */}
@@ -1086,18 +1070,22 @@ export default function AcademicsScreen({ route }: any) {
                 totalResultsCount={smartSearchResults.topMatches.length + smartSearchResults.relatedMatches.length}
                 onAcceptSuggestion={(suggestion) => {
                   setSearchQuery(suggestion);
+                  setSubmittedSearchQuery(suggestion.trim());
                   setForcedOriginalQuery(null);
                 }}
                 onSearchInsteadOriginal={() => {
                   setForcedOriginalQuery(searchQuery);
+                  setSubmittedSearchQuery(searchQuery.trim());
                 }}
                 onChipPress={(chip) => {
                   setSearchQuery(chip);
+                  setSubmittedSearchQuery(chip.trim());
                   setForcedOriginalQuery(null);
                 }}
                 onRemoveChip={(chip) => {
                   const remainingQuery = searchQuery.replace(new RegExp(`\\b${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
                   setSearchQuery(remainingQuery);
+                  setSubmittedSearchQuery(remainingQuery);
                   setForcedOriginalQuery(null);
                 }}
               />

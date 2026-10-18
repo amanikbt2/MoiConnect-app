@@ -130,12 +130,17 @@ export const MOI_ACADEMIC_SCHOOLS: AcademicSchoolEntry[] = [
     ]
   },
   {
-    "name": "School of Nursing Sciences",
-    "code": "SON",
+    "name": "School of Nursing and Midwifery",
+    "code": "SONM",
     "aliases": [
       "nursing",
       "son",
-      "nursing sciences"
+      "sonm",
+      "nursing sciences",
+      "nursing and midwifery",
+      "nursing & midwifery",
+      "midwifery",
+      "school of nursing"
     ]
   },
   {
@@ -143,7 +148,52 @@ export const MOI_ACADEMIC_SCHOOLS: AcademicSchoolEntry[] = [
     "code": "SOD",
     "aliases": [
       "dentistry",
-      "dental"
+      "dental",
+      "school of dental surgery"
+    ]
+  },
+  {
+    "name": "School of Agriculture and Natural Resources",
+    "code": "SANR",
+    "aliases": [
+      "agriculture",
+      "agricultural sciences",
+      "agriculture and natural resources",
+      "agriculture & natural resources",
+      "natural resources",
+      "agribusiness",
+      "crop science",
+      "animal science",
+      "school of agriculture"
+    ]
+  },
+  {
+    "name": "School of Postgraduate Studies, Research and Innovation",
+    "code": "SPGRI",
+    "aliases": [
+      "postgraduate studies",
+      "post graduate studies",
+      "graduate studies",
+      "research and innovation",
+      "research & innovation",
+      "graduate school",
+      "postgraduate school",
+      "phd studies",
+      "masters studies"
+    ]
+  },
+  {
+    "name": "School of Tourism, Hospitality and Events Management",
+    "code": "STHEM",
+    "aliases": [
+      "tourism",
+      "hospitality",
+      "events management",
+      "tourism hospitality and events management",
+      "tourism, hospitality and events management",
+      "hotel management",
+      "travel and tourism",
+      "school of tourism"
     ]
   }
 ];
