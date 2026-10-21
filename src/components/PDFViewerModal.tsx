@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, RotateDeviceIcon } from './Icons';
 import { OfflineState } from './OfflineState';
@@ -1247,7 +1247,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   nativeLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,

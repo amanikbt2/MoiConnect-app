@@ -6,9 +6,6 @@ let socket: Socket | null = null;
 let initPromise: Promise<Socket> | null = null;
 
 export const initSocket = async (): Promise<Socket> => {
-  if (socket && socket.connected) {
-    return socket;
-  }
   if (initPromise) {
     return initPromise;
   }
@@ -42,7 +39,11 @@ export const initSocket = async (): Promise<Socket> => {
           console.warn('[Socket Connect Error]:', error?.message || error);
         });
       } else {
-        // Update auth token dynamically in case user logged in or refreshed token
+        // Refresh the handshake identity after sign in, sign out, or token rotation.
+        const currentToken = (socket as any).auth?.token;
+        if (currentToken !== token && socket.connected) {
+          socket.disconnect();
+        }
         (socket as any).auth = { token };
         if (!socket.connected) {
           socket.connect();
@@ -61,9 +62,6 @@ export const initSocket = async (): Promise<Socket> => {
 };
 
 export const getSocket = async (): Promise<Socket> => {
-  if (socket && socket.connected) {
-    return socket;
-  }
   return await initSocket();
 };
 

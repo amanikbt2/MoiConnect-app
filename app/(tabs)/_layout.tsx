@@ -310,7 +310,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerTitle: () => <HomeHeaderTitle />,
-          tabBarIcon: ({ color }: { color: string }) => <HomeIcon color={color} size={22} />
+          tabBarIcon: ({ color }) => <HomeIcon color={String(color || '#64748b')} size={22} />
         }}
       />
       <Tabs.Screen
@@ -325,7 +325,7 @@ export default function TabLayout() {
         options={{
           title: 'Downloads',
           headerTitle: () => <DownloadsHeaderTitle />,
-          tabBarIcon: ({ color }: { color: string }) => <DownloadIcon color={color} size={22} />
+          tabBarIcon: ({ color }) => <DownloadIcon color={String(color || '#64748b')} size={22} />
         }}
       />
       <Tabs.Screen
@@ -349,8 +349,8 @@ export default function TabLayout() {
             lineHeight: 15,
             marginTop: -2
           },
-          tabBarIcon: ({ color }: { color: string }) => (
-            <CommunityIcon color={color} size={22} />
+          tabBarIcon: ({ color }) => (
+            <CommunityIcon color={String(color || '#64748b')} size={22} />
           )
         }}
       />

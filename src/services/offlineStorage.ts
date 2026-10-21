@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { apiRequest, getStoredToken } from './api';
 import { scheduleLocalMissedMessagesNotification } from './notificationService';
 
@@ -773,7 +773,9 @@ export const saveCommunityMessages = async (messages: any[]) => {
     const stripDataAvatar = (avatar?: string) => avatar?.startsWith('data:') ? undefined : avatar;
     return {
       ...message,
-      text: typeof message.text === 'string' ? message.text.slice(-4000) : '',
+      // Keep complete responses in the offline chat cache. Truncating the
+      // leading text made long assistant answers appear cut off after sync.
+      text: typeof message.text === 'string' ? message.text : '',
       senderAvatarUrl: stripDataAvatar(message.senderAvatarUrl),
       pendingPayload: message.pendingPayload
         ? { ...message.pendingPayload, senderAvatarUrl: stripDataAvatar(message.pendingPayload.senderAvatarUrl) }

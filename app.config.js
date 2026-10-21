@@ -6,6 +6,7 @@ const numberFromEnv = (name, fallback) => {
 module.exports = ({ config }) => {
   return {
     ...config,
+    plugins: [...(config.plugins || []), 'expo-splash-screen'],
     version: process.env.MCONNECT_VERSION || config.version,
     android: {
       ...(config.android || {}),

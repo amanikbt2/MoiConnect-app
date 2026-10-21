@@ -8,7 +8,6 @@ import {
   Platform,
   Keyboard,
   AppState,
-  InteractionManager
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeIcon, DownloadIcon, CommunityIcon } from './Icons';
@@ -44,17 +43,14 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
 
     let backgroundInterval: ReturnType<typeof setInterval> | undefined;
     let delayedSync: ReturnType<typeof setTimeout> | undefined;
-    let interactionTask: { cancel?: () => void } | undefined;
     const onCommunityRoute = typeof currentRoute === 'string' && (
       currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')
     );
     const scheduleSilentSync = () => {
       if (!user || onCommunityRoute || AppState.currentState !== 'active') return;
-      interactionTask = InteractionManager.runAfterInteractions(() => {
-        delayedSync = setTimeout(() => {
-          void syncCommunityUnreadBackground({ notify: true });
-        }, 1200);
-      }) as any;
+      delayedSync = setTimeout(() => {
+        void syncCommunityUnreadBackground({ notify: true });
+      }, 1200);
     };
     if (user && !onCommunityRoute) {
       scheduleSilentSync();
@@ -81,7 +77,6 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
       appStateSubscription.remove();
       if (backgroundInterval) clearInterval(backgroundInterval);
       if (delayedSync) clearTimeout(delayedSync);
-      interactionTask?.cancel?.();
     };
   }, [user, currentRoute]);
 

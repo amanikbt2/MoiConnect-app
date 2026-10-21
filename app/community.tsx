@@ -23,12 +23,11 @@ import {
   Image,
   ImageBackground,
   AppState,
-  AppStateStatus
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
-import * as ExpoFileSystem from 'expo-file-system';
+import * as ExpoFileSystem from 'expo-file-system/legacy';
 import { WebView } from 'react-native-webview';
 import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
@@ -80,7 +79,7 @@ import {
 } from '../src/services/offlineStorage';
 import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 import { mediaDownloadManager, ActiveMediaDownload } from '../src/services/mediaDownloadManager';
-import { getAllowCommunityChatSetting, getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
+import { getAllowCommunityChatSetting, getForumParticipationSetting, getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
 import { useLocalSearchParams } from 'expo-router';
 import { PDFViewerModal, PDFDocumentItem } from '../src/components/PDFViewerModal';
@@ -88,6 +87,7 @@ import { UserBadge } from '../src/components/UserBadge';
 import { useNetwork } from '../src/context/NetworkContext';
 import { getSmartReplySnippet, getReplyAttachmentThumbnail } from '../src/utils/chatReplyUtils';
 import { SmartMediaThumbnail, getCloudinaryVideoPreviewUrl } from '../src/components/SmartMediaThumbnail';
+import { CommunityLiveRoom } from '../src/components/CommunityLiveRoom';
 
 export interface FileAttachment {
   name: string;
@@ -125,6 +125,8 @@ export interface CommunityMessage {
   updatedAt?: string;
   isMe: boolean;
   isSystemNotice?: boolean;
+  isLiveNotice?: boolean;
+  liveHostName?: string;
   eventType?: 'user_connected' | 'user_disconnected' | 'security' | string;
   fileAttachment?: FileAttachment;
   reactions?: Record<string, number>;
@@ -542,6 +544,8 @@ export default function CommunityScreen() {
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const livePulseAnim = useRef(new Animated.Value(0)).current;
+  const [liveBroadcast, setLiveBroadcast] = useState<{ hostName: string; hostId?: string } | null>(null);
   const [isForumLoading, setIsForumLoading] = useState(true);
   const [forumHeaderHeight, setForumHeaderHeight] = useState(0);
   const [hasForumListLayout, setHasForumListLayout] = useState(false);
@@ -551,11 +555,23 @@ export default function CommunityScreen() {
     // Smart Presence Collapse:
     // Filter out consecutive system presence notices so back-to-back
     // online/offline oscillations collapse into a single clean presence notice.
+    const liveNotice: CommunityMessage[] = liveBroadcast && liveBroadcast.hostId !== user?._id ? [{
+      id: `live-broadcast-${liveBroadcast.hostId || liveBroadcast.hostName}`,
+      senderName: liveBroadcast.hostName,
+      senderFaculty: '',
+      avatarBg: '',
+      text: '',
+      timestamp: '',
+      isMe: false,
+      isLiveNotice: true,
+      liveHostName: liveBroadcast.hostName
+    }] : [];
+    const sourceMessages = [...messages, ...liveNotice];
     const collapsed: CommunityMessage[] = [];
-    for (let i = 0; i < messages.length; i++) {
-      const current = messages[i];
+    for (let i = 0; i < sourceMessages.length; i++) {
+      const current = sourceMessages[i];
       if (current.isSystemNotice) {
-        const next = messages[i + 1];
+        const next = sourceMessages[i + 1];
         if (next && next.isSystemNotice) {
           continue;
         }
@@ -563,7 +579,7 @@ export default function CommunityScreen() {
       collapsed.push(current);
     }
     return collapsed.reverse();
-  }, [messages]);
+  }, [messages, liveBroadcast, user?._id]);
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -571,6 +587,8 @@ export default function CommunityScreen() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionLoading, setMentionLoading] = useState(false);
+  const [sendButtonBusy, setSendButtonBusy] = useState(false);
+  const sendButtonBusyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mentionFetchInFlightRef = useRef(false);
   const mentionFetchedQueriesRef = useRef<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
@@ -712,6 +730,7 @@ export default function CommunityScreen() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showUnreadBtn, setShowUnreadBtn] = useState<boolean>(false);
   const [allowCommunityChat, setAllowCommunityChat] = useState<boolean>(true);
+  const [forumParticipationAllowed, setForumParticipationAllowed] = useState<boolean>(true);
 
   // WhatsApp-Style Live Typing Indicator State & Animation
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -720,6 +739,22 @@ export default function CommunityScreen() {
   const [botTypingName, setBotTypingName] = useState('Campus Bot');
   const [onlineCount, setOnlineCount] = useState(0);
   const [socketOnline, setSocketOnline] = useState(false);
+  const [liveSession, setLiveSession] = useState<{ serverUrl: string; token: string; isHost: boolean } | null>(null);
+  const liveSessionRef = useRef<typeof liveSession>(null);
+  liveSessionRef.current = liveSession;
+  useEffect(() => {
+    if (!liveBroadcast) {
+      livePulseAnim.setValue(0);
+      return;
+    }
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(livePulseAnim, { toValue: 1, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(livePulseAnim, { toValue: 0, duration: 800, easing: Easing.in(Easing.ease), useNativeDriver: Platform.OS !== 'web' })
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [liveBroadcast?.hostId, liveBroadcast?.hostName, livePulseAnim]);
+  const [liveLoading, setLiveLoading] = useState(false);
   const typingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const deletingTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const myTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -755,22 +790,63 @@ export default function CommunityScreen() {
     }
   }, [typingUsers.length, deletingUsers.length, botTyping]);
 
-  const handleGoLivePress = () => {
+  const handleGoLivePress = async () => {
     if (!user) {
       showIceMessage('Sign in required', 'Please sign in before requesting access to Go Live.');
       return;
     }
 
-    const createdAt = new Date(String((user as any).createdAt || ''));
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    if (!Number.isNaN(createdAt.getTime()) && createdAt > sixMonthsAgo) {
-      showIceMessage('Go Live eligibility', 'You are not eligible to go live yet. Your account must be at least 6 months old.');
-      return;
+    if (liveLoading || liveSession) return;
+    setLiveLoading(true);
+    try {
+      const isHost = !liveBroadcast;
+      const response = await apiRequest<{ url: string; token: string; isConfigured?: boolean }>(
+        `/community/live/token?role=${isHost ? 'host' : 'viewer'}`
+      );
+      if (!response.success) {
+        const message = response.error || 'The live streaming service is not configured on the server yet.';
+        const isSetupIssue = message.toLowerCase().includes('not configured');
+        showIceMessage(isSetupIssue ? 'Live setup required' : 'Could not join live', message);
+        return;
+      }
+      if (!response.data?.url || !response.data?.token || response.data.token === 'socket_fallback_mode') {
+        showIceMessage('Live setup required', 'The server did not return live streaming credentials. An administrator needs to finish the LiveKit setup.');
+        return;
+      }
+      setLiveSession({ serverUrl: response.data.url, token: response.data.token, isHost });
+    } catch (error: any) {
+      const message = error?.message || 'Check your connection and try again.';
+      showIceMessage(message.includes('Go Live is not enabled') ? 'Go Live access' : 'Could not join live', message);
+    } finally {
+      setLiveLoading(false);
     }
+  };
 
-    showIceMessage('Live temporarily unavailable', 'Live streaming is temporarily unavailable right now. Please try again later.');
+  const handleLiveRoomReady = () => {
+    const socket = socketInstanceRef.current;
+    if (!socket?.connected || !liveSession) return;
+    if (liveSession.isHost) {
+      socket.emit('community:live_start', {
+        hostName: user?.name || 'Moi Student',
+        hostAvatar: user?.avatarUrl,
+        hostId: user?._id
+      });
+    } else {
+      socket.emit('community:live_join', {
+        id: socket.id,
+        name: user?.name || 'Moi Student',
+        avatar: user?.avatarUrl
+      });
+    }
+  };
+
+  const closeLiveRoom = () => {
+    const socket = socketInstanceRef.current;
+    if (socket?.connected && liveSession) {
+      if (liveSession.isHost) socket.emit('community:live_end');
+      else socket.emit('community:live_leave', { id: socket.id });
+    }
+    setLiveSession(null);
   };
 
   const flatListRef = useRef<FlatList>(null);
@@ -778,7 +854,7 @@ export default function CommunityScreen() {
   const deltaSyncInFlightRef = useRef(false);
   const isNearBottomRef = useRef<boolean>(true);
   const isForumFocusedRef = useRef<boolean>(isForumFocused);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<string | null | undefined>(AppState.currentState);
   const initialScrollDoneRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
   const userScrolledRef = useRef<boolean>(false);
@@ -1040,10 +1116,11 @@ export default function CommunityScreen() {
     });
 
     // 2. Instant Load from Phone Storage (0ms UI latency)
-    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getAllowCommunityChatSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(async ([cachedMsgs, demoSetting, allowChat, storedCursor, deletedForMeIds]) => {
+    const cacheReady = Promise.all([getStoredCommunityMessages(), getShowDemoMaterialsSetting(), getAllowCommunityChatSetting(), getForumParticipationSetting(), getCommunitySyncCursor(), getDeletedForMeMessageIds()]).then(async ([cachedMsgs, demoSetting, allowChat, forumAccess, storedCursor, deletedForMeIds]) => {
       deletedForMeIdsRef.current = new Set(deletedForMeIds);
       setShowDemoMaterials(demoSetting);
       setAllowCommunityChat(allowChat);
+      setForumParticipationAllowed(forumAccess);
       const rawMsgs = (cachedMsgs && cachedMsgs.length > 0 ? cachedMsgs : (demoSetting ? INITIAL_COMMUNITY_MESSAGES : []))
         .filter((m: any) => !m?.isSystemNotice && !String(m?.id || '').startsWith('local_presence_') && !String(m?.id || '').startsWith('sys_'));
       const msgsToLoad = rawMsgs
@@ -1080,6 +1157,16 @@ export default function CommunityScreen() {
           if (socketPresenceRef.current) addLocalPresenceNotice('user_connected');
           socketPresenceRef.current = true;
           socket.emit('community:request_online_count');
+          socket.emit('community:request_live_status');
+          if (liveSessionRef.current?.isHost) {
+            socket.emit('community:live_start');
+          } else if (liveSessionRef.current) {
+            socket.emit('community:live_join', {
+              id: socket.id,
+              name: user?.name || 'Moi Student',
+              avatar: user?.avatarUrl
+            });
+          }
           socket.emit('join_community');
           try {
             await fetchDeltaSync();
@@ -1103,6 +1190,13 @@ export default function CommunityScreen() {
         socket.on('community:online_count', (stats: { totalOnline?: number }) => {
           setOnlineCount(Math.max(0, Number(stats?.totalOnline || 0)));
         });
+        socket.on('community:forum_access', (status: { allowed?: boolean }) => {
+          if (typeof status?.allowed === 'boolean') setForumParticipationAllowed(status.allowed);
+        });
+        socket.on('community:live_start', (broadcast: { hostName?: string; hostId?: string }) => {
+          setLiveBroadcast({ hostName: broadcast?.hostName || 'A student', hostId: broadcast?.hostId });
+        });
+        socket.on('community:live_end', () => setLiveBroadcast(null));
         if (socket.connected) {
           handleSocketConnect();
         } else {
@@ -1386,6 +1480,8 @@ export default function CommunityScreen() {
         activeSocket.off('community:message_deleted');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
+        activeSocket.off('community:live_start');
+        activeSocket.off('community:live_end');
         activeSocket.off('connect');
         activeSocket.off('connect_error');
         activeSocket.off('disconnect');
@@ -1413,6 +1509,7 @@ export default function CommunityScreen() {
       if (!syncCursor) return;
       let responseMessages: any[] = [];
       let allowCommunityChat: boolean | undefined;
+      let forumAccessAllowed: boolean | undefined;
       let hasMore = true;
       let page = 0;
       let syncWatermark = '';
@@ -1427,6 +1524,7 @@ export default function CommunityScreen() {
         const pageMessages = Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.data) ? res.data.data : []);
         responseMessages = [...responseMessages, ...pageMessages];
         allowCommunityChat = anyRes.allowCommunityChat ?? anyRes.data?.allowCommunityChat ?? allowCommunityChat;
+        forumAccessAllowed = anyRes.forumAccessAllowed ?? anyRes.data?.forumAccessAllowed ?? forumAccessAllowed;
         hasMore = (anyRes.hasMore ?? anyRes.data?.hasMore) === true;
         page += 1;
         const serverSyncedAt = syncWatermark || anyRes.syncedAt || anyRes.data?.syncedAt || syncCursor;
@@ -1446,6 +1544,9 @@ export default function CommunityScreen() {
 
       if (allowCommunityChat !== undefined) {
         setAllowCommunityChat(allowCommunityChat);
+      }
+      if (forumAccessAllowed !== undefined) {
+        setForumParticipationAllowed(forumAccessAllowed);
       }
       if (responseMessages.length > 0) {
         const fetchedMsgs: CommunityMessage[] = responseMessages.map((serverMsg: any) => {
@@ -1914,6 +2015,10 @@ export default function CommunityScreen() {
             setAllowCommunityChat(false);
             setMessages((prev) => prev.filter((message) => message.clientMsgId !== clientMsgId));
             showIceMessage('Community chat disabled', ack.error);
+          } else if (ack?.error?.includes('eligible for forum participation')) {
+            setForumParticipationAllowed(false);
+            setMessages((prev) => prev.filter((message) => message.clientMsgId !== clientMsgId));
+            showIceMessage('Forum participation unavailable', ack.error);
           }
         });
         // Release ref after short timeout if ack callback wasn't returned
@@ -1941,6 +2046,10 @@ export default function CommunityScreen() {
           setAllowCommunityChat(false);
           setMessages((prev) => prev.filter((message) => message.clientMsgId !== clientMsgId));
           showIceMessage('Community chat disabled', result.error);
+        } else if (result.error?.includes('eligible for forum participation')) {
+          setForumParticipationAllowed(false);
+          setMessages((prev) => prev.filter((message) => message.clientMsgId !== clientMsgId));
+          showIceMessage('Forum participation unavailable', result.error);
         }
       }
     } catch (error) {
@@ -1996,6 +2105,10 @@ export default function CommunityScreen() {
     };
   }, []);
   const handleSendMessage = (stickerId?: string, overrideFile?: FileAttachment) => {
+    if (!forumParticipationAllowed) {
+      showIceMessage('Forum participation unavailable', 'You are not eligible for forum participation.');
+      return;
+    }
     const now = Date.now();
     if (now - lastSendTimestampRef.current < 350) {
       return;
@@ -2033,6 +2146,13 @@ export default function CommunityScreen() {
     }
 
     if (!sentText && !fileToSend && !stickerId) return;
+
+    setSendButtonBusy(true);
+    if (sendButtonBusyTimeoutRef.current) clearTimeout(sendButtonBusyTimeoutRef.current);
+    sendButtonBusyTimeoutRef.current = setTimeout(() => {
+      setSendButtonBusy(false);
+      sendButtonBusyTimeoutRef.current = null;
+    }, 650);
 
     if (isTypingRef.current) {
       isTypingRef.current = false;
@@ -2601,15 +2721,35 @@ export default function CommunityScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.goLiveHeaderBtn}
+            style={[styles.goLiveHeaderBtn, liveBroadcast && styles.goLiveHeaderBtnActive]}
             onPress={handleGoLivePress}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Go live"
+            accessibilityLabel={liveLoading ? 'Connecting to live' : liveBroadcast ? `Join live with ${liveBroadcast.hostName}` : 'Start a live broadcast'}
+            disabled={liveLoading || Boolean(liveSession)}
           >
-            <TransmitterIcon color="#ffffff" size={18} />
+            {liveBroadcast && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.livePulseHalo,
+                  {
+                    opacity: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.65, 0] }),
+                    transform: [{ scale: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.8] }) }]
+                  }
+                ]}
+              />
+            )}
+            {liveLoading ? <ActivityIndicator color="#ffffff" size="small" /> : <TransmitterIcon color="#ffffff" size={18} />}
           </TouchableOpacity>
         </View>
+
+        {liveBroadcast && !liveSession && (
+          <TouchableOpacity style={styles.liveJoinBanner} onPress={handleGoLivePress} activeOpacity={0.85}>
+            <Text style={styles.liveJoinBannerText}>● LIVE  {liveBroadcast.hostName} is broadcasting</Text>
+            <Text style={styles.liveJoinBannerAction}>Join</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Floating Background Download Progress Banner */}
         {(() => {
@@ -2700,6 +2840,24 @@ export default function CommunityScreen() {
               </View>
             }
             renderItem={({ item }) => {
+              if (item.isLiveNotice) {
+                return (
+                  <View style={styles.liveNoticeRow}>
+                    <View style={styles.liveNoticeCard}>
+                      <View style={styles.liveNoticeCopy}>
+                        <View style={styles.liveNoticeTitleRow}>
+                          <View style={styles.liveNoticeDot} />
+                          <Text style={styles.liveNoticeTitle} numberOfLines={1}>{item.liveHostName || item.senderName} is live</Text>
+                        </View>
+                        <Text style={styles.liveNoticeSubtitle}>Join the live campus chat</Text>
+                      </View>
+                      <TouchableOpacity style={styles.liveNoticeJoin} onPress={handleGoLivePress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`Join live with ${item.liveHostName || item.senderName}`}>
+                        <Text style={styles.liveNoticeJoinText}>Join</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              }
               if (item.isSystemNotice) {
                 const isConn = item.eventType === 'user_connected';
                 const isSec = item.eventType === 'security';
@@ -3017,7 +3175,7 @@ export default function CommunityScreen() {
           {/* Dismiss sticker picker when tapping outside on chat area */}
           {showStickerPicker && (
             <Pressable
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               onPress={() => setShowStickerPicker(false)}
               accessible={false}
             />
@@ -3366,7 +3524,7 @@ export default function CommunityScreen() {
               </ScrollView>
             </View>
           )}
-          {allowCommunityChat ? <View style={styles.inputContainer}>
+          {allowCommunityChat && forumParticipationAllowed ? <View style={styles.inputContainer}>
             <View style={styles.inputPill}>
 
 
@@ -3456,11 +3614,13 @@ export default function CommunityScreen() {
               disabled={(!inputText.trim() && !selectedFile) || uploadFailed || isUploadingMedia || sendPendingAfterUpload}
               activeOpacity={0.8}
             >
-              <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
+              {sendButtonBusy
+                ? <ActivityIndicator color="#ffffff" size="small" />
+                : <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />}
             </TouchableOpacity>
           </View> : (
             <View style={styles.chatDisabledNotice}>
-              <Text style={styles.chatDisabledNoticeText}>Community chat disabled by administrator</Text>
+              <Text style={styles.chatDisabledNoticeText}>{allowCommunityChat ? 'You are not eligible for forum participation' : 'Community chat disabled by administrator'}</Text>
             </View>
           )}
         </ImageBackground>
@@ -3916,6 +4076,22 @@ export default function CommunityScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <Modal
+        visible={Boolean(liveSession)}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeLiveRoom}
+      >
+        {liveSession && (
+          <CommunityLiveRoom
+            serverUrl={liveSession.serverUrl}
+            token={liveSession.token}
+            isHost={liveSession.isHost}
+            onReady={handleLiveRoomReady}
+            onClose={closeLiveRoom}
+          />
+        )}
+      </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -3949,7 +4125,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0'
   },
   forumLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     top: 56,
     backgroundColor: 'rgba(248, 250, 252, 0.96)',
     alignItems: 'center',
@@ -4314,7 +4490,7 @@ const styles = StyleSheet.create({
     height: '100%'
   },
   chatVideoOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.22)'
@@ -4361,7 +4537,7 @@ const styles = StyleSheet.create({
     position: 'relative'
   },
   chatMediaDownloadOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4797,13 +4973,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a'
   },
   composerMediaLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
     alignItems: 'center',
     justifyContent: 'center'
   },
   composerRetryOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(220, 38, 38, 0.85)',
     alignItems: 'center',
     justifyContent: 'center'
@@ -4948,14 +5124,14 @@ const styles = StyleSheet.create({
     textShadowRadius: 2
   },
   gifShimmerContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden'
   },
   gifShimmerPulse: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#cbd5e1'
   },
   gifShimmerCenterBadge: {
@@ -4970,7 +5146,7 @@ const styles = StyleSheet.create({
     color: '#64748b'
   },
   gifFallbackContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center'
@@ -5360,7 +5536,7 @@ const styles = StyleSheet.create({
     color: '#15803d'
   },
   mediaUploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -5820,9 +5996,26 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
     marginLeft: 8
   },
+  liveJoinBanner: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    backgroundColor: '#b91c1c',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  liveJoinBannerText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  liveJoinBannerAction: { color: '#fff', fontSize: 13, fontWeight: '900', paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#7f1d1d', borderRadius: 14 },
   goLiveHeaderBtnActive: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#ef4444'
+    backgroundColor: '#dc2626',
+    borderColor: '#fecaca'
+  },
+  livePulseHalo: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ef4444'
   },
   goLiveHeaderBtnText: {
     color: '#ffffff',
@@ -5832,6 +6025,31 @@ const styles = StyleSheet.create({
   goLiveHeaderBtnTextActive: {
     color: '#ef4444'
   },
+  liveNoticeRow: {
+    width: '100%',
+    paddingHorizontal: 12,
+    paddingVertical: 5
+  },
+  liveNoticeCard: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: '#fff7f7',
+    borderWidth: 1,
+    borderColor: '#fca5a5'
+  },
+  liveNoticeCopy: { flex: 1, minWidth: 0 },
+  liveNoticeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  liveNoticeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#dc2626' },
+  liveNoticeTitle: { flexShrink: 1, color: '#7f1d1d', fontSize: 13, fontWeight: '800' },
+  liveNoticeSubtitle: { marginTop: 2, marginLeft: 15, color: '#64748b', fontSize: 11 },
+  liveNoticeJoin: { minWidth: 52, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 12, backgroundColor: '#dc2626' },
+  liveNoticeJoinText: { color: '#fff', fontSize: 12, fontWeight: '900' },
   liveStageContainer: {
     backgroundColor: '#0f172a',
     padding: 12,

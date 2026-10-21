@@ -869,7 +869,9 @@ export default function ChatRoomScreen({ route }: any) {
           disabled={(!text.trim() && !selectedFile) || sending}
           activeOpacity={0.8}
         >
-          <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />
+          {sending
+            ? <ActivityIndicator color="#ffffff" size="small" />
+            : <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />}
         </TouchableOpacity>
       </View>
 
@@ -1012,7 +1014,7 @@ export default function ChatRoomScreen({ route }: any) {
         onRequestClose={() => setMediaPreview(null)}
       >
         <View style={styles.videoPlayerScreen}>
-          <StatusBar barStyle="light-content" backgroundColor="#020617" />
+          <StatusBar barStyle="light-content" />
           <View style={styles.videoPlayerHeader}>
             <Text style={styles.videoPlayerTitle}>
               {mediaPreview && (mediaPreview.type === 'video' || isVideoAttachment(mediaPreview)) ? 'Video' : 'Image'}
@@ -1512,7 +1514,7 @@ const styles = StyleSheet.create({
     height: '100%'
   },
   chatVideoOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.18)'

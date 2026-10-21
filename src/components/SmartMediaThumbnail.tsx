@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   posterContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#0f172a',
     alignItems: 'center',
     justifyContent: 'center',
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   overlayContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -126,7 +126,7 @@ function RootLayoutContent() {
           <AuthProvider>
             <AppRuntimeServices />
           <IceMessageHost />
-          <StatusBar style="light" backgroundColor={isDark ? '#020617' : '#15803d'} />
+          <StatusBar style="light" />
           <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
             <View style={{ flex: 1 }}>
               <Stack
@@ -155,7 +155,7 @@ function RootLayoutContent() {
                       accessibilityLabel="Go back"
                       accessibilityRole="button"
                     >
-                      <ArrowLeftIcon color={tintColor || '#ffffff'} size={22} />
+                      <ArrowLeftIcon color="#ffffff" size={22} />
                     </TouchableOpacity>
                   )
                 }}

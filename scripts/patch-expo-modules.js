@@ -48,3 +48,38 @@ for (const filePath of screenStackPaths) {
     console.error('[patch-expo-modules] Error patching ScreenStack.kt:', err.message);
   }
 }
+
+// API 35 made the direct Window status/navigation bar color setters obsolete
+// for edge-to-edge apps. React Native still calls them on target-35+ builds,
+// so omit those calls; Android now draws the system bars transparently.
+const windowUtilPaths = [
+  path.resolve(__dirname, '../node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/views/view/WindowUtil.kt'),
+  path.resolve(process.cwd(), 'node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/views/view/WindowUtil.kt')
+];
+
+for (const filePath of windowUtilPaths) {
+  try {
+    if (!fs.existsSync(filePath)) continue;
+    let content = fs.readFileSync(filePath, 'utf8');
+    const deprecatedCalls = [
+      '  statusBarColor = Color.TRANSPARENT\n',
+      '    navigationBarColor = Color.TRANSPARENT\n',
+      '    navigationBarColor =\n        if (isAppearanceLightNavigationBars) LightNavigationBarColor else DarkNavigationBarColor\n'
+    ];
+    let changed = false;
+    for (const call of deprecatedCalls) {
+      if (content.includes(call)) {
+        content = content.replace(call, '');
+        changed = true;
+      }
+    }
+    if (changed) {
+      fs.writeFileSync(filePath, content, 'utf8');
+      console.log('[patch-expo-modules] Removed deprecated edge-to-edge bar color calls from:', filePath);
+    } else {
+      console.log('[patch-expo-modules] WindowUtil.kt already patched or clean at:', filePath);
+    }
+  } catch (err) {
+    console.error('[patch-expo-modules] Error patching WindowUtil.kt:', err.message);
+  }
+}

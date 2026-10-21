@@ -22,7 +22,9 @@ let registrationInFlight: Promise<string | null> | null = null;
 export const GENERAL_NOTIFICATION_CHANNEL_ID = 'mconnect_general_v2';
 export const COMMUNITY_NOTIFICATION_CHANNEL_ID = 'mconnect_messages_v2';
 export const DOWNLOADS_NOTIFICATION_CHANNEL_ID = 'mconnect_downloads_v2';
-const LOGIN_NOTIFICATION_CHANNEL_ID = 'mconnect_login_v2';
+// Android channel behavior is immutable after creation. Bump this when fixing
+// sound/vibration so existing installs receive a channel with the new settings.
+const LOGIN_NOTIFICATION_CHANNEL_ID = 'mconnect_login_v3';
 const COMMUNITY_MESSAGE_CATEGORY = 'community_message';
 export const DOWNLOAD_NOTIFICATION_CATEGORY = 'media_download_action';
 let registrationEnabled = false;
@@ -445,7 +447,7 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
     const data = response.notification.request.content.data;
     if (response.actionIdentifier === 'cancel_download_action') {
       const downloadKey = data?.downloadKey;
-      if (downloadKey) {
+      if (typeof downloadKey === 'string' && downloadKey.length > 0) {
         downloadCancelHandlers.forEach((h) => {
           try { h(downloadKey); } catch (_) {}
         });

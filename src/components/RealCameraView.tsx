@@ -163,7 +163,7 @@ export const RealCameraView: React.FC<RealCameraViewProps> = ({
       <View style={[styles.videoWrapper, style]}>
         <RTCView
           streamURL={stream.toURL?.()}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           objectFit="cover"
           mirror={mirror}
         />

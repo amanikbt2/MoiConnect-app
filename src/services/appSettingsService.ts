@@ -39,3 +39,20 @@ export const getAllowCommunityChatSetting = async (): Promise<boolean> => {
   }
   return cachedAllowCommunityChat ?? true;
 };
+
+export const getForumParticipationSetting = async (): Promise<boolean> => {
+  try {
+    const res: any = await apiRequest('/settings');
+    const allowed: boolean | undefined =
+      res?.settings?.forumAccessAllowed ??
+      res?.data?.settings?.forumAccessAllowed;
+    if (typeof allowed === 'boolean') {
+      return allowed;
+    }
+  } catch (err) {
+    console.log('Error fetching forum participation setting:', err);
+  }
+  // Server submission/socket checks remain authoritative; keep a temporary
+  // network failure from locking out a newly signed-in account.
+  return true;
+};

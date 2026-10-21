@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     height: '100%'
   },
   thumbnailOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.25)'
   },
   topLeftBadge: {
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   videoPlayOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.28)',
     alignItems: 'center',
     justifyContent: 'center'
