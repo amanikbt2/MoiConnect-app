@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Participant, Room, RoomEvent, Track } from 'livekit-client';
+import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
 
 let AudioSession: any = null;
 let VideoView: any = null;
@@ -28,9 +29,13 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [muted, setMuted] = useState(false);
-  const [cameraOff, setCameraOff] = useState(false);
+  const [muted, setMuted] = useState(!isHost);
+  const [cameraOff, setCameraOff] = useState(!isHost);
   const [error, setError] = useState('');
+  const micPressedRef = useRef(false);
+  const cameraPressedRef = useRef(false);
+  const micTaskRef = useRef<Promise<void>>(Promise.resolve());
+  const cameraTaskRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let cancelled = false;
@@ -88,26 +93,52 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
     };
   }, [room, serverUrl, token, isHost]);
 
-  const toggleMicrophone = async () => {
-    const next = !muted;
-    try {
-      await room.localParticipant.setMicrophoneEnabled(!next);
-      setMuted(next);
-    } catch (err: any) {
-      setError(err?.message || 'Microphone unavailable. Check the app permission and try again.');
-    }
+  const setMicrophoneEnabled = (enabled: boolean) => {
+    micTaskRef.current = micTaskRef.current.then(async () => {
+      try {
+        await room.localParticipant.setMicrophoneEnabled(enabled);
+        setMuted(!enabled);
+        setError('');
+      } catch (err: any) {
+        setError(err?.message || 'Microphone unavailable. Check the app permission and try again.');
+      }
+    });
   };
 
-  const toggleCamera = async () => {
-    const next = !cameraOff;
-    try {
-      await room.localParticipant.setCameraEnabled(!next, { resolution: { width: 640, height: 360, frameRate: 20 } });
-      setCameraOff(next);
-      setError('');
-    } catch (err: any) {
-      setCameraOff(true);
-      setError(err?.message || 'Camera unavailable. You can still join and use chat.');
-    }
+  const setCameraEnabled = (enabled: boolean) => {
+    cameraTaskRef.current = cameraTaskRef.current.then(async () => {
+      try {
+        await room.localParticipant.setCameraEnabled(enabled, { resolution: { width: 640, height: 360, frameRate: 20 } });
+        setCameraOff(!enabled);
+        setError('');
+      } catch (err: any) {
+        setCameraOff(true);
+        setError(err?.message || 'Camera unavailable. You can still join and use chat.');
+      }
+    });
+  };
+
+  const toggleMicrophone = () => setMicrophoneEnabled(!muted);
+  const toggleCamera = () => setCameraEnabled(!cameraOff);
+  const startTalking = () => {
+    if (micPressedRef.current) return;
+    micPressedRef.current = true;
+    setMicrophoneEnabled(true);
+  };
+  const stopTalking = () => {
+    if (!micPressedRef.current) return;
+    micPressedRef.current = false;
+    setMicrophoneEnabled(false);
+  };
+  const startCamera = () => {
+    if (cameraPressedRef.current) return;
+    cameraPressedRef.current = true;
+    setCameraEnabled(true);
+  };
+  const stopCamera = () => {
+    if (!cameraPressedRef.current) return;
+    cameraPressedRef.current = false;
+    setCameraEnabled(false);
   };
 
   const renderParticipant = (participant: Participant, index: number) => {
@@ -131,10 +162,21 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
         <TouchableOpacity style={styles.closeButton} onPress={onClose}><Text style={styles.closeText}>{isHost ? 'End' : 'Leave'}</Text></TouchableOpacity>
       </View>
       {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : participants.length === 0 ? <ActivityIndicator color="#86efac" style={styles.loader} /> : <View style={styles.grid}>{participants.map(renderParticipant)}</View>}
-      {isHost && (
+      {isHost ? (
         <View style={styles.controls}>
-          <TouchableOpacity style={[styles.control, muted && styles.controlActive]} onPress={() => void toggleMicrophone()}><Text style={styles.controlText}>{muted ? '🔇 Unmute' : '🎙 Mute'}</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.control, cameraOff && styles.controlActive]} onPress={() => void toggleCamera()}><Text style={styles.controlText}>{cameraOff ? '📷 Start cam' : '📹 Stop cam'}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.control, muted && styles.controlActive]} onPress={toggleMicrophone}><View style={styles.controlIconWrap}>{muted ? <MicOffIcon color="#ffb2b7" size={22} /> : <MicIcon color="#e8f1ec" size={22} />}</View><Text style={styles.controlText}>{muted ? 'Unmute' : 'Mute'}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.control, cameraOff && styles.controlActive]} onPress={toggleCamera}><View style={styles.controlIconWrap}>{cameraOff ? <CameraOffIcon color="#ffb2b7" size={22} /> : <CameraIcon color="#e8f1ec" size={22} />}</View><Text style={styles.controlText}>{cameraOff ? 'Start camera' : 'Stop camera'}</Text></TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.controls}>
+          <TouchableOpacity style={[styles.control, styles.holdControl, !muted && styles.holdControlActive]} onPressIn={startTalking} onPressOut={stopTalking} accessibilityRole="button" accessibilityLabel="Hold to talk">
+            <View style={styles.controlIconWrap}>{muted ? <MicOffIcon color="#d0ddd7" size={22} /> : <MicIcon color="#071b16" size={22} />}</View>
+            <Text style={[styles.controlText, !muted && styles.holdControlText]}>{muted ? 'Hold to talk' : 'Release to mute'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.control, styles.holdControl, !cameraOff && styles.holdControlActive]} onPressIn={startCamera} onPressOut={stopCamera} accessibilityRole="button" accessibilityLabel="Hold to turn on camera">
+            <View style={styles.controlIconWrap}>{cameraOff ? <CameraOffIcon color="#d0ddd7" size={22} /> : <CameraIcon color="#071b16" size={22} />}</View>
+            <Text style={[styles.controlText, !cameraOff && styles.holdControlText]}>{cameraOff ? 'Hold for video' : 'Release to stop'}</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -157,9 +199,13 @@ const styles = StyleSheet.create({
   caption: { position: 'absolute', left: 8, right: 8, bottom: 7 },
   captionText: { color: '#fff', fontWeight: '700', textShadowColor: '#000', textShadowRadius: 4 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 10, paddingTop: 12 },
-  control: { backgroundColor: '#14532d', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  control: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#14532d', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 },
   controlActive: { backgroundColor: '#7f1d1d' },
-  controlText: { color: '#fff', fontWeight: '700' },
+  holdControl: { minWidth: 140, backgroundColor: '#1c2925', borderWidth: 1, borderColor: '#34443e' },
+  holdControlActive: { backgroundColor: '#74e2b1', borderColor: '#74e2b1' },
+  controlIconWrap: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  controlText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  holdControlText: { color: '#071b16' },
   loader: { flex: 1 },
   error: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   errorText: { color: '#fecaca', textAlign: 'center' }

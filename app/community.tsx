@@ -54,6 +54,7 @@ import {
   BotIcon,
   TransmitterIcon,
   WifiOffIcon,
+  LockIcon,
 } from '../src/components/Icons';
 import { getSocket, ensureConnectedSocket } from '../src/services/socket';
 import { apiRequest } from '../src/services/api';
@@ -120,6 +121,10 @@ export interface CommunityMessage {
   senderBadge?: 'blue' | 'red' | 'green';
   avatarBg: string;
   text: string;
+  isPrivate?: boolean;
+  privateNotice?: boolean;
+  recipientId?: string;
+  recipientName?: string;
   timestamp: string;
   isoDate?: string;
   updatedAt?: string;
@@ -546,6 +551,8 @@ export default function CommunityScreen() {
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const livePulseAnim = useRef(new Animated.Value(0)).current;
   const [liveBroadcast, setLiveBroadcast] = useState<{ hostName: string; hostId?: string } | null>(null);
+  const liveBroadcastKey = liveBroadcast ? `${liveBroadcast.hostId || ''}:${liveBroadcast.hostName}` : null;
+  const [dismissedLiveBannerKey, setDismissedLiveBannerKey] = useState<string | null>(null);
   const [isForumLoading, setIsForumLoading] = useState(true);
   const [forumHeaderHeight, setForumHeaderHeight] = useState(0);
   const [hasForumListLayout, setHasForumListLayout] = useState(false);
@@ -555,18 +562,7 @@ export default function CommunityScreen() {
     // Smart Presence Collapse:
     // Filter out consecutive system presence notices so back-to-back
     // online/offline oscillations collapse into a single clean presence notice.
-    const liveNotice: CommunityMessage[] = liveBroadcast && liveBroadcast.hostId !== user?._id ? [{
-      id: `live-broadcast-${liveBroadcast.hostId || liveBroadcast.hostName}`,
-      senderName: liveBroadcast.hostName,
-      senderFaculty: '',
-      avatarBg: '',
-      text: '',
-      timestamp: '',
-      isMe: false,
-      isLiveNotice: true,
-      liveHostName: liveBroadcast.hostName
-    }] : [];
-    const sourceMessages = [...messages, ...liveNotice];
+    const sourceMessages = messages;
     const collapsed: CommunityMessage[] = [];
     for (let i = 0; i < sourceMessages.length; i++) {
       const current = sourceMessages[i];
@@ -579,7 +575,7 @@ export default function CommunityScreen() {
       collapsed.push(current);
     }
     return collapsed.reverse();
-  }, [messages, liveBroadcast, user?._id]);
+  }, [messages]);
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -595,6 +591,13 @@ export default function CommunityScreen() {
   const [previewDoc, setPreviewDoc] = useState<PDFDocumentItem | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showFileModal, setShowFileModal] = useState(false);
+  const [showPrivateMessageModal, setShowPrivateMessageModal] = useState(false);
+  const [privateRecipient, setPrivateRecipient] = useState<MentionUser | null>(null);
+  const [privateSearchQuery, setPrivateSearchQuery] = useState('');
+  const [privateSuggestions, setPrivateSuggestions] = useState<MentionUser[]>([]);
+  const [privateSuggestionsLoading, setPrivateSuggestionsLoading] = useState(false);
+  const [privateMessageText, setPrivateMessageText] = useState('');
+  const [privateMessageSending, setPrivateMessageSending] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<FileAttachment | null>(null);
   const [activeMediaDownloads, setActiveMediaDownloads] = useState<Record<string, ActiveMediaDownload>>({});
 
@@ -740,6 +743,10 @@ export default function CommunityScreen() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [socketOnline, setSocketOnline] = useState(false);
   const [liveSession, setLiveSession] = useState<{ serverUrl: string; token: string; isHost: boolean } | null>(null);
+  const [liveEnded, setLiveEnded] = useState(false);
+  useEffect(() => {
+    setDismissedLiveBannerKey(null);
+  }, [liveBroadcastKey]);
   const liveSessionRef = useRef<typeof liveSession>(null);
   liveSessionRef.current = liveSession;
   useEffect(() => {
@@ -797,6 +804,7 @@ export default function CommunityScreen() {
     }
 
     if (liveLoading || liveSession) return;
+    setLiveEnded(false);
     setLiveLoading(true);
     try {
       const isHost = !liveBroadcast;
@@ -847,6 +855,7 @@ export default function CommunityScreen() {
       else socket.emit('community:live_leave', { id: socket.id });
     }
     setLiveSession(null);
+    setLiveEnded(false);
   };
 
   const flatListRef = useRef<FlatList>(null);
@@ -1196,7 +1205,15 @@ export default function CommunityScreen() {
         socket.on('community:live_start', (broadcast: { hostName?: string; hostId?: string }) => {
           setLiveBroadcast({ hostName: broadcast?.hostName || 'A student', hostId: broadcast?.hostId });
         });
-        socket.on('community:live_end', () => setLiveBroadcast(null));
+        socket.on('community:live_status', (status: { active?: boolean; hostName?: string; hostId?: string }) => {
+          setLiveBroadcast(status?.active
+            ? { hostName: status.hostName || 'A student', hostId: status.hostId }
+            : null);
+        });
+        socket.on('community:live_end', () => {
+          setLiveBroadcast(null);
+          if (liveSessionRef.current && !liveSessionRef.current.isHost) setLiveEnded(true);
+        });
         if (socket.connected) {
           handleSocketConnect();
         } else {
@@ -1221,6 +1238,10 @@ export default function CommunityScreen() {
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
+            isPrivate: Boolean(serverMsg.isPrivate),
+            privateNotice: Boolean(serverMsg.privateNotice),
+            recipientId: serverMsg.recipientId ? String(serverMsg.recipientId?._id || serverMsg.recipientId) : undefined,
+            recipientName: serverMsg.recipientName,
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: serverMsg.createdAt || new Date().toISOString(),
             isMe: isMyMsg,
@@ -1271,7 +1292,7 @@ export default function CommunityScreen() {
             saveCommunityMessages(updated);
 
             if (formattedMsg.isMe || (isChatVisible() && isNearBottomRef.current)) {
-              markAsRead(formattedMsg.id);
+              if (!formattedMsg.privateNotice) markAsRead(formattedMsg.id);
               if (formattedMsg.isMe || isNearBottomRef.current) {
                 scrollToLatestWhenReady(true);
               }
@@ -1292,7 +1313,7 @@ export default function CommunityScreen() {
             setDeletingUsers((prev) => prev.filter((u) => u.userId !== sId));
           }
 
-          if (!formattedMsg.isMe && Platform.OS === 'web') {
+          if (!formattedMsg.isMe && !formattedMsg.isPrivate && Platform.OS === 'web') {
             sendWebBrowserNotification(
               `💬 ${formattedMsg.senderName}`,
               formattedMsg.text || `📎 Sent a file: ${formattedMsg.fileAttachment?.name || 'Attachment'}`,
@@ -1300,6 +1321,57 @@ export default function CommunityScreen() {
             );
           }
 
+        });
+
+        socket.on('community:private_message', (serverMsg: any) => {
+          const isMyMsg = evalIsMe(serverMsg.senderId, serverMsg.senderEmail, serverMsg.senderName, serverMsg.clientMsgId);
+          const sentAt = serverMsg.createdAt || new Date().toISOString();
+          const formattedMsg: CommunityMessage = {
+            id: String(serverMsg._id || serverMsg.id || serverMsg.clientMsgId || Date.now()),
+            senderId: String(serverMsg.senderId?._id || serverMsg.senderId || ''),
+            senderEmail: serverMsg.senderEmail,
+            senderName: serverMsg.senderName || 'Moi Student',
+            senderFaculty: serverMsg.senderFaculty || 'Moi Student',
+            senderCourse: serverMsg.senderCourse,
+            senderYear: serverMsg.senderYear,
+            senderAvatarUrl: serverMsg.senderAvatarUrl,
+            senderBadge: serverMsg.senderBadge,
+            avatarBg: serverMsg.avatarBg || '#15803d',
+            text: serverMsg.text || '',
+            timestamp: new Date(sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isoDate: sentAt,
+            updatedAt: serverMsg.updatedAt || sentAt,
+            isMe: isMyMsg,
+            isPrivate: true,
+            privateNotice: false,
+            recipientId: String(serverMsg.recipientId?._id || serverMsg.recipientId || ''),
+            recipientName: serverMsg.recipientName,
+            reactions: serverMsg.reactions || {}
+          };
+          setMessages((previous) => {
+            const existing = previous.findIndex((message) => message.id === formattedMsg.id);
+            const updated = existing >= 0
+              ? previous.map((message, index) => index === existing ? { ...message, ...formattedMsg } : message)
+              : [...previous, formattedMsg];
+            void saveCommunityMessages(updated);
+            return updated;
+          });
+          if (!isMyMsg) {
+            if (isChatVisible() && isNearBottomRef.current) {
+              markAsRead(formattedMsg.id);
+            } else {
+              setUnreadCount((count) => count + 1);
+              setShowUnreadBtn(true);
+              setFirstUnreadMsgId((current) => current || formattedMsg.id);
+            }
+          }
+          if (!isMyMsg && Platform.OS === 'web') {
+            sendWebBrowserNotification(
+              'Private message',
+              'You received a private message.',
+              () => router.push('/community')
+            );
+          }
         });
 
         socket.on('community:user_typing', (data: { userId: string; userName: string; avatarUrl?: string; avatarBg?: string; socketId?: string }) => {
@@ -1471,6 +1543,7 @@ export default function CommunityScreen() {
       clearTypingIndicators();
       if (activeSocket) {
         activeSocket.off('community:receive_message');
+        activeSocket.off('community:private_message');
         activeSocket.off('community:user_typing');
         activeSocket.off('community:user_stop_typing');
         activeSocket.off('community:user_deleting');
@@ -1481,6 +1554,7 @@ export default function CommunityScreen() {
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
         activeSocket.off('community:live_start');
+        activeSocket.off('community:live_status');
         activeSocket.off('community:live_end');
         activeSocket.off('connect');
         activeSocket.off('connect_error');
@@ -1566,6 +1640,12 @@ export default function CommunityScreen() {
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text ?? serverMsg._doc?.text ?? '',
+            isPrivate: Boolean(serverMsg.isPrivate ?? serverMsg._doc?.isPrivate),
+            privateNotice: Boolean(serverMsg.privateNotice ?? serverMsg._doc?.privateNotice),
+            recipientId: serverMsg.recipientId
+              ? String(serverMsg.recipientId?._id || serverMsg.recipientId)
+              : (serverMsg._doc?.recipientId ? String(serverMsg._doc.recipientId) : undefined),
+            recipientName: serverMsg.recipientName || serverMsg._doc?.recipientName,
             timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isoDate: serverMsg.createdAt,
             updatedAt: serverMsg.updatedAt,
@@ -1671,6 +1751,12 @@ export default function CommunityScreen() {
           senderBadge: serverMsg.senderBadge,
           avatarBg: serverMsg.avatarBg || '#15803d',
           text: serverMsg.text ?? serverMsg._doc?.text ?? '',
+          isPrivate: Boolean(serverMsg.isPrivate ?? serverMsg._doc?.isPrivate),
+          privateNotice: Boolean(serverMsg.privateNotice ?? serverMsg._doc?.privateNotice),
+          recipientId: serverMsg.recipientId
+            ? String(serverMsg.recipientId?._id || serverMsg.recipientId)
+            : (serverMsg._doc?.recipientId ? String(serverMsg._doc.recipientId) : undefined),
+          recipientName: serverMsg.recipientName || serverMsg._doc?.recipientName,
           timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isoDate: serverMsg.createdAt,
           updatedAt: serverMsg.updatedAt,
@@ -1876,6 +1962,108 @@ export default function CommunityScreen() {
     } finally {
       mentionFetchInFlightRef.current = false;
       setMentionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showPrivateMessageModal || privateRecipient) return;
+    const query = privateSearchQuery.trim();
+    if (!query) {
+      setPrivateSuggestions([]);
+      setPrivateSuggestionsLoading(false);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setPrivateSuggestionsLoading(true);
+      try {
+        const response = await apiRequest<{ success: boolean; data?: MentionUser[] }>(
+          `/community/mention-users?q=${encodeURIComponent(query)}`
+        );
+        if (!active) return;
+        const selfId = String(user?._id || '');
+        setPrivateSuggestions((response.data || []).filter((entry) => String(entry.id) !== selfId));
+      } catch {
+        if (active) setPrivateSuggestions([]);
+      } finally {
+        if (active) setPrivateSuggestionsLoading(false);
+      }
+    }, 220);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [showPrivateMessageModal, privateRecipient, privateSearchQuery, user?._id]);
+
+  const openPrivateMessageComposer = () => {
+    if (!user) {
+      setShowFileModal(false);
+      showIceMessage('Sign in required', 'Sign in before sending someone a private message.');
+      return;
+    }
+    setPrivateRecipient(null);
+    setPrivateSearchQuery('');
+    setPrivateSuggestions([]);
+    setPrivateMessageText('');
+    setShowFileModal(false);
+    setShowPrivateMessageModal(true);
+  };
+
+  const sendPrivateCommunityMessage = async () => {
+    const text = privateMessageText.trim();
+    if (!privateRecipient || !text || privateMessageSending) return;
+    setPrivateMessageSending(true);
+    try {
+      const response = await apiRequest<any>('/community/private-messages', {
+        method: 'POST',
+        body: JSON.stringify({ recipientId: privateRecipient.id, text })
+      });
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Could not send your private message.');
+      }
+
+      const saved = response.data;
+      const sentAt = saved.createdAt || new Date().toISOString();
+      const formattedMessage: CommunityMessage = {
+        id: String(saved._id || saved.id),
+        senderId: String(saved.senderId || user?._id || ''),
+        senderEmail: saved.senderEmail || user?.email,
+        senderName: saved.senderName || user?.name || 'Moi Student',
+        senderFaculty: saved.senderFaculty || 'Moi Student',
+        senderCourse: saved.senderCourse,
+        senderYear: saved.senderYear,
+        senderAvatarUrl: saved.senderAvatarUrl || user?.avatarUrl,
+        senderBadge: saved.senderBadge || user?.badge,
+        avatarBg: saved.avatarBg || '#15803d',
+        text: saved.text || text,
+        timestamp: new Date(sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isoDate: sentAt,
+        updatedAt: saved.updatedAt || sentAt,
+        isMe: true,
+        isPrivate: true,
+        privateNotice: false,
+        recipientId: String(saved.recipientId || privateRecipient.id),
+        recipientName: saved.recipientName || privateRecipient.name,
+        reactions: {}
+      };
+      setMessages((previous) => {
+        const existing = previous.findIndex((message) => message.id === formattedMessage.id);
+        const updated = existing >= 0
+          ? previous.map((message, index) => index === existing ? { ...message, ...formattedMessage } : message)
+          : [...previous, formattedMessage];
+        void saveCommunityMessages(updated);
+        return updated;
+      });
+      setShowPrivateMessageModal(false);
+      setPrivateRecipient(null);
+      setPrivateSearchQuery('');
+      setPrivateMessageText('');
+    } catch (error: any) {
+      showIceMessage('Message not sent', error?.message || 'Check your connection and try again.');
+    } finally {
+      setPrivateMessageSending(false);
     }
   };
 
@@ -2744,13 +2932,6 @@ export default function CommunityScreen() {
           </TouchableOpacity>
         </View>
 
-        {liveBroadcast && !liveSession && (
-          <TouchableOpacity style={styles.liveJoinBanner} onPress={handleGoLivePress} activeOpacity={0.85}>
-            <Text style={styles.liveJoinBannerText}>● LIVE  {liveBroadcast.hostName} is broadcasting</Text>
-            <Text style={styles.liveJoinBannerAction}>Join</Text>
-          </TouchableOpacity>
-        )}
-
         {/* Floating Background Download Progress Banner */}
         {(() => {
           const bgDl = Object.values(activeMediaDownloads).find((dl) => dl.status === 'downloading');
@@ -3108,15 +3289,28 @@ export default function CommunityScreen() {
                                 </View>
                               )}
 
-                              {/* Text content with clean wrapping */}
-                              {!!item.text && (
+                              {item.isPrivate && !item.privateNotice && (
+                                <View style={styles.privateMessageLabelRow}>
+                                  <LockIcon color={item.isMe ? '#15803d' : '#64748b'} size={11} />
+                                  <Text style={[styles.privateMessageLabel, item.isMe ? styles.myPrivateMessageLabel : styles.otherPrivateMessageLabel]}>Private message</Text>
+                                </View>
+                              )}
+
+                              {item.privateNotice ? (
+                                <View style={styles.privateNoticeRow}>
+                                  <LockIcon color="#64748b" size={12} />
+                                  <Text style={styles.privateNoticeText}>
+                                    {item.senderName} sent {item.recipientName || 'a student'} a private message
+                                  </Text>
+                                </View>
+                              ) : !!item.text ? (
                                 <LinkifiedText
                                   style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}
                                   onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
                                 >
                                   {item.text}
                                 </LinkifiedText>
-                              )}
+                              ) : null}
 
                               {/* Timestamp & Ticks */}
                               <View style={[styles.metaRow, isMediaOnly && styles.mediaMetaRow, isStickerOnly && styles.stickerMetaRow]}>
@@ -3525,6 +3719,35 @@ export default function CommunityScreen() {
             </View>
           )}
           {allowCommunityChat && forumParticipationAllowed ? <View style={styles.inputContainer}>
+            {liveBroadcast && liveBroadcast.hostId !== user?._id && !liveSession && dismissedLiveBannerKey !== liveBroadcastKey && (
+              <View style={styles.liveJoinBanner}>
+                <View style={styles.liveJoinBannerInfo}>
+                  <View style={styles.liveJoinDotWrap}>
+                    <Animated.View
+                      pointerEvents="none"
+                      style={[
+                        styles.liveJoinDotHalo,
+                        {
+                          opacity: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
+                          transform: [{ scale: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }]
+                        }
+                      ]}
+                    />
+                    <View style={styles.liveJoinDot} />
+                  </View>
+                  <Text style={styles.liveJoinBannerText} numberOfLines={1}>{liveBroadcast.hostName} is live</Text>
+                </View>
+                <View style={styles.liveJoinBannerActions}>
+                  <TouchableOpacity style={styles.liveJoinBannerAction} onPress={handleGoLivePress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`Join live with ${liveBroadcast.hostName}`}>
+                    <Text style={styles.liveJoinBannerActionText}>Join</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.liveJoinBannerDismiss} onPress={() => setDismissedLiveBannerKey(liveBroadcastKey)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Dismiss live notification">
+                    <Text style={styles.liveJoinBannerDismissText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            <View style={styles.inputComposerRow}>
             <View style={styles.inputPill}>
 
 
@@ -3618,6 +3841,7 @@ export default function CommunityScreen() {
                 ? <ActivityIndicator color="#ffffff" size="small" />
                 : <SendIcon color="#ffffff" size={19} style={{ marginLeft: 2 }} />}
             </TouchableOpacity>
+            </View>
           </View> : (
             <View style={styles.chatDisabledNotice}>
               <Text style={styles.chatDisabledNoticeText}>{allowCommunityChat ? 'You are not eligible for forum participation' : 'Community chat disabled by administrator'}</Text>
@@ -3743,6 +3967,10 @@ export default function CommunityScreen() {
                 <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}><CameraIcon color="#db2777" size={21} /></View>
                 <Text style={styles.mediaOptionLabel}>Camera</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={openPrivateMessageComposer}>
+                <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><LockIcon color="#15803d" size={20} /></View>
+                <Text style={[styles.mediaOptionLabel, styles.privateOptionLabel]}>Private Message</Text>
+              </TouchableOpacity>
             </View>
               <Text style={styles.downloadedSectionTitle}>Downloaded materials</Text>
               <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
@@ -3780,6 +4008,109 @@ export default function CommunityScreen() {
               
             </Pressable>
           </TouchableOpacity>
+        </Modal>
+
+        <Modal visible={showPrivateMessageModal} transparent animationType="fade" onRequestClose={() => setShowPrivateMessageModal(false)}>
+          <KeyboardAvoidingView style={styles.privateMessageOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPrivateMessageModal(false)} />
+            <View style={styles.privateMessageCard}>
+              <View style={styles.privateMessageHeader}>
+                <View style={styles.privateMessageTitleWrap}>
+                  <View style={styles.privateMessageIcon}><LockIcon color="#15803d" size={17} /></View>
+                  <View>
+                    <Text style={styles.privateMessageTitle}>Private message</Text>
+                    <Text style={styles.privateMessageSubtitle}>Only you and the recipient can read it</Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.closeIconBtn} onPress={() => setShowPrivateMessageModal(false)} disabled={privateMessageSending}>
+                  <CloseIcon color="#64748b" size={16} />
+                </TouchableOpacity>
+              </View>
+
+              {privateRecipient ? (
+                <View style={styles.privateSelectedRecipient}>
+                  {privateRecipient.avatarUrl
+                    ? <Image source={{ uri: privateRecipient.avatarUrl }} style={styles.privateRecipientAvatar} />
+                    : <View style={styles.privateRecipientAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{privateRecipient.name[0]?.toUpperCase()}</Text></View>}
+                  <View style={styles.mentionUserText}>
+                    <Text style={styles.mentionUserName} numberOfLines={1}>{privateRecipient.name}</Text>
+                    <Text style={styles.mentionUserSubtitle}>Message recipient</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.privateChangeRecipient}
+                    onPress={() => { setPrivateRecipient(null); setPrivateSearchQuery(''); setPrivateMessageText(''); }}
+                    disabled={privateMessageSending}
+                  >
+                    <Text style={styles.privateChangeRecipientText}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.privateFieldLabel}>To</Text>
+                  <View style={styles.privateSearchBox}>
+                    <TextInput
+                      value={privateSearchQuery}
+                      onChangeText={setPrivateSearchQuery}
+                      placeholder="Search a student's name"
+                      placeholderTextColor="#94a3b8"
+                      style={styles.privateSearchInput}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                    />
+                    {privateSuggestionsLoading && <ActivityIndicator size="small" color="#15803d" />}
+                  </View>
+                  {privateSearchQuery.trim().length > 0 && (
+                    <ScrollView style={styles.privateSuggestionList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                      {privateSuggestions.map((entry) => (
+                        <TouchableOpacity
+                          key={entry.id}
+                          style={styles.mentionRow}
+                          onPress={() => { setPrivateRecipient(entry); setPrivateSearchQuery(''); setPrivateSuggestions([]); }}
+                          activeOpacity={0.75}
+                        >
+                          {entry.avatarUrl
+                            ? <Image source={{ uri: entry.avatarUrl }} style={styles.mentionAvatar} />
+                            : <View style={styles.mentionAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{entry.name[0]?.toUpperCase()}</Text></View>}
+                          <View style={styles.mentionUserText}>
+                            <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
+                            <Text style={styles.mentionUserSubtitle}>MConnect user</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                      {!privateSuggestionsLoading && privateSuggestions.length === 0 && (
+                        <Text style={styles.privateNoResults}>No students found</Text>
+                      )}
+                    </ScrollView>
+                  )}
+                </>
+              )}
+
+              <Text style={styles.privateFieldLabel}>Message</Text>
+              <TextInput
+                value={privateMessageText}
+                onChangeText={setPrivateMessageText}
+                placeholder={privateRecipient ? `Write to ${privateRecipient.name}…` : 'Choose a recipient first'}
+                placeholderTextColor="#94a3b8"
+                style={[styles.privateMessageInput, !privateRecipient && styles.privateMessageInputDisabled]}
+                multiline
+                maxLength={2000}
+                editable={!!privateRecipient && !privateMessageSending}
+                textAlignVertical="top"
+              />
+              <View style={styles.privateMessageFooter}>
+                <Text style={styles.privateCharacterCount}>{privateMessageText.length}/2000</Text>
+                <TouchableOpacity
+                  style={[styles.privateSendButton, (!privateRecipient || !privateMessageText.trim() || privateMessageSending) && styles.privateSendButtonDisabled]}
+                  onPress={sendPrivateCommunityMessage}
+                  disabled={!privateRecipient || !privateMessageText.trim() || privateMessageSending}
+                  activeOpacity={0.8}
+                >
+                  {privateMessageSending ? <ActivityIndicator size="small" color="#ffffff" /> : <SendIcon color="#ffffff" size={16} />}
+                  <Text style={styles.privateSendButtonText}>{privateMessageSending ? 'Sending…' : 'Send privately'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         <Modal
@@ -4083,13 +4414,29 @@ export default function CommunityScreen() {
         onRequestClose={closeLiveRoom}
       >
         {liveSession && (
-          <CommunityLiveRoom
-            serverUrl={liveSession.serverUrl}
-            token={liveSession.token}
-            isHost={liveSession.isHost}
-            onReady={handleLiveRoomReady}
-            onClose={closeLiveRoom}
-          />
+          <View style={styles.liveModalContent}>
+            {!liveEnded && (
+              <CommunityLiveRoom
+                serverUrl={liveSession.serverUrl}
+                token={liveSession.token}
+                isHost={liveSession.isHost}
+                onReady={handleLiveRoomReady}
+                onClose={closeLiveRoom}
+              />
+            )}
+            {liveEnded && (
+              <View style={styles.liveEndedOverlay}>
+                <View style={styles.liveEndedCard}>
+                  <View style={styles.liveEndedDot} />
+                  <Text style={styles.liveEndedTitle}>Live ended</Text>
+                  <Text style={styles.liveEndedMessage}>The host has ended this live session.</Text>
+                  <TouchableOpacity style={styles.liveEndedExit} onPress={closeLiveRoom} activeOpacity={0.85} accessibilityRole="button">
+                    <Text style={styles.liveEndedExitText}>Exit</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
         )}
       </Modal>
       </KeyboardAvoidingView>
@@ -4391,6 +4738,26 @@ const styles = StyleSheet.create({
   },
   otherText: {
     color: '#0f172a'
+  },
+  privateMessageLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 3
+  },
+  privateMessageLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
+  myPrivateMessageLabel: {
+    color: '#15803d'
+  },
+  otherPrivateMessageLabel: {
+    color: '#64748b'
+  },
+  privateNoticeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  privateNoticeText: {
+    color: '#64748b',
+    fontSize: 12,
+    lineHeight: 18,
+    fontStyle: 'italic',
+    flexShrink: 1
   },
   metaRow: {
     flexDirection: 'row',
@@ -5267,8 +5634,8 @@ const styles = StyleSheet.create({
     resizeMode: 'contain'
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     paddingHorizontal: 8,
     paddingVertical: 8,
     // Let the wallpaper continue behind the composer until the bottom bar.
@@ -5276,6 +5643,11 @@ const styles = StyleSheet.create({
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#e9edef'
+  },
+  inputComposerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   },
   inputPill: {
     flex: 1,
@@ -5513,11 +5885,92 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 14
   },
-  mediaOptionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  mediaOption: { alignItems: 'center', width: '23%' },
+  mediaOptionsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, marginBottom: 16 },
+  mediaOption: { alignItems: 'center', width: '19%' },
   mediaOptionDisabled: { opacity: 0.45 },
   mediaOptionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   mediaOptionLabel: { fontSize: 12, color: '#334155', fontWeight: '700' },
+  privateOptionLabel: { fontSize: 10, textAlign: 'center' },
+  privateMessageOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)'
+  },
+  privateMessageCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '88%',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 8
+  },
+  privateMessageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingBottom: 12,
+    marginBottom: 14
+  },
+  privateMessageTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  privateMessageIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center' },
+  privateMessageTitle: { color: '#0f172a', fontSize: 15, fontWeight: '800' },
+  privateMessageSubtitle: { color: '#64748b', fontSize: 10, marginTop: 2 },
+  privateFieldLabel: { color: '#334155', fontSize: 11, fontWeight: '800', marginBottom: 6, marginTop: 2 },
+  privateSearchBox: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: '#dbe4ea',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  privateSearchInput: { flex: 1, color: '#0f172a', fontSize: 13, paddingVertical: 9, outlineStyle: 'none' } as any,
+  privateSuggestionList: { maxHeight: 170, borderWidth: 1, borderColor: '#eef2f5', borderRadius: 12, marginBottom: 10 },
+  privateNoResults: { padding: 12, color: '#94a3b8', fontSize: 12, textAlign: 'center' },
+  privateSelectedRecipient: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 12,
+    backgroundColor: '#f0fdf4',
+    padding: 9,
+    marginBottom: 12
+  },
+  privateRecipientAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#e2e8f0' },
+  privateRecipientAvatarFallback: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15803d' },
+  privateChangeRecipient: { paddingHorizontal: 8, paddingVertical: 6 },
+  privateChangeRecipientText: { color: '#15803d', fontSize: 11, fontWeight: '800' },
+  privateMessageInput: {
+    minHeight: 105,
+    maxHeight: 180,
+    borderWidth: 1,
+    borderColor: '#dbe4ea',
+    borderRadius: 12,
+    padding: 12,
+    color: '#0f172a',
+    fontSize: 13,
+    lineHeight: 19
+  },
+  privateMessageInputDisabled: { backgroundColor: '#f8fafc' },
+  privateMessageFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  privateCharacterCount: { color: '#94a3b8', fontSize: 10, fontWeight: '600' },
+  privateSendButton: { minHeight: 40, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#15803d', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  privateSendButtonDisabled: { opacity: 0.45 },
+  privateSendButtonText: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
   mediaLoadingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5966,6 +6419,60 @@ const styles = StyleSheet.create({
     gap: 4
   },
   /* Go Live Stream & Stage Styles */
+  liveModalContent: {
+    flex: 1,
+    backgroundColor: '#020617'
+  },
+  liveEndedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(2, 6, 23, 0.94)'
+  },
+  liveEndedCard: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    padding: 28,
+    borderRadius: 20,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#374151'
+  },
+  liveEndedDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 14,
+    backgroundColor: '#ef4444'
+  },
+  liveEndedTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '800'
+  },
+  liveEndedMessage: {
+    marginTop: 8,
+    color: '#cbd5e1',
+    fontSize: 14,
+    textAlign: 'center'
+  },
+  liveEndedExit: {
+    minWidth: 110,
+    alignItems: 'center',
+    marginTop: 22,
+    paddingHorizontal: 24,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#dc2626'
+  },
+  liveEndedExitText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800'
+  },
   liveFullScreen: {
     flex: 1,
     backgroundColor: '#020617'
@@ -5997,15 +6504,29 @@ const styles = StyleSheet.create({
     marginLeft: 8
   },
   liveJoinBanner: {
-    minHeight: 42,
-    paddingHorizontal: 14,
-    backgroundColor: '#b91c1c',
+    minHeight: 40,
+    marginBottom: 8,
+    marginHorizontal: 4,
+    paddingLeft: 14,
+    paddingRight: 6,
+    backgroundColor: '#17231f',
+    borderWidth: 1,
+    borderColor: '#344b40',
+    borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
   },
-  liveJoinBannerText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  liveJoinBannerAction: { color: '#fff', fontSize: 13, fontWeight: '900', paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#7f1d1d', borderRadius: 14 },
+  liveJoinBannerInfo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  liveJoinDotWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
+  liveJoinDotHalo: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: '#fb6472' },
+  liveJoinDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fb6472' },
+  liveJoinBannerText: { flexShrink: 1, color: '#edf5f0', fontSize: 12, fontWeight: '700' },
+  liveJoinBannerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveJoinBannerAction: { paddingHorizontal: 13, paddingVertical: 7, backgroundColor: '#683038', borderWidth: 1, borderColor: '#8b4149', borderRadius: 18 },
+  liveJoinBannerActionText: { color: '#ffdfe2', fontSize: 12, fontWeight: '800' },
+  liveJoinBannerDismiss: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#24312d' },
+  liveJoinBannerDismissText: { color: '#bdcbc5', fontSize: 20, lineHeight: 22, fontWeight: '500' },
   goLiveHeaderBtnActive: {
     backgroundColor: '#dc2626',
     borderColor: '#fecaca'

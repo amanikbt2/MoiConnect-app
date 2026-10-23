@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-const RENDER_BACKEND_URL = 'https://moiconnect.onrender.com';
+const PRODUCTION_BACKEND_URL = 'https://mconnect.keysire.com';
 const LOCAL_BACKEND_PORT = '5000';
 
 const getDynamicHost = () => {
@@ -18,7 +18,7 @@ const getDynamicHost = () => {
       if (isLocal) {
         return `${protocol}//${hostname}:${LOCAL_BACKEND_PORT}`;
       }
-      return RENDER_BACKEND_URL;
+      return PRODUCTION_BACKEND_URL;
     }
     return `http://localhost:${LOCAL_BACKEND_PORT}`;
   }
@@ -34,7 +34,7 @@ const getDynamicHost = () => {
     }
     return `http://10.0.2.2:${LOCAL_BACKEND_PORT}`;
   }
-  return RENDER_BACKEND_URL;
+  return PRODUCTION_BACKEND_URL;
 };
 
 export const config = {
