@@ -6,11 +6,12 @@ interface InputProps extends TextInputProps {
   error?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, style, ...props }) => {
+export const Input = React.forwardRef<TextInput, InputProps>(({ label, error, style, ...props }, ref) => {
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
+        ref={ref}
         style={[styles.input, error && styles.inputError, style]}
         placeholderTextColor="#94a3b8"
         {...props}
@@ -18,7 +19,9 @@ export const Input: React.FC<InputProps> = ({ label, error, style, ...props }) =
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
   container: {

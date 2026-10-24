@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { Input } from '../../src/components/Input';
@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const passwordInputRef = useRef<TextInput>(null);
 
   const { login, googleLogin } = useAuth();
   const router = useAppNavigation();
@@ -23,6 +24,7 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    if (loading) return;
     if (!email || !password) {
       setError('Please fill in both email and password.');
       return;
@@ -112,6 +114,10 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoComplete="email"
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => passwordInputRef.current?.focus()}
         />
 
         <Input
@@ -120,6 +126,10 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          ref={passwordInputRef}
+          autoComplete="current-password"
+          returnKeyType="go"
+          onSubmitEditing={() => void handleLogin()}
         />
 
         <Button title="Sign In" onPress={handleLogin} loading={loading} style={styles.btn} />
