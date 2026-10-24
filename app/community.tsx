@@ -3289,7 +3289,7 @@ export default function CommunityScreen() {
                                 </View>
                               )}
 
-                              {item.isPrivate && !item.privateNotice && (
+                              {item.isPrivate && (
                                 <View style={styles.privateMessageLabelRow}>
                                   <LockIcon color={item.isMe ? '#15803d' : '#64748b'} size={11} />
                                   <Text style={[styles.privateMessageLabel, item.isMe ? styles.myPrivateMessageLabel : styles.otherPrivateMessageLabel]}>Private message</Text>
@@ -3297,12 +3297,7 @@ export default function CommunityScreen() {
                               )}
 
                               {item.privateNotice ? (
-                                <View style={styles.privateNoticeRow}>
-                                  <LockIcon color="#64748b" size={12} />
-                                  <Text style={styles.privateNoticeText}>
-                                    {item.senderName} sent {item.recipientName || 'a student'} a private message
-                                  </Text>
-                                </View>
+                                null
                               ) : !!item.text ? (
                                 <LinkifiedText
                                   style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}
@@ -4750,14 +4745,6 @@ const styles = StyleSheet.create({
   },
   otherPrivateMessageLabel: {
     color: '#64748b'
-  },
-  privateNoticeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  privateNoticeText: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: 18,
-    fontStyle: 'italic',
-    flexShrink: 1
   },
   metaRow: {
     flexDirection: 'row',
