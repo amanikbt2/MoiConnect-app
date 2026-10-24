@@ -235,11 +235,11 @@ function ExpandableMessageText({ text, style, onPressVideo }: { text: string; st
   const estimateCharsPerLine = Math.max(24, Math.floor((width * 0.85 - 76) / 7.2));
   const estimatedLines = text.split('\n').reduce((total, line) => total + Math.max(1, Math.ceil(line.length / estimateCharsPerLine)), 0);
   const [expanded, setExpanded] = useState(false);
-  const [hasMore, setHasMore] = useState(estimatedLines >= 10);
+  const [hasMore, setHasMore] = useState(estimatedLines > 10);
 
   useEffect(() => {
     setExpanded(false);
-    setHasMore(estimatedLines >= 10);
+    setHasMore(estimatedLines > 10);
   }, [text, estimatedLines]);
 
   return (
@@ -248,7 +248,7 @@ function ExpandableMessageText({ text, style, onPressVideo }: { text: string; st
         style={style}
         numberOfLines={expanded ? undefined : 10}
         onTextLayout={(event) => {
-          if (event?.nativeEvent?.lines?.length >= 10) setHasMore(true);
+          if (event?.nativeEvent?.lines?.length > 10) setHasMore(true);
         }}
         onPressVideo={onPressVideo}
       >
@@ -3799,6 +3799,10 @@ export default function CommunityScreen() {
                 scrollEnabled={inputHeight >= 60}
                 textAlignVertical={inputHeight > 40 ? 'top' : 'center'}
                 onContentSizeChange={(event) => {
+                  if (!inputText) {
+                    setInputHeight(40);
+                    return;
+                  }
                   const contentHeight = event.nativeEvent.contentSize.height;
                   setInputHeight(Math.max(40, Math.min(60, contentHeight + 8)));
                 }}
