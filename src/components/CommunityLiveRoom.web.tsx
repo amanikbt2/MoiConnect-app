@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Participant, Room, RoomEvent, Track, TrackPublication } from 'livekit-client';
 import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
 
@@ -153,11 +153,18 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
     setCameraEnabled(false);
   };
 
-  const renderParticipant = (participant: Participant, index: number) => {
+  const hostParticipant = isHost
+    ? room.localParticipant
+    : participants.find((participant) => participant !== room.localParticipant && participant.permissions?.canPublish) ||
+      participants.find((participant) => participant !== room.localParticipant && participant.getTrackPublication(Track.Source.Camera)?.track) ||
+      participants.find((participant) => participant !== room.localParticipant);
+  const otherParticipants = participants.filter((participant) => participant !== hostParticipant);
+
+  const renderParticipant = (participant: Participant, featured = false) => {
     const video = participant.getTrackPublication(Track.Source.Camera);
     const audio = participant.getTrackPublication(Track.Source.Microphone);
     return (
-      <View key={participant.identity} style={[styles.tile, index === 0 && styles.primaryTile]}>
+      <View key={participant.identity} style={[styles.tile, featured ? styles.featuredTile : styles.participantTile]}>
         {video?.track ? <LiveTrack publication={video} kind="video" mirror={participant === room.localParticipant} /> : (
           <View style={styles.noVideo}><Text style={styles.noVideoIcon}>●</Text><Text style={styles.name}>{participant.name || participant.identity}</Text><Text style={styles.audioLabel}>Audio / chat</Text></View>
         )}
@@ -177,7 +184,14 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
         <TouchableOpacity style={styles.closeButton} onPress={onClose}><Text style={styles.closeText}>{isHost ? 'End room' : 'Leave room'}</Text></TouchableOpacity>
       </View>
       {error ? <View style={styles.errorBar}><Text style={styles.errorText}>{error}</Text></View> : null}
-      {participants.length === 0 ? <ActivityIndicator color="#86efac" style={styles.loader} /> : <View style={styles.grid}>{participants.map(renderParticipant)}</View>}
+      {otherParticipants.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.participantStrip} contentContainerStyle={styles.participantStripContent}>
+          {otherParticipants.map((participant) => renderParticipant(participant))}
+        </ScrollView>
+      )}
+      <View style={styles.stage}>
+        {hostParticipant ? renderParticipant(hostParticipant, true) : <ActivityIndicator color="#86efac" style={styles.loader} />}
+      </View>
       {isHost ? (
         <View style={styles.controls}>
           <TouchableOpacity style={[styles.control, muted && styles.controlActive]} onPress={() => void toggleMicrophone()}><View style={styles.controlIconWrap}>{muted ? <MicOffIcon color="#ffb2b7" size={22} /> : <MicIcon color="#e8f1ec" size={22} />}</View><Text style={styles.controlText}>{muted ? 'Unmute' : 'Mute'}</Text></TouchableOpacity>
@@ -212,9 +226,12 @@ const styles = StyleSheet.create({
   status: { color: '#b6c8c1', textAlign: 'center', fontSize: 12 },
   closeButton: { backgroundColor: '#a93643', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   closeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  grid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignContent: 'flex-start' },
-  tile: { width: '48%', height: 176, borderRadius: 16, overflow: 'hidden', backgroundColor: '#182522', borderWidth: 1, borderColor: '#33443f' },
-  primaryTile: { width: '100%', height: 250 },
+  participantStrip: { flexGrow: 0, flexShrink: 0, height: 94, marginBottom: 10 },
+  participantStripContent: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  stage: { flex: 1, minHeight: 0 },
+  tile: { overflow: 'hidden', backgroundColor: '#182522', borderWidth: 1, borderColor: '#33443f' },
+  participantTile: { width: 94, height: 94, borderRadius: 13 },
+  featuredTile: { width: '100%', height: '100%', borderRadius: 16 },
   noVideo: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#162522' },
   noVideoIcon: { color: '#74e2b1', fontSize: 24, backgroundColor: '#203c32', overflow: 'hidden', borderRadius: 32, padding: 12 },
   audioLabel: { color: '#91a79e', fontSize: 11, marginTop: 4 },

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Participant, Room, RoomEvent, Track } from 'livekit-client';
 import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
 
@@ -141,10 +141,17 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
     setCameraEnabled(false);
   };
 
-  const renderParticipant = (participant: Participant, index: number) => {
+  const hostParticipant = isHost
+    ? room.localParticipant
+    : participants.find((participant) => participant !== room.localParticipant && participant.permissions?.canPublish) ||
+      participants.find((participant) => participant !== room.localParticipant && participant.getTrackPublication(Track.Source.Camera)?.videoTrack) ||
+      participants.find((participant) => participant !== room.localParticipant);
+  const otherParticipants = participants.filter((participant) => participant !== hostParticipant);
+
+  const renderParticipant = (participant: Participant, featured = false) => {
     const videoTrack = participant.getTrackPublication(Track.Source.Camera)?.videoTrack;
     return (
-      <View key={participant.identity} style={[styles.tile, index === 0 && styles.primaryTile]}>
+      <View key={participant.identity} style={[styles.tile, featured ? styles.featuredTile : styles.participantTile]}>
         {videoTrack && VideoView ? (
           <VideoView videoTrack={videoTrack} style={StyleSheet.absoluteFill} objectFit="cover" mirror={participant === room.localParticipant} />
         ) : (
@@ -161,7 +168,18 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
         <View><Text style={styles.liveText}>● LIVE</Text><Text style={styles.subtitle}>{participants.length} participant{participants.length === 1 ? '' : 's'}</Text></View>
         <TouchableOpacity style={styles.closeButton} onPress={onClose}><Text style={styles.closeText}>{isHost ? 'End' : 'Leave'}</Text></TouchableOpacity>
       </View>
-      {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : participants.length === 0 ? <ActivityIndicator color="#86efac" style={styles.loader} /> : <View style={styles.grid}>{participants.map(renderParticipant)}</View>}
+      {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : (
+        <>
+          {otherParticipants.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.participantStrip} contentContainerStyle={styles.participantStripContent}>
+              {otherParticipants.map((participant) => renderParticipant(participant))}
+            </ScrollView>
+          )}
+          <View style={styles.stage}>
+            {hostParticipant ? renderParticipant(hostParticipant, true) : <ActivityIndicator color="#86efac" style={styles.loader} />}
+          </View>
+        </>
+      )}
       {isHost ? (
         <View style={styles.controls}>
           <TouchableOpacity style={[styles.control, muted && styles.controlActive]} onPress={toggleMicrophone}><View style={styles.controlIconWrap}>{muted ? <MicOffIcon color="#ffb2b7" size={22} /> : <MicIcon color="#e8f1ec" size={22} />}</View><Text style={styles.controlText}>{muted ? 'Unmute' : 'Mute'}</Text></TouchableOpacity>
@@ -190,9 +208,12 @@ const styles = StyleSheet.create({
   subtitle: { color: '#bbf7d0', fontSize: 12, marginTop: 2 },
   closeButton: { backgroundColor: '#dc2626', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   closeText: { color: '#fff', fontWeight: '800' },
-  grid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignContent: 'flex-start' },
-  tile: { width: '48%', height: 170, borderRadius: 12, overflow: 'hidden', backgroundColor: '#12352b' },
-  primaryTile: { width: '100%', height: 245 },
+  participantStrip: { flexGrow: 0, flexShrink: 0, height: 92, marginBottom: 10 },
+  participantStripContent: { flexDirection: 'row', gap: 9, alignItems: 'stretch' },
+  stage: { flex: 1, minHeight: 0 },
+  tile: { overflow: 'hidden', backgroundColor: '#12352b' },
+  participantTile: { width: 92, height: 92, borderRadius: 12 },
+  featuredTile: { width: '100%', height: '100%', borderRadius: 12 },
   noVideo: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   noVideoText: { fontSize: 34 },
   name: { color: '#fff', marginTop: 6, fontWeight: '700' },
