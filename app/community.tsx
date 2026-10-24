@@ -136,6 +136,7 @@ export interface CommunityMessage {
   liveHostName?: string;
   eventType?: 'user_connected' | 'user_disconnected' | 'security' | string;
   fileAttachment?: FileAttachment;
+  mentions?: string[];
   reactions?: Record<string, number>;
   myReaction?: string;
   isDemo?: boolean;
@@ -155,6 +156,13 @@ interface MentionUser {
   avatarUrl?: string;
 }
 
+interface SelectedMentionTarget {
+  userId: string;
+  token: string;
+  start: number;
+  end: number;
+}
+
 const EMOJI_OPTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'];
 const CAMPUS_BOT_AVATAR = require('../assets/campus-bot-avatar.png');
 const CAMPUS_AI_AVATAR = require('../assets/campus-ai-avatar.png');
@@ -170,6 +178,37 @@ const matchesMentionEntry = (entry: MentionUser, query: string): boolean => {
   return normalizedName.includes(normalizedQuery) ||
     (normalizedQuery === 'bot' && entry.id === 'campus-bot') ||
     (normalizedQuery === 'ai' && entry.id === 'campus-ai');
+};
+
+const updateMentionRangesForTextChange = (
+  previousText: string,
+  nextText: string,
+  selectedMentions: SelectedMentionTarget[]
+): SelectedMentionTarget[] => {
+  let prefixLength = 0;
+  while (prefixLength < previousText.length && prefixLength < nextText.length && previousText[prefixLength] === nextText[prefixLength]) {
+    prefixLength += 1;
+  }
+
+  let previousEnd = previousText.length;
+  let nextEnd = nextText.length;
+  while (previousEnd > prefixLength && nextEnd > prefixLength && previousText[previousEnd - 1] === nextText[nextEnd - 1]) {
+    previousEnd -= 1;
+    nextEnd -= 1;
+  }
+
+  const delta = (nextEnd - prefixLength) - (previousEnd - prefixLength);
+  return selectedMentions.flatMap((mention) => {
+    const isInsertion = prefixLength === previousEnd;
+    const overlapsMention = isInsertion
+      ? prefixLength > mention.start && prefixLength < mention.end
+      : prefixLength < mention.end && previousEnd > mention.start;
+    if (overlapsMention) return [];
+
+    const shift = previousEnd <= mention.start ? delta : 0;
+    const adjusted = { ...mention, start: mention.start + shift, end: mention.end + shift };
+    return nextText.slice(adjusted.start, adjusted.end) === adjusted.token ? [adjusted] : [];
+  });
 };
 const isVideoAttachment = (file?: { type?: string; url?: string; name?: string } | null): boolean => {
   if (!file) return false;
@@ -226,6 +265,12 @@ const getCommunitySenderSubtitle = (
     return formatStudentSubtitle(school, course, year, message.senderFaculty);
   }
   return formatStudentSubtitle(undefined, message.senderCourse, message.senderYear, message.senderFaculty);
+};
+
+const getReplySenderLabel = (replyTo: NonNullable<CommunityMessage['replyTo']>, currentUser?: any): string => {
+  const replyEmail = replyTo.senderEmail?.trim().toLowerCase();
+  const currentEmail = currentUser?.email?.trim().toLowerCase();
+  return replyEmail && currentEmail && replyEmail === currentEmail ? 'You' : replyTo.senderName || 'User';
 };
 
 const STICKER_SOURCES: Record<string, any> = Object.fromEntries(STICKERS.map((sticker) => [sticker.id, sticker.source]));
@@ -615,6 +660,7 @@ export default function CommunityScreen() {
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
   const [inputHeight, setInputHeight] = useState(40);
+  const [selectedMentionTargets, setSelectedMentionTargets] = useState<SelectedMentionTarget[]>([]);
   const [mentionDirectory, setMentionDirectory] = useState<MentionUser[]>([]);
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
@@ -1010,6 +1056,12 @@ export default function CommunityScreen() {
     }
 
     // 2. Mention check: text contains @Email, @MyName, or @MyFirstName
+    if (Array.isArray(msg.mentions)) {
+      const currentUserId = String(currUser._id || '');
+      return Boolean(currentUserId && msg.mentions.some((mentionId) => String(mentionId) === currentUserId));
+    }
+
+    // Older saved messages do not have structured mention IDs, so keep their legacy name matching.
     if (msg.text) {
       const textLower = msg.text.toLowerCase();
       if (currUser.email) {
@@ -1274,6 +1326,7 @@ export default function CommunityScreen() {
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
+            mentions: Array.isArray(serverMsg.mentions) ? serverMsg.mentions.map((id: any) => String(id?._id || id)) : undefined,
             isPrivate: Boolean(serverMsg.isPrivate),
             privateNotice: Boolean(serverMsg.privateNotice),
             recipientId: serverMsg.recipientId ? String(serverMsg.recipientId?._id || serverMsg.recipientId) : undefined,
@@ -1676,6 +1729,9 @@ export default function CommunityScreen() {
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text ?? serverMsg._doc?.text ?? '',
+            mentions: Array.isArray(serverMsg.mentions ?? serverMsg._doc?.mentions)
+              ? (serverMsg.mentions ?? serverMsg._doc?.mentions).map((id: any) => String(id?._id || id))
+              : undefined,
             isPrivate: Boolean(serverMsg.isPrivate ?? serverMsg._doc?.isPrivate),
             privateNotice: Boolean(serverMsg.privateNotice ?? serverMsg._doc?.privateNotice),
             recipientId: serverMsg.recipientId
@@ -1787,6 +1843,9 @@ export default function CommunityScreen() {
           senderBadge: serverMsg.senderBadge,
           avatarBg: serverMsg.avatarBg || '#15803d',
           text: serverMsg.text ?? serverMsg._doc?.text ?? '',
+          mentions: Array.isArray(serverMsg.mentions ?? serverMsg._doc?.mentions)
+            ? (serverMsg.mentions ?? serverMsg._doc?.mentions).map((id: any) => String(id?._id || id))
+            : undefined,
           isPrivate: Boolean(serverMsg.isPrivate ?? serverMsg._doc?.isPrivate),
           privateNotice: Boolean(serverMsg.privateNotice ?? serverMsg._doc?.privateNotice),
           recipientId: serverMsg.recipientId
@@ -2110,14 +2169,29 @@ export default function CommunityScreen() {
   }, []);
 
   const selectMention = (entry: MentionUser) => {
-    const normalizedName = entry.name.trim().toLowerCase().replace(/[\s_]+/g, ' ');
-    const mentionToken = entry.id === 'campus-bot' || normalizedName === 'campus bot'
+    const isCampusBot = entry.id === 'campus-bot';
+    const isCampusAI = entry.id === 'campus-ai';
+    const mentionToken = isCampusBot
       ? 'campus_bot'
-      : entry.id === 'campus-ai' || normalizedName === 'campus ai'
+      : isCampusAI
         ? 'campus_ai'
         : entry.name.trim().replace(/\s+/g, '_');
+    const activeMention = inputText.match(/(^|\s)@([^\s@]*)$/);
+    const mentionStart = activeMention ? activeMention.index! + activeMention[1].length : inputText.length;
+    const visibleToken = `@${mentionToken}`;
     const nextText = inputText.replace(/(^|\s)@[^\s@]*$/, `$1@${mentionToken} `);
     setInputText(nextText);
+    if (!isCampusBot && !isCampusAI) {
+      setSelectedMentionTargets((current) => [
+        ...current,
+        { userId: entry.id, token: visibleToken, start: mentionStart, end: mentionStart + visibleToken.length }
+      ]);
+    }
+    setMentionQuery('');
+    setShowMentionSuggestions(false);
+  };
+
+  const dismissMentionSuggestions = () => {
     setMentionQuery('');
     setShowMentionSuggestions(false);
   };
@@ -2140,6 +2214,7 @@ export default function CommunityScreen() {
 
     const wasDeleting = text.length < prevInputTextLengthRef.current;
     prevInputTextLengthRef.current = text.length;
+    setSelectedMentionTargets((current) => updateMentionRangesForTextChange(inputText, text, current));
     setInputText(text);
 
     const activeMention = text.match(/(^|\s)@([^\s@]*)$/);
@@ -2371,6 +2446,9 @@ export default function CommunityScreen() {
 
     if (!sentText && !fileToSend && !stickerId) return;
 
+    // Clear the picker explicitly; clearing the input does not run handleInputChange.
+    dismissMentionSuggestions();
+
     setSendButtonBusy(true);
     if (sendButtonBusyTimeoutRef.current) clearTimeout(sendButtonBusyTimeoutRef.current);
     sendButtonBusyTimeoutRef.current = setTimeout(() => {
@@ -2425,6 +2503,10 @@ export default function CommunityScreen() {
         }
       : undefined;
 
+    const mentionedUserIds = stickerId
+      ? []
+      : Array.from(new Set(selectedMentionTargets.map((mention) => mention.userId)));
+
     const tempId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     tempSentIdsRef.current.add(tempId);
 
@@ -2444,6 +2526,7 @@ export default function CommunityScreen() {
       senderId: user ? user._id : undefined,
       senderEmail: user ? user.email : undefined,
       text: sentText,
+      mentions: mentionedUserIds,
       fileAttachment: fileToSend || undefined,
       stickerId,
       replyTo: replyToData,
@@ -2474,6 +2557,7 @@ export default function CommunityScreen() {
       senderBadge: payload.senderBadge,
       avatarBg: payload.avatarBg,
       text: sentText,
+      mentions: mentionedUserIds,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isoDate: new Date().toISOString(),
       isMe: true,
@@ -2495,6 +2579,7 @@ export default function CommunityScreen() {
     if (!stickerId) {
       setInputText('');
       prevInputTextLengthRef.current = 0;
+      setSelectedMentionTargets([]);
     }
     setPendingUploadItem(null);
     setUploadFailed(false);
@@ -2908,7 +2993,7 @@ export default function CommunityScreen() {
                 styles.onlineDot,
                 !networkOnline
                   ? styles.offlineDot
-                  : isForumLoading || !socketOnline
+                  : !socketOnline
                   ? styles.connectingDot
                   : styles.activeOnlineDot
               ]}
@@ -2926,7 +3011,7 @@ export default function CommunityScreen() {
                   <WifiOffIcon color="#fca5a5" size={13} />
                   <Text style={styles.offlineHeaderSubtitle}>You're offline</Text>
                 </>
-              ) : isForumLoading || !socketOnline ? (
+              ) : !socketOnline ? (
                 <>
                   <ActivityIndicator size={11} color="#fef08a" />
                   <Text style={styles.connectingHeaderSubtitle}>Connecting...</Text>
@@ -3154,7 +3239,7 @@ export default function CommunityScreen() {
                           return (
                             <TouchableOpacity
                               activeOpacity={0.9}
-                              delayLongPress={2500}
+                              delayLongPress={1500}
                               onLongPress={() => setSelectedMsgForOptions(item)}
                               onPress={() => {
                                 if (isPickerOpen) setActiveReactionMsgId(null);
@@ -3187,7 +3272,7 @@ export default function CommunityScreen() {
                                   <View style={[styles.engulfedAccentBar, item.isMe ? styles.engulfedAccentBarMe : styles.engulfedAccentBarOther]} />
                                   <View style={styles.engulfedContent}>
                                     <Text style={[styles.engulfedSender, item.isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
-                                      {item.replyTo.senderName || 'User'}
+                                      {getReplySenderLabel(item.replyTo, user)}
                                     </Text>
                                     <LinkifiedText
                                       style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]}
@@ -3203,11 +3288,11 @@ export default function CommunityScreen() {
 
                               {item.stickerId && (
                                 STICKER_SOURCES[item.stickerId] ? (
-                                  <TouchableOpacity activeOpacity={1} delayLongPress={2500} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                  <TouchableOpacity activeOpacity={1} delayLongPress={1500} onLongPress={() => setSelectedMsgForOptions(item)}>
                                     <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} resizeMode="contain" />
                                   </TouchableOpacity>
                                 ) : (item.stickerId.startsWith('http://') || item.stickerId.startsWith('https://') || item.stickerId.startsWith('data:image/')) ? (
-                                  <TouchableOpacity activeOpacity={1} delayLongPress={2500} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                  <TouchableOpacity activeOpacity={1} delayLongPress={1500} onLongPress={() => setSelectedMsgForOptions(item)}>
                                     <Image source={{ uri: item.stickerId }} style={styles.sentStickerImage} resizeMode="contain" />
                                   </TouchableOpacity>
                                 ) : null
@@ -3219,7 +3304,7 @@ export default function CommunityScreen() {
                                   {hasMedia ? (
                                     <TouchableOpacity
                                       style={styles.chatMediaPreview}
-                                      delayLongPress={2500}
+                                      delayLongPress={1500}
                                       onLongPress={() => setSelectedMsgForOptions(item)}
                                       onPress={() => {
                                         const fileKey = item.fileAttachment?.paperId || item.fileAttachment?.url;
@@ -3449,7 +3534,7 @@ export default function CommunityScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <ReplyIcon color="#15803d" size={13} />
                   <Text style={styles.replyPreviewTitle}>
-                    Replying to <Text style={styles.replyPreviewName}>{replyingTo.senderName}</Text>
+                    Replying to <Text style={styles.replyPreviewName}>{replyingTo.isMe ? 'You' : replyingTo.senderName}</Text>
                   </Text>
                 </View>
                 <LinkifiedText
@@ -3721,40 +3806,48 @@ export default function CommunityScreen() {
             </View>
           )}
           {showMentionSuggestions && (
-            <View style={styles.mentionSuggestions}>
-              <View style={styles.mentionSuggestionsHeader}>
-                <Text style={styles.mentionSuggestionsTitle}>Mention someone</Text>
-                {mentionLoading && <Text style={styles.mentionSuggestionsLoading}>Updating…</Text>}
+            <>
+              <Pressable
+                style={styles.mentionDismissOverlay}
+                onPress={dismissMentionSuggestions}
+                accessibilityRole="button"
+                accessibilityLabel="Close mention suggestions"
+              />
+              <View style={styles.mentionSuggestions}>
+                <View style={styles.mentionSuggestionsHeader}>
+                  <Text style={styles.mentionSuggestionsTitle}>Mention someone</Text>
+                  {mentionLoading && <Text style={styles.mentionSuggestionsLoading}>Updating…</Text>}
+                </View>
+                <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={styles.mentionSuggestionsList}>
+                  {MENTION_ASSISTANTS
+                    .filter((entry) => matchesMentionEntry(entry, mentionQuery))
+                    .map((entry) => (
+                      <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
+                        <Image source={entry.avatar} style={styles.mentionAvatar} />
+                        <View style={styles.mentionUserText}>
+                          <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
+                          <Text style={styles.mentionUserSubtitle}>Assistant</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  {mentionDirectory
+                    .filter((entry) => matchesMentionEntry(entry, mentionQuery))
+                    .slice(0, 8)
+                    .map((entry) => (
+                      <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
+                        {entry.avatarUrl ? <Image source={{ uri: entry.avatarUrl }} style={styles.mentionAvatar} /> : <View style={styles.mentionAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{entry.name[0]?.toUpperCase()}</Text></View>}
+                        <View style={styles.mentionUserText}>
+                          <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
+                          <Text style={styles.mentionUserSubtitle}>MConnect user</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  {!mentionLoading && MENTION_ASSISTANTS.every((entry) => !matchesMentionEntry(entry, mentionQuery)) && mentionDirectory.filter((entry) => matchesMentionEntry(entry, mentionQuery)).length === 0 && (
+                    <Text style={styles.mentionEmptyText}>No matching users yet</Text>
+                  )}
+                </ScrollView>
               </View>
-              <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={styles.mentionSuggestionsList}>
-                {MENTION_ASSISTANTS
-                  .filter((entry) => matchesMentionEntry(entry, mentionQuery))
-                  .map((entry) => (
-                    <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
-                      <Image source={entry.avatar} style={styles.mentionAvatar} />
-                      <View style={styles.mentionUserText}>
-                        <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
-                        <Text style={styles.mentionUserSubtitle}>Assistant</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                {mentionDirectory
-                  .filter((entry) => matchesMentionEntry(entry, mentionQuery))
-                  .slice(0, 8)
-                  .map((entry) => (
-                    <TouchableOpacity key={entry.id} style={styles.mentionRow} onPress={() => selectMention(entry)} activeOpacity={0.75}>
-                      {entry.avatarUrl ? <Image source={{ uri: entry.avatarUrl }} style={styles.mentionAvatar} /> : <View style={styles.mentionAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{entry.name[0]?.toUpperCase()}</Text></View>}
-                      <View style={styles.mentionUserText}>
-                        <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
-                        <Text style={styles.mentionUserSubtitle}>MConnect user</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                {!mentionLoading && MENTION_ASSISTANTS.every((entry) => !matchesMentionEntry(entry, mentionQuery)) && mentionDirectory.filter((entry) => matchesMentionEntry(entry, mentionQuery)).length === 0 && (
-                  <Text style={styles.mentionEmptyText}>No matching users yet</Text>
-                )}
-              </ScrollView>
-            </View>
+            </>
           )}
           {allowCommunityChat && forumParticipationAllowed ? <View style={styles.inputContainer}>
             {liveBroadcast && liveBroadcast.hostId !== user?._id && !liveSession && dismissedLiveBannerKey !== liveBroadcastKey && (
@@ -3795,7 +3888,10 @@ export default function CommunityScreen() {
                 ref={smileButtonRef}
                 {...({ 'data-sticker-toggle': 'true' } as any)}
                 style={styles.pillIconBtn}
-                onPress={() => setShowStickerPicker((visible) => !visible)}
+                onPress={() => {
+                  dismissMentionSuggestions();
+                  setShowStickerPicker((visible) => !visible);
+                }}
                 activeOpacity={0.7}
               >
                 <SmileIcon color={showStickerPicker ? '#15803d' : '#8696a0'} size={21} />
@@ -3871,7 +3967,10 @@ export default function CommunityScreen() {
 
               <TouchableOpacity
                 style={styles.pillIconBtn}
-                onPress={() => setShowFileModal(true)}
+                onPress={() => {
+                  dismissMentionSuggestions();
+                  setShowFileModal(true);
+                }}
                 activeOpacity={0.7}
               >
                 <PaperclipIcon color="#8696a0" size={22} />
@@ -5326,21 +5425,18 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   reactionBadge: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-    elevation: 1
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    paddingHorizontal: 2,
+    paddingVertical: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0
   },
   reactionBadgeActive: {
-    backgroundColor: '#fef08a',
-    borderColor: '#eab308'
+    backgroundColor: 'transparent',
+    borderColor: 'transparent'
   },
   reactionBadgeText: {
     fontSize: 11,
@@ -5603,7 +5699,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 5,
+    zIndex: 51,
     overflow: 'hidden'
+  },
+  mentionDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 50,
+    elevation: 50,
+    backgroundColor: 'transparent'
   },
   mentionSuggestionsHeader: {
     flexDirection: 'row',
@@ -5683,6 +5786,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'column',
     alignItems: 'stretch',
+    zIndex: 52,
+    elevation: 52,
     paddingHorizontal: 8,
     paddingVertical: 8,
     // Let the wallpaper continue behind the composer until the bottom bar.
