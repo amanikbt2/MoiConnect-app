@@ -3189,9 +3189,13 @@ export default function CommunityScreen() {
                                     <Text style={[styles.engulfedSender, item.isMe ? styles.engulfedSenderMe : styles.engulfedSenderOther]} numberOfLines={1}>
                                       {item.replyTo.senderName || 'User'}
                                     </Text>
-                                    <Text style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]} numberOfLines={2}>
+                                    <LinkifiedText
+                                      style={[styles.engulfedText, item.isMe ? styles.engulfedTextMe : styles.engulfedTextOther]}
+                                      numberOfLines={2}
+                                      onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
+                                    >
                                       {getSmartReplySnippet(item.replyTo)}
-                                    </Text>
+                                    </LinkifiedText>
                                   </View>
                                   {getReplyAttachmentThumbnail(item.replyTo)}
                                 </TouchableOpacity>
@@ -3448,9 +3452,13 @@ export default function CommunityScreen() {
                     Replying to <Text style={styles.replyPreviewName}>{replyingTo.senderName}</Text>
                   </Text>
                 </View>
-                <Text style={styles.replyPreviewSnippet} numberOfLines={1}>
+                <LinkifiedText
+                  style={styles.replyPreviewSnippet}
+                  numberOfLines={1}
+                  onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
+                >
                   {getSmartReplySnippet(replyingTo)}
-                </Text>
+                </LinkifiedText>
               </View>
               {getReplyAttachmentThumbnail(replyingTo)}
               <TouchableOpacity
