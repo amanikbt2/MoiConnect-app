@@ -23,8 +23,10 @@ import {
   Image,
   ImageBackground,
   AppState,
+  useWindowDimensions,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import * as ExpoFileSystem from 'expo-file-system/legacy';
@@ -227,6 +229,39 @@ const getCommunitySenderSubtitle = (
 };
 
 const STICKER_SOURCES: Record<string, any> = Object.fromEntries(STICKERS.map((sticker) => [sticker.id, sticker.source]));
+
+function ExpandableMessageText({ text, style, onPressVideo }: { text: string; style: any; onPressVideo: (url: string) => void }) {
+  const { width } = useWindowDimensions();
+  const estimateCharsPerLine = Math.max(24, Math.floor((width * 0.85 - 76) / 7.2));
+  const estimatedLines = text.split('\n').reduce((total, line) => total + Math.max(1, Math.ceil(line.length / estimateCharsPerLine)), 0);
+  const [expanded, setExpanded] = useState(false);
+  const [hasMore, setHasMore] = useState(estimatedLines >= 10);
+
+  useEffect(() => {
+    setExpanded(false);
+    setHasMore(estimatedLines >= 10);
+  }, [text, estimatedLines]);
+
+  return (
+    <View style={styles.expandableMessage}>
+      <LinkifiedText
+        style={style}
+        numberOfLines={expanded ? undefined : 10}
+        onTextLayout={(event) => {
+          if (event?.nativeEvent?.lines?.length >= 10) setHasMore(true);
+        }}
+        onPressVideo={onPressVideo}
+      >
+        {text}
+      </LinkifiedText>
+      {hasMore && (
+        <TouchableOpacity onPress={() => setExpanded((value) => !value)} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={expanded ? 'Read less' : 'Read more'}>
+          <Text style={styles.readMoreText}>{expanded ? 'Read less' : 'Read more'}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 function SwipeableMessageItem({
   children,
@@ -579,6 +614,7 @@ export default function CommunityScreen() {
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [inputHeight, setInputHeight] = useState(40);
   const [mentionDirectory, setMentionDirectory] = useState<MentionUser[]>([]);
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
@@ -814,7 +850,7 @@ export default function CommunityScreen() {
       if (!response.success) {
         const message = response.error || 'The live streaming service is not configured on the server yet.';
         const isSetupIssue = message.toLowerCase().includes('not configured');
-        showIceMessage(isSetupIssue ? 'Live setup required' : 'Could not join live', message);
+        showIceMessage(!networkOnline ? 'You’re offline' : isSetupIssue ? 'Live setup required' : 'Could not join live', !networkOnline ? 'An internet connection is needed to connect your live video to other people. Reconnect and try again.' : message);
         return;
       }
       if (!response.data?.url || !response.data?.token || response.data.token === 'socket_fallback_mode') {
@@ -824,7 +860,7 @@ export default function CommunityScreen() {
       setLiveSession({ serverUrl: response.data.url, token: response.data.token, isHost });
     } catch (error: any) {
       const message = error?.message || 'Check your connection and try again.';
-      showIceMessage(message.includes('Go Live is not enabled') ? 'Go Live access' : 'Could not join live', message);
+      showIceMessage(!networkOnline ? 'You’re offline' : message.includes('Go Live is not enabled') ? 'Go Live access' : 'Could not join live', !networkOnline ? 'An internet connection is needed to connect your live video to other people. Reconnect and try again.' : message);
     } finally {
       setLiveLoading(false);
     }
@@ -2560,17 +2596,15 @@ export default function CommunityScreen() {
     }
   };
 
-  const handleCopyMessageText = (msg: CommunityMessage) => {
+  const handleCopyMessageText = async (msg: CommunityMessage) => {
     try {
       const textToCopy = msg.text || msg.fileAttachment?.name || '';
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-        navigator.clipboard.writeText(textToCopy);
-      }
+      await Clipboard.setStringAsync(textToCopy);
       setSelectedMsgForOptions(null);
       showIceMessage('Text Copied 📋', 'Message text copied to clipboard!');
     } catch {
       setSelectedMsgForOptions(null);
-      showIceMessage('Text Copied 📋', 'Message text copied!');
+      showIceMessage('Copy Failed', 'Could not copy the message text.');
     }
   };
 
@@ -3120,6 +3154,7 @@ export default function CommunityScreen() {
                           return (
                             <TouchableOpacity
                               activeOpacity={0.9}
+                              delayLongPress={2500}
                               onLongPress={() => setSelectedMsgForOptions(item)}
                               onPress={() => {
                                 if (isPickerOpen) setActiveReactionMsgId(null);
@@ -3164,11 +3199,11 @@ export default function CommunityScreen() {
 
                               {item.stickerId && (
                                 STICKER_SOURCES[item.stickerId] ? (
-                                  <TouchableOpacity activeOpacity={1} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                  <TouchableOpacity activeOpacity={1} delayLongPress={2500} onLongPress={() => setSelectedMsgForOptions(item)}>
                                     <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} resizeMode="contain" />
                                   </TouchableOpacity>
                                 ) : (item.stickerId.startsWith('http://') || item.stickerId.startsWith('https://') || item.stickerId.startsWith('data:image/')) ? (
-                                  <TouchableOpacity activeOpacity={1} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                  <TouchableOpacity activeOpacity={1} delayLongPress={2500} onLongPress={() => setSelectedMsgForOptions(item)}>
                                     <Image source={{ uri: item.stickerId }} style={styles.sentStickerImage} resizeMode="contain" />
                                   </TouchableOpacity>
                                 ) : null
@@ -3180,6 +3215,7 @@ export default function CommunityScreen() {
                                   {hasMedia ? (
                                     <TouchableOpacity
                                       style={styles.chatMediaPreview}
+                                      delayLongPress={2500}
                                       onLongPress={() => setSelectedMsgForOptions(item)}
                                       onPress={() => {
                                         const fileKey = item.fileAttachment?.paperId || item.fileAttachment?.url;
@@ -3299,12 +3335,11 @@ export default function CommunityScreen() {
                               {item.privateNotice ? (
                                 null
                               ) : !!item.text ? (
-                                <LinkifiedText
+                                <ExpandableMessageText
+                                  text={item.text}
                                   style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}
                                   onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
-                                >
-                                  {item.text}
-                                </LinkifiedText>
+                                />
                               ) : null}
 
                               {/* Timestamp & Ticks */}
@@ -3758,17 +3793,27 @@ export default function CommunityScreen() {
                 <SmileIcon color={showStickerPicker ? '#15803d' : '#8696a0'} size={21} />
               </TouchableOpacity>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { height: inputHeight }]}
+                multiline
+                {...(Platform.OS !== 'web' ? { submitBehavior: 'submit' as const } : {})}
+                scrollEnabled={inputHeight >= 60}
+                textAlignVertical={inputHeight > 40 ? 'top' : 'center'}
+                onContentSizeChange={(event) => {
+                  const contentHeight = event.nativeEvent.contentSize.height;
+                  setInputHeight(Math.max(40, Math.min(60, contentHeight + 8)));
+                }}
                 placeholder="@bot or @ai to mention"
                 placeholderTextColor="#8696a0"
                 value={inputText}
-                onChangeText={handleInputChange}
+                onChangeText={(text) => {
+                  handleInputChange(text);
+                  if (!text) setInputHeight(40);
+                }}
                 onFocus={() => {
                   if (showStickerPicker) setShowStickerPicker(false);
                 }}
                 returnKeyType="send"
                 onSubmitEditing={() => handleSendMessage()}
-                blurOnSubmit={false}
                 onKeyPress={(e: any) => {
                   if (Platform.OS === 'web' && e.nativeEvent?.key === 'Enter' && !e.nativeEvent?.shiftKey) {
                     e.preventDefault();
@@ -4415,6 +4460,7 @@ export default function CommunityScreen() {
                 serverUrl={liveSession.serverUrl}
                 token={liveSession.token}
                 isHost={liveSession.isHost}
+                isNetworkOnline={networkOnline}
                 onReady={handleLiveRoomReady}
                 onClose={closeLiveRoom}
               />
@@ -4720,6 +4766,8 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500'
   },
+  expandableMessage: { flexShrink: 1 },
+  readMoreText: { marginTop: 4, color: '#15803d', fontSize: 12, fontWeight: '800' },
   messageText: {
     fontSize: 14,
     lineHeight: 20,
@@ -5643,7 +5691,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 24,
     paddingHorizontal: 8,
-    height: 44,
+    minHeight: 44,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -5661,8 +5709,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14.5,
     color: '#111b21',
-    height: 40,
-    paddingVertical: 0,
+    minHeight: 40,
+    maxHeight: 60,
+    lineHeight: 20,
+    paddingVertical: 4,
     paddingHorizontal: 6,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {})
   } as any,

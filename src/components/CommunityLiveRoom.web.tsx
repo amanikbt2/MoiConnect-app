@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Participant, Room, RoomEvent, Track, TrackPublication } from 'livekit-client';
 import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
 
@@ -7,6 +7,7 @@ interface CommunityLiveRoomProps {
   serverUrl: string;
   token: string;
   isHost: boolean;
+  isNetworkOnline?: boolean;
   onClose: () => void;
   onReady?: () => void;
 }
@@ -35,15 +36,19 @@ function LiveTrack({ publication, kind, mirror = false }: { publication: TrackPu
   });
 }
 
-export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }: CommunityLiveRoomProps) {
+export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = true, onClose, onReady }: CommunityLiveRoomProps) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), []);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [activeSpeakerIds, setActiveSpeakerIds] = useState<string[]>([]);
+  const participantStripRef = useRef<ScrollView | null>(null);
   const [muted, setMuted] = useState(!isHost);
   const [cameraOff, setCameraOff] = useState(!isHost);
   const [status, setStatus] = useState('Connecting to live room…');
   const [error, setError] = useState('');
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [connectionEnded, setConnectionEnded] = useState(false);
   const micPressedRef = useRef(false);
   const cameraPressedRef = useRef(false);
   const micTaskRef = useRef<Promise<void>>(Promise.resolve());
@@ -94,8 +99,12 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
       .on(RoomEvent.ParticipantDisconnected, refreshParticipants)
       .on(RoomEvent.TrackSubscribed, refreshParticipants)
       .on(RoomEvent.TrackUnsubscribed, refreshParticipants)
+      .on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => setActiveSpeakerIds(speakers.map((speaker) => speaker.identity)))
       .on(RoomEvent.LocalTrackPublished, refreshParticipants)
-      .on(RoomEvent.LocalTrackUnpublished, refreshParticipants);
+      .on(RoomEvent.LocalTrackUnpublished, refreshParticipants)
+      .on(RoomEvent.Reconnecting, () => { setIsReconnecting(true); setConnectionEnded(false); })
+      .on(RoomEvent.Reconnected, () => { setIsReconnecting(false); setConnectionEnded(false); setStatus('Connected.'); refreshParticipants(); })
+      .on(RoomEvent.Disconnected, () => { setIsReconnecting(false); setConnectionEnded(true); });
     void connect();
 
     return () => {
@@ -158,18 +167,29 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
     : participants.find((participant) => participant !== room.localParticipant && participant.permissions?.canPublish) ||
       participants.find((participant) => participant !== room.localParticipant && participant.getTrackPublication(Track.Source.Camera)?.track) ||
       participants.find((participant) => participant !== room.localParticipant);
-  const otherParticipants = participants.filter((participant) => participant !== hostParticipant);
+  const otherParticipants = participants
+    .filter((participant) => participant !== hostParticipant)
+    .sort((a, b) => Number(activeSpeakerIds.includes(b.identity)) - Number(activeSpeakerIds.includes(a.identity)));
+
+  useEffect(() => {
+    if (activeSpeakerIds.some((id) => otherParticipants.some((participant) => participant.identity === id))) {
+      participantStripRef.current?.scrollTo({ x: 0, animated: true });
+    }
+  }, [activeSpeakerIds, hostParticipant]);
 
   const renderParticipant = (participant: Participant, featured = false) => {
     const video = participant.getTrackPublication(Track.Source.Camera);
     const audio = participant.getTrackPublication(Track.Source.Microphone);
+    const avatarUrl = (() => { try { return JSON.parse(participant.metadata || '{}')?.avatarUrl; } catch { return ''; } })();
+    const isSpeaking = activeSpeakerIds.includes(participant.identity);
     return (
-      <View key={participant.identity} style={[styles.tile, featured ? styles.featuredTile : styles.participantTile]}>
+      <View key={participant.identity} style={[styles.tile, featured ? styles.featuredTile : styles.participantTile, isSpeaking && styles.speakingTile]}>
         {video?.track ? <LiveTrack publication={video} kind="video" mirror={participant === room.localParticipant} /> : (
-          <View style={styles.noVideo}><Text style={styles.noVideoIcon}>●</Text><Text style={styles.name}>{participant.name || participant.identity}</Text><Text style={styles.audioLabel}>Audio / chat</Text></View>
+          <View style={styles.noVideo}>{avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarCover} resizeMode="cover" /> : <View style={styles.avatarFallback}><Text style={styles.avatarInitial}>{(participant.name || participant.identity).trim().charAt(0).toUpperCase()}</Text></View>}</View>
         )}
         {audio?.track && <LiveTrack publication={audio} kind="audio" />}
-        <View style={styles.caption}><Text style={styles.captionText} numberOfLines={2}>{participant.name || participant.identity}{participant === room.localParticipant ? ' (You)' : ''}</Text></View>
+        <View style={styles.nameTag}><Text style={styles.captionText} numberOfLines={1}>{participant.name || participant.identity}{participant === room.localParticipant ? ' (You)' : ''}</Text></View>
+        {isSpeaking && <View style={styles.speakingBadge}><View style={styles.speakingBar} /><View style={[styles.speakingBar, styles.speakingBarTall]} /><View style={styles.speakingBar} /></View>}
       </View>
     );
   };
@@ -178,6 +198,7 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.roomIdentity}>
+          {!isNetworkOnline && <View style={styles.offlineBadge}><Text style={styles.offlineText}>You’re offline</Text></View>}
           <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View>
           <Text style={styles.subtitle}>{participants.length} participant{participants.length === 1 ? '' : 's'}</Text>
         </View>
@@ -185,13 +206,21 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, onClose, onReady }
       </View>
       {error ? <View style={styles.errorBar}><Text style={styles.errorText}>{error}</Text></View> : null}
       {otherParticipants.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.participantStrip} contentContainerStyle={styles.participantStripContent}>
+        <ScrollView ref={participantStripRef} horizontal showsHorizontalScrollIndicator={false} style={styles.participantStrip} contentContainerStyle={styles.participantStripContent}>
           {otherParticipants.map((participant) => renderParticipant(participant))}
         </ScrollView>
       )}
       <View style={styles.stage}>
         {hostParticipant ? renderParticipant(hostParticipant, true) : <ActivityIndicator color="#86efac" style={styles.loader} />}
       </View>
+      {(isReconnecting || !isNetworkOnline || connectionEnded) && (
+        <View style={styles.reconnectionOverlay}>
+          {!isNetworkOnline && <Text style={styles.reconnectionOffline}>You’re offline</Text>}
+          {connectionEnded ? <Text style={styles.reconnectionTitle}>Connection ended</Text> : <Text style={styles.reconnectionTitle}>Connection lost</Text>}
+          {!connectionEnded && <><ActivityIndicator color="#8ce7bd" size="large" /><Text style={styles.reconnectionMessage}>Reconnecting…</Text></>}
+          {connectionEnded && <TouchableOpacity style={styles.reconnectionExit} onPress={onClose}><Text style={styles.reconnectionExitText}>Exit live</Text></TouchableOpacity>}
+        </View>
+      )}
       {isHost ? (
         <View style={styles.controls}>
           <TouchableOpacity style={[styles.control, muted && styles.controlActive]} onPress={() => void toggleMicrophone()}><View style={styles.controlIconWrap}>{muted ? <MicOffIcon color="#ffb2b7" size={22} /> : <MicIcon color="#e8f1ec" size={22} />}</View><Text style={styles.controlText}>{muted ? 'Unmute' : 'Mute'}</Text></TouchableOpacity>
@@ -220,24 +249,36 @@ const styles = StyleSheet.create({
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#351d22', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fb6472' },
   liveText: { color: '#ff9aa3', fontWeight: '800', fontSize: 11, letterSpacing: 1 },
+  offlineBadge: { backgroundColor: '#422b16', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 6 },
+  offlineText: { color: '#fcd38d', fontSize: 11, fontWeight: '800' },
   subtitle: { color: '#a5b4af', fontSize: 12 },
   statusBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, paddingVertical: 9, paddingHorizontal: 12, backgroundColor: '#131d1a', borderRadius: 12 },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#55d6a0' },
   status: { color: '#b6c8c1', textAlign: 'center', fontSize: 12 },
   closeButton: { backgroundColor: '#a93643', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   closeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  reconnectionOverlay: { ...StyleSheet.absoluteFillObject, top: 48, zIndex: 5, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: 'rgba(4, 12, 10, 0.82)' },
+  reconnectionOffline: { position: 'absolute', top: 12, alignSelf: 'center', color: '#fcd38d', fontWeight: '800', fontSize: 12 },
+  reconnectionTitle: { color: '#ffffff', fontSize: 20, fontWeight: '800' },
+  reconnectionMessage: { color: '#d1fae5', fontSize: 14, fontWeight: '700' },
+  reconnectionExit: { marginTop: 8, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, backgroundColor: '#a93643' },
+  reconnectionExitText: { color: '#ffffff', fontWeight: '800' },
   participantStrip: { flexGrow: 0, flexShrink: 0, height: 94, marginBottom: 10 },
   participantStripContent: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
   stage: { flex: 1, minHeight: 0 },
   tile: { overflow: 'hidden', backgroundColor: '#182522', borderWidth: 1, borderColor: '#33443f' },
-  participantTile: { width: 94, height: 94, borderRadius: 13 },
+  participantTile: { width: 94, height: 94, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
+  speakingTile: { borderColor: '#57e5a5', shadowColor: '#57e5a5', shadowOpacity: 0.65, shadowRadius: 10, elevation: 8 },
   featuredTile: { width: '100%', height: '100%', borderRadius: 16 },
   noVideo: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#162522' },
-  noVideoIcon: { color: '#74e2b1', fontSize: 24, backgroundColor: '#203c32', overflow: 'hidden', borderRadius: 32, padding: 12 },
-  audioLabel: { color: '#91a79e', fontSize: 11, marginTop: 4 },
-  name: { color: '#f2f7f4', marginTop: 8, fontWeight: '700' },
-  caption: { position: 'absolute', left: 10, top: 10, alignSelf: 'flex-start', maxWidth: '82%', backgroundColor: '#07100dcc', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6 },
-  captionText: { color: '#fff', fontWeight: '600', fontSize: 12, flexShrink: 1 },
+  avatarCover: { width: '100%', height: '100%' },
+  avatarFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: '#14532d' },
+  avatarInitial: { color: '#e8fff4', fontSize: 34, fontWeight: '800' },
+  nameTag: { position: 'absolute', left: 5, top: 5, maxWidth: '86%', backgroundColor: 'rgba(3, 12, 9, 0.78)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 3 },
+  captionText: { color: '#fff', fontWeight: '700', fontSize: 9, flexShrink: 1 },
+  speakingBadge: { position: 'absolute', right: 5, bottom: 5, flexDirection: 'row', alignItems: 'center', gap: 2, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: '#0b241a' },
+  speakingBar: { width: 2, height: 5, borderRadius: 1, backgroundColor: '#57e5a5' },
+  speakingBarTall: { height: 9 },
   controls: { flexDirection: 'row', justifyContent: 'center', gap: 10, paddingTop: 14 },
   control: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1c2925', borderWidth: 1, borderColor: '#34443e', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 12 },
   controlActive: { backgroundColor: '#672b33', borderColor: '#9a414a' },

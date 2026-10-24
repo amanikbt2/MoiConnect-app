@@ -132,14 +132,16 @@ const renderLinkedText = (
   });
 };
 
-export function LinkifiedText({ children, style, linkStyle, onPressVideo }: {
+export function LinkifiedText({ children, style, linkStyle, onPressVideo, numberOfLines, onTextLayout }: {
   children: string;
   style?: StyleProp<TextStyle>;
   linkStyle?: StyleProp<TextStyle>;
   onPressVideo?: (url: string) => void;
+  numberOfLines?: number;
+  onTextLayout?: (event: any) => void;
 }) {
   return (
-    <Text style={style}>
+    <Text style={style} numberOfLines={numberOfLines} onTextLayout={onTextLayout}>
       {renderInlineText(children, 'formatted-message', onPressVideo, linkStyle)}
     </Text>
   );
