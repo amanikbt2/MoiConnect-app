@@ -24,7 +24,9 @@ import {
   ImageBackground,
   AppState,
   useWindowDimensions,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
@@ -311,10 +313,12 @@ function ExpandableMessageText({ text, style, onPressVideo }: { text: string; st
 
 function SwipeableMessageItem({
   children,
-  onReply
+  onReply,
+  isPickerOpen
 }: {
   children: React.ReactNode;
   onReply: () => void;
+  isPickerOpen?: boolean;
 }) {
   const panX = useRef(new Animated.Value(0)).current;
 
@@ -364,7 +368,7 @@ function SwipeableMessageItem({
   });
 
   return (
-    <View style={{ position: 'relative', width: '100%' }}>
+    <View style={[{ position: 'relative', width: '100%' }, isPickerOpen && { zIndex: 999999, elevation: 99999 }]}>
       <Animated.View
         style={{
           position: 'absolute',
@@ -401,10 +405,13 @@ function SwipeableMessageItem({
 
       <Animated.View
         {...panResponder.panHandlers}
-        style={{
-          transform: [{ translateX: panX }],
-          width: '100%'
-        }}
+        style={[
+          {
+            transform: [{ translateX: panX }],
+            width: '100%'
+          },
+          isPickerOpen && { zIndex: 999999, elevation: 99999 }
+        ]}
       >
         {children}
       </Animated.View>
@@ -628,6 +635,40 @@ export default function CommunityScreen() {
   const isForumFocused = useIsFocused();
   const { isOnline: networkOnline } = useNetwork();
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
+
+  let insets = { top: 0, bottom: 0, left: 0, right: 0 };
+  try {
+    insets = useSafeAreaInsets();
+  } catch {}
+
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const composerPaddingBottom = (
+    !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0
+      ? insets.bottom + 8
+      : 8
+  );
+
+  const floatingBottomOffset = (
+    !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0
+      ? insets.bottom + 72
+      : 72
+  );
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const livePulseAnim = useRef(new Animated.Value(0)).current;
@@ -1119,6 +1160,9 @@ export default function CommunityScreen() {
       );
       if (lastReadIndex !== -1) {
         candidateMessages = messages.slice(lastReadIndex + 1);
+      } else {
+        // If the marker has fallen out of the compact window, don't re-count past history
+        candidateMessages = [];
       }
     } else if (!initialMentionBaselineDoneRef.current) {
       return;
@@ -1238,9 +1282,18 @@ export default function CommunityScreen() {
         setShowUnreadBtn(false);
       }
     } else {
-      setUnreadCount(currentMsgs.length);
-      setFirstUnreadMsgId(currentMsgs[0]?.id || null);
-      setShowUnreadBtn(true);
+      // The compact window has moved past the old read marker; baseline gracefully
+      const latestMsg = currentMsgs[currentMsgs.length - 1];
+      if (latestMsg?.id) {
+        lastReadCommunityIdRef.current = String(latestMsg.id);
+        void saveLastReadCommunityMsgId(String(latestMsg.id));
+      }
+      for (let i = 0; i < currentMsgs.length; i++) {
+        markMentionRead(currentMsgs[i]);
+      }
+      setUnreadCount(0);
+      setFirstUnreadMsgId(null);
+      setShowUnreadBtn(false);
     }
     initialScrollDoneRef.current = true;
     initialMentionBaselineDoneRef.current = true;
@@ -1258,6 +1311,7 @@ export default function CommunityScreen() {
     if (messages.length > 0) {
       const latestId = messages[messages.length - 1].id;
       markAsRead(latestId);
+      setUnreadMentionIds([]);
     }
     scrollToLatestWhenReady(true);
   };
@@ -1271,6 +1325,7 @@ export default function CommunityScreen() {
     if (isBottom && userScrolledRef.current && messages.length > 0) {
       const latestId = messages[messages.length - 1].id;
       void markAsRead(latestId);
+      setUnreadMentionIds([]);
     }
   };
 
@@ -3082,6 +3137,25 @@ export default function CommunityScreen() {
     }
   };
 
+  const renderCommunityCell = React.useCallback(({ children, style, item, ...props }: any) => {
+    const isPickerOpen = Boolean(
+      item &&
+      activeReactionMsgId &&
+      (item.id === activeReactionMsgId || (item.clientMsgId && item.clientMsgId === activeReactionMsgId))
+    );
+    return (
+      <View
+        {...props}
+        style={[
+          style,
+          isPickerOpen && { position: 'relative', zIndex: 999999, elevation: 99999 }
+        ]}
+      >
+        {children}
+      </View>
+    );
+  }, [activeReactionMsgId]);
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
@@ -3214,6 +3288,8 @@ export default function CommunityScreen() {
           <FlatList
             ref={flatListRef}
             data={displayMessages}
+            extraData={activeReactionMsgId}
+            CellRendererComponent={renderCommunityCell}
             onLayout={() => setHasForumListLayout(true)}
             onContentSizeChange={() => {
               setHasForumListLayout(true);
@@ -3237,6 +3313,7 @@ export default function CommunityScreen() {
             scrollEventThrottle={16}
             onScrollBeginDrag={() => {
               if (showStickerPicker) setShowStickerPicker(false);
+              if (activeReactionMsgId) setActiveReactionMsgId(null);
               isDraggingRef.current = true;
               userScrolledRef.current = true;
             }}
@@ -3324,12 +3401,14 @@ export default function CommunityScreen() {
                 );
               }
 
-              const isPickerOpen = activeReactionMsgId === item.id;
+              const isPickerOpen = Boolean(
+                activeReactionMsgId && (item.id === activeReactionMsgId || (item.clientMsgId && item.clientMsgId === activeReactionMsgId))
+              );
               const hasReactions = item.reactions && Object.keys(item.reactions).length > 0;
               const isFirstUnread = item.id === firstUnreadMsgId;
 
               return (
-                <View style={{ width: '100%' }}>
+                <View style={[{ width: '100%' }, isPickerOpen && { position: 'relative', zIndex: 999999, elevation: 99999 }]}>
                   {/* WhatsApp-Style Unread Divider Line */}
                   {isFirstUnread && (
                     <View style={styles.unreadDividerContainer}>
@@ -3343,8 +3422,8 @@ export default function CommunityScreen() {
                     </View>
                   )}
 
-                  <SwipeableMessageItem onReply={() => setReplyingTo(item)}>
-                    <View style={[styles.messageBubbleWrapper, item.isMe ? styles.myWrapper : styles.otherWrapper]}>
+                  <SwipeableMessageItem onReply={() => setReplyingTo(item)} isPickerOpen={isPickerOpen}>
+                    <View style={[styles.messageBubbleWrapper, item.isMe ? styles.myWrapper : styles.otherWrapper, isPickerOpen && { position: 'relative', zIndex: 999999, elevation: 99999 }]}>
                       {!item.isMe && (
                         <TouchableOpacity
                           style={[styles.senderAvatar, isCampusAssistantMessage(item) && styles.botAvatarRing, { backgroundColor: item.avatarBg }]}
@@ -3364,7 +3443,7 @@ export default function CommunityScreen() {
                         </TouchableOpacity>
                       )}
 
-                      <View style={styles.bubbleContainer}>
+                      <View style={[styles.bubbleContainer, isPickerOpen && { position: 'relative', zIndex: 999999, elevation: 99999 }]}>
                         {/* Floating Reaction Bar */}
                         {isPickerOpen && (
                           <View style={[styles.reactionPickerBar, item.isMe ? { right: 0 } : { left: 0 }]}>
@@ -3649,7 +3728,7 @@ export default function CommunityScreen() {
           {/* WhatsApp Style Floating Unread / Scroll to Bottom Button */}
           {!showForumLoading && showUnreadBtn && (
             <TouchableOpacity
-              style={styles.floatingUnreadBtn}
+              style={[styles.floatingUnreadBtn, { bottom: floatingBottomOffset }]}
               onPress={scrollToBottomAndMarkRead}
               activeOpacity={0.85}
               accessibilityRole="button"
@@ -3667,7 +3746,7 @@ export default function CommunityScreen() {
           {/* Smart Mention & Reply Jump Button (Floating Left Side) */}
           {!showForumLoading && unreadMentionIds.length > 0 && (
             <TouchableOpacity
-              style={styles.floatingMentionBtn}
+              style={[styles.floatingMentionBtn, { bottom: floatingBottomOffset }]}
               onPress={handleJumpToNextMention}
               activeOpacity={0.85}
             >
@@ -4001,7 +4080,7 @@ export default function CommunityScreen() {
               </View>
             </>
           )}
-          {allowCommunityChat && forumParticipationAllowed ? <View style={styles.inputContainer}>
+          {allowCommunityChat && forumParticipationAllowed ? <View style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
             {(() => {
               if (showForumLoading || !liveBroadcast || liveSession) return null;
               const isMyBroadcast = Boolean(user?._id && liveBroadcast.hostId && String(liveBroadcast.hostId) === String(user._id));
@@ -4173,7 +4252,7 @@ export default function CommunityScreen() {
             </TouchableOpacity>
             </View>
           </View> : (
-            <View style={styles.chatDisabledNotice}>
+            <View style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
               <Text style={styles.chatDisabledNoticeText}>{allowCommunityChat ? 'You are not eligible for forum participation' : 'Community chat disabled by administrator'}</Text>
             </View>
           )}
@@ -4265,7 +4344,7 @@ export default function CommunityScreen() {
             activeOpacity={1}
             onPress={() => setShowFileModal(false)}
           >
-            <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Pressable style={[styles.modalCard, { paddingBottom: Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 20 : 20 }]} onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Share Campus File & Document</Text>
                 <TouchableOpacity
@@ -4570,7 +4649,7 @@ export default function CommunityScreen() {
         onRequestClose={() => setSelectedMsgForOptions(null)}
       >
         <Pressable style={styles.optionsSheetOverlay} onPress={() => setSelectedMsgForOptions(null)}>
-          <Pressable style={styles.optionsSheetContainer} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={[styles.optionsSheetContainer, { paddingBottom: Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 20 : 28 }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
 
             {selectedMsgForOptions && (
@@ -5579,8 +5658,8 @@ const styles = StyleSheet.create({
   reactionPickerBar: {
     position: 'absolute',
     top: -46,
-    zIndex: 99999,
-    elevation: 9999,
+    zIndex: 999999,
+    elevation: 99999,
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderRadius: 24,
