@@ -50,6 +50,29 @@ import {
 
 } from '../../src/components/Icons';
 
+const CAMPUS_BOT_AVATAR = require('../../assets/campus-bot-avatar.png');
+const CAMPUS_AI_AVATAR = require('../../assets/campus-ai-avatar.png');
+
+const isCampusBotUser = (u?: { email?: string; name?: string } | null) => {
+  const email = (u?.email || '').toLowerCase().trim();
+  const name = (u?.name || '').toLowerCase().trim();
+  return email === 'campusbot@moiconnect.app' || name.includes('campus bot');
+};
+
+const isCampusAIUser = (u?: { email?: string; name?: string } | null) => {
+  const email = (u?.email || '').toLowerCase().trim();
+  const name = (u?.name || '').toLowerCase().trim();
+  return email === 'campusai@moiconnect.app' || name === 'campus ai';
+};
+
+const isAssistantUser = (u?: { email?: string; name?: string } | null) => isCampusBotUser(u) || isCampusAIUser(u);
+
+const getAssistantAvatarSource = (u?: { email?: string; name?: string } | null) => {
+  if (isCampusBotUser(u)) return CAMPUS_BOT_AVATAR;
+  if (isCampusAIUser(u)) return CAMPUS_AI_AVATAR;
+  return null;
+};
+
 const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
 export default function ProfileScreen() {
@@ -94,22 +117,26 @@ export default function ProfileScreen() {
 
   const loadStudentProfile = async () => {
     if (!user) return;
+    const isBotOrAI = isAssistantUser(user);
+    const defaultVal = isBotOrAI ? 'AI assistant' : 'Unset';
+    const defaultPhone = isBotOrAI ? 'AI assistant' : '';
+
     const saved = await getStudentPersonalDetails(user._id);
 
     const school = (user.school && user.school !== 'Unset')
       ? user.school
-      : (saved?.userId === user._id && saved.school && saved.school !== 'Unset' ? saved.school : 'Unset');
+      : (saved?.userId === user._id && saved.school && saved.school !== 'Unset' ? saved.school : defaultVal);
 
     const course = (user.course && user.course !== 'Unset')
       ? user.course
-      : (saved?.userId === user._id && saved.course && saved.course !== 'Unset' ? saved.course : 'Unset');
+      : (saved?.userId === user._id && saved.course && saved.course !== 'Unset' ? saved.course : defaultVal);
 
     const yearOfStudy = (user.yearOfStudy && user.yearOfStudy !== 'Unset')
       ? user.yearOfStudy
-      : (saved?.userId === user._id && saved.yearOfStudy && saved.yearOfStudy !== 'Unset' ? saved.yearOfStudy : 'Unset');
+      : (saved?.userId === user._id && saved.yearOfStudy && saved.yearOfStudy !== 'Unset' ? saved.yearOfStudy : defaultVal);
 
-    const phone = user.phone || (saved?.userId === user._id ? saved.phone : '') || '';
-    const fullName = user.name || (saved?.userId === user._id ? saved.fullName : '') || 'Moi Student';
+    const phone = user.phone || (saved?.userId === user._id ? saved.phone : '') || defaultPhone;
+    const fullName = user.name || (saved?.userId === user._id ? saved.fullName : '') || (isCampusAIUser(user) ? 'Campus AI' : (isCampusBotUser(user) ? 'Campus Bot' : 'Moi Student'));
     const avatarUri = user.avatarUrl || (saved?.userId === user._id ? saved.avatarUri : undefined);
 
     setStudentDetails({
@@ -149,14 +176,16 @@ export default function ProfileScreen() {
   };
 
   const handleOpenEditModal = () => {
+    const isBotOrAI = isAssistantUser(user);
+    const defaultVal = isBotOrAI ? 'AI assistant' : '';
     const rawSchool = studentDetails.school || user?.school || '';
     const rawCourse = studentDetails.course || user?.course || '';
     const rawYear = studentDetails.yearOfStudy || user?.yearOfStudy || '';
-    setEditSchool(rawSchool === 'Unset' ? '' : rawSchool);
-    setEditCourse(rawCourse === 'Unset' ? '' : rawCourse);
-    setEditYear(rawYear === 'Unset' ? '' : rawYear);
-    setEditPhone(studentDetails.phone || user?.phone || '');
-    setEditName(studentDetails.fullName || user?.name || '');
+    setEditSchool(rawSchool === 'Unset' ? defaultVal : (rawSchool || defaultVal));
+    setEditCourse(rawCourse === 'Unset' ? defaultVal : (rawCourse || defaultVal));
+    setEditYear(rawYear === 'Unset' ? defaultVal : (rawYear || defaultVal));
+    setEditPhone(studentDetails.phone || user?.phone || (isBotOrAI ? 'AI assistant' : ''));
+    setEditName(studentDetails.fullName || user?.name || (isCampusAIUser(user) ? 'Campus AI' : (isCampusBotUser(user) ? 'Campus Bot' : '')));
     setEditAvatarUri(studentDetails.avatarUri || user?.avatarUrl);
     setProfileValidationMessage('');
     setShowSchoolDropdown(false);
@@ -165,6 +194,10 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (!user?._id) return;
+    if (isAssistantUser(user)) {
+      setProfileCompletionRequired(false);
+      return;
+    }
     const isIncomplete = (
       !user.course || user.course === 'Unset' ||
       !user.school || user.school === 'Unset' ||
@@ -183,7 +216,7 @@ export default function ProfileScreen() {
       autoOpenedForUserId.current = user._id;
       setProfileCompletionRequired(false);
     }
-  }, [user?._id, user?.school, user?.course, user?.yearOfStudy]);
+  }, [user?._id, user?.school, user?.course, user?.yearOfStudy, user?.email, user?.name]);
 
   const handleSaveProfileSubmit = async () => {
     const missingFields = [
@@ -320,6 +353,16 @@ export default function ProfileScreen() {
     );
   }
 
+  const isAssistant = isAssistantUser(user);
+  const assistantAvatar = getAssistantAvatarSource(user);
+  const hasValidAvatarUri = !!(studentDetails.avatarUri && (
+    studentDetails.avatarUri.startsWith('http://') ||
+    studentDetails.avatarUri.startsWith('https://') ||
+    studentDetails.avatarUri.startsWith('file://') ||
+    studentDetails.avatarUri.startsWith('data:') ||
+    studentDetails.avatarUri.startsWith('blob:')
+  ));
+
   return (
     <ScrollView style={[styles.container, isDark && styles.darkContainer]} contentContainerStyle={styles.content}>
       {/* Profile Avatar & Header Card */}
@@ -329,8 +372,10 @@ export default function ProfileScreen() {
           onPress={handleOpenEditModal}
           activeOpacity={0.8}
         >
-          {studentDetails.avatarUri ? (
+          {hasValidAvatarUri ? (
             <Image source={{ uri: studentDetails.avatarUri }} style={styles.avatarLargeImage} />
+          ) : assistantAvatar ? (
+            <Image source={assistantAvatar} style={styles.avatarLargeImage} />
           ) : (
             <View style={styles.avatarLarge}>
               <Text style={styles.avatarLargeText}>{(studentDetails.fullName || user.name)[0]?.toUpperCase()}</Text>
@@ -348,7 +393,11 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.userEmail}>{user.email}</Text>
           <View style={styles.userBadgeRow}>
-            <Badge label="Moi Student" variant="success" />
+            {isAssistant ? (
+              <Badge label="AI Assistant" variant="success" />
+            ) : (
+              <Badge label="Moi Student" variant="success" />
+            )}
             {user.roles?.includes('landlord') && (
               <Badge label="Landlord" variant="warning" />
             )}
@@ -397,8 +446,8 @@ export default function ProfileScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <AcademicCapIcon color="#15803d" size={20} />
             <View>
-              <Text style={styles.cardTitle}>Student Academic Profile</Text>
-              <Text style={styles.cardSub}>Official Moi University Campus Details</Text>
+              <Text style={styles.cardTitle}>{isAssistant ? 'AI Assistant Profile' : 'Student Academic Profile'}</Text>
+              <Text style={styles.cardSub}>{isAssistant ? 'Official MConnect Assistant Details' : 'Official Moi University Campus Details'}</Text>
             </View>
           </View>
         </View>
@@ -411,7 +460,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>SCHOOL / FACULTY</Text>
-              <Text style={styles.detailValueText}>{studentDetails.school || 'Unset'}</Text>
+              <Text style={styles.detailValueText}>
+                {studentDetails.school && studentDetails.school !== 'Unset' ? studentDetails.school : (isAssistant ? 'AI assistant' : 'Unset')}
+              </Text>
             </View>
           </View>
 
@@ -424,7 +475,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>COURSE / PROGRAM</Text>
-              <Text style={styles.detailValueBold}>{studentDetails.course || 'Unset'}</Text>
+              <Text style={styles.detailValueBold}>
+                {studentDetails.course && studentDetails.course !== 'Unset' ? studentDetails.course : (isAssistant ? 'AI assistant' : 'Unset')}
+              </Text>
             </View>
           </View>
 
@@ -437,7 +490,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>YEAR OF STUDY</Text>
-              <Text style={styles.detailValueText}>{studentDetails.yearOfStudy || 'Unset'}</Text>
+              <Text style={styles.detailValueText}>
+                {studentDetails.yearOfStudy && studentDetails.yearOfStudy !== 'Unset' ? studentDetails.yearOfStudy : (isAssistant ? 'AI assistant' : 'Unset')}
+              </Text>
             </View>
           </View>
 
@@ -450,7 +505,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabelHeader}>PHONE CONTACT (OPTIONAL)</Text>
-              <Text style={styles.detailValueText}>{studentDetails.phone || 'Unset'}</Text>
+              <Text style={styles.detailValueText}>
+                {studentDetails.phone || (isAssistant ? 'AI assistant' : 'Unset')}
+              </Text>
             </View>
           </View>
         </View>
@@ -482,7 +539,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Complete Student Profile</Text>
+              <Text style={styles.modalTitle}>{isAssistant ? 'Edit Assistant Profile' : 'Complete Student Profile'}</Text>
               {!profileCompletionRequired && (
                 <TouchableOpacity onPress={() => setShowEditModal(false)}>
                   <CloseIcon color="#ef4444" size={20} />
@@ -493,8 +550,10 @@ export default function ProfileScreen() {
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Profile Picture</Text>
               <View style={styles.editPhotoRow}>
-                {editAvatarUri ? (
+                {editAvatarUri && (editAvatarUri.startsWith('http://') || editAvatarUri.startsWith('https://') || editAvatarUri.startsWith('file://') || editAvatarUri.startsWith('data:') || editAvatarUri.startsWith('blob:')) ? (
                   <Image source={{ uri: editAvatarUri }} style={styles.editAvatarImage} />
+                ) : assistantAvatar ? (
+                  <Image source={assistantAvatar} style={styles.editAvatarImage} />
                 ) : (
                   <View style={styles.editAvatarFallback}>
                     <Text style={styles.editAvatarFallbackText}>{(editName || user?.name || 'M')[0]?.toUpperCase()}</Text>

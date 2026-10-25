@@ -1157,7 +1157,7 @@ export function MicOffIcon({ color = '#ffffff', size = 18, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
       <Path
-        d="M1 1L23 23M9 9V12A3 3 0 0 0 14.12 14.12M15 9.34V4A3 3 0 0 0 9.34 1.34M19 10V12A7 7 0 0 1 6.32 17.68M12 19V23M8 23H16"
+        d="M2 2L22 22M18.89 13.23A7.12 7.12 0 0 0 19 12V10M5 10V12A7 7 0 0 0 16.95 16.95M15 9.34V4A3 3 0 0 0 9.34 1.34M9 9V12A3 3 0 0 0 14.12 14.12M12 19V23M8 23H16"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"
@@ -1171,7 +1171,21 @@ export function CameraOffIcon({ color = '#ffffff', size = 18, style }: IconProps
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
       <Path
-        d="M1 1L23 23M21 21H3A2 2 0 0 1 1 19V7A2 2 0 0 1 3 5H4.5L6 3H11M23 7V17A2 2 0 0 1 21.6 18.8M16 16A4 4 0 0 1 8 8"
+        d="M2 2L22 22M7 7H4A2 2 0 0 0 2 9V19A2 2 0 0 0 4 21H19A2 2 0 0 0 20.6 19.4M9.5 4H14.5L16.5 7H20A2 2 0 0 1 22 9V16.5M14.12 15.12A3.5 3.5 0 0 1 9.88 10.88"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function VideoOffIcon({ color = '#ffffff', size = 22, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path
+        d="M2 2L22 22M16 16V18A2 2 0 0 1 14 20H4A2 2 0 0 1 2 18V8A2 2 0 0 1 4 6H6M10 4H14A2 2 0 0 1 16 6V10M22 7L16 11.5V12.5L22 17V7Z"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"

@@ -889,7 +889,7 @@ export default function CommunityScreen() {
     setLiveEnded(false);
     setLiveLoading(true);
     try {
-      const isHost = !liveBroadcast;
+      const isHost = !liveBroadcast || Boolean(liveBroadcast.hostId && user?._id && String(liveBroadcast.hostId) === String(user._id));
       const response = await apiRequest<{ url: string; token: string; isConfigured?: boolean }>(
         `/community/live/token?role=${isHost ? 'host' : 'viewer'}`
       );
@@ -958,28 +958,12 @@ export default function CommunityScreen() {
     const nowISO = new Date().toISOString();
 
     setMessages((previous) => {
-      const lastIdx = previous.length - 1;
-      const lastMsg = lastIdx >= 0 ? previous[lastIdx] : null;
-
-      // Smart Presence Merge: If the last message is already a system presence notice
-      if (lastMsg && lastMsg.isSystemNotice) {
-        if (lastMsg.eventType === event) return previous;
-        const updated = [...previous];
-        updated[lastIdx] = {
-          ...lastMsg,
-          id: `local_presence_${event}`,
-          text: isConnected ? 'You came online' : 'You went offline',
-          timestamp: nowTimestamp,
-          isoDate: nowISO,
-          eventType: event
-        };
-        return updated;
-      }
-
+      // Remove any prior local presence notices to ensure unique React keys and avoid render loop warnings
+      const filtered = previous.filter((m: any) => !String(m?.id || '').startsWith('local_presence_'));
       return [
-        ...previous,
+        ...filtered,
         {
-          id: `local_presence_${event}`,
+          id: `local_presence_${event}_${Date.now()}`,
           senderName: 'System',
           senderFaculty: '',
           avatarBg: '#64748b',
@@ -3850,34 +3834,59 @@ export default function CommunityScreen() {
             </>
           )}
           {allowCommunityChat && forumParticipationAllowed ? <View style={styles.inputContainer}>
-            {liveBroadcast && liveBroadcast.hostId !== user?._id && !liveSession && dismissedLiveBannerKey !== liveBroadcastKey && (
-              <View style={styles.liveJoinBanner}>
-                <View style={styles.liveJoinBannerInfo}>
-                  <View style={styles.liveJoinDotWrap}>
-                    <Animated.View
-                      pointerEvents="none"
-                      style={[
-                        styles.liveJoinDotHalo,
-                        {
-                          opacity: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
-                          transform: [{ scale: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }]
-                        }
-                      ]}
-                    />
-                    <View style={styles.liveJoinDot} />
+            {(() => {
+              if (!liveBroadcast || liveSession) return null;
+              const isMyBroadcast = Boolean(user?._id && liveBroadcast.hostId && String(liveBroadcast.hostId) === String(user._id));
+              const isDismissed = Boolean(dismissedLiveBannerKey && dismissedLiveBannerKey === liveBroadcastKey);
+              if (!isMyBroadcast && isDismissed) return null;
+
+              return (
+                <View style={styles.liveJoinBanner}>
+                  <View style={styles.liveJoinBannerInfo}>
+                    <View style={styles.liveJoinDotWrap}>
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.liveJoinDotHalo,
+                          {
+                            opacity: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.65, 0] }),
+                            transform: [{ scale: livePulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] }) }]
+                          }
+                        ]}
+                      />
+                      <View style={styles.liveJoinDot} />
+                    </View>
+                    <Text style={styles.liveJoinBannerText} numberOfLines={1}>
+                      {isMyBroadcast ? 'You are currently live' : `${liveBroadcast.hostName} is live`}
+                    </Text>
                   </View>
-                  <Text style={styles.liveJoinBannerText} numberOfLines={1}>{liveBroadcast.hostName} is live</Text>
+                  <View style={styles.liveJoinBannerActions}>
+                    <TouchableOpacity
+                      style={styles.liveJoinBannerAction}
+                      onPress={handleGoLivePress}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={isMyBroadcast ? 'Resume your live broadcast' : `Join live with ${liveBroadcast.hostName}`}
+                    >
+                      <Text style={styles.liveJoinBannerActionText}>
+                        {isMyBroadcast ? 'Resume' : 'Join'}
+                      </Text>
+                    </TouchableOpacity>
+                    {!isMyBroadcast && (
+                      <TouchableOpacity
+                        style={styles.liveJoinBannerDismiss}
+                        onPress={() => setDismissedLiveBannerKey(liveBroadcastKey)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Dismiss live notification"
+                      >
+                        <Text style={styles.liveJoinBannerDismissText}>×</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-                <View style={styles.liveJoinBannerActions}>
-                  <TouchableOpacity style={styles.liveJoinBannerAction} onPress={handleGoLivePress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`Join live with ${liveBroadcast.hostName}`}>
-                    <Text style={styles.liveJoinBannerActionText}>Join</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.liveJoinBannerDismiss} onPress={() => setDismissedLiveBannerKey(liveBroadcastKey)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Dismiss live notification">
-                    <Text style={styles.liveJoinBannerDismissText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+              );
+            })()}
             <View style={styles.inputComposerRow}>
             <View style={styles.inputPill}>
 
@@ -4066,12 +4075,12 @@ export default function CommunityScreen() {
                     <Text style={styles.profileModalName}>{selectedProfile.senderName}</Text>
                     <UserBadge badge={selectedProfile.senderBadge} size={18} />
                   </View>
-                  <Text style={styles.profileModalRole}>MConnect community member</Text>
+                  <Text style={styles.profileModalRole}>{isCampusAssistantMessage(selectedProfile) ? 'AI Assistant' : 'MConnect community member'}</Text>
                   <View style={styles.profileInfoList}>
                     <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Academic</Text><Text style={styles.profileInfoValue}>{getCommunitySenderSubtitle(selectedProfile, user, myProfile)}</Text></View>
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Course</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderCourse || 'Not provided'}</Text></View>
-                    {selectedProfile.senderYear ? <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Year</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderYear}</Text></View> : null}
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Phone</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderPhone || 'Not provided'}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Course</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderCourse && selectedProfile.senderCourse.toLowerCase() !== 'unset' ? selectedProfile.senderCourse : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Year</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderYear && selectedProfile.senderYear.toLowerCase() !== 'unset' ? selectedProfile.senderYear : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Phone</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderPhone && selectedProfile.senderPhone.toLowerCase() !== 'unset' ? selectedProfile.senderPhone : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
                   </View>
                 </>
               )}
@@ -6658,29 +6667,44 @@ const styles = StyleSheet.create({
     marginLeft: 8
   },
   liveJoinBanner: {
-    minHeight: 40,
-    marginBottom: 8,
+    minHeight: 44,
+    marginBottom: 6,
     marginHorizontal: 4,
     paddingLeft: 14,
-    paddingRight: 6,
-    backgroundColor: '#17231f',
-    borderWidth: 1,
-    borderColor: '#344b40',
+    paddingRight: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#fca5a5',
     borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4
   },
-  liveJoinBannerInfo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  liveJoinDotWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
-  liveJoinDotHalo: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: '#fb6472' },
-  liveJoinDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fb6472' },
-  liveJoinBannerText: { flexShrink: 1, color: '#edf5f0', fontSize: 12, fontWeight: '700' },
-  liveJoinBannerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  liveJoinBannerAction: { paddingHorizontal: 13, paddingVertical: 7, backgroundColor: '#683038', borderWidth: 1, borderColor: '#8b4149', borderRadius: 18 },
-  liveJoinBannerActionText: { color: '#ffdfe2', fontSize: 12, fontWeight: '800' },
-  liveJoinBannerDismiss: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#24312d' },
-  liveJoinBannerDismissText: { color: '#bdcbc5', fontSize: 20, lineHeight: 22, fontWeight: '500' },
+  liveJoinBannerInfo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  liveJoinDotWrap: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
+  liveJoinDotHalo: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#ef4444' },
+  liveJoinDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#dc2626' },
+  liveJoinBannerText: { flexShrink: 1, color: '#0f172a', fontSize: 13, fontWeight: '700' },
+  liveJoinBannerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  liveJoinBannerAction: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    backgroundColor: '#dc2626',
+    borderRadius: 20,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  liveJoinBannerActionText: { color: '#ffffff', fontSize: 12.5, fontWeight: '800' },
+  liveJoinBannerDismiss: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#f1f5f9' },
+  liveJoinBannerDismissText: { color: '#64748b', fontSize: 18, lineHeight: 20, fontWeight: '600' },
   goLiveHeaderBtnActive: {
     backgroundColor: '#dc2626',
     borderColor: '#fecaca'

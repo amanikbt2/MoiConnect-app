@@ -364,7 +364,13 @@ export default function PastPapersScreen({ route }: any) {
       } else if (!res.success) {
         setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       } else {
-        if (!append) setPapersData(demoSetting && !isSearch ? INITIAL_PAST_PAPERS_DATA : []);
+        if (isSearch && !append) {
+          // Keep a browsable recommendation pool even when the exact search
+          // returns nothing. The screen's smart ranker can then surface partial matches.
+          void fetchRealPastPapers('', 1, true);
+        } else if (!append) {
+          setPapersData(demoSetting ? INITIAL_PAST_PAPERS_DATA : []);
+        }
         setHasMorePapers(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       }
     } catch (err) {
@@ -530,6 +536,28 @@ export default function PastPapersScreen({ route }: any) {
 
     if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
       void fetchRealPastPapers(submittedSearchQuery.trim().length > 1 ? submittedSearchQuery : '', papersPage + 1, true);
+    }
+  };
+
+  const submitSearch = (value: string) => {
+    const query = value.trim();
+    setSearchQuery(value);
+    setRequestedQuery(null);
+    setForcedOriginalQuery(null);
+    setPapersPage(1);
+    setHasMorePapers(true);
+    closeSearch();
+
+    // State effects handle changed queries. Explicitly refetch when the text
+    // is unchanged so Enter always refreshes the current search as expected.
+    if (query === submittedSearchQuery.trim()) {
+      void fetchRealPastPapers(query, 1, false);
+    } else {
+      setSubmittedSearchQuery(query);
+    }
+    if (query) {
+      void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+      void reportMaterialSearch(query, 'past_papers');
     }
   };
 
@@ -753,11 +781,8 @@ export default function PastPapersScreen({ route }: any) {
                   setRequestedQuery(null);
                 }
               }}
-              onSubmitEditing={() => {
-                closeSearch();
-                setSubmittedSearchQuery(searchQuery.trim());
-                void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
-                void reportMaterialSearch(searchQuery, 'past_papers');
+              onSubmitEditing={(event) => {
+                submitSearch(event?.nativeEvent?.text ?? searchQuery);
               }}
               returnKeyType="search"
               style={styles.searchInput}

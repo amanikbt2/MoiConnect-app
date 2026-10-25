@@ -344,7 +344,13 @@ export default function CatPapersScreen({ route }: any) {
       } else if (!res.success) {
         setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       } else {
-        if (!append) setCatsData(demoSetting && !isSearch ? INITIAL_CAT_PAPERS_DATA : []);
+        if (isSearch && !append) {
+          // Load the category feed as a recommendation pool when the exact
+          // search has no hits; local smart ranking can still find partial matches.
+          void fetchRealCatPapers('', 1, true);
+        } else if (!append) {
+          setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []);
+        }
         setHasMorePapers(false); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
       }
     } catch (err) {
@@ -496,6 +502,28 @@ export default function CatPapersScreen({ route }: any) {
 
     if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
       void fetchRealCatPapers(submittedSearchQuery.trim().length > 1 ? submittedSearchQuery : '', papersPage + 1, true);
+    }
+  };
+
+  const submitSearch = (value: string) => {
+    const query = value.trim();
+    setSearchQuery(value);
+    setRequestedQuery(null);
+    setForcedOriginalQuery(null);
+    setPapersPage(1);
+    setHasMorePapers(true);
+    closeSearch();
+
+    // State effects handle changed queries. Explicitly refetch when the text
+    // is unchanged so Enter always refreshes the current search as expected.
+    if (query === submittedSearchQuery.trim()) {
+      void fetchRealCatPapers(query, 1, false);
+    } else {
+      setSubmittedSearchQuery(query);
+    }
+    if (query) {
+      void saveMaterialSearchQuery(query, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
+      void reportMaterialSearch(query, 'cats');
     }
   };
 
@@ -699,11 +727,8 @@ export default function CatPapersScreen({ route }: any) {
                   setRequestedQuery(null);
                 }
               }}
-              onSubmitEditing={() => {
-                closeSearch();
-                setSubmittedSearchQuery(searchQuery.trim());
-                void saveMaterialSearchQuery(searchQuery, user).then(() => getMaterialSearchHistoryEntries().then(setSearchHistory));
-                void reportMaterialSearch(searchQuery, 'cats');
+              onSubmitEditing={(event) => {
+                submitSearch(event?.nativeEvent?.text ?? searchQuery);
               }}
               returnKeyType="search"
               style={styles.searchInput}
