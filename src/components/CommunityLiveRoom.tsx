@@ -6,18 +6,20 @@ import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
 
 let AudioSession: any = null;
 let VideoView: any = null;
+let AndroidAudioTypePresets: any = null;
 
 if (Platform.OS !== 'web') {
   try {
     const livekitRN = require('@livekit/react-native');
     AudioSession = livekitRN.AudioSession;
     VideoView = livekitRN.VideoView;
+    AndroidAudioTypePresets = livekitRN.AndroidAudioTypePresets;
   } catch (e) {
     console.warn('[LiveKit] @livekit/react-native is not available:', e);
   }
 }
 
-function LiveVideoTrackView({ videoTrack, mirror, style }: { videoTrack: any; mirror?: boolean; style?: any }) {
+function LiveVideoTrackView({ videoTrack, mirror, zOrder, style }: { videoTrack: any; mirror?: boolean; zOrder?: number; style?: any }) {
   const videoElementRef = useRef<any>(null);
 
   useEffect(() => {
@@ -55,7 +57,15 @@ function LiveVideoTrackView({ videoTrack, mirror, style }: { videoTrack: any; mi
   }
 
   if (VideoView) {
-    return <VideoView videoTrack={videoTrack} style={style} objectFit="cover" mirror={mirror} />;
+    return (
+      <VideoView
+        videoTrack={videoTrack}
+        style={style}
+        objectFit="cover"
+        mirror={mirror}
+        zOrder={zOrder ?? (mirror ? 1 : 0)}
+      />
+    );
   }
 
   return null;
@@ -135,15 +145,16 @@ export function CommunityLiveRoom({
     audioCaptureDefaults: {
       autoGainControl: true,
       echoCancellation: true,
-      noiseSuppression: true
+      noiseSuppression: false,
+      channelCount: 1
     },
     publishDefaults: {
-      dtx: true,
-      audioBitrate: 24000,
+      dtx: false,
+      audioBitrate: 48000,
       simulcast: true,
       videoEncoding: {
-        maxBitrate: 280000,
-        maxFramerate: 20
+        maxBitrate: 350000,
+        maxFramerate: 24
       }
     }
   }), []);
@@ -159,8 +170,7 @@ export function CommunityLiveRoom({
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [connectionEnded, setConnectionEnded] = useState(false);
-  const micPressedRef = useRef(false);
-  const cameraPressedRef = useRef(false);
+  const unifiedPressedRef = useRef(false);
 
   let insets = { top: 0, bottom: 0, left: 0, right: 0 };
   try {
@@ -194,12 +204,43 @@ export function CommunityLiveRoom({
 
     const connect = async () => {
       try {
+        if (AudioSession?.configureAudio) {
+          try {
+            await AudioSession.configureAudio({
+              android: {
+                preferredOutputList: ['speaker', 'headset', 'bluetooth', 'earpiece'],
+                audioTypeOptions: AndroidAudioTypePresets?.communication || {
+                  manageAudioFocus: true,
+                  audioMode: 'inCommunication',
+                  audioFocusMode: 'gain',
+                  audioStreamType: 'voiceCall',
+                  audioAttributesUsageType: 'voiceCommunication',
+                  audioAttributesContentType: 'speech'
+                }
+              },
+              ios: {
+                defaultOutput: 'speaker'
+              }
+            });
+          } catch (audioConfigErr) {
+            console.info('[LiveKit] configureAudio notice:', audioConfigErr);
+          }
+        }
         if (AudioSession?.startAudioSession) {
           try { await AudioSession.startAudioSession(); }
           catch (audioSessionError) { console.info('[LiveKit] Audio session setup failed; attempting room connection anyway.', audioSessionError); }
         }
+        if (AudioSession?.setDefaultRemoteAudioTrackVolume) {
+          try { await AudioSession.setDefaultRemoteAudioTrackVolume(1.0); } catch {}
+        }
+
         await room.connect(serverUrl, token, { autoSubscribe: true });
         if (cancelled) return;
+
+        if (AudioSession?.selectAudioOutput) {
+          try { await AudioSession.selectAudioOutput('speaker'); } catch {}
+        }
+
         onReadyRef.current?.();
         if (isHost) {
           try {
@@ -210,23 +251,30 @@ export function CommunityLiveRoom({
             if (!cancelled) setCameraOff(true);
           }
           try {
-            await room.localParticipant.setMicrophoneEnabled(true);
+            await room.localParticipant.setMicrophoneEnabled(true, {
+              autoGainControl: true,
+              echoCancellation: true,
+              noiseSuppression: false
+            });
             if (!cancelled) setMuted(false);
           } catch (audioError) {
             console.info('[LiveKit] Microphone unavailable; continuing in listen-only mode.', audioError);
             if (!cancelled) setMuted(true);
           }
-          // Buffer to ensure camera hardware is outputting frames before removing overlay
           setTimeout(() => {
             if (!cancelled) {
               setIsInitialLoading(false);
               refreshParticipants();
             }
-          }, 500);
+          }, 350);
         } else {
-          // Pre-warm guest audio track as muted so "Hold to talk" is instant (0ms) without SDP renegotiation delay
+          // Pre-warm guest audio track as muted so unified "Hold to talk" is instant (0ms)
           try {
-            await room.localParticipant.setMicrophoneEnabled(true);
+            await room.localParticipant.setMicrophoneEnabled(true, {
+              autoGainControl: true,
+              echoCancellation: true,
+              noiseSuppression: false
+            });
             const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
             if (micPub?.track) {
               await micPub.track.mute();
@@ -244,7 +292,7 @@ export function CommunityLiveRoom({
           } else {
             setTimeout(() => {
               if (!cancelled) setIsInitialLoading(false);
-            }, 3000);
+            }, 1200);
           }
         }
         refreshParticipants();
@@ -258,11 +306,14 @@ export function CommunityLiveRoom({
 
     const initialSafetyTimer = setTimeout(() => {
       if (!cancelled) setIsInitialLoading(false);
-    }, 6000);
+    }, 4500);
 
     room
       .on(RoomEvent.ParticipantConnected, refreshParticipants)
       .on(RoomEvent.ParticipantDisconnected, refreshParticipants)
+      .on(RoomEvent.ParticipantMetadataChanged, refreshParticipants)
+      .on(RoomEvent.TrackPublished, refreshParticipants)
+      .on(RoomEvent.TrackUnpublished, refreshParticipants)
       .on(RoomEvent.TrackSubscribed, (track) => {
         refreshParticipants();
         if (!cancelled && !isHost && track.kind === Track.Kind.Video) {
@@ -276,7 +327,7 @@ export function CommunityLiveRoom({
         if (!cancelled && isHost && pub.kind === Track.Kind.Video) {
           setTimeout(() => {
             if (!cancelled) setIsInitialLoading(false);
-          }, 300);
+          }, 250);
         }
       })
       .on(RoomEvent.LocalTrackUnpublished, refreshParticipants)
@@ -311,12 +362,20 @@ export function CommunityLiveRoom({
           await micPub.track.unmute();
         }
       } else {
-        await room.localParticipant?.setMicrophoneEnabled(!nextMuted);
+        await room.localParticipant?.setMicrophoneEnabled(!nextMuted, {
+          autoGainControl: true,
+          echoCancellation: true,
+          noiseSuppression: false
+        });
       }
     } catch (err: any) {
       console.warn('[LiveKit] toggleMicrophone track warning:', err);
       try {
-        await room.localParticipant?.setMicrophoneEnabled(!nextMuted);
+        await room.localParticipant?.setMicrophoneEnabled(!nextMuted, {
+          autoGainControl: true,
+          echoCancellation: true,
+          noiseSuppression: false
+        });
       } catch (e2) {
         console.warn('[LiveKit] fallback setMicrophoneEnabled error:', e2);
       }
@@ -355,63 +414,72 @@ export function CommunityLiveRoom({
     }
   };
 
-  // Guest Push-to-Talk / Hold-to-Talk Controls
-  const startTalking = async () => {
-    if (micPressedRef.current) return;
-    micPressedRef.current = true;
+  // Guest Unified Push-to-Talk (Hold-to-Talk): Starts both audio and video, favoring audio first
+  const startUnifiedTalk = async () => {
+    if (unifiedPressedRef.current) return;
+    unifiedPressedRef.current = true;
     setMuted(false);
+    setCameraOff(false);
+
+    // 1. Immediately prioritize audio (0ms latency, wideband natural sound)
     try {
       const micPub = room.localParticipant?.getTrackPublication(Track.Source.Microphone);
-      if (micPub?.track) await micPub.track.unmute();
-      else await room.localParticipant?.setMicrophoneEnabled(true);
+      if (micPub?.track) {
+        await micPub.track.unmute();
+      } else {
+        await room.localParticipant?.setMicrophoneEnabled(true, {
+          autoGainControl: true,
+          echoCancellation: true,
+          noiseSuppression: false
+        });
+      }
     } catch (err) {
-      console.warn('[LiveKit] startTalking error:', err);
+      console.warn('[LiveKit] startUnifiedTalk audio error:', err);
+    }
+
+    // 2. Concurrently attempt video without blocking audio
+    try {
+      const camPub = room.localParticipant?.getTrackPublication(Track.Source.Camera);
+      if (camPub?.track) {
+        await camPub.track.unmute();
+      } else {
+        await room.localParticipant?.setCameraEnabled(true, {
+          resolution: { width: 480, height: 360, frameRate: 15 }
+        });
+      }
+    } catch (camErr) {
+      // Audio is favored; video failing will not disrupt audio stream
+      console.info('[LiveKit] Camera optional on hold-to-talk:', camErr);
     }
   };
 
-  const stopTalking = async () => {
-    if (!micPressedRef.current) return;
-    micPressedRef.current = false;
+  const stopUnifiedTalk = async () => {
+    if (!unifiedPressedRef.current) return;
+    unifiedPressedRef.current = false;
     setMuted(true);
+    setCameraOff(true);
+
     try {
       const micPub = room.localParticipant?.getTrackPublication(Track.Source.Microphone);
       if (micPub?.track) await micPub.track.mute();
       else await room.localParticipant?.setMicrophoneEnabled(false);
     } catch (err) {
-      console.warn('[LiveKit] stopTalking error:', err);
+      console.warn('[LiveKit] stopUnifiedTalk audio mute error:', err);
     }
-  };
 
-  const startCamera = async () => {
-    if (cameraPressedRef.current) return;
-    cameraPressedRef.current = true;
-    setCameraOff(false);
-    try {
-      const camPub = room.localParticipant?.getTrackPublication(Track.Source.Camera);
-      if (camPub?.track) await camPub.track.unmute();
-      else await room.localParticipant?.setCameraEnabled(true, { resolution: { width: 640, height: 360, frameRate: 20 } });
-    } catch (err) {
-      console.warn('[LiveKit] startCamera error:', err);
-    }
-  };
-
-  const stopCamera = async () => {
-    if (!cameraPressedRef.current) return;
-    cameraPressedRef.current = false;
-    setCameraOff(true);
     try {
       const camPub = room.localParticipant?.getTrackPublication(Track.Source.Camera);
       if (camPub?.track) await camPub.track.mute();
       else await room.localParticipant?.setCameraEnabled(false);
-    } catch (err) {
-      console.warn('[LiveKit] stopCamera error:', err);
+    } catch (camErr) {
+      console.warn('[LiveKit] stopUnifiedTalk camera mute error:', camErr);
     }
   };
 
   const hostParticipant = isHost
     ? room.localParticipant
     : participants.find((participant) => participant !== room.localParticipant && participant.permissions?.canPublish) ||
-      participants.find((participant) => participant !== room.localParticipant && participant.getTrackPublication(Track.Source.Camera)?.videoTrack) ||
+      participants.find((participant) => participant !== room.localParticipant && Boolean(participant.getTrackPublication(Track.Source.Camera)?.track || participant.getTrackPublication(Track.Source.Camera)?.videoTrack)) ||
       participants.find((participant) => participant !== room.localParticipant);
 
   // Update timestamps when participants speak (excluding host)
@@ -445,22 +513,36 @@ export function CommunityLiveRoom({
       });
   }, [participants, hostParticipant, activeSpeakerIds]);
 
-  // When a guest / participant speaks, smoothly scroll the strip so they appear first
+  // When a guest / participant speaks, smoothly snap the strip so they appear first in row
   useEffect(() => {
     const hasOtherSpeaker = activeSpeakerIds.some(
       (id) => id !== hostParticipant?.identity && otherParticipants.some((p) => p.identity === id)
     );
     if (hasOtherSpeaker) {
-      participantStripRef.current?.scrollTo({ x: 0, animated: true });
+      requestAnimationFrame(() => {
+        participantStripRef.current?.scrollTo({ x: 0, animated: true });
+      });
     }
   }, [activeSpeakerIds, hostParticipant, otherParticipants]);
 
   const renderParticipant = (participant: Participant, featured = false) => {
-    const videoTrack = participant.getTrackPublication(Track.Source.Camera)?.videoTrack;
     const isLocal = participant === room.localParticipant;
-    const isLocalCameraOff = isLocal && cameraOff;
-    const isTrackMuted = videoTrack ? (videoTrack.isMuted || !videoTrack.isEnabled) : true;
-    const isVideoAvailable = videoTrack && !isTrackMuted && !isLocalCameraOff;
+    const videoPub = participant.getTrackPublication(Track.Source.Camera);
+    const audioPub = participant.getTrackPublication(Track.Source.Microphone);
+    const videoTrack = videoPub?.videoTrack || videoPub?.track;
+    const audioTrack = audioPub?.audioTrack || audioPub?.track;
+
+    // Detect if camera is off or muted (no undefined isEnabled check)
+    const isCamOff = isLocal
+      ? (cameraOff || !videoTrack || Boolean(videoPub?.isMuted) || Boolean(videoTrack?.isMuted))
+      : (!videoTrack || Boolean(videoPub?.isMuted) || Boolean(videoTrack?.isMuted) || participant.isCameraEnabled === false);
+    const isVideoAvailable = Boolean(!isCamOff && videoTrack);
+
+    // Detect if microphone is muted
+    const isMicMuted = isLocal
+      ? (muted || !audioTrack || Boolean(audioPub?.isMuted) || Boolean(audioTrack?.isMuted))
+      : (!audioTrack || Boolean(audioPub?.isMuted) || Boolean(audioTrack?.isMuted) || participant.isMicrophoneEnabled === false);
+
     const metadataAvatar = (() => { try { return JSON.parse(participant.metadata || '{}')?.avatarUrl; } catch { return ''; } })();
     const avatarUrl = metadataAvatar || (isLocal ? currentUserAvatar : '');
 
@@ -468,9 +550,6 @@ export function CommunityLiveRoom({
     // Only guest / participant cards show the glow border and animated mixer waves.
     const isHostTile = featured || participant === hostParticipant || (isHost && isLocal);
     const isSpeaking = !isHostTile && activeSpeakerIds.includes(participant.identity);
-    const audioTrack = participant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
-    const isMicMuted = isLocal ? muted : (audioTrack ? (audioTrack.isMuted || !audioTrack.isEnabled) : (participant.isMicrophoneEnabled === false));
-    const isCamOff = !isVideoAvailable;
 
     return (
       <View
@@ -482,7 +561,7 @@ export function CommunityLiveRoom({
         ]}
       >
         {isVideoAvailable && (VideoView || Platform.OS === 'web') ? (
-          <LiveVideoTrackView videoTrack={videoTrack} style={StyleSheet.absoluteFill} mirror={isLocal} />
+          <LiveVideoTrackView videoTrack={videoTrack} style={StyleSheet.absoluteFill} mirror={isLocal} zOrder={featured ? 0 : 1} />
         ) : (
           <View style={styles.noVideo}>
             {avatarUrl ? (
@@ -649,39 +728,30 @@ export function CommunityLiveRoom({
             <View
               style={[
                 styles.controls,
+                styles.participantControlsCentered,
                 { bottom: controlsBottom },
                 isInitialLoading && { opacity: 0.35 }
               ]}
               pointerEvents={isInitialLoading ? 'none' : 'box-none'}
             >
               <TouchableOpacity
-                style={[styles.control, styles.holdControl, !muted && styles.holdControlActive]}
-                onPressIn={startTalking}
-                onPressOut={stopTalking}
-                activeOpacity={0.7}
+                style={[styles.unifiedHoldBtn, (!muted || !cameraOff) && styles.unifiedHoldBtnActive]}
+                onPressIn={startUnifiedTalk}
+                onPressOut={stopUnifiedTalk}
+                activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Hold to talk"
+                accessibilityLabel={muted ? 'Hold to talk' : 'Release to mute'}
               >
-                <View style={styles.controlIconWrap}>
-                  {muted ? <MicOffIcon color="#d0ddd7" size={22} /> : <MicIcon color="#071b16" size={22} />}
+                <View style={styles.unifiedIconGroup}>
+                  <View style={styles.controlIconWrap}>
+                    {muted ? <MicOffIcon color="#d0ddd7" size={22} /> : <MicIcon color="#071b16" size={22} />}
+                  </View>
+                  <View style={styles.controlIconWrap}>
+                    {cameraOff ? <CameraOffIcon color="#d0ddd7" size={19} /> : <CameraIcon color="#071b16" size={19} />}
+                  </View>
                 </View>
-                <Text style={[styles.controlText, !muted && styles.holdControlText]}>
+                <Text style={[styles.unifiedHoldText, (!muted || !cameraOff) && styles.unifiedHoldTextActive]}>
                   {muted ? 'Hold to talk' : 'Release to mute'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.control, styles.holdControl, !cameraOff && styles.holdControlActive]}
-                onPressIn={startCamera}
-                onPressOut={stopCamera}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Hold to turn on camera"
-              >
-                <View style={styles.controlIconWrap}>
-                  {cameraOff ? <CameraOffIcon color="#d0ddd7" size={22} /> : <CameraIcon color="#071b16" size={22} />}
-                </View>
-                <Text style={[styles.controlText, !cameraOff && styles.holdControlText]}>
-                  {cameraOff ? 'Hold for video' : 'Release to stop'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -865,20 +935,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#b91c1c',
     borderColor: 'rgba(254, 202, 202, 0.35)'
   },
-  holdControl: {
-    minWidth: 140,
+  participantControlsCentered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    left: 0,
+    right: 0
+  },
+  unifiedHoldBtn: {
+    width: '78%',
+    maxWidth: 290,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: 'rgba(18, 38, 32, 0.94)',
     borderWidth: 1.5,
     borderColor: 'rgba(34, 197, 94, 0.45)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    gap: 12,
+    zIndex: 95,
+    elevation: 26,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
     shadowRadius: 8,
-    elevation: 26
-  },
-  holdControlActive: {
+    ...(Platform.OS === 'web' ? { cursor: 'pointer', userSelect: 'none' } : {})
+  } as any,
+  unifiedHoldBtnActive: {
     backgroundColor: '#22c55e',
-    borderColor: '#86efac'
+    borderColor: '#86efac',
+    shadowColor: '#22c55e',
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 28
+  },
+  unifiedIconGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  unifiedHoldText: {
+    color: '#f0fdf4',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3
+  },
+  unifiedHoldTextActive: {
+    color: '#071b16'
   },
   controlIconWrap: {
     width: 26,
@@ -890,9 +994,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 13
-  },
-  holdControlText: {
-    color: '#071b16'
   },
   loader: { flex: 1 },
   error: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
