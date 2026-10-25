@@ -623,6 +623,28 @@ export function formatStudentSubtitle(
 
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [];
 
+const FORUM_WALLPAPERS = [
+  require('../assets/uni-space-wallpaper.png'),
+  require('../assets/uni-wallpaper-a1.jpg'),
+  require('../assets/uni-wallpaper-a2.jpg'),
+  require('../assets/uni-wallpaper-a3.jpg'),
+  require('../assets/uni-wallpaper-a4.jpg'),
+];
+
+let lastWallpaperIndex = -1;
+
+function getSmartRandomWallpaperIndex(): number {
+  if (lastWallpaperIndex === -1) {
+    const idx = Math.floor(Math.random() * FORUM_WALLPAPERS.length);
+    lastWallpaperIndex = idx;
+    return idx;
+  }
+  const offset = Math.floor(Math.random() * (FORUM_WALLPAPERS.length - 1)) + 1;
+  const nextIdx = (lastWallpaperIndex + offset) % FORUM_WALLPAPERS.length;
+  lastWallpaperIndex = nextIdx;
+  return nextIdx;
+}
+
 const INITIAL_COMMUNITY_MESSAGES: CommunityMessage[] = [];
 
 const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(message.isDemo) || INITIAL_COMMUNITY_MESSAGES.some((seed) => seed.id === message.id && seed.senderName === message.senderName);
@@ -669,6 +691,16 @@ export default function CommunityScreen() {
       ? insets.bottom + 72
       : 72
   );
+
+  const [wallpaperSource, setWallpaperSource] = useState(() => FORUM_WALLPAPERS[getSmartRandomWallpaperIndex()]);
+  const prevFocusedRef = useRef(true);
+
+  useEffect(() => {
+    if (isForumFocused && !prevFocusedRef.current) {
+      setWallpaperSource(FORUM_WALLPAPERS[getSmartRandomWallpaperIndex()]);
+    }
+    prevFocusedRef.current = isForumFocused;
+  }, [isForumFocused]);
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const livePulseAnim = useRef(new Animated.Value(0)).current;
@@ -3278,9 +3310,9 @@ export default function CommunityScreen() {
           );
         })()}
 
-        {/* WhatsApp-Style Chat Wallpaper */}
+        {/* WhatsApp-Style Chat Wallpaper (Randomized from 5 themed wallpapers) */}
         <ImageBackground
-          source={require('../assets/uni-space-wallpaper.png')}
+          source={wallpaperSource}
           style={styles.chatBackground}
           imageStyle={styles.chatWallpaperImage}
           resizeMode="cover"
