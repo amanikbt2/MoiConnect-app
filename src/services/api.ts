@@ -5,28 +5,41 @@ import { config } from '../config';
 const ACCESS_TOKEN_KEY = 'moi_access_token';
 const REFRESH_TOKEN_KEY = 'moi_refresh_token';
 
-// Storage helpers with web fallback
+// Storage helpers with web fallback and safety try-catches
 export const getStoredToken = async (key: string): Promise<string | null> => {
-  if (Platform.OS === 'web') {
-    return localStorage.getItem(key);
+  try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    return await SecureStore.getItemAsync(key);
+  } catch (err) {
+    console.warn(`[getStoredToken] Error reading ${key}:`, err);
+    return null;
   }
-  return await SecureStore.getItemAsync(key);
 };
 
 export const setStoredToken = async (key: string, value: string): Promise<void> => {
-  if (Platform.OS === 'web') {
-    localStorage.setItem(key, value);
-    return;
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  } catch (err) {
+    console.warn(`[setStoredToken] Error saving ${key}:`, err);
   }
-  await SecureStore.setItemAsync(key, value);
 };
 
 export const removeStoredToken = async (key: string): Promise<void> => {
-  if (Platform.OS === 'web') {
-    localStorage.removeItem(key);
-    return;
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  } catch (err) {
+    console.warn(`[removeStoredToken] Error deleting ${key}:`, err);
   }
-  await SecureStore.deleteItemAsync(key);
 };
 
 export const saveAuthTokens = async (accessToken: string, refreshToken: string) => {
@@ -100,27 +113,33 @@ export async function apiRequest<T = any>(
       if (response.status === 401 && token) {
         const refreshToken = await getStoredToken(REFRESH_TOKEN_KEY);
         if (refreshToken) {
-          const refreshRes = await fetch(`${config.apiUrl}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken })
-          });
+          try {
+            const refreshRes = await fetch(`${config.apiUrl}/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken })
+            });
 
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            if (refreshData.success && refreshData.data?.tokens) {
-              await saveAuthTokens(
-                refreshData.data.tokens.accessToken,
-                refreshData.data.tokens.refreshToken
-              );
-              headers['Authorization'] = `Bearer ${refreshData.data.tokens.accessToken}`;
-              response = await fetch(`${config.apiUrl}${endpoint}`, {
-                ...options,
-                headers
-              });
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json();
+              if (refreshData.success && refreshData.data?.tokens) {
+                await saveAuthTokens(
+                  refreshData.data.tokens.accessToken,
+                  refreshData.data.tokens.refreshToken
+                );
+                headers['Authorization'] = `Bearer ${refreshData.data.tokens.accessToken}`;
+                response = await fetch(`${config.apiUrl}${endpoint}`, {
+                  ...options,
+                  headers
+                });
+              }
+            } else if (refreshRes.status === 401) {
+              // Only clear tokens if the refresh token is explicitly revoked / invalid
+              await clearAuthTokens();
             }
-          } else {
-            await clearAuthTokens();
+          } catch (refreshErr) {
+            // Network failure during refresh: do NOT wipe session tokens!
+            console.warn('[apiRequest] Refresh network error:', refreshErr);
           }
         }
       }

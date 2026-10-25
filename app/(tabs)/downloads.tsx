@@ -80,12 +80,32 @@ export const getVideoPlayerHtml = (url: string): string => {
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" /><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#020617;overflow:hidden;display:flex;align-items:center;justify-content:center}video{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;background:#020617;outline:none}</style></head><body><video controls autoplay playsinline webkit-playsinline src="${safeUrl}"></video></body></html>`;
 };
 
-const FALLBACK_THUMBNAILS = [
-  'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80'
-];
+const isLocalFileUri = (uri?: string): boolean => {
+  if (!uri || typeof uri !== 'string') return false;
+  return /^(file:|content:|data:|blob:|offline-web:)/i.test(uri) || uri.startsWith('/');
+};
+
+function OfflineCardThumbnail({ uri, unitCode }: { uri?: string; unitCode?: string }) {
+  const [loadFailed, setLoadFailed] = useState(false);
+  if (!uri || loadFailed) {
+    return (
+      <View style={styles.thumbnailImageFallback}>
+        <BookIcon color="#38bdf8" size={26} />
+        <Text style={styles.thumbnailFallbackCode} numberOfLines={1}>
+          {unitCode || 'ACADEMIC'}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={styles.thumbnailImage}
+      resizeMode="cover"
+      onError={() => setLoadFailed(true)}
+    />
+  );
+}
 
 export default function DownloadsScreen() {
   const [downloadedPapers, setDownloadedPapers] = useState<OfflinePaper[]>([]);
@@ -191,8 +211,8 @@ export default function DownloadsScreen() {
     const isVideo = isVideoDownload(item);
 
     const previewUri = isVideo
-      ? (item.thumbnail || getCloudinaryVideoPreviewUrl(item.fileUrl || item.localUri || ''))
-      : (item.localUri || item.fileUrl || item.thumbnail || '');
+      ? (item.thumbnailLocalUri || item.thumbnail || (isLocalFileUri(item.localUri) ? item.localUri : getCloudinaryVideoPreviewUrl(item.fileUrl || item.localUri || '')))
+      : (item.localUri || item.thumbnailLocalUri || item.thumbnail || '');
 
     const formatText = (item.fileType || (isVideo ? 'mp4' : 'jpg')).toUpperCase();
     const mediaCategory = isVideo ? 'CAMPUS VIDEO • MEDIA' : 'CAMPUS PHOTO • MEDIA';
@@ -367,7 +387,7 @@ export default function DownloadsScreen() {
           const isCompleted = !isDownloading && !isFailed;
           const progress = item.progress || (isCompleted ? 100 : 5);
 
-          const thumbUri = item.thumbnailLocalUri || item.thumbnail || getMaterialCoverUrl(item) || FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length];
+          const thumbUri = item.thumbnailLocalUri || item.thumbnail || getMaterialCoverUrl(item);
           const mtidText = item.mtid || `P000${(index % 9) + 1}`;
           const paperTag = item.pinned ? 'PINNED' : ((item as any).paperType || 'Exam Pack');
           const downloadsCount = item.downloadsCount || (2100 + (index * 130));
@@ -389,14 +409,7 @@ export default function DownloadsScreen() {
             >
               {/* Image Banner Header */}
               <View style={styles.thumbnailHeader}>
-                {thumbUri ? (
-                  <Image source={{ uri: thumbUri }} style={styles.thumbnailImage} resizeMode="cover" />
-                ) : (
-                  <View style={styles.thumbnailImageFallback}>
-                    <BookIcon color="#15803d" size={26} />
-                    <Text style={styles.thumbnailFallbackCode}>{item.unitCode || 'ACADEMIC'}</Text>
-                  </View>
-                )}
+                <OfflineCardThumbnail uri={thumbUri} unitCode={item.unitCode} />
                 <View style={styles.thumbnailOverlay} />
 
                 {/* Top-Left Dark Pill Badge */}

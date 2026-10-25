@@ -66,6 +66,7 @@ import {
   getDownloadedPapers,
   saveDownloadedPaper,
   saveCommunityMessages,
+  flushCommunityMessagesSync,
   getCommunityReactorId,
   getCommunitySyncCursor,
   saveCommunitySyncCursor,
@@ -2408,6 +2409,8 @@ export default function CommunityScreen() {
           // arrive, but the message itself is then queried after its time).
           void fetchDeltaSync();
           void retryQueuedMessages();
+        } else {
+          void flushCommunityMessagesSync();
         }
       });
       let browserOnlineHandler: (() => void) | undefined;
@@ -2425,6 +2428,7 @@ export default function CommunityScreen() {
       }
     const retryTimer = setInterval(retryQueuedMessages, 15000);
     return () => {
+      void flushCommunityMessagesSync();
       appStateSubscription.remove();
       if (browserOnlineHandler && typeof window !== 'undefined') window.removeEventListener('online', browserOnlineHandler);
       if (browserOfflineHandler && typeof window !== 'undefined') window.removeEventListener('offline', browserOfflineHandler);

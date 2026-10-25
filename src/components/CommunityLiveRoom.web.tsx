@@ -330,12 +330,12 @@ export function CommunityLiveRoom({
         {/* Tile badges indicating muted mic or camera off */}
         <View style={styles.tileStatusRow}>
           {isMicMuted && (
-            <View style={styles.tileBadgeMuted} title="Microphone muted">
+            <View style={styles.tileBadgeMuted} accessibilityLabel="Microphone muted">
               <MicOffIcon color="#ffffff" size={13} />
             </View>
           )}
           {isCamOff && (
-            <View style={styles.tileBadgeMuted} title="Camera off">
+            <View style={styles.tileBadgeMuted} accessibilityLabel="Camera off">
               <CameraOffIcon color="#ffffff" size={13} />
             </View>
           )}

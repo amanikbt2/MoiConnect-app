@@ -241,8 +241,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (res.success && res.data) {
           await saveUserProfile(res.data);
         } else {
-          await clearAuthTokens();
-          setUser(null);
+          // If failure is due to offline/network or temporary server disconnection,
+          // KEEP the user logged in using the cached profile and tokens!
+          // Only clear if the server explicitly confirmed the account is revoked or suspended.
+          const errorMsg = String(res.error || '').toLowerCase();
+          const isExplicitAuthRevocation =
+            errorMsg.includes('revoked') ||
+            errorMsg.includes('invalid authentication token') ||
+            errorMsg.includes('user not found') ||
+            errorMsg.includes('account has been suspended');
+
+          if (isExplicitAuthRevocation) {
+            await clearAuthTokens();
+            setUser(null);
+          } else {
+            console.log('[AuthContext] Retaining persistent session: server unreachable or offline during checkCurrentUser.');
+          }
         }
       }
     } else {
