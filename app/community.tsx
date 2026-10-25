@@ -3564,7 +3564,7 @@ export default function CommunityScreen() {
           )}
 
           {/* WhatsApp Style Floating Unread / Scroll to Bottom Button */}
-          {showUnreadBtn && (
+          {!showForumLoading && showUnreadBtn && (
             <TouchableOpacity
               style={styles.floatingUnreadBtn}
               onPress={scrollToBottomAndMarkRead}
@@ -3582,7 +3582,7 @@ export default function CommunityScreen() {
           )}
 
           {/* Smart Mention & Reply Jump Button (Floating Left Side) */}
-          {unreadMentionIds.length > 0 && (
+          {!showForumLoading && unreadMentionIds.length > 0 && (
             <TouchableOpacity
               style={styles.floatingMentionBtn}
               onPress={handleJumpToNextMention}
@@ -3920,7 +3920,7 @@ export default function CommunityScreen() {
           )}
           {allowCommunityChat && forumParticipationAllowed ? <View style={styles.inputContainer}>
             {(() => {
-              if (!liveBroadcast || liveSession) return null;
+              if (showForumLoading || !liveBroadcast || liveSession) return null;
               const isMyBroadcast = Boolean(user?._id && liveBroadcast.hostId && String(liveBroadcast.hostId) === String(user._id));
               const isDismissed = Boolean(dismissedLiveBannerKey && dismissedLiveBannerKey === liveBroadcastKey);
               if (!isMyBroadcast && isDismissed) return null;
@@ -4728,7 +4728,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(248, 250, 252, 0.96)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 20
+    zIndex: 100,
+    elevation: 30
   },
   forumLoadingCard: {
     flexDirection: 'row',

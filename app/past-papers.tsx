@@ -1,5 +1,5 @@
 import { showIceMessage } from '../src/components/IceMessageCard';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -114,7 +114,78 @@ function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: 
   );
 }
 
-function PastPaperCarouselSection({
+export interface PastPaperGridCardProps {
+  item: PastPaperItem;
+  isStarred: boolean;
+  onPress: (item: PastPaperItem) => void;
+  onToggleStar: (id: string, e?: any) => void;
+  highlightWords?: string[];
+}
+
+export const PastPaperGridCard = React.memo(function PastPaperGridCard({
+  item,
+  isStarred,
+  onPress,
+  onToggleStar,
+  highlightWords
+}: PastPaperGridCardProps) {
+  return (
+    <TouchableOpacity
+      style={styles.gridCard}
+      activeOpacity={0.88}
+      onPress={() => onPress(item)}
+    >
+      <View style={styles.gridImageContainer}>
+        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+        <View style={styles.gridBadge}>
+          <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+        </View>
+        {item.hasSolutions && (
+          <View style={styles.gridSolutionBadge}>
+            <Text style={styles.gridSolutionText}>✓ Solved</Text>
+          </View>
+        )}
+        <View style={styles.gridRatingBadge}>
+          <StarIcon color="#eab308" size={11} />
+          <Text style={styles.gridRatingText}>{item.ratingScore}</Text>
+        </View>
+      </View>
+
+      <View style={styles.gridBody}>
+        <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.semester} • {item.examYear}</Text>
+        {highlightWords && highlightWords.length > 0 ? (
+          <HighlightText
+            text={item.title}
+            highlightWords={highlightWords}
+            style={styles.gridTitle}
+            numberOfLines={2}
+          />
+        ) : (
+          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+        )}
+        <Text style={styles.gridSub}>{item.school}</Text>
+
+        <View style={styles.gridFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <DownloadIcon color="#15803d" size={12} />
+            <Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]}
+            onPress={(event) => onToggleStar(item.id, event)}
+          >
+            <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} />
+          </TouchableOpacity>
+          <View style={styles.miniArrow}>
+            <ChevronRightIcon color="#15803d" size={14} />
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const PastPaperCarouselSection = React.memo(function PastPaperCarouselSection({
   title,
   subtitle,
   items,
@@ -133,12 +204,16 @@ function PastPaperCarouselSection({
     if (items.length < 2) return;
     const timer = setInterval(() => {
       if (isInteracting.current || !carouselRef.current) return;
-      const nextIndex = (activeIndex + 1) % items.length;
-      setActiveIndex(nextIndex);
-      carouselRef.current.scrollToIndex({ index: nextIndex, animated: true });
+      setActiveIndex((prev) => {
+        const nextIndex = (prev + 1) % items.length;
+        try {
+          carouselRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        } catch (_) {}
+        return nextIndex;
+      });
     }, 3800);
     return () => clearInterval(timer);
-  }, [activeIndex, items.length]);
+  }, [items.length]);
 
   if (!items || items.length === 0) return null;
 
@@ -213,7 +288,7 @@ function PastPaperCarouselSection({
       </View>
     </View>
   );
-}
+});
 
 export default function PastPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
@@ -534,7 +609,13 @@ export default function PastPapersScreen({ route }: any) {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
+    if (
+      distanceToBottom < 600 &&
+      hasMorePapers &&
+      !loadingMore &&
+      !initialLoading &&
+      !isSearchLoading
+    ) {
       void fetchRealPastPapers(submittedSearchQuery.trim().length > 1 ? submittedSearchQuery : '', papersPage + 1, true);
     }
   };
@@ -561,7 +642,7 @@ export default function PastPapersScreen({ route }: any) {
     }
   };
 
-  const handleToggleStar = (id: string, e?: any) => {
+  const handleToggleStar = useCallback((id: string, e?: any) => {
     if (e && e.stopPropagation) e.stopPropagation();
     setUserStars((prev) => {
       const isStarred = !prev[id];
@@ -576,9 +657,9 @@ export default function PastPapersScreen({ route }: any) {
       );
       return { ...prev, [id]: isStarred };
     });
-  };
+  }, []);
 
-  const handleOpenPreview = (item: PastPaperItem) => {
+  const handleOpenPreview = useCallback((item: PastPaperItem) => {
     setPreviewDoc({
       id: item.id,
       mtid: item.mtid,
@@ -588,11 +669,12 @@ export default function PastPapersScreen({ route }: any) {
       school: item.school,
       fileUrl: item.fileUrl,
       ttsTextUrl: item.ttsTextUrl,
+      thumbnail: item.thumbnail,
       summary: `Official End of Semester Examination Paper for ${item.unitCode} (${item.examYear}, ${item.semester}).`,
       sampleText: `Examination paper for ${item.unitCode}: ${item.title}. Question 1 (20 Marks). Solve all section parts.`
     });
     setShowPreviewModal(true);
-  };
+  }, []);
 
   const handleDownload = async (item: PDFDocumentItem | PastPaperItem) => {
     try {
@@ -608,6 +690,7 @@ export default function PastPapersScreen({ route }: any) {
         examYear: 2024,
         fileUrl: item.fileUrl,
         ttsTextUrl: item.ttsTextUrl,
+        thumbnail: item.thumbnail,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_exams', name: 'Moi University Examination Board' } as any,
         status: 'approved',
@@ -655,64 +738,16 @@ export default function PastPapersScreen({ route }: any) {
 
   const renderGridItems = (items: PastPaperItem[]) => (
     <View style={styles.gridContainer}>
-      {items.map((item) => {
-        const isStarred = !!userStars[item.id];
-        return (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.gridCard}
-            activeOpacity={0.88}
-            onPress={() => handleOpenPreview(item)}
-          >
-            <View style={styles.gridImageContainer}>
-              <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-              <View style={styles.gridBadge}>
-                <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
-              </View>
-              {item.hasSolutions && (
-                <View style={styles.gridSolutionBadge}>
-                  <Text style={styles.gridSolutionText}>✓ Solved</Text>
-                </View>
-              )}
-              <View style={styles.gridRatingBadge}>
-                <StarIcon color="#eab308" size={11} />
-                <Text style={styles.gridRatingText}>{item.ratingScore}</Text>
-              </View>
-            </View>
-
-            <View style={styles.gridBody}>
-              <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.semester} • {item.examYear}</Text>
-              {searchQuery.trim().length > 0 && smartSearch.intent.keywords.length > 0 ? (
-                <HighlightText
-                  text={item.title}
-                  highlightWords={smartSearch.intent.keywords}
-                  style={styles.gridTitle}
-                  numberOfLines={2}
-                />
-              ) : (
-                <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-              )}
-              <Text style={styles.gridSub}>{item.school}</Text>
-
-              <View style={styles.gridFooter}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <DownloadIcon color="#15803d" size={12} />
-                  <Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]}
-                  onPress={(event) => handleToggleStar(item.id, event)}
-                >
-                  <StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} />
-                </TouchableOpacity>
-                <View style={styles.miniArrow}>
-                  <ChevronRightIcon color="#15803d" size={14} />
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
+      {items.map((item) => (
+        <PastPaperGridCard
+          key={item.id}
+          item={item}
+          isStarred={!!userStars[item.id]}
+          onPress={handleOpenPreview}
+          onToggleStar={handleToggleStar}
+          highlightWords={isSearching ? smartSearch.intent.keywords : undefined}
+        />
+      ))}
     </View>
   );
 
@@ -750,7 +785,7 @@ export default function PastPapersScreen({ route }: any) {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={closeSearch}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

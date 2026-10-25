@@ -137,6 +137,54 @@ export interface MaterialMatchMetrics {
   matchScore: number | null;
 }
 
+export interface CompiledSearchQueryContext {
+  q: string;
+  normalizedQueryId: string;
+  intent: ParsedSearchIntent;
+  meaningfulTokens: string[];
+  meaningfulRegexes: RegExp[];
+  activeTokens: string[];
+  activeTokenRegexes: RegExp[];
+  intentSchoolNorm: string;
+  intentDeptNorm: string;
+  intentPrefix: string;
+  targetCodeNorm: string;
+  targetNameNorm: string;
+}
+
+export function compileSearchQueryContext(query: string, parsedIntent?: ParsedSearchIntent): CompiledSearchQueryContext {
+  const q = normalize(query);
+  const intent = parsedIntent || parseSmartSearchQuery(query);
+  const { meaningfulTokens } = extractMeaningfulSearchTokens(query);
+
+  const meaningfulRegexes = meaningfulTokens.map((token) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+  });
+
+  const queryTokens = q.split(/\s+/).filter((token) => token.length > 1 && !SEARCH_STOP_WORDS.has(token));
+  const activeTokens = queryTokens.length > 0 ? queryTokens : q.split(/\s+/).filter((t) => t.length > 1);
+  const activeTokenRegexes = activeTokens.map((token) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
+  });
+
+  return {
+    q,
+    normalizedQueryId: normalizeId(q),
+    intent,
+    meaningfulTokens,
+    meaningfulRegexes,
+    activeTokens,
+    activeTokenRegexes,
+    intentSchoolNorm: intent.school ? normalizeSchoolName(intent.school) : '',
+    intentDeptNorm: intent.department ? normalize(intent.department) : '',
+    intentPrefix: (intent.unitCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase(),
+    targetCodeNorm: intent.unitCode ? normalizeId(intent.unitCode) : '',
+    targetNameNorm: intent.unitName ? normalize(intent.unitName) : ''
+  };
+}
+
 /**
  * Calculates exact word match counts and priority tiers for an item against a search query.
  * Counts how many meaningful query words match in the Title, Unit Code, and other fields.
@@ -144,22 +192,20 @@ export interface MaterialMatchMetrics {
 export function calculateMaterialMatchMetrics(
   item: MaterialSearchFields,
   query: string,
-  parsedIntent?: ParsedSearchIntent
+  parsedIntent?: ParsedSearchIntent,
+  compiledContext?: CompiledSearchQueryContext
 ): MaterialMatchMetrics {
-  const q = normalize(query);
-  const intent = parsedIntent || parseSmartSearchQuery(query);
-  const { meaningfulTokens } = extractMeaningfulSearchTokens(query);
+  const ctx = compiledContext || compileSearchQueryContext(query, parsedIntent);
+  const { q, normalizedQueryId, intent, meaningfulTokens, meaningfulRegexes } = ctx;
 
   const id = normalizeId(item.mtid);
-  const normalizedQueryId = normalizeId(q);
   const exactMtid = Boolean(id && normalizedQueryId && id === normalizedQueryId);
 
   const itemUnitCodeNorm = normalizeId(item.unitCode);
   const itemCourseCodeNorm = normalizeId(item.courseCode);
-  const intentCodeNorm = intent.unitCode ? normalizeId(intent.unitCode) : '';
   const exactUnitCode = Boolean(
     (normalizedQueryId && (itemUnitCodeNorm === normalizedQueryId || itemCourseCodeNorm === normalizedQueryId)) ||
-    (intentCodeNorm && (itemUnitCodeNorm === intentCodeNorm || itemCourseCodeNorm === intentCodeNorm))
+    (ctx.targetCodeNorm && (itemUnitCodeNorm === ctx.targetCodeNorm || itemCourseCodeNorm === ctx.targetCodeNorm))
   );
 
   const itemTitle = normalize(item.title);
@@ -179,10 +225,8 @@ export function calculateMaterialMatchMetrics(
   let matchedCodeWordsCount = 0;
   let matchedTotalWordsCount = 0;
 
-  for (const token of meaningfulTokens) {
-    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const wordBoundaryRegex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
-
+  for (let i = 0; i < meaningfulRegexes.length; i++) {
+    const wordBoundaryRegex = meaningfulRegexes[i];
     const inTitleOrUnit = wordBoundaryRegex.test(itemTitle) || wordBoundaryRegex.test(itemUnitName);
     const inCode = wordBoundaryRegex.test(itemUnitCodeRaw) || wordBoundaryRegex.test(itemCourseCodeRaw);
     const inAny = inTitleOrUnit || inCode || wordBoundaryRegex.test(allFieldsText);
@@ -192,7 +236,7 @@ export function calculateMaterialMatchMetrics(
     if (inAny) matchedTotalWordsCount += 1;
   }
 
-  const matchScore = getMaterialSearchScore(item, query, intent);
+  const matchScore = getMaterialSearchScore(item, query, intent, ctx);
 
   return {
     exactMtid,
@@ -208,22 +252,25 @@ export function calculateMaterialMatchMetrics(
 }
 
 /** Lower scores are better. Exact MTID, Canonical Unit Code, and title keyword matches are ranked ahead of generic school fallbacks. */
-export function getMaterialSearchScore(item: MaterialSearchFields, query: string, parsedIntent?: ParsedSearchIntent): number | null {
-  const q = normalize(query);
+export function getMaterialSearchScore(
+  item: MaterialSearchFields,
+  query: string,
+  parsedIntent?: ParsedSearchIntent,
+  compiledContext?: CompiledSearchQueryContext
+): number | null {
+  const ctx = compiledContext || compileSearchQueryContext(query, parsedIntent);
+  const { q, normalizedQueryId, intent, activeTokens, activeTokenRegexes } = ctx;
   if (!q) return 0;
 
   const id = normalizeId(item.mtid);
-  const normalizedQueryId = normalizeId(q);
   if (id && normalizedQueryId && id === normalizedQueryId) return 0;
-
-  const intent = parsedIntent || parseSmartSearchQuery(query);
 
   const itemUnitCodeNorm = normalizeId(item.unitCode);
   const itemCourseCodeNorm = normalizeId(item.courseCode);
   const itemSchoolNorm = normalizeSchoolName(item.school);
-  const intentSchoolNorm = intent.school ? normalizeSchoolName(intent.school) : '';
+  const intentSchoolNorm = ctx.intentSchoolNorm;
   const itemDeptNorm = normalize(item.department);
-  const intentDeptNorm = intent.department ? normalize(intent.department) : '';
+  const intentDeptNorm = ctx.intentDeptNorm;
 
   const itemUnitCodeRaw = String(item.unitCode || item.courseCode || '').toLowerCase();
   const itemTitle = normalize(item.title);
@@ -231,16 +278,15 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   const itemExamYear = String(item.examYear || '');
   const itemSemester = normalize(item.semester);
   const itemPrefix = (item.unitCode || item.courseCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
-  const intentPrefix = (intent.unitCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+  const intentPrefix = ctx.intentPrefix;
 
   // 1. Exact Course Code / Unit Code Match (HIGHEST PRIORITY)
   // e.g. "MAT 210", "MAT210", "CSC 214"
   if (normalizedQueryId && (itemUnitCodeNorm === normalizedQueryId || itemCourseCodeNorm === normalizedQueryId)) {
     return 1;
   }
-  if (intent.unitCode) {
-    const targetCodeNorm = normalizeId(intent.unitCode);
-    if (itemUnitCodeNorm === targetCodeNorm || itemCourseCodeNorm === targetCodeNorm) {
+  if (ctx.targetCodeNorm) {
+    if (itemUnitCodeNorm === ctx.targetCodeNorm || itemCourseCodeNorm === ctx.targetCodeNorm) {
       return 1;
     }
   }
@@ -266,9 +312,8 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   }
 
   // If parsed intent matched a unit name from dictionary
-  if (intent.unitName) {
-    const targetNameNorm = normalize(intent.unitName);
-    if (itemTitle.includes(targetNameNorm) || itemUnitName.includes(targetNameNorm)) {
+  if (ctx.targetNameNorm) {
+    if (itemTitle.includes(ctx.targetNameNorm) || itemUnitName.includes(ctx.targetNameNorm)) {
       return 5;
     }
   }
@@ -288,20 +333,18 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
     item.type, item.description, item.author
   ].map(normalize).filter(Boolean);
 
-  const queryTokens = q.split(/\s+/).filter((token) => token.length > 1 && !SEARCH_STOP_WORDS.has(token));
-  const activeTokens = queryTokens.length > 0 ? queryTokens : q.split(/\s+/).filter((t) => t.length > 1);
+  let matchedTokensCount = 0;
+  let titleOrCodeTokensCount = 0;
 
-  const matchedTokens = activeTokens.filter((token) => {
-    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const wordRegex = new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
-    return fields.some((field) => wordRegex.test(field));
-  });
-
-  const titleOrCodeTokens = activeTokens.filter((token) => {
-    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const wordRegex = new RegExp(`(^|\\s|[._-])${escaped}`, 'i');
-    return wordRegex.test(itemTitle) || wordRegex.test(itemUnitCodeRaw) || wordRegex.test(itemUnitName);
-  });
+  for (let i = 0; i < activeTokenRegexes.length; i++) {
+    const wordRegex = activeTokenRegexes[i];
+    if (fields.some((field) => wordRegex.test(field))) {
+      matchedTokensCount += 1;
+    }
+    if (wordRegex.test(itemTitle) || wordRegex.test(itemUnitCodeRaw) || wordRegex.test(itemUnitName)) {
+      titleOrCodeTokensCount += 1;
+    }
+  }
 
   const hasYearIntent = Boolean(intent.examYear && itemExamYear === String(intent.examYear));
   const hasSemesterIntent = Boolean(intent.semester && itemSemester.includes(normalize(intent.semester)));
@@ -309,14 +352,14 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
   const schoolConflicts = hasSchoolOrDeptIntent && itemSchoolNorm && intentSchoolNorm && itemSchoolNorm !== intentSchoolNorm;
 
   // 5. Keyword Matching in Title / Unit Code (THIRD PRIORITY)
-  if (activeTokens.length > 0 && matchedTokens.length === activeTokens.length) {
-    let score = titleOrCodeTokens.length === activeTokens.length ? 5 : 6;
+  if (activeTokens.length > 0 && matchedTokensCount === activeTokens.length) {
+    let score = titleOrCodeTokensCount === activeTokens.length ? 5 : 6;
     if (hasYearIntent || hasSemesterIntent) score -= 1;
     return schoolConflicts ? score + 6 : score;
   }
 
-  if (activeTokens.length > 0 && matchedTokens.length >= Math.max(1, Math.ceil(activeTokens.length / 2))) {
-    let score = titleOrCodeTokens.length > 0 ? 6 : 7;
+  if (activeTokens.length > 0 && matchedTokensCount >= Math.max(1, Math.ceil(activeTokens.length / 2))) {
+    let score = titleOrCodeTokensCount > 0 ? 6 : 7;
     if (hasYearIntent || hasSemesterIntent) score -= 1;
     return schoolConflicts ? score + 6 : score;
   }
@@ -354,14 +397,20 @@ export function getMaterialSearchScore(item: MaterialSearchFields, query: string
  * 7. Downloads & Rating (tie-breaker only when words matched and tiers are identical)
  * 8. Stable index (NEVER randomly shuffled)
  */
-export function rankMaterials<T extends MaterialSearchFields>(items: T[], query: string, parsedIntent?: ParsedSearchIntent): T[] {
+export function rankMaterials<T extends MaterialSearchFields>(
+  items: T[],
+  query: string,
+  parsedIntent?: ParsedSearchIntent,
+  compiledContext?: CompiledSearchQueryContext
+): T[] {
   if (!query.trim()) return items;
   const cleanQ = query.trim();
   const intent = parsedIntent || parseSmartSearchQuery(cleanQ);
+  const ctx = compiledContext || compileSearchQueryContext(cleanQ, intent);
 
   return items
     .map((item, index) => {
-      const metrics = calculateMaterialMatchMetrics(item, cleanQ, intent);
+      const metrics = calculateMaterialMatchMetrics(item, cleanQ, intent, ctx);
       if (
         metrics.matchScore === null &&
         metrics.matchedTotalWordsCount === 0 &&
@@ -836,8 +885,8 @@ export function getSearchRecommendationSections<T extends MaterialSearchFields>(
     });
     feedCursor += gridChunk.length;
 
-    // 2. If there are remaining items (at least 2), insert an auto-scrolling horizontal carousel
-    if (feedCursor < continuationFeed.length) {
+    // 2. In search recommendations, insert at most 1 curated carousel section to avoid multi-interval layout thrashing
+    if (feedCursor < continuationFeed.length && themeIndex < 1) {
       const carouselChunk = continuationFeed.slice(feedCursor, feedCursor + CAROUSEL_CHUNK_SIZE);
       if (carouselChunk.length >= 2) {
         const theme = carouselThemes[themeIndex % carouselThemes.length];

@@ -1,5 +1,5 @@
 import { showIceMessage } from '../src/components/IceMessageCard';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -113,7 +113,53 @@ function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: 
   );
 }
 
-function CatFeedCarousel({
+export interface CATPaperGridCardProps {
+  item: CATPaperItem;
+  isStarred: boolean;
+  onPress: (item: CATPaperItem) => void;
+  onToggleStar: (id: string, e?: any) => void;
+  highlightWords?: string[];
+}
+
+export const CATPaperGridCard = React.memo(function CATPaperGridCard({
+  item,
+  isStarred,
+  onPress,
+  onToggleStar,
+  highlightWords
+}: CATPaperGridCardProps) {
+  return (
+    <TouchableOpacity style={styles.gridCard} activeOpacity={0.88} onPress={() => onPress(item)}>
+      <View style={styles.gridImageContainer}>
+        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+        <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>{item.unitCode}</Text></View>
+        <View style={styles.gridCatBadge}><Text style={styles.gridCatText}>{item.catType}</Text></View>
+        <View style={styles.gridRatingBadge}><StarIcon color="#eab308" size={11} /><Text style={styles.gridRatingText}>{item.ratingScore}</Text></View>
+      </View>
+      <View style={styles.gridBody}>
+        <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
+        {highlightWords && highlightWords.length > 0 ? (
+          <HighlightText
+            text={item.title}
+            highlightWords={highlightWords}
+            style={styles.gridTitle}
+            numberOfLines={2}
+          />
+        ) : (
+          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+        )}
+        <Text style={styles.gridSub}>{item.school}</Text>
+        <View style={styles.gridFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><DownloadIcon color="#15803d" size={12} /><Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text></View>
+          <TouchableOpacity style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]} onPress={(event) => onToggleStar(item.id, event)}><StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} /></TouchableOpacity>
+          <View style={styles.miniArrow}><ChevronRightIcon color="#15803d" size={14} /></View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const CatFeedCarousel = React.memo(function CatFeedCarousel({
   title,
   subtitle,
   items,
@@ -132,16 +178,16 @@ function CatFeedCarousel({
     if (items.length < 2) return;
     const timer = setInterval(() => {
       if (isInteracting.current || !carouselRef.current) return;
-      const nextIndex = (activeIndex + 1) % items.length;
-      setActiveIndex(nextIndex);
-      try {
-        carouselRef.current.scrollToIndex({ index: nextIndex, animated: true });
-      } catch (_) {
-        // The list may still be measuring its items.
-      }
+      setActiveIndex((prev) => {
+        const nextIndex = (prev + 1) % items.length;
+        try {
+          carouselRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        } catch (_) {}
+        return nextIndex;
+      });
     }, 3800);
     return () => clearInterval(timer);
-  }, [activeIndex, items.length]);
+  }, [items.length]);
 
   if (!items || items.length === 0) return null;
 
@@ -195,7 +241,7 @@ function CatFeedCarousel({
       </View>
     </View>
   );
-}
+});
 
 export default function CatPapersScreen({ route }: any) {
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
@@ -500,7 +546,13 @@ export default function CatPapersScreen({ route }: any) {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 600 && hasMorePapers && !loadingMore && !initialLoading) {
+    if (
+      distanceToBottom < 600 &&
+      hasMorePapers &&
+      !loadingMore &&
+      !initialLoading &&
+      !isSearchLoading
+    ) {
       void fetchRealCatPapers(submittedSearchQuery.trim().length > 1 ? submittedSearchQuery : '', papersPage + 1, true);
     }
   };
@@ -527,7 +579,7 @@ export default function CatPapersScreen({ route }: any) {
     }
   };
 
-  const handleToggleStar = (id: string, e?: any) => {
+  const handleToggleStar = useCallback((id: string, e?: any) => {
     if (e && e.stopPropagation) e.stopPropagation();
     setUserStars((prev) => {
       const isStarred = !prev[id];
@@ -542,9 +594,9 @@ export default function CatPapersScreen({ route }: any) {
       );
       return { ...prev, [id]: isStarred };
     });
-  };
+  }, []);
 
-  const handleOpenPreview = (item: CATPaperItem) => {
+  const handleOpenPreview = useCallback((item: CATPaperItem) => {
     setPreviewDoc({
       id: item.id,
       mtid: item.mtid,
@@ -554,11 +606,12 @@ export default function CatPapersScreen({ route }: any) {
       school: item.school,
       fileUrl: item.fileUrl,
       ttsTextUrl: item.ttsTextUrl,
+      thumbnail: item.thumbnail,
       summary: `Continuous Assessment Test (${item.catType}) paper for ${item.unitCode} (${item.examYear}).`,
       sampleText: `Continuous Assessment Quiz for ${item.unitCode}: ${item.title}. Answer all questions in Section A and Section B.`
     });
     setShowPreviewModal(true);
-  };
+  }, []);
 
   const handleDownload = async (item: PDFDocumentItem | CATPaperItem) => {
     try {
@@ -574,6 +627,7 @@ export default function CatPapersScreen({ route }: any) {
         examYear: 2025,
         fileUrl: item.fileUrl,
         ttsTextUrl: item.ttsTextUrl,
+        thumbnail: item.thumbnail,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_faculty', name: 'Moi University Academic Faculty' } as any,
         status: 'approved',
@@ -627,38 +681,16 @@ export default function CatPapersScreen({ route }: any) {
 
   const renderGridItems = (items: CATPaperItem[]) => (
     <View style={styles.gridContainer}>
-      {items.map((item) => {
-        const isStarred = !!userStars[item.id];
-        return (
-          <TouchableOpacity key={item.id} style={styles.gridCard} activeOpacity={0.88} onPress={() => handleOpenPreview(item)}>
-            <View style={styles.gridImageContainer}>
-              <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-              <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>{item.unitCode}</Text></View>
-              <View style={styles.gridCatBadge}><Text style={styles.gridCatText}>{item.catType}</Text></View>
-              <View style={styles.gridRatingBadge}><StarIcon color="#eab308" size={11} /><Text style={styles.gridRatingText}>{item.ratingScore}</Text></View>
-            </View>
-            <View style={styles.gridBody}>
-              <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
-              {searchQuery.trim().length > 0 && smartSearch.intent.keywords.length > 0 ? (
-                <HighlightText
-                  text={item.title}
-                  highlightWords={smartSearch.intent.keywords}
-                  style={styles.gridTitle}
-                  numberOfLines={2}
-                />
-              ) : (
-                <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-              )}
-              <Text style={styles.gridSub}>{item.school}</Text>
-              <View style={styles.gridFooter}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><DownloadIcon color="#15803d" size={12} /><Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text></View>
-                <TouchableOpacity style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]} onPress={(event) => handleToggleStar(item.id, event)}><StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} /></TouchableOpacity>
-                <View style={styles.miniArrow}><ChevronRightIcon color="#15803d" size={14} /></View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
+      {items.map((item) => (
+        <CATPaperGridCard
+          key={item.id}
+          item={item}
+          isStarred={!!userStars[item.id]}
+          onPress={handleOpenPreview}
+          onToggleStar={handleToggleStar}
+          highlightWords={isSearching ? smartSearch.intent.keywords : undefined}
+        />
+      ))}
     </View>
   );
 
@@ -696,7 +728,7 @@ export default function CatPapersScreen({ route }: any) {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={closeSearch}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

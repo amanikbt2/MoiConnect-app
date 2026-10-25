@@ -1223,7 +1223,7 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
             } else {
               const names = Array.from(new Set(newMessagesFromOthers.map((m: any) => m.senderName || 'Moi Student'))).slice(0, 3).join(', ');
               void scheduleLocalMissedMessagesNotification(
-                'Missed Community Messages',
+                'Missed Forum Messages',
                 `${newMessagesFromOthers.length} new messages from ${names} while offline.`,
                 'community'
               );

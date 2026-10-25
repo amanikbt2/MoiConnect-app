@@ -1,5 +1,5 @@
 import { showIceMessage } from '../../src/components/IceMessageCard';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import { Badge } from '../../src/components/Badge';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../../src/services/offlineStorage';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
-import { getMaterialSearchScore, calculateMaterialMatchMetrics, rankMaterials, rankMaterialsForProfile, getSearchRecommendationSections } from '../../src/utils/materialSearch';
+import { getMaterialSearchScore, calculateMaterialMatchMetrics, compileSearchQueryContext, rankMaterials, rankMaterialsForProfile, getSearchRecommendationSections } from '../../src/utils/materialSearch';
 import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
@@ -117,7 +117,77 @@ function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: 
   );
 }
 
-function NoteCarouselSection({
+export interface AcademicGridCardProps {
+  item: NoteItem;
+  onPress: (item: NoteItem) => void;
+  highlightWords?: string[];
+}
+
+export const AcademicGridCard = React.memo(function AcademicGridCard({
+  item,
+  onPress,
+  highlightWords
+}: AcademicGridCardProps) {
+  const rawRating = String(item.rating || (item as any).ratingScore || '4.5');
+  const cleanRating = rawRating.replace(/[^0-9.]/g, '').trim();
+  const mtidText = item.mtid || 'P0001';
+  const paperTag = item.paperType || 'Exam Pack';
+  const rawSchool = String(item.school || 'School of Science');
+  const shortSchool = rawSchool
+    .replace('School of ', '')
+    .replace('Information Sciences', 'INFO SCI')
+    .toUpperCase();
+
+  return (
+    <TouchableOpacity
+      style={styles.gridCard}
+      activeOpacity={0.88}
+      onPress={() => onPress(item)}
+    >
+      <View style={styles.gridImageContainer}>
+        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+        <View style={styles.gridBadge}>
+          <Text style={styles.gridBadgeText}>{paperTag}</Text>
+        </View>
+        <View style={[styles.gridRatingBadge, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+          <StarIcon color="#eab308" size={11} />
+          <Text style={styles.gridRatingText}>{cleanRating}</Text>
+        </View>
+      </View>
+
+      <View style={styles.gridBody}>
+        <Text style={styles.gridMetaLine} numberOfLines={1}>
+          MTID: {mtidText} • {item.unitCode} • {shortSchool}
+        </Text>
+        {highlightWords && highlightWords.length > 0 ? (
+          <HighlightText
+            text={item.title}
+            highlightWords={highlightWords}
+            style={styles.gridTitle}
+            numberOfLines={2}
+          />
+        ) : (
+          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+        )}
+
+        <View style={styles.gridDivider} />
+
+        <View style={styles.gridFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <DownloadIcon color="#15803d" size={11} />
+            <Text style={styles.gridDownloads}>{formatCount(item.downloads)} downloads</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <StarIcon color="#eab308" size={11} />
+            <Text style={styles.gridRatingText}>{cleanRating}</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const NoteCarouselSection = React.memo(function NoteCarouselSection({
   title,
   subtitle,
   items,
@@ -191,7 +261,7 @@ function NoteCarouselSection({
       </View>
     </View>
   );
-}
+});
 
 export default function AcademicsScreen({ route }: any) {
   const router = useAppNavigation();
@@ -334,7 +404,7 @@ export default function AcademicsScreen({ route }: any) {
     return () => subscription.remove();
   }, [submittedSearchQuery]);
 
-  const handleOpenPreview = (item: NoteItem) => {
+  const handleOpenPreview = useCallback((item: NoteItem) => {
     setPreviewDoc({
       id: item.id,
       mtid: item.mtid,
@@ -350,7 +420,7 @@ export default function AcademicsScreen({ route }: any) {
       sampleText: `Course notes for ${item.unitCode}: ${item.title}. Includes key concepts, formulas, and revision topics for semester preparation.`
     });
     setShowPreviewModal(true);
-  };
+  }, []);
 
   const handleDownload = async (doc: PDFDocumentItem) => {
     try {
@@ -399,7 +469,13 @@ export default function AcademicsScreen({ route }: any) {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
 
-    if (distanceToBottom < 500 && hasMoreNotes && !loadingMoreSection1 && !initialLoading) {
+    if (
+      distanceToBottom < 600 &&
+      hasMoreNotes &&
+      !loadingMoreSection1 &&
+      !initialLoading &&
+      !isSearchLoading
+    ) {
       void fetchRealAcademicPapers(submittedSearchQuery, papersPage + 1, true);
     }
   };
@@ -483,6 +559,7 @@ export default function AcademicsScreen({ route }: any) {
       seenIds = new Set<string>();
       topMatches = [];
       relatedMatches = [];
+      const ctx = compileSearchQueryContext(targetQuery, intent);
 
       allPool.forEach((item) => {
         if (seenIds.has(item.id) || !filterByDisc(item)) return;
@@ -502,7 +579,7 @@ export default function AcademicsScreen({ route }: any) {
           type: item.paperType,
           description: item.description,
           author: item.author
-        }, targetQuery, intent);
+        }, targetQuery, intent, ctx);
 
         const isDirectMatch = metrics.exactMtid ||
           metrics.exactUnitCode ||
@@ -517,15 +594,17 @@ export default function AcademicsScreen({ route }: any) {
           relatedMatches.push(item);
         }
       });
+      return ctx;
     };
 
-    evaluate(q);
+    const primaryCtx = evaluate(q);
+    let finalCtx = primaryCtx;
 
     // Google-Style Auto-Pivot: If 0 results for raw query and intent found a typo/unit-code correction:
     if (topMatches.length === 0 && relatedMatches.length === 0 && forcedOriginalQuery !== q) {
       const fallback = intent.autoPivotSuggestion || intent.unitCode || intent.correctedQuery;
       if (fallback && fallback.toLowerCase() !== q) {
-        evaluate(fallback);
+        finalCtx = evaluate(fallback);
         if (topMatches.length > 0 || relatedMatches.length > 0) {
           isAutoPivoted = true;
           effectiveQuery = fallback;
@@ -535,8 +614,8 @@ export default function AcademicsScreen({ route }: any) {
 
     return {
       isSearching: true,
-      topMatches: rankMaterials(topMatches, effectiveQuery, intent),
-      relatedMatches: rankMaterials(relatedMatches, effectiveQuery, intent),
+      topMatches: rankMaterials(topMatches, effectiveQuery, intent, finalCtx),
+      relatedMatches: rankMaterials(relatedMatches, effectiveQuery, intent, finalCtx),
       intent,
       isAutoPivoted,
       effectiveQuery
@@ -866,66 +945,14 @@ export default function AcademicsScreen({ route }: any) {
     );
   };
 
-  const renderGridCard = (item: NoteItem) => {
-    const rawRating = String(item.rating || (item as any).ratingScore || '4.5');
-    const cleanRating = rawRating.replace(/[^0-9.]/g, '').trim();
-    const mtidText = item.mtid || 'P0001';
-    const paperTag = item.paperType || 'Exam Pack';
-    const rawSchool = String(item.school || 'School of Science');
-    const shortSchool = rawSchool
-      .replace('School of ', '')
-      .replace('Information Sciences', 'INFO SCI')
-      .toUpperCase();
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        style={styles.gridCard}
-        activeOpacity={0.88}
-        onPress={() => handleOpenPreview(item)}
-      >
-        <View style={styles.gridImageContainer}>
-          <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-          <View style={styles.gridBadge}>
-            <Text style={styles.gridBadgeText}>{paperTag}</Text>
-          </View>
-          <View style={[styles.gridRatingBadge, { flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
-            <StarIcon color="#eab308" size={11} />
-            <Text style={styles.gridRatingText}>{cleanRating}</Text>
-          </View>
-        </View>
-
-        <View style={styles.gridBody}>
-          <Text style={styles.gridMetaLine} numberOfLines={1}>
-            MTID: {mtidText} • {item.unitCode} • {shortSchool}
-          </Text>
-          {smartSearchResults.isSearching && smartSearchResults.intent.keywords.length > 0 ? (
-            <HighlightText
-              text={item.title}
-              highlightWords={smartSearchResults.intent.keywords}
-              style={styles.gridTitle}
-              numberOfLines={2}
-            />
-          ) : (
-            <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
-          )}
-
-          <View style={styles.gridDivider} />
-
-          <View style={styles.gridFooter}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <DownloadIcon color="#15803d" size={11} />
-              <Text style={styles.gridDownloads}>{formatCount(item.downloads)} downloads</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <StarIcon color="#eab308" size={11} />
-              <Text style={styles.gridRatingText}>{cleanRating}</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderGridCard = (item: NoteItem) => (
+    <AcademicGridCard
+      key={item.id}
+      item={item}
+      onPress={handleOpenPreview}
+      highlightWords={smartSearchResults.isSearching ? smartSearchResults.intent.keywords : undefined}
+    />
+  );
 
   const handleRequestMissingMaterial = () => {
     const courseCode = searchQuery.trim();
@@ -961,7 +988,7 @@ export default function AcademicsScreen({ route }: any) {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={closeSearch}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
