@@ -129,7 +129,24 @@ export function CommunityLiveRoom({
   onClose,
   onReady
 }: CommunityLiveRoomProps) {
-  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), []);
+  const room = useMemo(() => new Room({
+    adaptiveStream: true,
+    dynacast: true,
+    audioCaptureDefaults: {
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: true
+    },
+    publishDefaults: {
+      dtx: true,
+      audioBitrate: 24000,
+      simulcast: true,
+      videoEncoding: {
+        maxBitrate: 280000,
+        maxFramerate: 20
+      }
+    }
+  }), []);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -155,6 +172,7 @@ export function CommunityLiveRoom({
   );
   const topPadding = topInset + 8;
   const bottomPadding = Math.max(insets?.bottom || 0, 14);
+  const controlsBottom = Math.max(insets?.bottom || 0, Platform.OS === 'android' ? 24 : 12) + 12;
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -196,6 +214,18 @@ export function CommunityLiveRoom({
           } catch (audioError) {
             console.info('[LiveKit] Microphone unavailable; continuing in listen-only mode.', audioError);
             if (!cancelled) setMuted(true);
+          }
+        } else {
+          // Pre-warm guest audio track as muted so "Hold to talk" is instant (0ms) without SDP renegotiation delay
+          try {
+            await room.localParticipant.setMicrophoneEnabled(true);
+            const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+            if (micPub?.track) {
+              await micPub.track.mute();
+            }
+            if (!cancelled) setMuted(true);
+          } catch {
+            // Handled when user presses hold to talk if mic permission prompt needed
           }
         }
         refreshParticipants();
@@ -522,7 +552,7 @@ export function CommunityLiveRoom({
           )}
 
           {isHost ? (
-            <View style={styles.controls}>
+            <View style={[styles.controls, { bottom: controlsBottom }]} pointerEvents="box-none">
               <TouchableOpacity
                 style={[styles.control, muted && styles.controlActive]}
                 onPress={toggleMicrophone}
@@ -550,7 +580,7 @@ export function CommunityLiveRoom({
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.controls}>
+            <View style={[styles.controls, { bottom: controlsBottom }]} pointerEvents="box-none">
               <TouchableOpacity
                 style={[styles.control, styles.holdControl, !muted && styles.holdControlActive]}
                 onPressIn={startTalking}
@@ -670,7 +700,7 @@ const styles = StyleSheet.create({
   reconnectionExitText: { color: '#ffffff', fontWeight: '800' },
   participantStrip: { flexGrow: 0, flexShrink: 0, height: 92, marginBottom: 10 },
   participantStripContent: { flexDirection: 'row', gap: 9, alignItems: 'stretch' },
-  stage: { flex: 1, minHeight: 0 },
+  stage: { flex: 1, minHeight: 0, paddingBottom: 68 },
   tile: { overflow: 'hidden', backgroundColor: '#12352b' },
   participantTile: { width: 92, height: 92, borderRadius: 12, borderWidth: 2, borderColor: 'transparent' },
   speakingTile: {
@@ -730,38 +760,52 @@ const styles = StyleSheet.create({
     backgroundColor: '#22c55e'
   },
   controls: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 12,
-    paddingTop: 14,
-    paddingBottom: 4,
-    zIndex: 50,
-    elevation: 20
+    zIndex: 90,
+    elevation: 25
   },
   control: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: '#14532d',
-    borderRadius: 14,
-    paddingHorizontal: 16,
+    borderRadius: 22,
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    zIndex: 55,
-    elevation: 25,
+    zIndex: 95,
+    elevation: 26,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
     ...(Platform.OS === 'web' ? { cursor: 'pointer', userSelect: 'none' } : {})
   } as any,
   controlActive: {
-    backgroundColor: '#b91c1c'
+    backgroundColor: '#b91c1c',
+    borderColor: 'rgba(254, 202, 202, 0.35)'
   },
   holdControl: {
     minWidth: 140,
-    backgroundColor: '#1c2925',
-    borderWidth: 1,
-    borderColor: '#34443e'
+    backgroundColor: 'rgba(18, 38, 32, 0.94)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(34, 197, 94, 0.45)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 26
   },
   holdControlActive: {
-    backgroundColor: '#74e2b1',
-    borderColor: '#74e2b1'
+    backgroundColor: '#22c55e',
+    borderColor: '#86efac'
   },
   controlIconWrap: {
     width: 26,

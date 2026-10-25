@@ -22,7 +22,8 @@ import {
   retryPaperDownload,
   subscribeToDownloadUpdates,
   clearUnreadDownloadBadge,
-  OfflinePaper
+  OfflinePaper,
+  getMaterialCoverUrl
 } from '../../src/services/offlineStorage';
 import { EmptyState } from '../../src/components/EmptyState';
 import { useAppNavigation } from '../../src/utils/navigation';
@@ -366,7 +367,7 @@ export default function DownloadsScreen() {
           const isCompleted = !isDownloading && !isFailed;
           const progress = item.progress || (isCompleted ? 100 : 5);
 
-          const thumbUri = item.thumbnail || FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length];
+          const thumbUri = item.thumbnailLocalUri || item.thumbnail || getMaterialCoverUrl(item) || FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length];
           const mtidText = item.mtid || `P000${(index % 9) + 1}`;
           const paperTag = item.pinned ? 'PINNED' : ((item as any).paperType || 'Exam Pack');
           const downloadsCount = item.downloadsCount || (2100 + (index * 130));
@@ -388,7 +389,14 @@ export default function DownloadsScreen() {
             >
               {/* Image Banner Header */}
               <View style={styles.thumbnailHeader}>
-                <Image source={{ uri: thumbUri }} style={styles.thumbnailImage} resizeMode="cover" />
+                {thumbUri ? (
+                  <Image source={{ uri: thumbUri }} style={styles.thumbnailImage} resizeMode="cover" />
+                ) : (
+                  <View style={styles.thumbnailImageFallback}>
+                    <BookIcon color="#15803d" size={26} />
+                    <Text style={styles.thumbnailFallbackCode}>{item.unitCode || 'ACADEMIC'}</Text>
+                  </View>
+                )}
                 <View style={styles.thumbnailOverlay} />
 
                 {/* Top-Left Dark Pill Badge */}
@@ -754,6 +762,21 @@ const styles = StyleSheet.create({
   thumbnailImage: {
     width: '100%',
     height: '100%'
+  },
+  thumbnailImageFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8
+  },
+  thumbnailFallbackCode: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 4,
+    letterSpacing: 0.5
   },
   thumbnailOverlay: {
     ...StyleSheet.absoluteFill,

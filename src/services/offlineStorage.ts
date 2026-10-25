@@ -198,6 +198,26 @@ export const updatePaperDownloadState = async (
   await notifyDownloadListeners();
 };
 
+export const getMaterialCoverUrl = (paperInput: any): string => {
+  if (paperInput?.thumbnail && typeof paperInput.thumbnail === 'string' && paperInput.thumbnail.trim()) {
+    return paperInput.thumbnail.trim();
+  }
+  const fileUrl = String(paperInput?.fileUrl || '').trim();
+  if (fileUrl.includes('cloudinary.com') || fileUrl.includes('/upload/')) {
+    if (fileUrl.match(/\.(jpg|jpeg|png|webp|gif)/i)) {
+      return fileUrl;
+    }
+    if (fileUrl.match(/\.pdf($|\?)/i)) {
+      const [path, query] = fileUrl.split('?');
+      const previewPath = path
+        .replace(/\/upload\/(?:[a-zA-Z0-9_,]+\/)?/g, '/upload/w_600,h_450,c_fill,pg_1,q_auto,f_jpg/')
+        .replace(/\.pdf$/i, '.jpg');
+      return query ? `${previewPath}?${query}` : previewPath;
+    }
+  }
+  return '';
+};
+
 export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper> => {
   const reportProgress = (progress: number) => {
     if (typeof paperInput?.onProgress === 'function') paperInput.onProgress(progress);
@@ -245,6 +265,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     existingPaper = undefined;
   }
 
+  const derivedCover = getMaterialCoverUrl(paperInput);
   const newPaperItem: OfflinePaper = {
     _id: targetId,
     title: paperInput.title || 'Untitled Material',
@@ -261,7 +282,8 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     ttsPersonalized: false,
     fileType: paperInput.fileType || 'pdf',
     uploadedBy: paperInput.uploadedBy || { _id: 'admin', name: 'Moi Faculty' },
-    thumbnail: paperInput.thumbnail || '',
+    thumbnail: paperInput.thumbnail || derivedCover || '',
+    thumbnailLocalUri: existingPaper?.thumbnailLocalUri,
     mtid: paperInput.mtid || `P000${Math.floor(Math.random() * 9) + 1}`,
     semester: paperInput.semester || 'SEMESTER 1',
     academicYear: paperInput.academicYear || '',
@@ -358,9 +380,44 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
         console.warn('[Offline Download] Lecture TXT could not be saved:', ttsError);
       }
     }
-    await updatePaperDownloadState(targetId, { status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized } as any);
+    let thumbnailLocalUri: string | undefined = existingPaper?.thumbnailLocalUri;
+    const effectiveThumbUrl = newPaperItem.thumbnail || getMaterialCoverUrl(newPaperItem);
+    if (effectiveThumbUrl && !thumbnailLocalUri) {
+      try {
+        const thumbExt = effectiveThumbUrl.match(/\.(png|webp|gif)/i)?.[1] || 'jpg';
+        const localThumbPath = `${privateDirectory}moi_thumb_${safeName}.${thumbExt}`;
+        const thumbResult = await FileSystem.downloadAsync(effectiveThumbUrl, localThumbPath);
+        if (thumbResult.status >= 200 && thumbResult.status < 300) {
+          const info = await FileSystem.getInfoAsync(thumbResult.uri);
+          if (info.exists && info.size && info.size > 0) {
+            thumbnailLocalUri = thumbResult.uri;
+          }
+        }
+      } catch (thumbError) {
+        console.info('[Offline Download] Thumbnail could not be downloaded locally:', thumbError);
+      }
+    }
+    const finalThumbnail = thumbnailLocalUri || newPaperItem.thumbnail || effectiveThumbUrl;
+    await updatePaperDownloadState(targetId, {
+      status: 'completed',
+      progress: 100,
+      localUri: result.uri,
+      thumbnail: finalThumbnail,
+      thumbnailLocalUri,
+      ttsLocalUri,
+      ttsPersonalized
+    } as any);
     reportProgress(100);
-    return { ...newPaperItem, status: 'completed', progress: 100, localUri: result.uri, ttsLocalUri, ttsPersonalized };
+    return {
+      ...newPaperItem,
+      status: 'completed',
+      progress: 100,
+      localUri: result.uri,
+      thumbnail: finalThumbnail,
+      thumbnailLocalUri,
+      ttsLocalUri,
+      ttsPersonalized
+    };
   } catch (error) {
     delete activeDownloadTasks[targetId];
     const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -457,8 +514,12 @@ export const removeOfflinePaper = async (paperId: string) => {
     const knownUris = [
       paper?.localUri,
       paper?.ttsLocalUri,
+      paper?.thumbnailLocalUri,
       `${privateDirectory}moi_material_${safeName}.${extension}`,
-      `${privateDirectory}moi_material_${safeName}_lecture.txt`
+      `${privateDirectory}moi_material_${safeName}_lecture.txt`,
+      `${privateDirectory}moi_thumb_${safeName}.jpg`,
+      `${privateDirectory}moi_thumb_${safeName}.png`,
+      `${privateDirectory}moi_thumb_${safeName}.webp`
     ].filter(Boolean) as string[];
     for (const uri of Array.from(new Set(knownUris))) {
       await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
@@ -769,7 +830,10 @@ export const getStoredCommunityMessages = async (): Promise<any[]> => {
   }
 };
 
-export const saveCommunityMessages = async (messages: any[]) => {
+let communitySaveDebounceTimer: any = null;
+let latestMessagesToSave: any[] | null = null;
+
+export const persistCommunityMessagesNow = async (messages: any[]) => {
   const compact = (message: any) => {
     const stripDataAvatar = (avatar?: string) => avatar?.startsWith('data:') ? undefined : avatar;
     return {
@@ -833,6 +897,40 @@ export const saveCommunityMessages = async (messages: any[]) => {
   }).catch(() => console.warn('[Community cache] Message cache update was skipped.'));
   await communityCacheWrite;
   return persisted;
+};
+
+export const flushCommunityMessagesSync = async () => {
+  if (communitySaveDebounceTimer) {
+    clearTimeout(communitySaveDebounceTimer);
+    communitySaveDebounceTimer = null;
+  }
+  if (latestMessagesToSave) {
+    const msgs = latestMessagesToSave;
+    latestMessagesToSave = null;
+    return persistCommunityMessagesNow(msgs);
+  }
+  return true;
+};
+
+// High-speed write-coalescing debounced persistence (prevents flash memory I/O blocking UI thread)
+export const saveCommunityMessages = async (messages: any[]) => {
+  latestMessagesToSave = messages;
+  if (communitySaveDebounceTimer) {
+    clearTimeout(communitySaveDebounceTimer);
+  }
+  return new Promise<boolean>((resolve) => {
+    communitySaveDebounceTimer = setTimeout(async () => {
+      communitySaveDebounceTimer = null;
+      const msgs = latestMessagesToSave;
+      latestMessagesToSave = null;
+      if (msgs) {
+        const res = await persistCommunityMessagesNow(msgs);
+        resolve(res);
+      } else {
+        resolve(true);
+      }
+    }, 1200);
+  });
 };
 
 export const getCommunitySyncCursor = async (): Promise<string | null> => {
@@ -1361,4 +1459,6 @@ export const wipeAllAppData = async (): Promise<void> => {
       } catch (_) {}
     }
   } catch (err) {
-    console.warn('[wipeAllAppData] Error duri
+    console.warn('[wipeAllAppData] Error during data purge:', err);
+  }
+};
