@@ -69,6 +69,7 @@ export function CommunityLiveRoom({
   const [status, setStatus] = useState('Connecting to live room…');
   const [error, setError] = useState('');
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [connectionEnded, setConnectionEnded] = useState(false);
   const micPressedRef = useRef(false);
   const cameraPressedRef = useRef(false);
@@ -105,24 +106,59 @@ export function CommunityLiveRoom({
             console.info('[LiveKit Web] Microphone unavailable; continuing in listen-only mode.', audioError);
             if (!cancelled) setMuted(true);
           }
+          setTimeout(() => {
+            if (!cancelled) {
+              setIsInitialLoading(false);
+              refreshParticipants();
+            }
+          }, 500);
+        } else {
+          refreshParticipants();
+          const hasHostVideo = Array.from(room.remoteParticipants.values()).some((p) =>
+            Array.from(p.videoTrackPublications.values()).some((v) => v.isSubscribed && v.track)
+          );
+          if (hasHostVideo) {
+            if (!cancelled) setIsInitialLoading(false);
+          } else {
+            setTimeout(() => {
+              if (!cancelled) setIsInitialLoading(false);
+            }, 3000);
+          }
         }
         refreshParticipants();
       } catch (err: any) {
         if (!cancelled) {
           setError(err?.message || 'Unable to connect. Check your connection and try again.');
           setStatus('');
+          setIsInitialLoading(false);
         }
       }
     };
 
+    const initialSafetyTimer = setTimeout(() => {
+      if (!cancelled) setIsInitialLoading(false);
+    }, 6000);
+
     room
       .on(RoomEvent.ParticipantConnected, refreshParticipants)
       .on(RoomEvent.ParticipantDisconnected, refreshParticipants)
-      .on(RoomEvent.TrackSubscribed, refreshParticipants)
+      .on(RoomEvent.TrackSubscribed, (track) => {
+        refreshParticipants();
+        if (!cancelled && !isHost && track.kind === Track.Kind.Video) {
+          setIsInitialLoading(false);
+        }
+      })
       .on(RoomEvent.TrackUnsubscribed, refreshParticipants)
       .on(RoomEvent.TrackMuted, refreshParticipants)
       .on(RoomEvent.TrackUnmuted, refreshParticipants)
-      .on(RoomEvent.LocalTrackPublished, refreshParticipants)
+      .on(RoomEvent.LocalTrackPublished, (pub) => {
+        refreshParticipants();
+        if (!cancelled && isHost && pub.kind === Track.Kind.Video) {
+          setTimeout(() => {
+            if (!cancelled) setIsInitialLoading(false);
+          }, 300);
+        }
+      })
       .on(RoomEvent.LocalTrackUnpublished, refreshParticipants)
       .on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => setActiveSpeakerIds(speakers.map((speaker) => speaker.identity)))
       .on(RoomEvent.Reconnecting, () => { setIsReconnecting(true); setConnectionEnded(false); })
@@ -133,6 +169,7 @@ export function CommunityLiveRoom({
 
     return () => {
       cancelled = true;
+      clearTimeout(initialSafetyTimer);
       room.removeAllListeners();
       void room.disconnect();
     };
@@ -395,17 +432,42 @@ export function CommunityLiveRoom({
             {hostParticipant ? renderParticipant(hostParticipant, true) : <ActivityIndicator color="#86efac" style={styles.loader} />}
           </View>
 
-          {(isReconnecting || !isNetworkOnline) && (
+          {(isInitialLoading || isReconnecting || !isNetworkOnline) && (
             <View style={styles.reconnectionOverlay}>
-              {!isNetworkOnline && <Text style={styles.reconnectionOffline}>You’re offline</Text>}
-              <Text style={styles.reconnectionTitle}>Connection lost</Text>
-              <ActivityIndicator color="#8ce7bd" size="large" />
-              <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
+              {!isNetworkOnline ? (
+                <>
+                  <Text style={styles.reconnectionOffline}>You’re offline</Text>
+                  <Text style={styles.reconnectionTitle}>Connection lost</Text>
+                  <ActivityIndicator color="#8ce7bd" size="large" />
+                  <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
+                </>
+              ) : isReconnecting ? (
+                <>
+                  <Text style={styles.reconnectionTitle}>Reconnecting</Text>
+                  <ActivityIndicator color="#8ce7bd" size="large" />
+                  <Text style={styles.reconnectionMessage}>Restoring live stream…</Text>
+                </>
+              ) : isInitialLoading ? (
+                <>
+                  <Text style={styles.reconnectionTitle}>
+                    {isHost ? 'Initializing…' : 'Connecting…'}
+                  </Text>
+                  <ActivityIndicator color="#8ce7bd" size="large" />
+                  <Text style={styles.reconnectionMessage}>
+                    {isHost ? 'Starting camera & audio…' : 'Connecting to live broadcast…'}
+                  </Text>
+                </>
+              ) : null}
             </View>
           )}
 
           {isHost ? (
-            <View style={styles.controls}>
+            <View
+              style={[
+                styles.controls,
+                isInitialLoading && { opacity: 0.35, pointerEvents: 'none' as any }
+              ]}
+            >
               <TouchableOpacity
                 style={[styles.control, muted && styles.controlActive]}
                 onPress={() => void toggleMicrophone()}
@@ -435,7 +497,12 @@ export function CommunityLiveRoom({
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.controls}>
+            <View
+              style={[
+                styles.controls,
+                isInitialLoading && { opacity: 0.35, pointerEvents: 'none' as any }
+              ]}
+            >
               <TouchableOpacity
                 style={[styles.control, styles.holdControl, !muted && styles.holdControlActive]}
                 onPressIn={startTalking}
