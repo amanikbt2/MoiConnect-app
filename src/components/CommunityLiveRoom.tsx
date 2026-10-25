@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Participant, Room, RoomEvent, Track } from 'livekit-client';
 import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
 
@@ -112,11 +113,22 @@ interface CommunityLiveRoomProps {
   token: string;
   isHost: boolean;
   isNetworkOnline?: boolean;
+  currentUserAvatar?: string;
+  currentUserName?: string;
   onClose: () => void;
   onReady?: () => void;
 }
 
-export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = true, onClose, onReady }: CommunityLiveRoomProps) {
+export function CommunityLiveRoom({
+  serverUrl,
+  token,
+  isHost,
+  isNetworkOnline = true,
+  currentUserAvatar,
+  currentUserName,
+  onClose,
+  onReady
+}: CommunityLiveRoomProps) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), []);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
@@ -131,6 +143,29 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = 
   const [connectionEnded, setConnectionEnded] = useState(false);
   const micPressedRef = useRef(false);
   const cameraPressedRef = useRef(false);
+
+  let insets = { top: 0, bottom: 0, left: 0, right: 0 };
+  try {
+    insets = useSafeAreaInsets();
+  } catch {}
+
+  const topInset = Math.max(
+    insets?.top || 0,
+    Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0
+  );
+  const topPadding = topInset + 8;
+  const bottomPadding = Math.max(insets?.bottom || 0, 14);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    try {
+      const NavigationBar = require('expo-navigation-bar');
+      if (NavigationBar?.setBackgroundColorAsync) {
+        NavigationBar.setBackgroundColorAsync('#000000');
+        NavigationBar.setButtonStyleAsync?.('light');
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -357,12 +392,16 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = 
     const isLocalCameraOff = isLocal && cameraOff;
     const isTrackMuted = videoTrack ? (videoTrack.isMuted || !videoTrack.isEnabled) : true;
     const isVideoAvailable = videoTrack && !isTrackMuted && !isLocalCameraOff;
-    const avatarUrl = (() => { try { return JSON.parse(participant.metadata || '{}')?.avatarUrl; } catch { return ''; } })();
+    const metadataAvatar = (() => { try { return JSON.parse(participant.metadata || '{}')?.avatarUrl; } catch { return ''; } })();
+    const avatarUrl = metadataAvatar || (isLocal ? currentUserAvatar : '');
 
     // The host stage remains still (no highlight border, no mixer icon).
     // Only guest / participant cards show the glow border and animated mixer waves.
     const isHostTile = featured || participant === hostParticipant || (isHost && isLocal);
     const isSpeaking = !isHostTile && activeSpeakerIds.includes(participant.identity);
+    const audioTrack = participant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+    const isMicMuted = isLocal ? muted : (audioTrack ? (audioTrack.isMuted || !audioTrack.isEnabled) : (participant.isMicrophoneEnabled === false));
+    const isCamOff = !isVideoAvailable;
 
     return (
       <View
@@ -394,13 +433,30 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = 
             {isLocal ? ' (You)' : ''}
           </Text>
         </View>
+        <View style={styles.tileStatusRow}>
+          {isMicMuted && (
+            <View style={styles.tileBadgeMuted}>
+              <MicOffIcon color="#ffffff" size={13} />
+            </View>
+          )}
+          {isCamOff && (
+            <View style={styles.tileBadgeMuted}>
+              <CameraOffIcon color="#ffffff" size={13} />
+            </View>
+          )}
+        </View>
         {isSpeaking && <SpeakingWaveBadge />}
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: topPadding, paddingBottom: bottomPadding }]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#071b16"
+        translucent={Platform.OS === 'android'}
+      />
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {!isNetworkOnline && (
@@ -408,18 +464,34 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = 
               <Text style={styles.offlineText}>You’re offline</Text>
             </View>
           )}
-          <View style={styles.liveBadge}>
-            <Text style={styles.liveText}>● LIVE</Text>
+          <View style={[styles.liveBadge, connectionEnded && styles.liveBadgeEnded]}>
+            <Text style={[styles.liveText, connectionEnded && styles.liveTextEnded]}>
+              {connectionEnded ? '● ENDED' : '● LIVE'}
+            </Text>
           </View>
-          <Text style={styles.subtitle}>
-            {participants.length} participant{participants.length === 1 ? '' : 's'}
-          </Text>
+          {!connectionEnded && (
+            <Text style={styles.subtitle}>
+              {participants.length} participant{participants.length === 1 ? '' : 's'}
+            </Text>
+          )}
         </View>
         <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.8}>
-          <Text style={styles.closeText}>{isHost ? 'End room' : 'Leave room'}</Text>
+          <Text style={styles.closeText}>{connectionEnded ? 'Exit' : isHost ? 'End room' : 'Leave room'}</Text>
         </TouchableOpacity>
       </View>
-      {error ? (
+
+      {connectionEnded ? (
+        <View style={styles.endedCardContainer}>
+          <View style={styles.endedCard}>
+            <View style={styles.endedCardDot} />
+            <Text style={styles.endedCardTitle}>Connection ended</Text>
+            <Text style={styles.endedCardSubtitle}>This live session has ended.</Text>
+            <TouchableOpacity style={styles.endedCardExitBtn} onPress={onClose} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={styles.endedCardExitText}>Exit live</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : error ? (
         <View style={styles.error}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -439,102 +511,157 @@ export function CommunityLiveRoom({ serverUrl, token, isHost, isNetworkOnline = 
           <View style={styles.stage}>
             {hostParticipant ? renderParticipant(hostParticipant, true) : <ActivityIndicator color="#86efac" style={styles.loader} />}
           </View>
-        </>
-      )}
-      {(isReconnecting || !isNetworkOnline || connectionEnded) && (
-        <View style={styles.reconnectionOverlay}>
-          {!isNetworkOnline && <Text style={styles.reconnectionOffline}>You’re offline</Text>}
-          <Text style={styles.reconnectionTitle}>{connectionEnded ? 'Connection ended' : 'Connection lost'}</Text>
-          {!connectionEnded && (
-            <>
+
+          {(isReconnecting || !isNetworkOnline) && (
+            <View style={styles.reconnectionOverlay}>
+              {!isNetworkOnline && <Text style={styles.reconnectionOffline}>You’re offline</Text>}
+              <Text style={styles.reconnectionTitle}>Connection lost</Text>
               <ActivityIndicator color="#8ce7bd" size="large" />
               <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
-            </>
-          )}
-          {connectionEnded && (
-            <TouchableOpacity style={styles.reconnectionExit} onPress={onClose}>
-              <Text style={styles.reconnectionExitText}>Exit live</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-      {isHost ? (
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={[styles.control, muted && styles.controlActive]}
-            onPress={toggleMicrophone}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={muted ? 'Unmute microphone' : 'Mute microphone'}
-          >
-            <View style={styles.controlIconWrap}>
-              {muted ? <MicOffIcon color="#ffffff" size={22} /> : <MicIcon color="#e8f1ec" size={22} />}
             </View>
-            <Text style={styles.controlText}>{muted ? 'Unmute' : 'Mute'}</Text>
-          </TouchableOpacity>
+          )}
 
-          <TouchableOpacity
-            style={[styles.control, cameraOff && styles.controlActive]}
-            onPress={toggleCamera}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={cameraOff ? 'Start camera' : 'Stop camera'}
-          >
-            <View style={styles.controlIconWrap}>
-              {cameraOff ? <CameraOffIcon color="#ffffff" size={22} /> : <CameraIcon color="#e8f1ec" size={22} />}
+          {isHost ? (
+            <View style={styles.controls}>
+              <TouchableOpacity
+                style={[styles.control, muted && styles.controlActive]}
+                onPress={toggleMicrophone}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={muted ? 'Unmute microphone' : 'Mute microphone'}
+              >
+                <View style={styles.controlIconWrap}>
+                  {muted ? <MicOffIcon color="#ffffff" size={22} /> : <MicIcon color="#e8f1ec" size={22} />}
+                </View>
+                <Text style={styles.controlText}>{muted ? 'Unmute' : 'Mute'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.control, cameraOff && styles.controlActive]}
+                onPress={toggleCamera}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={cameraOff ? 'Start camera' : 'Stop camera'}
+              >
+                <View style={styles.controlIconWrap}>
+                  {cameraOff ? <CameraOffIcon color="#ffffff" size={22} /> : <CameraIcon color="#e8f1ec" size={22} />}
+                </View>
+                <Text style={styles.controlText}>{cameraOff ? 'Start camera' : 'Stop camera'}</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.controlText}>{cameraOff ? 'Start camera' : 'Stop camera'}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={[styles.control, styles.holdControl, !muted && styles.holdControlActive]}
-            onPressIn={startTalking}
-            onPressOut={stopTalking}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Hold to talk"
-          >
-            <View style={styles.controlIconWrap}>
-              {muted ? <MicOffIcon color="#d0ddd7" size={22} /> : <MicIcon color="#071b16" size={22} />}
+          ) : (
+            <View style={styles.controls}>
+              <TouchableOpacity
+                style={[styles.control, styles.holdControl, !muted && styles.holdControlActive]}
+                onPressIn={startTalking}
+                onPressOut={stopTalking}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Hold to talk"
+              >
+                <View style={styles.controlIconWrap}>
+                  {muted ? <MicOffIcon color="#d0ddd7" size={22} /> : <MicIcon color="#071b16" size={22} />}
+                </View>
+                <Text style={[styles.controlText, !muted && styles.holdControlText]}>
+                  {muted ? 'Hold to talk' : 'Release to mute'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.control, styles.holdControl, !cameraOff && styles.holdControlActive]}
+                onPressIn={startCamera}
+                onPressOut={stopCamera}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Hold to turn on camera"
+              >
+                <View style={styles.controlIconWrap}>
+                  {cameraOff ? <CameraOffIcon color="#d0ddd7" size={22} /> : <CameraIcon color="#071b16" size={22} />}
+                </View>
+                <Text style={[styles.controlText, !cameraOff && styles.holdControlText]}>
+                  {cameraOff ? 'Hold for video' : 'Release to stop'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Text style={[styles.controlText, !muted && styles.holdControlText]}>
-              {muted ? 'Hold to talk' : 'Release to mute'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.control, styles.holdControl, !cameraOff && styles.holdControlActive]}
-            onPressIn={startCamera}
-            onPressOut={stopCamera}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Hold to turn on camera"
-          >
-            <View style={styles.controlIconWrap}>
-              {cameraOff ? <CameraOffIcon color="#d0ddd7" size={22} /> : <CameraIcon color="#071b16" size={22} />}
-            </View>
-            <Text style={[styles.controlText, !cameraOff && styles.holdControlText]}>
-              {cameraOff ? 'Hold for video' : 'Release to stop'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          )}
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#071b16', padding: 12 },
+  container: { flex: 1, backgroundColor: '#071b16', paddingHorizontal: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   offlineBadge: { backgroundColor: '#422b16', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   offlineText: { color: '#fcd38d', fontSize: 10, fontWeight: '800' },
   liveBadge: { backgroundColor: 'rgba(239, 68, 68, 0.22)', borderWidth: 1, borderColor: '#ef4444', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 3 },
+  liveBadgeEnded: { backgroundColor: 'rgba(100, 116, 139, 0.22)', borderColor: '#64748b' },
   liveText: { color: '#ef4444', fontWeight: '800', fontSize: 12 },
+  liveTextEnded: { color: '#94a3b8' },
   subtitle: { color: '#bbf7d0', fontSize: 12, fontWeight: '700' },
   closeButton: { backgroundColor: '#dc2626', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 8 },
   closeText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  endedCardContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20
+  },
+  endedCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#0c221c',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#1e483b',
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 10
+  },
+  endedCardDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#ef4444',
+    marginBottom: 16
+  },
+  endedCardTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center'
+  },
+  endedCardSubtitle: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24
+  },
+  endedCardExitBtn: {
+    width: '100%',
+    backgroundColor: '#dc2626',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4
+  },
+  endedCardExitText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800'
+  },
   reconnectionOverlay: { ...StyleSheet.absoluteFillObject, top: 44, zIndex: 10, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: 'rgba(4, 12, 10, 0.84)' },
   reconnectionOffline: { position: 'absolute', top: 12, alignSelf: 'center', color: '#fcd38d', fontWeight: '800', fontSize: 12 },
   reconnectionTitle: { color: '#ffffff', fontSize: 20, fontWeight: '800' },
@@ -561,6 +688,25 @@ const styles = StyleSheet.create({
   avatarInitial: { color: '#e8fff4', fontSize: 34, fontWeight: '800' },
   nameTag: { position: 'absolute', left: 5, top: 5, maxWidth: '86%', backgroundColor: 'rgba(3, 12, 9, 0.78)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 3 },
   captionText: { color: '#fff', fontWeight: '700', fontSize: 9 },
+  tileStatusRow: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    zIndex: 4
+  },
+  tileBadgeMuted: {
+    backgroundColor: 'rgba(220, 38, 38, 0.9)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)'
+  },
   speakingBadge: {
     position: 'absolute',
     right: 5,

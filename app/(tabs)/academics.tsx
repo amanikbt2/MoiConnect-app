@@ -344,6 +344,7 @@ export default function AcademicsScreen({ route }: any) {
       school: item.school,
       author: item.author,
       fileUrl: item.fileUrl || '',
+      thumbnail: item.thumbnail,
       ttsTextUrl: item.ttsTextUrl,
       summary: `Study notes for ${item.unitCode} ${item.unitName || item.title}.`,
       sampleText: `Course notes for ${item.unitCode}: ${item.title}. Includes key concepts, formulas, and revision topics for semester preparation.`
@@ -364,6 +365,7 @@ export default function AcademicsScreen({ route }: any) {
         type: 'notes',
         examYear: 2025,
         fileUrl: doc.fileUrl,
+        thumbnail: doc.thumbnail,
         ttsTextUrl: doc.ttsTextUrl,
         fileType: 'pdf',
         uploadedBy: { _id: 'moi_lecturer', name: doc.author || 'Moi Faculty' } as any,

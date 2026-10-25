@@ -30,6 +30,7 @@ export interface OfflinePaper {
   updatedAt?: string;
   // Card visual attributes
   thumbnail?: string;
+  thumbnailLocalUri?: string;
   mtid?: string;
   semester?: string;
   academicYear?: string;
@@ -1360,6 +1361,4 @@ export const wipeAllAppData = async (): Promise<void> => {
       } catch (_) {}
     }
   } catch (err) {
-    console.warn('[wipeAllAppData] Error during data purge:', err);
-  }
-};
+    console.warn('[wipeAllAppData] Error duri

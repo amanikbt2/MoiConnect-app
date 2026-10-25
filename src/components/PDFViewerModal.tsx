@@ -51,6 +51,7 @@ export interface PDFDocumentItem {
   unitName?: string;
   school?: string;
   fileUrl: string;
+  thumbnail?: string;
   ttsTextUrl?: string;
   author?: string;
   summary?: string;

@@ -1275,16 +1275,60 @@ export default function CommunityScreen() {
           if (typeof status?.allowed === 'boolean') setForumParticipationAllowed(status.allowed);
         });
         socket.on('community:live_start', (broadcast: { hostName?: string; hostId?: string }) => {
-          setLiveBroadcast({ hostName: broadcast?.hostName || 'A student', hostId: broadcast?.hostId });
+          const hostName = broadcast?.hostName || 'A student';
+          const isMe = user?._id && broadcast?.hostId && String(user._id) === String(broadcast.hostId);
+          setLiveBroadcast({ hostName, hostId: broadcast?.hostId });
+
+          const now = new Date();
+          const liveStartMsg: CommunityMessage = {
+            id: `sys_live_start_${broadcast?.hostId || ''}_${Date.now()}`,
+            senderName: 'System',
+            senderFaculty: '',
+            avatarBg: '#ef4444',
+            text: isMe ? 'You went live' : `${hostName} went live`,
+            timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isoDate: now.toISOString(),
+            isMe: false,
+            isSystemNotice: true,
+            eventType: 'live_start'
+          };
+
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.isSystemNotice && last.text === liveStartMsg.text) return prev;
+            return [...prev, liveStartMsg];
+          });
         });
         socket.on('community:live_status', (status: { active?: boolean; hostName?: string; hostId?: string }) => {
           setLiveBroadcast(status?.active
             ? { hostName: status.hostName || 'A student', hostId: status.hostId }
             : null);
         });
-        socket.on('community:live_end', () => {
+        socket.on('community:live_end', (data?: { hostName?: string }) => {
+          const currentHost = data?.hostName || liveBroadcast?.hostName || 'Host';
+          const wasHost = liveSessionRef.current?.isHost;
           setLiveBroadcast(null);
           if (liveSessionRef.current && !liveSessionRef.current.isHost) setLiveEnded(true);
+
+          const now = new Date();
+          const liveEndMsg: CommunityMessage = {
+            id: `sys_live_end_${Date.now()}`,
+            senderName: 'System',
+            senderFaculty: '',
+            avatarBg: '#64748b',
+            text: wasHost ? 'You ended the live session' : `${currentHost} ended live`,
+            timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isoDate: now.toISOString(),
+            isMe: false,
+            isSystemNotice: true,
+            eventType: 'live_end'
+          };
+
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.isSystemNotice && last.text === liveEndMsg.text) return prev;
+            return [...prev, liveEndMsg];
+          });
         });
         if (socket.connected) {
           handleSocketConnect();
@@ -3145,13 +3189,45 @@ export default function CommunityScreen() {
               if (item.isSystemNotice) {
                 const isConn = item.eventType === 'user_connected';
                 const isSec = item.eventType === 'security';
+                const isLiveStart = item.eventType === 'live_start';
+                const isLiveEnd = item.eventType === 'live_end';
                 return (
                   <View style={styles.systemNoticeContainer}>
-                    <View style={styles.systemNoticePill}>
-                      <View style={[styles.systemNoticeDot, isSec ? styles.systemNoticeSecurity : (isConn ? styles.systemNoticeConnected : styles.systemNoticeDisconnected)]} />
-                      <Text style={styles.systemNoticeText} numberOfLines={2}>{item.text}</Text>
+                    <TouchableOpacity
+                      activeOpacity={isLiveStart && !liveSession ? 0.75 : 1}
+                      onPress={isLiveStart && !liveSession ? handleGoLivePress : undefined}
+                      style={[
+                        styles.systemNoticePill,
+                        isLiveStart && styles.systemNoticeLiveStartPill,
+                        isLiveEnd && styles.systemNoticeLiveEndPill
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.systemNoticeDot,
+                          isLiveStart
+                            ? styles.systemNoticeLiveStartDot
+                            : (isLiveEnd
+                              ? styles.systemNoticeLiveEndDot
+                              : (isSec
+                                ? styles.systemNoticeSecurity
+                                : (isConn ? styles.systemNoticeConnected : styles.systemNoticeDisconnected)))
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.systemNoticeText,
+                          isLiveStart && styles.systemNoticeLiveStartText
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.text}
+                      </Text>
                       {!!item.timestamp && <Text style={styles.systemNoticeTime}>{item.timestamp}</Text>}
-                    </View>
+                      {isLiveStart && !liveSession && (
+                        <Text style={styles.systemNoticeJoinHint}>Watch</Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 );
               }
@@ -3840,8 +3916,10 @@ export default function CommunityScreen() {
               const isDismissed = Boolean(dismissedLiveBannerKey && dismissedLiveBannerKey === liveBroadcastKey);
               if (!isMyBroadcast && isDismissed) return null;
 
+              const dynamicMarginBottom = (replyingTo ? 56 : 0) + (selectedFile ? 60 : 0) + 8;
+
               return (
-                <View style={styles.liveJoinBanner}>
+                <View style={[styles.liveJoinBanner, { marginBottom: dynamicMarginBottom }]}>
                   <View style={styles.liveJoinBannerInfo}>
                     <View style={styles.liveJoinDotWrap}>
                       <Animated.View
@@ -4572,6 +4650,7 @@ export default function CommunityScreen() {
         animationType="slide"
         presentationStyle="fullScreen"
         onRequestClose={closeLiveRoom}
+        statusBarTranslucent={Platform.OS === 'android'}
       >
         {liveSession && (
           <View style={styles.liveModalContent}>
@@ -4581,12 +4660,14 @@ export default function CommunityScreen() {
                 token={liveSession.token}
                 isHost={liveSession.isHost}
                 isNetworkOnline={networkOnline}
+                currentUserAvatar={user?.avatarUrl}
+                currentUserName={user?.name}
                 onReady={handleLiveRoomReady}
                 onClose={closeLiveRoom}
               />
             )}
             {liveEnded && (
-              <View style={styles.liveEndedOverlay}>
+              <View style={[styles.liveEndedOverlay, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) + 8 : 24 }]}>
                 <View style={styles.liveEndedCard}>
                   <View style={styles.liveEndedDot} />
                   <Text style={styles.liveEndedTitle}>Live ended</Text>
@@ -5793,6 +5874,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain'
   },
   inputContainer: {
+    position: 'relative',
     flexDirection: 'column',
     alignItems: 'stretch',
     zIndex: 52,
@@ -5801,7 +5883,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     // Let the wallpaper continue behind the composer until the bottom bar.
     backgroundColor: 'transparent',
-    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#e9edef'
   },
@@ -6494,6 +6575,27 @@ const styles = StyleSheet.create({
   systemNoticeConnected: { backgroundColor: '#22c55e' },
   systemNoticeDisconnected: { backgroundColor: '#c4b5fd' },
   systemNoticeSecurity: { backgroundColor: '#f59e0b' },
+  systemNoticeLiveStartDot: { backgroundColor: '#ef4444' },
+  systemNoticeLiveEndDot: { backgroundColor: '#94a3b8' },
+  systemNoticeLiveStartPill: {
+    backgroundColor: '#fff7f7',
+    borderColor: '#fca5a5'
+  },
+  systemNoticeLiveStartText: {
+    color: '#b91c1c',
+    fontWeight: '700'
+  },
+  systemNoticeLiveEndPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderColor: '#cbd5e1'
+  },
+  systemNoticeJoinHint: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#ef4444',
+    marginLeft: 3,
+    textTransform: 'uppercase'
+  },
   systemNoticeText: {
     flexShrink: 1,
     fontSize: 9,
@@ -6584,7 +6686,7 @@ const styles = StyleSheet.create({
   /* Go Live Stream & Stage Styles */
   liveModalContent: {
     flex: 1,
-    backgroundColor: '#020617'
+    backgroundColor: '#071b16'
   },
   liveEndedOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -6667,9 +6769,11 @@ const styles = StyleSheet.create({
     marginLeft: 8
   },
   liveJoinBanner: {
+    position: 'absolute',
+    bottom: '100%',
+    left: 8,
+    right: 8,
     minHeight: 44,
-    marginBottom: 6,
-    marginHorizontal: 4,
     paddingLeft: 14,
     paddingRight: 8,
     backgroundColor: '#ffffff',
@@ -6681,9 +6785,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.16,
     shadowRadius: 6,
-    elevation: 4
+    elevation: 8,
+    zIndex: 99
   },
   liveJoinBannerInfo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   liveJoinDotWrap: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },

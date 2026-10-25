@@ -13,7 +13,15 @@
       "supportsTablet": true,
       "buildNumber": "25"
     },
+    "androidNavigationBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content"
+    },
     "android": {
+      "navigationBar": {
+        "backgroundColor": "#000000",
+        "barStyle": "light-content"
+      },
       "googleServicesFile": "./google-services.json",
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
