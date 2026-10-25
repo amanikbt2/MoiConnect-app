@@ -794,6 +794,8 @@ export default function CommunityScreen() {
   const dismissedMentionIds = useRef<Set<string>>(new Set());
   const focusMentionHandledRef = useRef(false);
   const deletedForMeIdsRef = useRef<Set<string>>(new Set());
+  const lastReadCommunityIdRef = useRef<string | null>(null);
+  const initialMentionBaselineDoneRef = useRef(false);
 
   // Options & Report Modal State
   const [selectedMsgForOptions, setSelectedMsgForOptions] = useState<CommunityMessage | null>(null);
@@ -1070,15 +1072,65 @@ export default function CommunityScreen() {
     return false;
   };
 
+  const isMentionRead = useCallback((m: CommunityMessage): boolean => {
+    const ids = [m.id, (m as any)._id, m.clientMsgId].filter(Boolean).map(String);
+    return ids.some((id) => dismissedMentionIds.current.has(id) || readMentionIdsRef.current.has(id));
+  }, []);
+
+  const markMentionRead = useCallback((target: CommunityMessage | string) => {
+    const idsToAdd: string[] = [];
+    if (typeof target === 'string') {
+      const targetStr = String(target);
+      idsToAdd.push(targetStr);
+      const found = messages.find((m) =>
+        String(m.id) === targetStr ||
+        String((m as any)._id || '') === targetStr ||
+        String(m.clientMsgId || '') === targetStr
+      );
+      if (found) {
+        if (found.id) idsToAdd.push(String(found.id));
+        if ((found as any)._id) idsToAdd.push(String((found as any)._id));
+        if (found.clientMsgId) idsToAdd.push(String(found.clientMsgId));
+      }
+    } else {
+      if (target.id) idsToAdd.push(String(target.id));
+      if ((target as any)._id) idsToAdd.push(String((target as any)._id));
+      if (target.clientMsgId) idsToAdd.push(String(target.clientMsgId));
+    }
+    for (const id of idsToAdd) {
+      dismissedMentionIds.current.add(id);
+      readMentionIdsRef.current.add(id);
+    }
+    // Asynchronous background persistence - keeps app fast and never blocks JS thread
+    void saveReadCommunityMentionIds(Array.from(readMentionIdsRef.current)).catch(() => {});
+  }, [messages]);
+
   useEffect(() => {
     if (!user || messages.length === 0) return;
 
-    const mentions = messages
-      .filter((m) => checkIsMentionOrReply(m, user, messages) && !dismissedMentionIds.current.has(m.id) && !readMentionIdsRef.current.has(m.id))
-      .map((m) => m.id);
+    // Only count new mentions that arrived after the established read baseline
+    const lastReadId = lastReadCommunityIdRef.current;
+    let candidateMessages = messages;
+    if (lastReadId) {
+      const lastReadIndex = messages.findIndex((m) =>
+        String(m.id) === String(lastReadId) ||
+        String((m as any)._id || '') === String(lastReadId) ||
+        String(m.clientMsgId || '') === String(lastReadId)
+      );
+      if (lastReadIndex !== -1) {
+        candidateMessages = messages.slice(lastReadIndex + 1);
+      }
+    } else if (!initialMentionBaselineDoneRef.current) {
+      return;
+    }
+
+    const mentions = candidateMessages
+      .filter((m) => checkIsMentionOrReply(m, user, messages) && !isMentionRead(m))
+      .map((m) => String(m.id))
+      .reverse(); // Newest mention first
 
     setUnreadMentionIds(mentions);
-  }, [messages, user, readMentionVersion]);
+  }, [messages, user, readMentionVersion, isMentionRead]);
 
   function scrollToLatestWhenReady(animated = true) {
     try {
@@ -1109,7 +1161,9 @@ export default function CommunityScreen() {
     try {
       flatListRef.current.scrollToIndex({ index: targetIndex, animated: true, viewPosition: 0.5 });
     } catch (err) {
-      console.warn('[CommunityChat] scrollToIndex failed:', err);
+      try {
+        (flatListRef.current as any).scrollToOffset?.({ offset: targetIndex * 70, animated: true });
+      } catch {}
     }
     setTimeout(() => {
       setHighlightedMsgId((curr) => (curr === canonicalId ? null : curr));
@@ -1121,11 +1175,15 @@ export default function CommunityScreen() {
     if (unreadMentionIds.length === 0) return;
 
     const targetId = unreadMentionIds[0];
-    if (!scrollToMessage(targetId)) return;
-    dismissedMentionIds.current.add(targetId);
-    readMentionIdsRef.current.add(targetId);
-    void saveReadCommunityMentionIds(Array.from(readMentionIdsRef.current));
+
+    // 1. Immediately decrement in-memory state (0ms lag: counter decreases instantly)
     setUnreadMentionIds((prev) => prev.filter((id) => id !== targetId));
+
+    // 2. Mark mention as read and persist locally in background asynchronously
+    markMentionRead(targetId);
+
+    // 3. Smoothly scroll to the target message
+    scrollToMessage(targetId);
   };
 
   useEffect(() => {
@@ -1137,34 +1195,59 @@ export default function CommunityScreen() {
   const initReadStateAndScroll = async (currentMsgs: CommunityMessage[]) => {
     if (currentMsgs.length === 0) return;
     const lastReadId = await getLastReadCommunityMsgId();
+    lastReadCommunityIdRef.current = lastReadId;
 
     if (!lastReadId) {
       const latestId = currentMsgs[currentMsgs.length - 1].id;
       await saveLastReadCommunityMsgId(latestId);
+      lastReadCommunityIdRef.current = latestId;
+      // Mark all pre-existing historical messages as read so the user never starts with a count of old mentions
+      for (let i = 0; i < currentMsgs.length; i++) {
+        markMentionRead(currentMsgs[i]);
+      }
+      setUnreadMentionIds([]);
       setUnreadCount(0);
       setFirstUnreadMsgId(null);
       setShowUnreadBtn(false);
       initialScrollDoneRef.current = true;
+      initialMentionBaselineDoneRef.current = true;
       return;
     }
 
-    const lastReadIndex = currentMsgs.findIndex((m) => m.id === lastReadId);
-    if (lastReadIndex !== -1 && lastReadIndex < currentMsgs.length - 1) {
-      const firstUnreadIndex = lastReadIndex + 1;
-      const firstUnreadId = currentMsgs[firstUnreadIndex].id;
-      const count = currentMsgs.length - firstUnreadIndex;
-      setFirstUnreadMsgId(firstUnreadId);
-      setUnreadCount(count);
-      setShowUnreadBtn(true);
+    const lastReadIndex = currentMsgs.findIndex((m) =>
+      String(m.id) === String(lastReadId) ||
+      String((m as any)._id || '') === String(lastReadId) ||
+      String(m.clientMsgId || '') === String(lastReadId)
+    );
+
+    if (lastReadIndex !== -1) {
+      // Mark all past messages up to and including lastReadIndex as read
+      for (let i = 0; i <= lastReadIndex; i++) {
+        markMentionRead(currentMsgs[i]);
+      }
+      if (lastReadIndex < currentMsgs.length - 1) {
+        const firstUnreadIndex = lastReadIndex + 1;
+        const firstUnreadId = currentMsgs[firstUnreadIndex].id;
+        const count = currentMsgs.length - firstUnreadIndex;
+        setFirstUnreadMsgId(firstUnreadId);
+        setUnreadCount(count);
+        setShowUnreadBtn(true);
+      } else {
+        setUnreadCount(0);
+        setFirstUnreadMsgId(null);
+        setShowUnreadBtn(false);
+      }
     } else {
-      setUnreadCount(0);
-      setFirstUnreadMsgId(null);
-      setShowUnreadBtn(false);
+      setUnreadCount(currentMsgs.length);
+      setFirstUnreadMsgId(currentMsgs[0]?.id || null);
+      setShowUnreadBtn(true);
     }
     initialScrollDoneRef.current = true;
+    initialMentionBaselineDoneRef.current = true;
   };
 
   const markAsRead = async (latestId: string) => {
+    lastReadCommunityIdRef.current = latestId;
     await saveLastReadCommunityMsgId(latestId);
     setUnreadCount(0);
     setFirstUnreadMsgId(null);

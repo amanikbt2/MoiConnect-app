@@ -157,6 +157,7 @@ export function CommunityLiveRoom({
   const [cameraOff, setCameraOff] = useState(!isHost);
   const [error, setError] = useState('');
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [connectionEnded, setConnectionEnded] = useState(false);
   const micPressedRef = useRef(false);
   const cameraPressedRef = useRef(false);

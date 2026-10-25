@@ -1000,7 +1000,9 @@ export const getReadCommunityMentionIds = async (): Promise<string[]> => {
 };
 
 export const saveReadCommunityMentionIds = async (ids: string[]): Promise<void> => {
-  await setItem(READ_COMMUNITY_MENTIONS_KEY, JSON.stringify(Array.from(new Set(ids))));
+  const unique = Array.from(new Set(ids));
+  const capped = unique.length > 500 ? unique.slice(-500) : unique;
+  await setItem(READ_COMMUNITY_MENTIONS_KEY, JSON.stringify(capped));
 };
 
 export const getLastReadCommunityMsgId = async (): Promise<string | null> => {
