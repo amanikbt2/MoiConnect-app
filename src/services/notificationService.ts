@@ -6,17 +6,19 @@ import { apiRequest } from './api';
 import { showIceMessage } from '../components/IceMessageCard';
 
 // Configure foreground push notification presentation handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => {
-    return {
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    };
-  },
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => {
+      return {
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      };
+    },
+  });
+}
 
 let registrationInFlight: Promise<string | null> | null = null;
 export const GENERAL_NOTIFICATION_CHANNEL_ID = 'mconnect_general_v2';

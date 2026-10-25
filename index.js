@@ -10,7 +10,8 @@ if (Platform.OS === 'web' && typeof console !== 'undefined') {
     if (
       msg.includes('"shadow*" style props are deprecated') ||
       msg.includes('"textShadow*" style props are deprecated') ||
-      msg.includes('props.pointerEvents is deprecated')
+      msg.includes('props.pointerEvents is deprecated') ||
+      msg.includes('[expo-notifications]')
     ) {
       return;
     }
@@ -28,4 +29,3 @@ if (Platform.OS !== 'web') {
 }
 
 registerRootComponent(App);
-
