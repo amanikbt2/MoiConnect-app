@@ -49,12 +49,14 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
 }) => {
   const [inputValues, setInputValues] = useState<Record<string, string | boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
 
   const router = useAppNavigation();
 
   useEffect(() => {
     setInputValues({});
     setSubmitting(false);
+    setValidationMessage('');
   }, [popup?.popupId]);
 
   if (!popup || !visible) return null;
@@ -99,14 +101,25 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
   };
   const handleInteractiveSubmit = async () => {
     if (!popup.inputs?.length || submitting) return;
-    const missing = popup.inputs.find((input) => input.required && (inputValues[input.id] === undefined || inputValues[input.id] === ''));
-    if (missing) return;
+    const missing = popup.inputs.filter((input) => {
+      if (!input.required) return false;
+      const value = inputValues[input.id];
+      if (input.type === 'checkbox' || input.type === 'toggle') return value !== true;
+      return value === undefined || value === null || String(value).trim() === '';
+    });
+    if (missing.length) {
+      setValidationMessage('Please complete: ' + missing.map((input) => input.label).join(', '));
+      return;
+    }
+    setValidationMessage('');
     setSubmitting(true);
     const result = await submitPopupResponse(popup.popupId, inputValues);
     setSubmitting(false);
     if (result.success) {
       await saveDismissedPopupId(popup.popupId);
       onClose();
+    } else {
+      setValidationMessage(result.error || 'Could not submit your response. Please try again.');
     }
   };
   const handleDismiss = async () => {
@@ -177,20 +190,29 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
                 {input.type === 'text' && (
                   <TextInput
                     value={String(inputValues[input.id] || '')}
-                    onChangeText={(value) => setInputValues((current) => ({ ...current, [input.id]: value }))}
+                    onChangeText={(value) => {
+                      setInputValues((current) => ({ ...current, [input.id]: value }));
+                      setValidationMessage('');
+                    }}
                     placeholder={input.placeholder || 'Type your response'}
                     placeholderTextColor="#94a3b8"
                     style={styles.textInput}
                   />
                 )}
                 {input.type === 'radio' && (input.options || []).map((option) => (
-                  <TouchableOpacity key={option} style={styles.choiceRow} onPress={() => setInputValues((current) => ({ ...current, [input.id]: option }))}>
+                  <TouchableOpacity key={option} style={styles.choiceRow} onPress={() => {
+                    setInputValues((current) => ({ ...current, [input.id]: option }));
+                    setValidationMessage('');
+                  }}>
                     <View style={[styles.choiceCircle, inputValues[input.id] === option && styles.choiceCircleSelected]} />
                     <Text style={styles.choiceText}>{option}</Text>
                   </TouchableOpacity>
                 ))}
                 {(input.type === 'toggle' || input.type === 'checkbox') && (
-                  <TouchableOpacity style={styles.choiceRow} onPress={() => setInputValues((current) => ({ ...current, [input.id]: !current[input.id] }))}>
+                  <TouchableOpacity style={styles.choiceRow} onPress={() => {
+                    setInputValues((current) => ({ ...current, [input.id]: !current[input.id] }));
+                    setValidationMessage('');
+                  }}>
                     <View style={[styles.checkBox, Boolean(inputValues[input.id]) && styles.checkBoxSelected]}><Text style={styles.checkMark}>{inputValues[input.id] ? '✓' : ''}</Text></View>
                     <Text style={styles.choiceText}>{input.type === 'toggle' ? 'Yes' : 'Select this option'}</Text>
                   </TouchableOpacity>
@@ -198,10 +220,17 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
               </View>
             ))}
             {popup.type === 'interactive' && (
-              <TouchableOpacity style={styles.mainActionBtn} onPress={handleInteractiveSubmit} activeOpacity={0.88} disabled={submitting}>
-                <Text style={styles.mainActionText}>{submitting ? 'Submitting...' : 'Submit Response'}</Text>
-                <ChevronRightIcon color="#ffffff" size={16} />
-              </TouchableOpacity>
+              <>
+                {!!validationMessage && (
+                  <Text style={styles.validationMessage} accessibilityRole="alert">
+                    {validationMessage}
+                  </Text>
+                )}
+                <TouchableOpacity style={styles.mainActionBtn} onPress={handleInteractiveSubmit} activeOpacity={0.88} disabled={submitting}>
+                  <Text style={styles.mainActionText}>{submitting ? 'Submitting...' : 'Submit Response'}</Text>
+                  <ChevronRightIcon color="#ffffff" size={16} />
+                </TouchableOpacity>
+              </>
             )}
             {/* Smart Action Buttons */}
             {popupActions.map((action, index) => (
@@ -344,6 +373,20 @@ const styles = StyleSheet.create({
     color: '#334155',
     lineHeight: 18,
     textAlign: 'center'
+  },
+  validationMessage: {
+    width: '100%',
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginBottom: 10
   },
   inputGroup: {
     width: '100%',
