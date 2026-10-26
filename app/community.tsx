@@ -246,11 +246,20 @@ const getVideoPlayerHtml = (url: string): string => {
 };
 const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusbot@moiconnect.app' ||
-  message.senderName.toLowerCase().includes('campus bot');
+  message.senderEmail?.toLowerCase().includes('campusbot') ||
+  message.senderName?.toLowerCase().includes('campus bot') ||
+  message.senderName?.toLowerCase().trim() === 'campus bot' ||
+  message.senderName?.toLowerCase().trim() === 'bot' ||
+  message.senderId === 'campus-bot' ||
+  String(message.senderId) === '000000000000000000000001';
 const isCampusAIMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusai@moiconnect.app' ||
-  message.senderName.toLowerCase().includes('campus ai') ||
-  message.senderName.toLowerCase().trim() === 'campus ai';
+  message.senderEmail?.toLowerCase().includes('campusai') ||
+  message.senderName?.toLowerCase().includes('campus ai') ||
+  message.senderName?.toLowerCase().trim() === 'campus ai' ||
+  message.senderName?.toLowerCase().trim() === 'ai' ||
+  message.senderId === 'campus-ai' ||
+  String(message.senderId) === '000000000000000000000002';
 const isCampusAssistantMessage = (message: CommunityMessage) => isCampusBotMessage(message) || isCampusAIMessage(message);
 const isUnsetCommunityValue = (val?: string) => !val || val.trim() === '' || val.trim().toLowerCase() === 'unset';
 
@@ -2690,8 +2699,14 @@ export default function CommunityScreen() {
     // Start the bot indicator before any network work so it is visible immediately.
     if (isBotMentioned) {
       setBotTyping(true);
-      const target = mentionMatch?.[1]?.toLowerCase().replace('_', ' ') || '';
-      setBotTypingName(target === 'ai' || target === 'campusai' || target.includes('ai') || (!!replyingTo && isCampusAIMessage(replyingTo)) ? 'Campus AI' : 'Campus Bot');
+      let botName = 'Campus Bot';
+      if (mentionMatch) {
+        const target = mentionMatch[1].toLowerCase().replace(/[\s_]+/g, '');
+        botName = (target === 'ai' || target === 'campusai') ? 'Campus AI' : 'Campus Bot';
+      } else if (replyingTo && isCampusAIMessage(replyingTo)) {
+        botName = 'Campus AI';
+      }
+      setBotTypingName(botName);
     } else if (isStopCommand) {
       setBotTyping(false);
     }
