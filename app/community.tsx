@@ -3227,6 +3227,9 @@ export default function CommunityScreen() {
       } else {
         router.push('/(tabs)');
       }
+      setTimeout(() => {
+        setIsExitingForum(false);
+      }, 150);
     }, 350);
   }, [isExitingForum, router]);
 
@@ -4367,7 +4370,7 @@ export default function CommunityScreen() {
           >
             <View style={styles.forumLoadingCard}>
               <ActivityIndicator color="#15803d" size="small" />
-              <Text style={styles.forumLoadingText}>{isExitingForum ? 'Exiting Forum…' : 'Logging you into Forum…'}</Text>
+              <Text style={styles.forumLoadingText}>{isExitingForum && !showForumLoading ? 'Exiting Forum…' : 'Logging you into Forum…'}</Text>
             </View>
           </View>
         )}
