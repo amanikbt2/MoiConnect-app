@@ -34,7 +34,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import * as ExpoFileSystem from 'expo-file-system/legacy';
 import { WebView } from 'react-native-webview';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
 import { STICKERS } from '../src/data/stickers';
@@ -3212,29 +3212,45 @@ export default function CommunityScreen() {
   }, [activeReactionMsgId]);
 
   const [isExitingForum, setIsExitingForum] = useState(false);
+  const isActivelyExitingRef = useRef(false);
+  const isActuallyExiting = isExitingForum && isActivelyExitingRef.current;
+
+  // Ensure exiting state is strictly cleared when entering / focusing or blurring
+  useFocusEffect(
+    useCallback(() => {
+      isActivelyExitingRef.current = false;
+      setIsExitingForum(false);
+      return () => {
+        isActivelyExitingRef.current = false;
+        setIsExitingForum(false);
+      };
+    }, [])
+  );
 
   const handleExitForum = useCallback(() => {
-    if (isExitingForum) return;
+    if (isActivelyExitingRef.current) return;
     try {
       Keyboard.dismiss();
     } catch {}
     setShowStickerPicker(false);
     dismissMentionSuggestions();
+    isActivelyExitingRef.current = true;
     setIsExitingForum(true);
+
     setTimeout(() => {
+      isActivelyExitingRef.current = false;
+      setIsExitingForum(false);
       if (router.canGoBack()) {
         router.back();
       } else {
         router.push('/(tabs)');
       }
-      setTimeout(() => {
-        setIsExitingForum(false);
-      }, 150);
-    }, 350);
-  }, [isExitingForum, router]);
+    }, 280);
+  }, [router]);
 
   useEffect(() => {
     if (isForumFocused) {
+      isActivelyExitingRef.current = false;
       setIsExitingForum(false);
     }
   }, [isForumFocused]);
@@ -3808,7 +3824,10 @@ export default function CommunityScreen() {
                                 ]}
                                 onPress={() => handleToggleReaction(item.id, emoji)}
                               >
-                                <Text style={styles.reactionBadgeText}>{emoji} {String(count)}</Text>
+                                <Text style={styles.reactionBadgeText}>
+                                  {emoji}{' '}
+                                  <Text style={styles.reactionCountText}>{String(count)}</Text>
+                                </Text>
                               </TouchableOpacity>
                             ))}
                           </View>
@@ -5808,7 +5827,18 @@ const styles = StyleSheet.create({
   reactionBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0f172a'
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
+  },
+  reactionCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
   },
   filePreviewBanner: {
     flexDirection: 'row',
@@ -7651,3 +7681,4 @@ const styles = StyleSheet.create({
     color: '#ffffff'
   }
 });
+
