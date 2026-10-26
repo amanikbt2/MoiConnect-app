@@ -133,16 +133,7 @@ export const CATPaperGridCard = React.memo(function CATPaperGridCard({
       <View style={styles.gridImageContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
         <View style={styles.gridBadge}>
-          {highlightWords && highlightWords.length > 0 ? (
-            <HighlightText
-              text={item.unitCode}
-              highlightWords={highlightWords}
-              style={styles.gridBadgeText}
-              highlightStyle={{ color: '#ffffff', backgroundColor: '#ea580c', fontWeight: '900' }}
-            />
-          ) : (
-            <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
-          )}
+          <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
         </View>
         <View style={styles.gridCatBadge}><Text style={styles.gridCatText}>{item.catType}</Text></View>
         <View style={styles.gridRatingBadge}><StarIcon color="#eab308" size={11} /><Text style={styles.gridRatingText}>{item.ratingScore}</Text></View>

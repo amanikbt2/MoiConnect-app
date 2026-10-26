@@ -138,16 +138,7 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
       <View style={styles.gridImageContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
         <View style={styles.gridBadge}>
-          {highlightWords && highlightWords.length > 0 ? (
-            <HighlightText
-              text={item.unitCode}
-              highlightWords={highlightWords}
-              style={styles.gridBadgeText}
-              highlightStyle={{ color: '#ffffff', backgroundColor: '#ea580c', fontWeight: '900' }}
-            />
-          ) : (
-            <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
-          )}
+          <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
         </View>
         {item.hasSolutions && (
           <View style={styles.gridSolutionBadge}>
