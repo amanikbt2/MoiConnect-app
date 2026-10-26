@@ -143,7 +143,7 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
               text={item.unitCode}
               highlightWords={highlightWords}
               style={styles.gridBadgeText}
-              highlightStyle={{ color: '#ffffff', backgroundColor: '#15803d', fontWeight: '900' }}
+              highlightStyle={{ color: '#ffffff', backgroundColor: '#ea580c', fontWeight: '900' }}
             />
           ) : (
             <Text style={styles.gridBadgeText}>{item.unitCode}</Text>

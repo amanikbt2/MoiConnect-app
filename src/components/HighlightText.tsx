@@ -11,7 +11,7 @@ export interface HighlightTextProps {
 
 /**
  * High-performance offline text highlighter that marks matched tokens
- * in bold and emerald green without regex overhead.
+ * in bold vivid orange with a soft orange background pill.
  */
 export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
   text,
@@ -54,9 +54,9 @@ export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
             p.isMatch
               ? [
                   {
-                    color: '#15803d',
+                    color: '#ea580c',
                     fontWeight: '800',
-                    backgroundColor: '#dcfce7',
+                    backgroundColor: '#ffedd5',
                     borderRadius: 4
                   },
                   highlightStyle

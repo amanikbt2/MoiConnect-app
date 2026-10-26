@@ -162,7 +162,7 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
               text={item.unitCode}
               highlightWords={highlightWords}
               style={styles.gridMetaLine}
-              highlightStyle={{ color: '#15803d', fontWeight: '800', backgroundColor: '#dcfce7' }}
+              highlightStyle={{ color: '#ea580c', fontWeight: '800', backgroundColor: '#ffedd5' }}
             />
           ) : item.unitCode} • {shortSchool}
         </Text>
