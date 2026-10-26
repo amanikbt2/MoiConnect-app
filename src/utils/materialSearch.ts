@@ -359,7 +359,9 @@ export function getMaterialSearchScore(
   }
 
   if (activeTokens.length > 0 && matchedTokensCount >= Math.max(1, Math.ceil(activeTokens.length / 2))) {
-    let score = titleOrCodeTokensCount > 0 ? 6 : 7;
+    // Require at least 1 keyword match in title, unit code, or unit name
+    if (titleOrCodeTokensCount === 0) return null;
+    let score = 6;
     if (hasYearIntent || hasSemesterIntent) score -= 1;
     return schoolConflicts ? score + 6 : score;
   }
@@ -373,6 +375,11 @@ export function getMaterialSearchScore(
   if ((userExplicitSchool || userExplicitDept) && schoolMatches && deptMatches) return 6;
   if (userExplicitDept && deptMatches) return 7;
   if (userExplicitSchool && schoolMatches) return 8;
+
+  // When searching with a specific unit code or keyword tokens, never return unrelated school papers
+  if (!userExplicitSchool && !userExplicitDept && (intent.unitCode || activeTokens.length > 0)) {
+    return null;
+  }
 
   if (schoolMatches && deptMatches) return 8;
   if (deptMatches) return 9;
@@ -418,6 +425,16 @@ export function rankMaterials<T extends MaterialSearchFields>(
         !metrics.exactMtid
       ) {
         return null;
+      }
+
+      // If user searched for a specific unit code (e.g. "STA 111"), require exact unit code, same prefix, or title/code match
+      if (intent.unitCode && !metrics.exactUnitCode) {
+        const itemPrefix = (item.unitCode || item.courseCode || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+        const prefixMatches = Boolean(ctx.intentPrefix && itemPrefix && itemPrefix === ctx.intentPrefix);
+        const hasTitleCodeMatch = (metrics.matchedTitleWordsCount + metrics.matchedCodeWordsCount) > 0;
+        if (!prefixMatches && !hasTitleCodeMatch) {
+          return null;
+        }
       }
 
       const downloads = Number((item as any).downloads || (item as any).downloadsCount || 0);

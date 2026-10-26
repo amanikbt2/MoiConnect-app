@@ -33,14 +33,15 @@ export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
       return [{ text, isMatch: false }];
     }
 
-    // Escape regex tokens and match at word start boundary (\b)
-    const escaped = cleanTokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const regex = new RegExp(`(\\b(?:${escaped}))`, 'gi');
+    // Deduplicate and sort tokens by length descending so phrases ("sta 111") match before sub-words ("sta")
+    const uniqueTokens = Array.from(new Set(cleanTokens)).sort((a, b) => b.length - a.length);
+    const escaped = uniqueTokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`(${escaped})`, 'gi');
 
     const split = text.split(regex);
-    return split.map((segment) => ({
+    return split.filter((seg) => seg.length > 0).map((segment) => ({
       text: segment,
-      isMatch: cleanTokens.some((ct) => segment.toLowerCase() === ct)
+      isMatch: uniqueTokens.some((ct) => segment.toLowerCase() === ct)
     }));
   }, [text, highlightWords]);
 
@@ -53,10 +54,10 @@ export const HighlightText: React.FC<HighlightTextProps> = React.memo(({
             p.isMatch
               ? [
                   {
-                    color: '#ea580c',
+                    color: '#15803d',
                     fontWeight: '800',
-                    backgroundColor: 'rgba(234, 88, 12, 0.12)',
-                    borderRadius: 3
+                    backgroundColor: '#dcfce7',
+                    borderRadius: 4
                   },
                   highlightStyle
                 ]

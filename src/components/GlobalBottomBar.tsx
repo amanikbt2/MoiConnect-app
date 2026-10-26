@@ -61,18 +61,23 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     });
 
     const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      'keyboardWillShow',
       () => setKeyboardVisible(true)
     );
     const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      'keyboardWillHide',
       () => setKeyboardVisible(false)
+    );
+    const didShowSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const didHideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false)
     );
 
     return () => {
       unsubscribeSummary();
       unsubscribeDownloadBadge();
       showSub.remove();
+      didShowSub.remove();
+      didHideSub.remove();
       hideSub.remove();
       appStateSubscription.remove();
       if (backgroundInterval) clearInterval(backgroundInterval);

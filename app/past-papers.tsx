@@ -138,7 +138,16 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
       <View style={styles.gridImageContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
         <View style={styles.gridBadge}>
-          <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+          {highlightWords && highlightWords.length > 0 ? (
+            <HighlightText
+              text={item.unitCode}
+              highlightWords={highlightWords}
+              style={styles.gridBadgeText}
+              highlightStyle={{ color: '#ffffff', backgroundColor: '#15803d', fontWeight: '900' }}
+            />
+          ) : (
+            <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+          )}
         </View>
         {item.hasSolutions && (
           <View style={styles.gridSolutionBadge}>
@@ -189,12 +198,14 @@ const PastPaperCarouselSection = React.memo(function PastPaperCarouselSection({
   title,
   subtitle,
   items,
-  onOpenPreview
+  onOpenPreview,
+  highlightWords
 }: {
   title: string;
   subtitle: string;
   items: PastPaperItem[];
   onOpenPreview: (item: PastPaperItem) => void;
+  highlightWords?: string[];
 }) {
   const carouselRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -266,7 +277,16 @@ const PastPaperCarouselSection = React.memo(function PastPaperCarouselSection({
             </View>
             <View style={styles.carouselBody}>
               <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-              <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+              {highlightWords && highlightWords.length > 0 ? (
+                <HighlightText
+                  text={item.title}
+                  highlightWords={highlightWords}
+                  style={styles.carouselTitle}
+                  numberOfLines={2}
+                />
+              ) : (
+                <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+              )}
               <View style={styles.carouselFooter}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <DownloadIcon color="#15803d" size={13} />
@@ -505,7 +525,10 @@ export default function PastPapersScreen({ route }: any) {
     ratingScore: paper.ratingScore || '', thumbnail: paper.thumbnail || '', fileUrl: paper.localUri || paper.fileUrl,
     ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl, hasSolutions: paper.type === 'solution', tag: 'Downloaded offline'
   })), [downloadedPapers]);
-  const searchablePastPapers = React.useMemo(() => Array.from(new Map([...papersData, ...downloadedPastPaperItems].map((item) => [item.id, item])).values()), [papersData, downloadedPastPaperItems]);
+  const searchablePastPapers = React.useMemo(() => {
+    const combined = [...papersData, ...downloadedPastPaperItems, ...campusLibrary];
+    return Array.from(new Map(combined.map((item) => [item.id, item])).values());
+  }, [papersData, downloadedPastPaperItems, campusLibrary]);
 
   const smartSearch = React.useMemo(() => {
     const q = submittedSearchQuery.trim();
@@ -528,6 +551,17 @@ export default function PastPapersScreen({ route }: any) {
     return smart;
   }, [searchablePastPapers, submittedSearchQuery, forcedOriginalQuery]);
 
+  const searchHighlightWords = React.useMemo(() => {
+    const tokens = new Set<string>();
+    const q = (submittedSearchQuery || searchQuery).trim().toLowerCase();
+    if (q) tokens.add(q);
+    if (smartSearch.intent.unitCode) tokens.add(smartSearch.intent.unitCode.toLowerCase());
+    (smartSearch.intent.keywords || []).forEach((kw) => {
+      if (kw && kw.length >= 2) tokens.add(kw.toLowerCase());
+    });
+    return Array.from(tokens);
+  }, [submittedSearchQuery, searchQuery, smartSearch.intent]);
+
   const filteredPapers = React.useMemo(() => {
     const filtered = smartSearch.results.filter((item) => {
       if (activeFilterDisc === 'solutions') return item.hasSolutions;
@@ -538,14 +572,14 @@ export default function PastPapersScreen({ route }: any) {
       if (activeFilterDisc === 'science') return item.school.toLowerCase().includes('science');
       return true;
     });
-    if (!discShuffleSeed) return filtered;
+    if (!discShuffleSeed || isSearching) return filtered;
     const hashId = (id: string) => {
       let value = discShuffleSeed;
       for (let index = 0; index < id.length; index += 1) value = (value * 31 + id.charCodeAt(index)) % 1000003;
       return value;
     };
     return [...filtered].sort((a, b) => hashId(a.id) - hashId(b.id));
-  }, [smartSearch.results, activeFilterDisc, discShuffleSeed]);
+  }, [smartSearch.results, activeFilterDisc, discShuffleSeed, isSearching]);
   const visibleTopMatches = React.useMemo(() => filteredPapers.slice(0, SEARCH_TOP_MATCH_LIMIT), [filteredPapers]);
 
   const feedItems = isSearching
@@ -745,7 +779,7 @@ export default function PastPapersScreen({ route }: any) {
           isStarred={!!userStars[item.id]}
           onPress={handleOpenPreview}
           onToggleStar={handleToggleStar}
-          highlightWords={isSearching ? smartSearch.intent.keywords : undefined}
+          highlightWords={isSearching ? searchHighlightWords : undefined}
         />
       ))}
     </View>
@@ -1044,7 +1078,11 @@ export default function PastPapersScreen({ route }: any) {
         ) : fetchError && papersData.length === 0 && downloadedPastPaperItems.length === 0 && !showDemoMaterials ? (
           <OfflineState onRetry={() => fetchRealPastPapers(submittedSearchQuery.trim())} />
         ) : isSearching ? (
-          isSearchLoading && filteredPapers.length === 0 ? (
+          isSearchLoading && (filteredPapers.length === 0 || !filteredPapers.some((p) => {
+            const cleanQ = submittedSearchQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const pCode = (p.unitCode || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return pCode.includes(cleanQ) || cleanQ.includes(pCode) || p.title.toLowerCase().includes(submittedSearchQuery.toLowerCase().trim());
+          })) ? (
             <ShimmerGridLoader title={`Searching past papers for "${searchQuery}"...`} count={4} />
           ) : (
             <View style={{ marginTop: 20 }}>
@@ -1060,10 +1098,10 @@ export default function PastPapersScreen({ route }: any) {
                       <Text style={styles.sectionSub}>
                         {smartSearch.isAutoPivoted
                           ? `Auto-matched for "${smartSearch.effectiveQuery}"`
-                          : (smartSearch.intent.school
-                              ? `Auto-matched for ${smartSearch.intent.school}`
-                              : smartSearch.intent.unitCode
-                                ? `Auto-matched for ${smartSearch.intent.unitCode}`
+                          : (smartSearch.intent.unitCode
+                              ? `Auto-matched for ${smartSearch.intent.unitCode} • ${filteredPapers.length} paper${filteredPapers.length === 1 ? '' : 's'} found`
+                              : smartSearch.intent.school
+                                ? `Auto-matched for ${smartSearch.intent.school}`
                               : `${filteredPapers.length} paper${filteredPapers.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
                         {filteredPapers.length > visibleTopMatches.length ? ` • showing ${visibleTopMatches.length} top matches first` : ''}
                       </Text>
@@ -1193,7 +1231,16 @@ export default function PastPapersScreen({ route }: any) {
 
                         <View style={styles.carouselBody}>
                           <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-                          <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                          {isSearching && searchHighlightWords.length > 0 ? (
+                            <HighlightText
+                              text={item.title}
+                              highlightWords={searchHighlightWords}
+                              style={styles.carouselTitle}
+                              numberOfLines={2}
+                            />
+                          ) : (
+                            <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                          )}
 
                           <View style={styles.carouselFooter}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1243,6 +1290,7 @@ export default function PastPapersScreen({ route }: any) {
                           subtitle={block.subtitle || 'Personalized study resources'}
                           items={block.items}
                           onOpenPreview={handleOpenPreview}
+                          highlightWords={isSearching ? searchHighlightWords : undefined}
                         />
                       );
                     }

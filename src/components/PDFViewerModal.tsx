@@ -510,11 +510,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     initialPinchDist.current = 0;
   };
 
-  if (!document) return null;
+
 
   const isDownloading = downloadInfo.status === 'downloading';
   const isCompleted = downloadInfo.status === 'completed';
-  const rawFileUrl = resolveRawPdfUrl(document.fileUrl);
+  const rawFileUrl = document?.fileUrl ? resolveRawPdfUrl(document.fileUrl) : '';
   const fileUrl = getCleanPdfUrl(rawFileUrl);
   const readerFileUrl = fileUrl;
   // Downloaded Android files use file:// URIs inside the app-private
@@ -695,6 +695,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
         transform: [{ rotate: '90deg' }]
       }
     : undefined;
+
+  if (!document) return null;
 
   return (
     <Modal

@@ -678,15 +678,20 @@ export default function CommunityScreen() {
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      'keyboardWillShow',
       () => setIsKeyboardVisible(true)
     );
     const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      'keyboardWillHide',
       () => setIsKeyboardVisible(false)
+    );
+    const didShowSub = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const didHideSub = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false)
     );
     return () => {
       showSub.remove();
+      didShowSub.remove();
+      didHideSub.remove();
       hideSub.remove();
     };
   }, []);
@@ -4355,14 +4360,14 @@ export default function CommunityScreen() {
           )}
         </ImageBackground>
 
-        {showForumLoading && (
+        {(showForumLoading || isExitingForum) && (
           <View
             style={[styles.forumLoadingOverlay, forumHeaderHeight > 0 && { top: forumHeaderHeight }]}
             pointerEvents="auto"
           >
             <View style={styles.forumLoadingCard}>
               <ActivityIndicator color="#15803d" size="small" />
-              <Text style={styles.forumLoadingText}>Logging you into Forum…</Text>
+              <Text style={styles.forumLoadingText}>{isExitingForum ? 'Exiting Forum…' : 'Logging you into Forum…'}</Text>
             </View>
           </View>
         )}
@@ -4984,11 +4989,11 @@ const styles = StyleSheet.create({
   forumLoadingOverlay: {
     ...StyleSheet.absoluteFill,
     top: 56,
-    backgroundColor: 'rgba(248, 250, 252, 0.96)',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100,
-    elevation: 30
+    zIndex: 99999,
+    elevation: 99999
   },
   forumLoadingCard: {
     flexDirection: 'row',

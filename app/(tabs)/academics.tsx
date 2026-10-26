@@ -157,7 +157,14 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
 
       <View style={styles.gridBody}>
         <Text style={styles.gridMetaLine} numberOfLines={1}>
-          MTID: {mtidText} • {item.unitCode} • {shortSchool}
+          MTID: {mtidText} • {highlightWords && highlightWords.length > 0 ? (
+            <HighlightText
+              text={item.unitCode}
+              highlightWords={highlightWords}
+              style={styles.gridMetaLine}
+              highlightStyle={{ color: '#15803d', fontWeight: '800', backgroundColor: '#dcfce7' }}
+            />
+          ) : item.unitCode} • {shortSchool}
         </Text>
         {highlightWords && highlightWords.length > 0 ? (
           <HighlightText
@@ -535,6 +542,7 @@ export default function AcademicsScreen({ route }: any) {
 
     const allPool: NoteItem[] = [
       ...realUploadedNotes,
+      ...campusLibraryNotes,
       ...downloadedPapers
         .filter((paper: any) => ['notes', 'revision', 'lecture_notes'].includes(String(paper.type || '').toLowerCase()))
         .map((paper: any) => ({ id: paper._id, mtid: paper.mtid, title: paper.title, unitCode: paper.unitCode || paper.courseCode || 'MOI', unitName: paper.unitName || paper.title, school: paper.school || 'Moi University', department: paper.department || '', courseCode: paper.courseCode || '', semester: paper.semester || '', academicYear: paper.academicYear || '', examYear: String(paper.examYear || ''), paperType: 'Revision Notes', downloads: formatCount(paper.downloadsCount || 0), rating: `${paper.ratingScore || '—'} ⭐`, description: paper.description || '', tag: 'Downloaded offline', thumbnail: paper.thumbnail || '', author: paper.uploadedBy?.name || 'Moi Student', fileUrl: paper.localUri || paper.fileUrl, ttsTextUrl: paper.ttsLocalUri || paper.ttsTextUrl } as NoteItem)),
@@ -620,7 +628,18 @@ export default function AcademicsScreen({ route }: any) {
       isAutoPivoted,
       effectiveQuery
     };
-  }, [submittedSearchQuery, realUploadedNotes, downloadedPapers, activeFilterDisc, showDemoMaterials, forcedOriginalQuery]);
+  }, [submittedSearchQuery, realUploadedNotes, campusLibraryNotes, downloadedPapers, activeFilterDisc, showDemoMaterials, forcedOriginalQuery]);
+
+  const searchHighlightWords = React.useMemo(() => {
+    const tokens = new Set<string>();
+    const q = (submittedSearchQuery || searchQuery).trim().toLowerCase();
+    if (q) tokens.add(q);
+    if (smartSearchResults.intent.unitCode) tokens.add(smartSearchResults.intent.unitCode.toLowerCase());
+    (smartSearchResults.intent.keywords || []).forEach((kw) => {
+      if (kw && kw.length >= 2) tokens.add(kw.toLowerCase());
+    });
+    return Array.from(tokens);
+  }, [submittedSearchQuery, searchQuery, smartSearchResults.intent]);
 
   const allBrowseNotes = React.useMemo(() => {
     const seen = new Set<string>();
@@ -928,7 +947,16 @@ export default function AcademicsScreen({ route }: any) {
 
         <View style={styles.carouselBody}>
           <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-          <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+          {smartSearchResults.isSearching && searchHighlightWords.length > 0 ? (
+            <HighlightText
+              text={item.title}
+              highlightWords={searchHighlightWords}
+              style={styles.carouselTitle}
+              numberOfLines={2}
+            />
+          ) : (
+            <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+          )}
 
           <View style={styles.carouselFooter}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -950,7 +978,7 @@ export default function AcademicsScreen({ route }: any) {
       key={item.id}
       item={item}
       onPress={handleOpenPreview}
-      highlightWords={smartSearchResults.isSearching ? smartSearchResults.intent.keywords : undefined}
+      highlightWords={smartSearchResults.isSearching ? searchHighlightWords : undefined}
     />
   );
 
@@ -1132,7 +1160,11 @@ export default function AcademicsScreen({ route }: any) {
               />
 
               {/* Search Summary Banner or Shimmer */}
-              {isSearchLoading && smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 ? (
+              {isSearchLoading && (smartSearchResults.topMatches.length === 0 || !smartSearchResults.topMatches.some((p) => {
+                const cleanQ = submittedSearchQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const pCode = (p.unitCode || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                return pCode.includes(cleanQ) || cleanQ.includes(pCode) || p.title.toLowerCase().includes(submittedSearchQuery.toLowerCase().trim());
+              })) ? (
                 <View style={{ marginHorizontal: 16 }}>
                   <ShimmerGridLoader title={`Searching academic notes for "${searchQuery}"...`} count={4} />
                 </View>
@@ -1157,7 +1189,7 @@ export default function AcademicsScreen({ route }: any) {
                     </View>
                     <View>
                       <Text style={styles.sectionTitle}>Top Match Results</Text>
-                      <Text style={styles.sectionSub}>Auto-matched for {smartSearchResults.intent.school || smartSearchResults.intent.unitCode || 'your search'}</Text>
+                      <Text style={styles.sectionSub}>Auto-matched for {smartSearchResults.intent.unitCode ? `${smartSearchResults.intent.unitCode} • ${smartSearchResults.topMatches.length} note${smartSearchResults.topMatches.length === 1 ? '' : 's'} found` : (smartSearchResults.intent.school || 'your search')}</Text>
                     </View>
                   </View>
 

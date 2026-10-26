@@ -132,7 +132,18 @@ export const CATPaperGridCard = React.memo(function CATPaperGridCard({
     <TouchableOpacity style={styles.gridCard} activeOpacity={0.88} onPress={() => onPress(item)}>
       <View style={styles.gridImageContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
-        <View style={styles.gridBadge}><Text style={styles.gridBadgeText}>{item.unitCode}</Text></View>
+        <View style={styles.gridBadge}>
+          {highlightWords && highlightWords.length > 0 ? (
+            <HighlightText
+              text={item.unitCode}
+              highlightWords={highlightWords}
+              style={styles.gridBadgeText}
+              highlightStyle={{ color: '#ffffff', backgroundColor: '#15803d', fontWeight: '900' }}
+            />
+          ) : (
+            <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
+          )}
+        </View>
         <View style={styles.gridCatBadge}><Text style={styles.gridCatText}>{item.catType}</Text></View>
         <View style={styles.gridRatingBadge}><StarIcon color="#eab308" size={11} /><Text style={styles.gridRatingText}>{item.ratingScore}</Text></View>
       </View>
@@ -163,12 +174,14 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
   title,
   subtitle,
   items,
-  onOpenPreview
+  onOpenPreview,
+  highlightWords
 }: {
   title: string;
   subtitle: string;
   items: CATPaperItem[];
   onOpenPreview: (item: CATPaperItem) => void;
+  highlightWords?: string[];
 }) {
   const carouselRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -227,7 +240,16 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
             </View>
             <View style={styles.carouselBody}>
               <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-              <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+              {highlightWords && highlightWords.length > 0 ? (
+                <HighlightText
+                  text={item.title}
+                  highlightWords={highlightWords}
+                  style={styles.carouselTitle}
+                  numberOfLines={2}
+                />
+              ) : (
+                <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+              )}
               <View style={styles.carouselFooter}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><DownloadIcon color="#15803d" size={13} /><Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text></View>
                 <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
@@ -446,7 +468,12 @@ export default function CatPapersScreen({ route }: any) {
     examYear: String(paper.examYear || ''), semester: paper.semester || '', academicYear: paper.academicYear || '',
     department: paper.department || '', description: paper.description || '', tag: 'Downloaded offline'
   })), [downloadedPapers]);
-  const searchableCats = React.useMemo(() => Array.from(new Map([...catsData, ...downloadedCatItems].map((item) => [item.id, item])).values()), [catsData, downloadedCatItems]);
+  const searchableCats = React.useMemo(() => {
+    const combined = [...catsData, ...downloadedCatItems, ...campusLibrary];
+    return Array.from(new Map(combined.map((item) => [item.id, item])).values());
+  }, [catsData, downloadedCatItems, campusLibrary]);
+
+  const isSearching = submittedSearchQuery.trim().length > 0;
 
   const smartSearch = React.useMemo(() => {
     const q = submittedSearchQuery.trim();
@@ -469,6 +496,17 @@ export default function CatPapersScreen({ route }: any) {
     return smart;
   }, [searchableCats, submittedSearchQuery, forcedOriginalQuery]);
 
+  const searchHighlightWords = React.useMemo(() => {
+    const tokens = new Set<string>();
+    const q = (submittedSearchQuery || searchQuery).trim().toLowerCase();
+    if (q) tokens.add(q);
+    if (smartSearch.intent.unitCode) tokens.add(smartSearch.intent.unitCode.toLowerCase());
+    (smartSearch.intent.keywords || []).forEach((kw) => {
+      if (kw && kw.length >= 2) tokens.add(kw.toLowerCase());
+    });
+    return Array.from(tokens);
+  }, [submittedSearchQuery, searchQuery, smartSearch.intent]);
+
   const filteredCats = React.useMemo(() => {
     const filtered = smartSearch.results.filter((item) => {
       if (activeFilterDisc === 'cat1') return item.catType === 'CAT 1';
@@ -478,17 +516,15 @@ export default function CatPapersScreen({ route }: any) {
       if (activeFilterDisc === '2025') return item.examYear === '2025';
       return true;
     });
-    if (!discShuffleSeed) return filtered;
+    if (!discShuffleSeed || isSearching) return filtered;
     const hashId = (id: string) => {
       let value = discShuffleSeed;
       for (let index = 0; index < id.length; index += 1) value = (value * 31 + id.charCodeAt(index)) % 1000003;
       return value;
     };
     return [...filtered].sort((a, b) => hashId(a.id) - hashId(b.id));
-  }, [smartSearch.results, activeFilterDisc, discShuffleSeed]);
+  }, [smartSearch.results, activeFilterDisc, discShuffleSeed, isSearching]);
   const visibleTopMatches = React.useMemo(() => filteredCats.slice(0, SEARCH_TOP_MATCH_LIMIT), [filteredCats]);
-
-  const isSearching = submittedSearchQuery.trim().length > 0;
 
   const allPool = React.useMemo(() => {
     const combined = [
@@ -688,7 +724,7 @@ export default function CatPapersScreen({ route }: any) {
           isStarred={!!userStars[item.id]}
           onPress={handleOpenPreview}
           onToggleStar={handleToggleStar}
-          highlightWords={isSearching ? smartSearch.intent.keywords : undefined}
+          highlightWords={isSearching ? searchHighlightWords : undefined}
         />
       ))}
     </View>
@@ -981,7 +1017,11 @@ export default function CatPapersScreen({ route }: any) {
         ) : fetchError && catsData.length === 0 && downloadedCatItems.length === 0 && !showDemoMaterials ? (
           <OfflineState onRetry={() => fetchRealCatPapers(submittedSearchQuery.trim())} />
         ) : isSearching ? (
-          isSearchLoading && filteredCats.length === 0 ? (
+          isSearchLoading && (filteredCats.length === 0 || !filteredCats.some((p) => {
+            const cleanQ = submittedSearchQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const pCode = (p.unitCode || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return pCode.includes(cleanQ) || cleanQ.includes(pCode) || p.title.toLowerCase().includes(submittedSearchQuery.toLowerCase().trim());
+          })) ? (
             <ShimmerGridLoader title={`Searching CAT assessments for "${searchQuery}"...`} count={4} />
           ) : (
             <View style={{ marginTop: 20 }}>
@@ -997,10 +1037,10 @@ export default function CatPapersScreen({ route }: any) {
                       <Text style={styles.sectionSub}>
                         {smartSearch.isAutoPivoted
                           ? `Auto-matched for "${smartSearch.effectiveQuery}"`
-                          : (smartSearch.intent.school
-                              ? `Auto-matched for ${smartSearch.intent.school}`
-                              : smartSearch.intent.unitCode
-                                ? `Auto-matched for ${smartSearch.intent.unitCode}`
+                          : (smartSearch.intent.unitCode
+                              ? `Auto-matched for ${smartSearch.intent.unitCode} • ${filteredCats.length} assessment${filteredCats.length === 1 ? '' : 's'} found`
+                              : smartSearch.intent.school
+                                ? `Auto-matched for ${smartSearch.intent.school}`
                                 : `${filteredCats.length} assessment${filteredCats.length === 1 ? '' : 's'} found for "${smartSearch.effectiveQuery || searchQuery}"`)}
                         {filteredCats.length > visibleTopMatches.length ? ` • showing ${visibleTopMatches.length} top matches first` : ''}
                       </Text>
@@ -1130,7 +1170,16 @@ export default function CatPapersScreen({ route }: any) {
 
                         <View style={styles.carouselBody}>
                           <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-                          <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                          {isSearching && searchHighlightWords.length > 0 ? (
+                            <HighlightText
+                              text={item.title}
+                              highlightWords={searchHighlightWords}
+                              style={styles.carouselTitle}
+                              numberOfLines={2}
+                            />
+                          ) : (
+                            <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                          )}
 
                           <View style={styles.carouselFooter}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1180,6 +1229,7 @@ export default function CatPapersScreen({ route }: any) {
                           subtitle={block.subtitle || 'Personalized CAT assessment papers'}
                           items={block.items}
                           onOpenPreview={handleOpenPreview}
+                          highlightWords={isSearching ? searchHighlightWords : undefined}
                         />
                       );
                     }
