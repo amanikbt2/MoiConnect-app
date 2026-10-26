@@ -249,7 +249,8 @@ const isCampusBotMessage = (message: CommunityMessage) =>
   message.senderName.toLowerCase().includes('campus bot');
 const isCampusAIMessage = (message: CommunityMessage) =>
   message.senderEmail?.toLowerCase() === 'campusai@moiconnect.app' ||
-  message.senderName.toLowerCase() === 'campus ai';
+  message.senderName.toLowerCase().includes('campus ai') ||
+  message.senderName.toLowerCase().trim() === 'campus ai';
 const isCampusAssistantMessage = (message: CommunityMessage) => isCampusBotMessage(message) || isCampusAIMessage(message);
 const isUnsetCommunityValue = (val?: string) => !val || val.trim() === '' || val.trim().toLowerCase() === 'unset';
 
@@ -2681,7 +2682,7 @@ export default function CommunityScreen() {
     }));
 
     const isStopCommand = /^\s*@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\s+stop\b/i.test(sentText);
-    const mentionMatch = sentText.match(/(^|\s)@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\b/i);
+    const mentionMatch = sentText.match(/(?:^|[^\w@])@(bot|campusbot|campus[\s_]+bot|ai|campusai|campus[\s_]+ai)\b/i);
     const isDirectBotMention = !!mentionMatch && !isStopCommand;
     const isReplyToBot = Boolean(replyingTo && isCampusAssistantMessage(replyingTo) && !isStopCommand);
     const isBotMentioned = isDirectBotMention || isReplyToBot;
@@ -2689,7 +2690,7 @@ export default function CommunityScreen() {
     // Start the bot indicator before any network work so it is visible immediately.
     if (isBotMentioned) {
       setBotTyping(true);
-      const target = mentionMatch?.[2]?.toLowerCase().replace('_', ' ') || '';
+      const target = mentionMatch?.[1]?.toLowerCase().replace('_', ' ') || '';
       setBotTypingName(target === 'ai' || target === 'campusai' || target.includes('ai') || (!!replyingTo && isCampusAIMessage(replyingTo)) ? 'Campus AI' : 'Campus Bot');
     } else if (isStopCommand) {
       setBotTyping(false);
@@ -2698,6 +2699,7 @@ export default function CommunityScreen() {
     const replyToData = replyingTo
       ? {
           id: replyingTo.id,
+          senderId: replyingTo.senderId,
           senderEmail: replyingTo.senderEmail,
           senderName: replyingTo.senderName,
           text: replyingTo.text,
@@ -4870,7 +4872,7 @@ export default function CommunityScreen() {
               />
             )}
             {liveEnded && (
-              <View style={[styles.liveEndedOverlay, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) + 8 : 24 }]}>
+              <View style={styles.liveEndedOverlay}>
                 <View style={styles.liveEndedCard}>
                   <View style={styles.liveEndedDot} />
                   <Text style={styles.liveEndedTitle}>Live ended</Text>
@@ -6894,7 +6896,8 @@ const styles = StyleSheet.create({
   },
   liveEndedOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
+    zIndex: 999,
+    elevation: 50,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,

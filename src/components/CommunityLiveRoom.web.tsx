@@ -495,30 +495,34 @@ export function CommunityLiveRoom({
 
           {(isInitialLoading || isReconnecting || !isNetworkOnline) && (
             <View style={styles.reconnectionOverlay}>
-              {!isNetworkOnline ? (
-                <>
-                  <Text style={styles.reconnectionOffline}>You’re offline</Text>
-                  <Text style={styles.reconnectionTitle}>Connection lost</Text>
-                  <ActivityIndicator color="#8ce7bd" size="large" />
-                  <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
-                </>
-              ) : isReconnecting ? (
-                <>
-                  <Text style={styles.reconnectionTitle}>Reconnecting</Text>
-                  <ActivityIndicator color="#8ce7bd" size="large" />
-                  <Text style={styles.reconnectionMessage}>Restoring live stream…</Text>
-                </>
-              ) : isInitialLoading ? (
-                <>
-                  <Text style={styles.reconnectionTitle}>
-                    {isHost ? 'Initializing…' : 'Connecting…'}
-                  </Text>
-                  <ActivityIndicator color="#8ce7bd" size="large" />
-                  <Text style={styles.reconnectionMessage}>
-                    {isHost ? 'Starting camera & audio…' : 'Connecting to live broadcast…'}
-                  </Text>
-                </>
-              ) : null}
+              <View style={styles.reconnectionCard}>
+                {!isNetworkOnline ? (
+                  <>
+                    <View style={styles.reconnectionOfflineBadge}>
+                      <Text style={styles.reconnectionOffline}>You’re offline</Text>
+                    </View>
+                    <Text style={styles.reconnectionTitle}>Connection lost</Text>
+                    <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
+                    <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
+                  </>
+                ) : isReconnecting ? (
+                  <>
+                    <Text style={styles.reconnectionTitle}>Reconnecting</Text>
+                    <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
+                    <Text style={styles.reconnectionMessage}>Restoring live stream…</Text>
+                  </>
+                ) : isInitialLoading ? (
+                  <>
+                    <Text style={styles.reconnectionTitle}>
+                      {isHost ? 'Initializing…' : 'Connecting…'}
+                    </Text>
+                    <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
+                    <Text style={styles.reconnectionMessage}>
+                      {isHost ? 'Starting camera & audio…' : 'Connecting to live broadcast…'}
+                    </Text>
+                  </>
+                ) : null}
+              </View>
             </View>
           )}
 
@@ -703,19 +707,38 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 48,
+    top: 0,
     bottom: 0,
-    zIndex: 5,
+    zIndex: 100,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    padding: 24,
-    backgroundColor: 'rgba(4, 12, 10, 0.88)'
+    padding: 20,
+    backgroundColor: 'rgba(4, 12, 10, 0.86)'
   },
-  reconnectionOffline: { position: 'absolute', top: 12, alignSelf: 'center', color: '#fcd38d', fontWeight: '800', fontSize: 12 },
-  reconnectionTitle: { color: '#ffffff', fontSize: 20, fontWeight: '800' },
-  reconnectionMessage: { color: '#d1fae5', fontSize: 14, fontWeight: '700' },
-  reconnectionExit: { marginTop: 8, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, backgroundColor: '#a93643' },
+  reconnectionCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#0c221c',
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#1e483b',
+    paddingVertical: 26,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 6px 14px rgba(0,0,0,0.45)' as any
+  },
+  reconnectionOfflineBadge: {
+    backgroundColor: '#422b16',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8
+  },
+  reconnectionOffline: { color: '#fcd38d', fontWeight: '800', fontSize: 12 },
+  reconnectionTitle: { color: '#ffffff', fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  reconnectionMessage: { color: '#d1fae5', fontSize: 14, fontWeight: '600', textAlign: 'center', marginTop: 2 },
+  reconnectionExit: { marginTop: 12, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, backgroundColor: '#a93643', cursor: 'pointer' as any },
   reconnectionExitText: { color: '#ffffff', fontWeight: '800' },
   participantStrip: { flexGrow: 0, flexShrink: 0, height: 94, marginBottom: 10 },
   participantStripContent: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
