@@ -73,6 +73,8 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
         target: popup.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect',
         type: 'external' as const
       }]
+    : popup.type === 'interactive'
+      ? []
     : popup.actions?.length
       ? popup.actions
       : legacyAction;
@@ -143,18 +145,20 @@ export const InAppPopupModal: React.FC<InAppPopupModalProps> = ({
 
           <ScrollView style={styles.scrollBody} contentContainerStyle={styles.cardBody}>
             {/* Type Tag */}
-            <View style={styles.typeBadgeRow}>
-              {isUpdateType ? (
-                <View style={styles.updateBadge}>
-                  <SparklesIcon color="#2563eb" size={12} />
-                  <Text style={styles.updateBadgeText}>New App Update Available</Text>
-                </View>
-              ) : (
-                <View style={styles.normalBadge}>
-                  <Text style={styles.normalBadgeText}>MConnect Announcement</Text>
-                </View>
-              )}
-            </View>
+            {(isUpdateType || popup.type === 'normal') && (
+              <View style={styles.typeBadgeRow}>
+                {isUpdateType ? (
+                  <View style={styles.updateBadge}>
+                    <SparklesIcon color="#2563eb" size={12} />
+                    <Text style={styles.updateBadgeText}>New App Update Available</Text>
+                  </View>
+                ) : (
+                  <View style={styles.normalBadge}>
+                    <Text style={styles.normalBadgeText}>MConnect Announcement</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Title & Subtitle */}
             <Text style={styles.titleText}>{popup.title}</Text>
