@@ -25,6 +25,7 @@ import {
   AppState,
   useWindowDimensions,
   Keyboard,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -3205,6 +3206,53 @@ export default function CommunityScreen() {
     );
   }, [activeReactionMsgId]);
 
+  const [isExitingForum, setIsExitingForum] = useState(false);
+
+  const handleExitForum = useCallback(() => {
+    if (isExitingForum) return;
+    try {
+      Keyboard.dismiss();
+    } catch {}
+    setShowStickerPicker(false);
+    dismissMentionSuggestions();
+    setIsExitingForum(true);
+    setTimeout(() => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.push('/(tabs)');
+      }
+    }, 350);
+  }, [isExitingForum, router]);
+
+  useEffect(() => {
+    if (isForumFocused) {
+      setIsExitingForum(false);
+    }
+  }, [isForumFocused]);
+
+  useEffect(() => {
+    const onHardwareBack = () => {
+      if (!isForumFocused) return false;
+      if (showStickerPicker) {
+        setShowStickerPicker(false);
+        return true;
+      }
+      if (selectedFile) {
+        setSelectedFile(null);
+        return true;
+      }
+      if (replyingTo) {
+        setReplyingTo(null);
+        return true;
+      }
+      handleExitForum();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [isForumFocused, showStickerPicker, selectedFile, replyingTo, handleExitForum]);
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
@@ -3214,7 +3262,7 @@ export default function CommunityScreen() {
       >
         {/* Top Header Banner */}
         <View style={styles.header} onLayout={(event) => setForumHeaderHeight(event.nativeEvent.layout.height)}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleExitForum} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Exit Uni Forum">
             <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
 
@@ -4129,7 +4177,7 @@ export default function CommunityScreen() {
               </View>
             </>
           )}
-          {allowCommunityChat && forumParticipationAllowed ? <View style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
+          {!showForumLoading && !isExitingForum && allowCommunityChat && forumParticipationAllowed ? <View style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
             {(() => {
               if (showForumLoading || !liveBroadcast || liveSession) return null;
               const isMyBroadcast = Boolean(user?._id && liveBroadcast.hostId && String(liveBroadcast.hostId) === String(user._id));
@@ -4301,7 +4349,7 @@ export default function CommunityScreen() {
             </TouchableOpacity>
             </View>
           </View> : (
-            <View style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
+            !showForumLoading && !isExitingForum && <View style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
               <Text style={styles.chatDisabledNoticeText}>{allowCommunityChat ? 'You are not eligible for forum participation' : 'Community chat disabled by administrator'}</Text>
             </View>
           )}

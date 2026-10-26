@@ -140,8 +140,8 @@ export function CommunityLiveRoom({
   onReady
 }: CommunityLiveRoomProps) {
   const room = useMemo(() => new Room({
-    adaptiveStream: true,
-    dynacast: true,
+    adaptiveStream: Platform.OS === 'web',
+    dynacast: Platform.OS === 'web',
     audioCaptureDefaults: {
       autoGainControl: true,
       echoCancellation: true,
@@ -151,7 +151,7 @@ export function CommunityLiveRoom({
     publishDefaults: {
       dtx: false,
       audioBitrate: 48000,
-      simulcast: true,
+      simulcast: Platform.OS === 'web',
       videoEncoding: {
         maxBitrate: 350000,
         maxFramerate: 24
@@ -171,6 +171,11 @@ export function CommunityLiveRoom({
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [connectionEnded, setConnectionEnded] = useState(false);
   const unifiedPressedRef = useRef(false);
+  const userExitedRef = useRef(false);
+  const handleExit = () => {
+    userExitedRef.current = true;
+    onClose();
+  };
 
   let insets = { top: 0, bottom: 0, left: 0, right: 0 };
   try {
@@ -335,7 +340,12 @@ export function CommunityLiveRoom({
       .on(RoomEvent.TrackUnmuted, refreshParticipants)
       .on(RoomEvent.Reconnecting, () => { setIsReconnecting(true); setConnectionEnded(false); })
       .on(RoomEvent.Reconnected, () => { setIsReconnecting(false); setConnectionEnded(false); refreshParticipants(); })
-      .on(RoomEvent.Disconnected, () => { setIsReconnecting(false); setConnectionEnded(true); });
+      .on(RoomEvent.Disconnected, (reason?: any) => {
+        setIsReconnecting(false);
+        if (cancelled || userExitedRef.current) return;
+        console.warn('[LiveKit] Room disconnected, reason:', reason);
+        setConnectionEnded(true);
+      });
     void connect();
 
     return () => {
@@ -623,7 +633,7 @@ export function CommunityLiveRoom({
             </Text>
           )}
         </View>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.closeButton} onPress={handleExit} activeOpacity={0.8}>
           <Text style={styles.closeText}>{connectionEnded ? 'Exit' : isHost ? 'End room' : 'Leave room'}</Text>
         </TouchableOpacity>
       </View>
@@ -634,7 +644,7 @@ export function CommunityLiveRoom({
             <View style={styles.endedCardDot} />
             <Text style={styles.endedCardTitle}>Connection ended</Text>
             <Text style={styles.endedCardSubtitle}>This live session has ended.</Text>
-            <TouchableOpacity style={styles.endedCardExitBtn} onPress={onClose} activeOpacity={0.85} accessibilityRole="button">
+            <TouchableOpacity style={styles.endedCardExitBtn} onPress={handleExit} activeOpacity={0.85} accessibilityRole="button">
               <Text style={styles.endedCardExitText}>Exit live</Text>
             </TouchableOpacity>
           </View>

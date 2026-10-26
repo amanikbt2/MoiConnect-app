@@ -95,6 +95,9 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     'ChatRoom',
     'MessagesTab',
     'Community',
+    '/community',
+    '/messages',
+    '/(tabs)/messages',
     'AgentScreen',
     'admin2',
     'Admin2',
@@ -104,7 +107,11 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
     '/(auth)/request-landlord',
   ];
 
-  if (isKeyboardVisible || (currentRoute && (HIDDEN_ROUTES.includes(currentRoute) || currentRoute.toLowerCase().includes('admin2')))) {
+  const onCommunityRoute = typeof currentRoute === 'string' && (
+    currentRoute.toLowerCase().includes('message') || currentRoute.toLowerCase().includes('community')
+  );
+
+  if (isKeyboardVisible || onCommunityRoute || (currentRoute && (HIDDEN_ROUTES.includes(currentRoute) || currentRoute.toLowerCase().includes('admin2')))) {
     return null;
   }
 
@@ -224,6 +231,10 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
 
 const styles = StyleSheet.create({
   container: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',

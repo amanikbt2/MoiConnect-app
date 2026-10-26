@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 12
+    paddingBottom: 85
   },
   banner: {
     backgroundColor: '#15803d',

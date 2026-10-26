@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -12,6 +12,7 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
+  Image,
   useWindowDimensions
 } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -535,46 +536,155 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     : readerFileUrl
       ? readerFileUrl + (readerFileUrl.includes('#') ? '' : '#toolbar=0&navpanes=0&scrollbar=0&view=FitH')
       : readerFileUrl;
-  const pdfJsHtml = hasRealDocument && pdfEngineSources
-    ? isLocalPdfFile && !pdfBase64
-      ? '<!DOCTYPE html><html><body style="margin:0;background:#d1d5db"></body></html>'
-      : `<!DOCTYPE html><html><head>
+  const pdfJsHtml = useMemo(() => {
+    if (!hasRealDocument || !pdfEngineSources) return '';
+    if (isLocalPdfFile && !pdfBase64) {
+      return '<!DOCTYPE html><html><body style="margin:0;background:#f8fafc"></body></html>';
+    }
+
+    const safeCore = pdfEngineSources.core ? pdfEngineSources.core.replace(/<\/script/gi, '<\\/script') : '';
+    const safeWorker = pdfEngineSources.worker ? pdfEngineSources.worker.replace(/<\/script/gi, '<\\/script') : '';
+
+    return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=4.0, user-scalable=yes">
-<script>${pdfEngineSources.core.replace(/<\/script/gi, '<\\/script')}</script>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#d1d5db;display:flex;flex-direction:column;align-items:center;padding:8px 0;min-height:100vh;font-family:system-ui,sans-serif}.pdf-page{margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.2);background:white;max-width:98vw;height:auto!important}</style>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#e2e8f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:8px 0 24px 0;
+    min-height:100vh;
+    font-family:system-ui,-apple-system,sans-serif;
+  }
+  #container{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:100%;
+  }
+  .pdf-page{
+    margin-bottom:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    background:#ffffff;
+    border-radius:4px;
+    max-width:98vw;
+    height:auto!important;
+  }
+</style>
+<script>${safeCore}</script>
+<script>${safeWorker}</script>
 </head><body><div id="container"></div><script>
 (function(){
- function report(message){if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(message));}
- function start(){
-  if(!window.pdfjsLib){report({type:'pdfError',error:'PDF engine unavailable'});return;}
-  var workerSource=${JSON.stringify(pdfEngineSources.worker)};
-  pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([workerSource],{type:'application/javascript'}));
-  var options=${pdfBase64
-    ? `{data:(function(){var raw=atob(${JSON.stringify(pdfBase64)});var data=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)data[i]=raw.charCodeAt(i);return data;})()}`
-    : `{url:${JSON.stringify(fileUrl)},rangeChunkSize:65536,disableStream:false,disableAutoFetch:false}`};
-  pdfjsLib.getDocument(options).promise.then(function(pdf){
-   report({type:'pdfPageCount',count:pdf.numPages});
-   var container=document.getElementById('container');
-   function renderPage(number){
-    if(number>pdf.numPages)return;
-    pdf.getPage(number).then(function(page){
-     var viewport=page.getViewport({scale:1.4});
-     var canvas=document.createElement('canvas');canvas.className='pdf-page';canvas.width=viewport.width;canvas.height=viewport.height;container.appendChild(canvas);
-     return page.render({canvasContext:canvas.getContext('2d'),viewport:viewport}).promise.then(function(){
-      if(number===1)report({type:'pdfReady'});
-      renderPage(number+1);
-     });
-    }).catch(function(error){report({type:'pdfError',error:String(error)});});
-   }
-   renderPage(1);
-  }).catch(function(error){report({type:'pdfError',error:String(error)});});
- }
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
-})();
-</script></body></html>`
-    : '';
+  function report(message){
+    if(window.ReactNativeWebView && window.ReactNativeWebView.postMessage){
+      window.ReactNativeWebView.postMessage(JSON.stringify(message));
+    }
+  }
 
-  const nativeWebViewSource = { html: pdfJsHtml, baseUrl: config.apiUrl };
+  function start(){
+    if(!window.pdfjsLib){
+      report({type:'pdfError',error:'PDF engine unavailable'});
+      return;
+    }
+
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    } catch(e){}
+
+    var pdfBase64 = ${pdfBase64 ? JSON.stringify(pdfBase64) : 'null'};
+    var fileUrl = ${JSON.stringify(fileUrl)};
+    var rawFileUrl = ${JSON.stringify(rawFileUrl)};
+
+    var initialOptions;
+    if (pdfBase64) {
+      try {
+        var raw = atob(pdfBase64);
+        var bytes = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) {
+          bytes[i] = raw.charCodeAt(i);
+        }
+        initialOptions = { data: bytes };
+      } catch(e) {
+        report({type:'pdfError',error:'Failed to decode local file'});
+        return;
+      }
+    } else {
+      initialOptions = {
+        url: fileUrl,
+        disableRange: true,
+        disableStream: true,
+        disableAutoFetch: true
+      };
+    }
+
+    function loadDocument(options, isRetry) {
+      pdfjsLib.getDocument(options).promise.then(function(pdf){
+        report({type:'pdfPageCount',count:pdf.numPages});
+        var container = document.getElementById('container');
+        var screenWidth = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0, 360);
+
+        function renderPage(number){
+          if(number > pdf.numPages) return;
+          pdf.getPage(number).then(function(page){
+            var unscaled = page.getViewport({scale: 1.0});
+            var targetWidth = Math.min(screenWidth - 16, 680);
+            var scale = Math.max(0.6, Math.min(1.2, targetWidth / unscaled.width));
+            var viewport = page.getViewport({scale: scale});
+
+            var canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page';
+            canvas.width = Math.round(viewport.width);
+            canvas.height = Math.round(viewport.height);
+            container.appendChild(canvas);
+
+            var ctx = canvas.getContext('2d');
+            return page.render({canvasContext: ctx, viewport: viewport}).promise.then(function(){
+              if(number === 1){
+                report({type:'pdfReady'});
+              }
+              // Yield control to CPU between pages to keep low-end phones fluid and avoid ANR
+              setTimeout(function(){
+                renderPage(number + 1);
+              }, 50);
+            });
+          }).catch(function(error){
+            report({type:'pdfError',error:String(error)});
+          });
+        }
+
+        renderPage(1);
+      }).catch(function(error){
+        if (!isRetry && rawFileUrl && rawFileUrl !== fileUrl && !pdfBase64) {
+          // Fallback to direct URL if streaming proxy has issues
+          loadDocument({
+            url: rawFileUrl,
+            disableRange: true,
+            disableStream: true,
+            disableAutoFetch: true
+          }, true);
+        } else {
+          report({type:'pdfError',error:String(error)});
+        }
+      });
+    }
+
+    loadDocument(initialOptions, false);
+  }
+
+  if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script></body></html>`;
+  }, [hasRealDocument, pdfEngineSources, fileUrl, rawFileUrl, pdfBase64, isLocalPdfFile]);
+
+  const nativeWebViewSource = useMemo(() => {
+    return { html: pdfJsHtml, baseUrl: config.apiUrl };
+  }, [pdfJsHtml]);
   const webLandscapeStyle = Platform.OS === 'web' && isLandscape
     ? {
         position: 'absolute' as const,
@@ -894,9 +1004,12 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                       pdfReadyRef.current = true;
                       setIsPdfLoading(false);
                       setHasPdfLoadError(false);
-                    } else if (message?.type === 'pdfError' && !pdfReadyRef.current) {
-                      setIsPdfLoading(false);
-                      setHasPdfLoadError(true);
+                    } else if (message?.type === 'pdfError') {
+                      console.warn('[PDF Reader WebView Error]:', message.error);
+                      if (!pdfReadyRef.current) {
+                        setIsPdfLoading(false);
+                        setHasPdfLoadError(true);
+                      }
                     }
                   } catch {}
                 }}
@@ -916,8 +1029,17 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               />
               {isPdfLoading && (
                 <View style={styles.nativeLoadingOverlay} pointerEvents="none">
-                  <ActivityIndicator color="#15803d" size="large" />
-                  <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
+                  {document.thumbnail ? (
+                    <Image
+                      source={{ uri: document.thumbnail }}
+                      style={styles.loadingThumbnailPreview}
+                      resizeMode="contain"
+                    />
+                  ) : null}
+                  <View style={styles.loadingPillBadge}>
+                    <ActivityIndicator color="#ffffff" size="small" />
+                    <Text style={styles.loadingPillBadgeText}>Loading document...</Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -1251,8 +1373,35 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#f8fafc'
+  },
+  loadingThumbnailPreview: {
+    ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
+    opacity: 0.9,
+    backgroundColor: '#f8fafc'
+  },
+  loadingPillBadge: {
+    position: 'absolute',
+    bottom: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.82)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4
+  },
+  loadingPillBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
   },
   readerScroll: {
     flex: 1
