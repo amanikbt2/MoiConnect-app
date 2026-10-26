@@ -3566,24 +3566,6 @@ export default function CommunityScreen() {
                       )}
 
                       <View style={[styles.bubbleContainer, isPickerOpen && { position: 'relative', zIndex: 999999, elevation: 99999 }]}>
-                        {/* Floating Reaction Bar */}
-                        {isPickerOpen && (
-                          <View style={[styles.reactionPickerBar, item.isMe ? { right: 0 } : { left: 0 }]}>
-                            {EMOJI_OPTIONS.map((emoji) => (
-                              <TouchableOpacity
-                                key={emoji}
-                                style={[
-                                  styles.emojiPickBtn,
-                                  item.myReaction === emoji && styles.emojiPickBtnActive
-                                ]}
-                                onPress={() => handleToggleReaction(item.id, emoji)}
-                              >
-                                <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        )}
-
                         {(() => {
                           const hasMedia = Boolean(item.fileAttachment && isMediaAttachment(item.fileAttachment));
                           const isMediaOnly = hasMedia && !item.text?.trim() && !item.replyTo && !item.stickerId;
@@ -3809,6 +3791,22 @@ export default function CommunityScreen() {
                                   )
                                 )}
                               </View>
+                              {isPickerOpen && (
+                                <View style={[styles.reactionPickerBar, { right: 0 }]}>
+                                  {EMOJI_OPTIONS.map((emoji) => (
+                                    <TouchableOpacity
+                                      key={emoji}
+                                      style={[
+                                        styles.emojiPickBtn,
+                                        item.myReaction === emoji && styles.emojiPickBtnActive
+                                      ]}
+                                      onPress={() => handleToggleReaction(item.id, emoji)}
+                                    >
+                                      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              )}
                             </TouchableOpacity>
                           );
                         })()}
@@ -5784,7 +5782,7 @@ const styles = StyleSheet.create({
   },
   reactionPickerBar: {
     position: 'absolute',
-    top: -46,
+    bottom: 26,
     zIndex: 999999,
     elevation: 99999,
     flexDirection: 'row',
