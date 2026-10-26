@@ -2293,7 +2293,8 @@ export default function CommunityScreen() {
         );
         if (!active) return;
         const selfId = String(user?._id || '');
-        setPrivateSuggestions((response.data || []).filter((entry) => String(entry.id) !== selfId));
+        const rawList = Array.isArray(response?.data) ? response.data : [];
+        setPrivateSuggestions(rawList.filter((entry: MentionUser) => String(entry.id) !== selfId));
       } catch {
         if (active) setPrivateSuggestions([]);
       } finally {
@@ -4204,7 +4205,7 @@ export default function CommunityScreen() {
               </View>
             </>
           )}
-          {!showForumLoading && !isExitingForum && allowCommunityChat && forumParticipationAllowed ? <View style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
+          {!showForumLoading && !isActuallyExiting && allowCommunityChat && forumParticipationAllowed ? <View style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
             {(() => {
               if (showForumLoading || !liveBroadcast || liveSession) return null;
               const isMyBroadcast = Boolean(user?._id && liveBroadcast.hostId && String(liveBroadcast.hostId) === String(user._id));
@@ -4376,20 +4377,22 @@ export default function CommunityScreen() {
             </TouchableOpacity>
             </View>
           </View> : (
-            !showForumLoading && !isExitingForum && <View style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
+            !showForumLoading && !isActuallyExiting && <View style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
               <Text style={styles.chatDisabledNoticeText}>{allowCommunityChat ? 'You are not eligible for forum participation' : 'Community chat disabled by administrator'}</Text>
             </View>
           )}
         </ImageBackground>
 
-        {(showForumLoading || isExitingForum) && (
+        {(showForumLoading || isActuallyExiting) && (
           <View
             style={[styles.forumLoadingOverlay, forumHeaderHeight > 0 && { top: forumHeaderHeight }]}
             pointerEvents="auto"
           >
             <View style={styles.forumLoadingCard}>
               <ActivityIndicator color="#15803d" size="small" />
-              <Text style={styles.forumLoadingText}>{isExitingForum && !showForumLoading ? 'Exiting Forum…' : 'Logging you into Forum…'}</Text>
+              <Text style={styles.forumLoadingText}>
+                {isActuallyExiting ? 'Exiting Forum…' : 'Logging you into Forum…'}
+              </Text>
             </View>
           </View>
         )}
