@@ -3409,6 +3409,7 @@ export default function CommunityScreen() {
           onError={() => setHasLoadedForumWallpaper(true)}
         >
           <FlatList
+            removeClippedSubviews={false}
             ref={flatListRef}
             data={displayMessages}
             extraData={activeReactionMsgId}
@@ -3430,7 +3431,6 @@ export default function CommunityScreen() {
             maxToRenderPerBatch={10}
             windowSize={7}
             updateCellsBatchingPeriod={30}
-            removeClippedSubviews={Platform.OS !== 'web'}
             keyExtractor={(item, index) => String(item.id || `community-message-${index}`)}
             contentContainerStyle={styles.messageList}
             maintainVisibleContentPosition={{ minIndexForVisible: 1 }}

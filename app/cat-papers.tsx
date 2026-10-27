@@ -203,6 +203,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
         <View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSub}>{subtitle}</Text></View>
       </View>
       <FlatList
+        removeClippedSubviews={false}
         ref={carouselRef}
         horizontal
         data={items}
@@ -949,6 +950,7 @@ export default function CatPapersScreen({ route }: any) {
             </View>
 
             <FlatList
+              removeClippedSubviews={false}
               ref={carouselListRef}
               data={recommendedCats}
               keyExtractor={(item) => item.id}
@@ -1139,6 +1141,7 @@ export default function CatPapersScreen({ route }: any) {
                   </View>
 
                   <FlatList
+                    removeClippedSubviews={false}
                     ref={searchCarouselListRef}
                     data={searchRecommendations.youMayAlsoLike}
                     keyExtractor={(item) => `search-like-${item.id}`}
