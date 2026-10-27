@@ -81,6 +81,7 @@ const INITIAL_PAST_PAPERS_DATA: PastPaperItem[] = [];
 const PAPER_PAGE_SIZE = 60;
 const DISCOVERY_BLOCK_SIZE = 6;
 const SEARCH_TOP_MATCH_LIMIT = 6;
+const SEARCH_FEED_BATCH_SIZE = 12;
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All Past Papers', iconType: 'all' },
@@ -433,7 +434,10 @@ export default function PastPapersScreen({ route }: any) {
           : [];
         setPapersData((previous) => {
           if (isSearch && !append) {
-            return rankMaterials(nextPapers, searchTerm.trim());
+            // The server already ranks search results. Keep them as received;
+            // smartSearchMaterials ranks once for the UI, avoiding a second
+            // full synchronous ranking pass on Android's JS thread.
+            return nextPapers;
           }
           const merged = append ? [...previous, ...nextPapers] : nextPapers;
           const unique = Array.from(new Map(merged.map((paper) => [paper.id, paper])).values());
@@ -606,9 +610,25 @@ export default function PastPapersScreen({ route }: any) {
     );
   }, [allPool, visibleTopMatches, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
 
+  const [searchFeedLimit, setSearchFeedLimit] = useState(SEARCH_FEED_BATCH_SIZE);
+  const canExpandSearchFeed = useRef(true);
+  const visibleSearchFeedBlocks = React.useMemo(() => {
+    let remaining = searchFeedLimit;
+    return (searchRecommendations.feedBlocks || []).map((block) => {
+      const items = block.items.slice(0, remaining);
+      remaining -= items.length;
+      return { ...block, items };
+    }).filter((block) => block.items.length > 0);
+  }, [searchRecommendations.feedBlocks, searchFeedLimit]);
+
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
   const [searchCarouselIndex, setSearchCarouselIndex] = useState(0);
+
+  useEffect(() => {
+    setSearchFeedLimit(SEARCH_FEED_BATCH_SIZE);
+    canExpandSearchFeed.current = true;
+  }, [submittedSearchQuery]);
 
   // Auto-Scroll "You May Also Like" Carousel (Slides every 3.8s)
   useEffect(() => {
@@ -633,6 +653,15 @@ export default function PastPapersScreen({ route }: any) {
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+
+    if (isSearching) {
+      if (distanceToBottom < 650 && canExpandSearchFeed.current) {
+        canExpandSearchFeed.current = false;
+        setSearchFeedLimit((current) => current + SEARCH_FEED_BATCH_SIZE);
+      } else if (distanceToBottom > 900) {
+        canExpandSearchFeed.current = true;
+      }
+    }
 
     if (
       distanceToBottom < 600 &&
@@ -701,27 +730,35 @@ export default function PastPapersScreen({ route }: any) {
     setShowPreviewModal(true);
   }, []);
 
+  const savePastPaperOffline = (item: PDFDocumentItem | PastPaperItem, onProgress?: (progress: number) => void) => saveDownloadedPaper({
+    _id: `pp_${item.id}`,
+    title: item.title,
+    school: item.school || 'Moi University',
+    department: item.unitName || item.unitCode,
+    courseCode: item.unitCode,
+    unitCode: item.unitCode,
+    unitName: item.unitName || item.unitCode,
+    type: 'past_paper',
+    examYear: 2024,
+    fileUrl: item.fileUrl,
+    ttsTextUrl: item.ttsTextUrl,
+    thumbnail: item.thumbnail,
+    fileType: 'pdf',
+    uploadedBy: { _id: 'moi_exams', name: 'Moi University Examination Board' } as any,
+    status: 'approved',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    onProgress
+  });
+
+  const handleRetryPreview = async (item: PDFDocumentItem, onProgress: (progress: number) => void) => {
+    const saved = await savePastPaperOffline(item, onProgress);
+    return saved.localUri || null;
+  };
+
   const handleDownload = async (item: PDFDocumentItem | PastPaperItem) => {
     try {
-      await saveDownloadedPaper({
-        _id: `pp_${item.id}`,
-        title: item.title,
-        school: item.school || 'Moi University',
-        department: item.unitName || item.unitCode,
-        courseCode: item.unitCode,
-        unitCode: item.unitCode,
-        unitName: item.unitName || item.unitCode,
-        type: 'past_paper',
-        examYear: 2024,
-        fileUrl: item.fileUrl,
-        ttsTextUrl: item.ttsTextUrl,
-        thumbnail: item.thumbnail,
-        fileType: 'pdf',
-        uploadedBy: { _id: 'moi_exams', name: 'Moi University Examination Board' } as any,
-        status: 'approved',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+      await savePastPaperOffline(item);
 
       showIceMessage(
         'Downloaded Offline',
@@ -1272,7 +1309,7 @@ export default function PastPapersScreen({ route }: any) {
                     </View>
                   </View>
 
-                  {(searchRecommendations.feedBlocks || []).map((block, bIdx) => {
+                  {visibleSearchFeedBlocks.map((block, bIdx) => {
                     if (block.kind === 'carousel') {
                       return (
                         <PastPaperCarouselSection
@@ -1339,6 +1376,7 @@ export default function PastPapersScreen({ route }: any) {
         document={previewDoc}
         onClose={() => setShowPreviewModal(false)}
         onDownload={handleDownload}
+        onRetryDownload={handleRetryPreview}
       />
     </View>
   );

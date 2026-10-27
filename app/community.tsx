@@ -34,7 +34,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import * as ExpoFileSystem from 'expo-file-system/legacy';
 import { WebView } from 'react-native-webview';
-import { useIsFocused, useFocusEffect } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
 import { STICKERS } from '../src/data/stickers';
@@ -714,6 +714,8 @@ export default function CommunityScreen() {
   useEffect(() => {
     if (isForumFocused && !prevFocusedRef.current) {
       setWallpaperSource(FORUM_WALLPAPERS[getSmartRandomWallpaperIndex()]);
+      setHasLoadedForumWallpaper(false);
+      setIsForumLayoutReady(false);
     }
     prevFocusedRef.current = isForumFocused;
   }, [isForumFocused]);
@@ -726,8 +728,11 @@ export default function CommunityScreen() {
   const [isForumLoading, setIsForumLoading] = useState(true);
   const [forumHeaderHeight, setForumHeaderHeight] = useState(0);
   const [hasForumListLayout, setHasForumListLayout] = useState(false);
+  const [hasForumContentLayout, setHasForumContentLayout] = useState(false);
+  const [hasRenderedForumMessage, setHasRenderedForumMessage] = useState(false);
+  const [hasLoadedForumWallpaper, setHasLoadedForumWallpaper] = useState(false);
+  const [hasComposerLayout, setHasComposerLayout] = useState(false);
   const [isForumLayoutReady, setIsForumLayoutReady] = useState(false);
-  const showForumLoading = isForumLoading || !isForumLayoutReady;
   const displayMessages = React.useMemo(() => {
     // Smart Presence Collapse:
     // Filter out consecutive system presence notices so back-to-back
@@ -746,6 +751,10 @@ export default function CommunityScreen() {
     }
     return collapsed.reverse();
   }, [messages]);
+  const showForumLoading = isForumLoading || !isForumLayoutReady || !hasLoadedForumWallpaper || !hasForumListLayout || !hasForumContentLayout || !hasComposerLayout || (displayMessages.length > 0 && !hasRenderedForumMessage);
+  const forumViewabilityCallback = useRef(({ viewableItems }: { viewableItems: unknown[] }) => {
+    if (viewableItems.length > 0) setHasRenderedForumMessage(true);
+  }).current;
   const reactorIdRef = useRef('');
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -864,10 +873,31 @@ export default function CommunityScreen() {
   const lastSendTimestampRef = useRef<number>(0);
 
   useEffect(() => {
-    if (isForumLoading || !hasForumListLayout) return;
-    const frame = requestAnimationFrame(() => setIsForumLayoutReady(true));
-    return () => cancelAnimationFrame(frame);
-  }, [isForumLoading, hasForumListLayout]);
+    if (
+      isForumLoading ||
+      !hasLoadedForumWallpaper ||
+      !hasForumListLayout ||
+      !hasForumContentLayout ||
+      !hasComposerLayout ||
+      (displayMessages.length > 0 && !hasRenderedForumMessage)
+    ) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setIsForumLayoutReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+    };
+  }, [
+    isForumLoading,
+    hasLoadedForumWallpaper,
+    hasForumListLayout,
+    hasForumContentLayout,
+    hasComposerLayout,
+    displayMessages.length,
+    hasRenderedForumMessage,
+  ]);
 
   useEffect(() => {
     getStudentPersonalDetails(user?._id).then((details) => {
@@ -1495,7 +1525,7 @@ export default function CommunityScreen() {
           const currentHost = data?.hostName || liveBroadcast?.hostName || 'Host';
           const wasHost = liveSessionRef.current?.isHost;
           setLiveBroadcast(null);
-          if (liveSessionRef.current && !liveSessionRef.current.isHost) setLiveEnded(true);
+          if (liveSessionRef.current) setLiveEnded(true);
 
           const now = new Date();
           const liveEndMsg: CommunityMessage = {
@@ -3212,49 +3242,18 @@ export default function CommunityScreen() {
     );
   }, [activeReactionMsgId]);
 
-  const [isExitingForum, setIsExitingForum] = useState(false);
-  const isActivelyExitingRef = useRef(false);
-  const isActuallyExiting = isExitingForum && isActivelyExitingRef.current;
-
-  // Ensure exiting state is strictly cleared when entering / focusing or blurring
-  useFocusEffect(
-    useCallback(() => {
-      isActivelyExitingRef.current = false;
-      setIsExitingForum(false);
-      return () => {
-        isActivelyExitingRef.current = false;
-        setIsExitingForum(false);
-      };
-    }, [])
-  );
-
   const handleExitForum = useCallback(() => {
-    if (isActivelyExitingRef.current) return;
     try {
       Keyboard.dismiss();
     } catch {}
     setShowStickerPicker(false);
     dismissMentionSuggestions();
-    isActivelyExitingRef.current = true;
-    setIsExitingForum(true);
-
-    setTimeout(() => {
-      isActivelyExitingRef.current = false;
-      setIsExitingForum(false);
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.push('/(tabs)');
-      }
-    }, 280);
-  }, [router]);
-
-  useEffect(() => {
-    if (isForumFocused) {
-      isActivelyExitingRef.current = false;
-      setIsExitingForum(false);
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push('/(tabs)');
     }
-  }, [isForumFocused]);
+  }, [router]);
 
   useEffect(() => {
     const onHardwareBack = () => {
@@ -3282,7 +3281,7 @@ export default function CommunityScreen() {
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Top Header Banner */}
@@ -3406,15 +3405,19 @@ export default function CommunityScreen() {
           style={styles.chatBackground}
           imageStyle={styles.chatWallpaperImage}
           resizeMode="cover"
+          onLoadEnd={() => setHasLoadedForumWallpaper(true)}
+          onError={() => setHasLoadedForumWallpaper(true)}
         >
           <FlatList
             ref={flatListRef}
             data={displayMessages}
             extraData={activeReactionMsgId}
             CellRendererComponent={renderCommunityCell}
+            onViewableItemsChanged={forumViewabilityCallback}
             onLayout={() => setHasForumListLayout(true)}
             onContentSizeChange={() => {
               setHasForumListLayout(true);
+              setHasForumContentLayout(true);
               if (scrollLatestAfterLayoutRef.current) {
                 scrollLatestAfterLayoutRef.current = false;
                 requestAnimationFrame(() => {
@@ -3574,7 +3577,7 @@ export default function CommunityScreen() {
                           return (
                             <TouchableOpacity
                               activeOpacity={0.9}
-                              delayLongPress={1500}
+                              delayLongPress={500}
                               onLongPress={() => setSelectedMsgForOptions(item)}
                               onPress={() => {
                                 if (isPickerOpen) setActiveReactionMsgId(null);
@@ -3623,11 +3626,11 @@ export default function CommunityScreen() {
 
                               {item.stickerId && (
                                 STICKER_SOURCES[item.stickerId] ? (
-                                  <TouchableOpacity activeOpacity={1} delayLongPress={1500} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                  <TouchableOpacity activeOpacity={1} delayLongPress={500} onLongPress={() => setSelectedMsgForOptions(item)}>
                                     <Image source={STICKER_SOURCES[item.stickerId]} style={styles.sentStickerImage} resizeMode="contain" />
                                   </TouchableOpacity>
                                 ) : (item.stickerId.startsWith('http://') || item.stickerId.startsWith('https://') || item.stickerId.startsWith('data:image/')) ? (
-                                  <TouchableOpacity activeOpacity={1} delayLongPress={1500} onLongPress={() => setSelectedMsgForOptions(item)}>
+                                  <TouchableOpacity activeOpacity={1} delayLongPress={500} onLongPress={() => setSelectedMsgForOptions(item)}>
                                     <Image source={{ uri: item.stickerId }} style={styles.sentStickerImage} resizeMode="contain" />
                                   </TouchableOpacity>
                                 ) : null
@@ -3639,7 +3642,7 @@ export default function CommunityScreen() {
                                   {hasMedia ? (
                                     <TouchableOpacity
                                       style={styles.chatMediaPreview}
-                                      delayLongPress={1500}
+                                      delayLongPress={500}
                                       onLongPress={() => setSelectedMsgForOptions(item)}
                                       onPress={() => {
                                         const fileKey = item.fileAttachment?.paperId || item.fileAttachment?.url;
@@ -4203,17 +4206,15 @@ export default function CommunityScreen() {
               </View>
             </>
           )}
-          {!showForumLoading && !isActuallyExiting && allowCommunityChat && forumParticipationAllowed ? <View style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
+          {allowCommunityChat && forumParticipationAllowed ? <View onLayout={() => setHasComposerLayout(true)} style={[styles.inputContainer, { paddingBottom: composerPaddingBottom }]}>
             {(() => {
               if (showForumLoading || !liveBroadcast || liveSession) return null;
               const isMyBroadcast = Boolean(user?._id && liveBroadcast.hostId && String(liveBroadcast.hostId) === String(user._id));
               const isDismissed = Boolean(dismissedLiveBannerKey && dismissedLiveBannerKey === liveBroadcastKey);
               if (!isMyBroadcast && isDismissed) return null;
 
-              const dynamicMarginBottom = (replyingTo ? 56 : 0) + (selectedFile ? 60 : 0) + 8;
-
               return (
-                <View style={[styles.liveJoinBanner, { marginBottom: dynamicMarginBottom }]}>
+                <View style={styles.liveJoinBanner}>
                   <View style={styles.liveJoinBannerInfo}>
                     <View style={styles.liveJoinDotWrap}>
                       <Animated.View
@@ -4375,13 +4376,13 @@ export default function CommunityScreen() {
             </TouchableOpacity>
             </View>
           </View> : (
-            !showForumLoading && !isActuallyExiting && <View style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
+            <View onLayout={() => setHasComposerLayout(true)} style={[styles.chatDisabledNotice, { marginBottom: !isKeyboardVisible && Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 10 : 10 }]}>
               <Text style={styles.chatDisabledNoticeText}>{allowCommunityChat ? 'You are not eligible for forum participation' : 'Community chat disabled by administrator'}</Text>
             </View>
           )}
         </ImageBackground>
 
-        {(showForumLoading || isActuallyExiting) && (
+        {showForumLoading && (
           <View
             style={[styles.forumLoadingOverlay, forumHeaderHeight > 0 && { top: forumHeaderHeight }]}
             pointerEvents="auto"
@@ -4389,7 +4390,7 @@ export default function CommunityScreen() {
             <View style={styles.forumLoadingCard}>
               <ActivityIndicator color="#15803d" size="small" />
               <Text style={styles.forumLoadingText}>
-                {isActuallyExiting ? 'Exiting Forum…' : 'Logging you into Forum…'}
+                Logging you into Forum…
               </Text>
             </View>
           </View>
@@ -7078,13 +7079,11 @@ const styles = StyleSheet.create({
     marginLeft: 8
   },
   liveJoinBanner: {
-    position: 'absolute',
-    bottom: '100%',
-    left: 8,
-    right: 8,
     minHeight: 44,
     paddingLeft: 14,
     paddingRight: 8,
+    marginHorizontal: 8,
+    marginBottom: 8,
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#fca5a5',

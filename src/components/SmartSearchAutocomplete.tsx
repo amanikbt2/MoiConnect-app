@@ -86,8 +86,14 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
         });
       });
 
-      // Add popular trending topics (up to 3)
-      POPULAR_CAMPUS_SEARCHES.slice(0, 3).forEach((pop, idx) => {
+      // Rotate the trending picks each time the empty-query dropdown opens,
+      // so the same first three searches are not always shown.
+      const shuffledPopular = [...POPULAR_CAMPUS_SEARCHES];
+      for (let index = shuffledPopular.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffledPopular[index], shuffledPopular[swapIndex]] = [shuffledPopular[swapIndex], shuffledPopular[index]];
+      }
+      shuffledPopular.slice(0, 3).forEach((pop, idx) => {
         items.push({
           id: `pop-${idx}-${pop}`,
           type: 'trending',
@@ -437,7 +443,7 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
     }
 
     return topSuggestions.slice(0, 6);
-  }, [trimmed, queryTokens, historyEntries, showMaterialTypeSuggestion, query]);
+  }, [trimmed, queryTokens, historyEntries, showMaterialTypeSuggestion, query, visible]);
 
   if (!visible || suggestions.length === 0) {
     return null;

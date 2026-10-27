@@ -422,27 +422,35 @@ export default function AcademicsScreen({ route }: any) {
     setShowPreviewModal(true);
   }, []);
 
+  const saveNoteOffline = (doc: PDFDocumentItem, onProgress?: (progress: number) => void) => saveDownloadedPaper({
+    _id: `note_${doc.id}`,
+    title: doc.title,
+    school: doc.school || 'Moi University',
+    department: doc.unitName || doc.unitCode,
+    courseCode: doc.unitCode,
+    unitCode: doc.unitCode,
+    unitName: doc.unitName || doc.unitCode,
+    type: 'notes',
+    examYear: 2025,
+    fileUrl: doc.fileUrl,
+    thumbnail: doc.thumbnail,
+    ttsTextUrl: doc.ttsTextUrl,
+    fileType: 'pdf',
+    uploadedBy: { _id: 'moi_lecturer', name: doc.author || 'Moi Faculty' } as any,
+    status: 'approved',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    onProgress
+  });
+
+  const handleRetryPreview = async (doc: PDFDocumentItem, onProgress: (progress: number) => void) => {
+    const saved = await saveNoteOffline(doc, onProgress);
+    return saved.localUri || null;
+  };
+
   const handleDownload = async (doc: PDFDocumentItem) => {
     try {
-      await saveDownloadedPaper({
-        _id: `note_${doc.id}`,
-        title: doc.title,
-        school: doc.school || 'Moi University',
-        department: doc.unitName || doc.unitCode,
-        courseCode: doc.unitCode,
-        unitCode: doc.unitCode,
-        unitName: doc.unitName || doc.unitCode,
-        type: 'notes',
-        examYear: 2025,
-        fileUrl: doc.fileUrl,
-        thumbnail: doc.thumbnail,
-        ttsTextUrl: doc.ttsTextUrl,
-        fileType: 'pdf',
-        uploadedBy: { _id: 'moi_lecturer', name: doc.author || 'Moi Faculty' } as any,
-        status: 'approved',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+      await saveNoteOffline(doc);
 
       showIceMessage(
         'Downloaded Offline',
@@ -1640,6 +1648,7 @@ export default function AcademicsScreen({ route }: any) {
         document={previewDoc}
         onClose={() => setShowPreviewModal(false)}
         onDownload={handleDownload}
+        onRetryDownload={handleRetryPreview}
       />
     </View>
   );

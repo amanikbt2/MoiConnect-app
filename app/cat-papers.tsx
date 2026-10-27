@@ -81,6 +81,7 @@ const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [];
 const PAPER_PAGE_SIZE = 60;
 const DISCOVERY_BLOCK_SIZE = 6;
 const SEARCH_TOP_MATCH_LIMIT = 6;
+const SEARCH_FEED_BATCH_SIZE = 12;
 
 const FILTER_DISCS = [
   { id: 'all', label: 'All CAT Papers', iconType: 'all' },
@@ -386,7 +387,9 @@ export default function CatPapersScreen({ route }: any) {
           : [];
         setCatsData((previous) => {
           if (isSearch && !append) {
-            return rankMaterials(nextPapers, searchTerm.trim());
+            // The API already sorts search hits by relevance. The UI smart
+            // ranker handles them once, avoiding another synchronous pass.
+            return nextPapers;
           }
           const merged = append ? [...previous, ...nextPapers] : nextPapers;
           const unique = Array.from(new Map(merged.map((paper) => [paper.id, paper])).values());
@@ -545,6 +548,22 @@ export default function CatPapersScreen({ route }: any) {
     );
   }, [allPool, visibleTopMatches, submittedSearchQuery, smartSearch.intent, user, searchHistory, isSearching]);
 
+  const [searchFeedLimit, setSearchFeedLimit] = useState(SEARCH_FEED_BATCH_SIZE);
+  const canExpandSearchFeed = useRef(true);
+  const visibleSearchFeedBlocks = React.useMemo(() => {
+    let remaining = searchFeedLimit;
+    return (searchRecommendations.feedBlocks || []).map((block) => {
+      const items = block.items.slice(0, remaining);
+      remaining -= items.length;
+      return { ...block, items };
+    }).filter((block) => block.items.length > 0);
+  }, [searchRecommendations.feedBlocks, searchFeedLimit]);
+
+  useEffect(() => {
+    setSearchFeedLimit(SEARCH_FEED_BATCH_SIZE);
+    canExpandSearchFeed.current = true;
+  }, [submittedSearchQuery]);
+
   const searchCarouselListRef = useRef<FlatList>(null);
   const isSearchCarouselInteracting = useRef(false);
   const [searchCarouselIndex, setSearchCarouselIndex] = useState(0);
@@ -572,6 +591,15 @@ export default function CatPapersScreen({ route }: any) {
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+
+    if (isSearching) {
+      if (distanceToBottom < 650 && canExpandSearchFeed.current) {
+        canExpandSearchFeed.current = false;
+        setSearchFeedLimit((current) => current + SEARCH_FEED_BATCH_SIZE);
+      } else if (distanceToBottom > 900) {
+        canExpandSearchFeed.current = true;
+      }
+    }
 
     if (
       distanceToBottom < 600 &&
@@ -1211,7 +1239,7 @@ export default function CatPapersScreen({ route }: any) {
                     </View>
                   </View>
 
-                  {(searchRecommendations.feedBlocks || []).map((block, bIdx) => {
+                  {visibleSearchFeedBlocks.map((block, bIdx) => {
                     if (block.kind === 'carousel') {
                       return (
                         <CatFeedCarousel

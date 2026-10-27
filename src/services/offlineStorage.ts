@@ -295,7 +295,7 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     updatedAt: new Date().toISOString(),
     localUri: undefined,
     status: 'downloading',
-    progress: 0,
+    progress: existingPaper?.progress || 0,
     pinned: existingPaper?.pinned || false
   };
 
@@ -332,10 +332,17 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     const privateDirectory = `${FileSystem.documentDirectory}offline-materials/`;
     await FileSystem.makeDirectoryAsync(privateDirectory, { intermediates: true });
     const localUri = `${privateDirectory}moi_material_${safeName}.${extension}`;
-    await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
+    const partialInfo = await FileSystem.getInfoAsync(localUri).catch(() => null);
+    const canResumePartial = Platform.OS === 'android' && existingPaper?.fileUrl === newPaperItem.fileUrl;
+    const resumeOffset = canResumePartial && partialInfo?.exists && partialInfo.size
+      ? partialInfo.size
+      : 0;
+    if (partialInfo?.exists && !resumeOffset) {
+      await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
+    }
     let lastProgress = 0;
     let lastProgressAt = 0;
-    const task = FileSystem.createDownloadResumable(
+    const createTask = (offset: number) => FileSystem.createDownloadResumable(
       newPaperItem.fileUrl,
       localUri,
       {},
@@ -348,11 +355,22 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
           reportProgress(progress);
           void updatePaperDownloadState(targetId, { progress });
         }
-      }
+      },
+      offset > 0 ? String(offset) : undefined
     );
+    let task = createTask(resumeOffset);
     activeDownloadTasks[targetId] = task;
-    const result = await task.downloadAsync();
+    let result = await task.downloadAsync();
     delete activeDownloadTasks[targetId];
+    // Some origins ignore Range and answer with a full 200 response. Since
+    // Expo appends resumed Android downloads, restart cleanly to avoid corrupt PDFs.
+    if (resumeOffset > 0 && (result?.status === 200 || result?.status === 416)) {
+      await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
+      task = createTask(0);
+      activeDownloadTasks[targetId] = task;
+      result = await task.downloadAsync();
+      delete activeDownloadTasks[targetId];
+    }
     if (!result?.uri || result.status < 200 || result.status >= 300) {
       throw new Error(`PDF download did not complete successfully${result?.status ? ` (${result.status})` : ''}.`);
     }
@@ -422,8 +440,18 @@ export const savePaperForOffline = async (paperInput: any): Promise<OfflinePaper
     delete activeDownloadTasks[targetId];
     const safeName = `${targetId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
     const extension = newPaperItem.fileType === 'pdf' ? 'pdf' : (newPaperItem.fileType || 'bin').replace(/[^a-zA-Z0-9]/g, '');
-    await FileSystem.deleteAsync(`${FileSystem.documentDirectory}offline-materials/moi_material_${safeName}.${extension}`, { idempotent: true }).catch(() => undefined);
-    await updatePaperDownloadState(targetId, { status: 'failed', progress: 0, localUri: undefined });
+    const partialUri = `${FileSystem.documentDirectory}offline-materials/moi_material_${safeName}.${extension}`;
+    const partialInfo = await FileSystem.getInfoAsync(partialUri).catch(() => null);
+    const keepPartial = Platform.OS === 'android' && Boolean(partialInfo?.exists && partialInfo.size);
+    if (!keepPartial) {
+      await FileSystem.deleteAsync(partialUri, { idempotent: true }).catch(() => undefined);
+    }
+    const latestPaper = (await getDownloadedPapers(false)).find((paper) => paper._id === targetId);
+    await updatePaperDownloadState(targetId, {
+      status: 'failed',
+      progress: keepPartial ? (latestPaper?.progress || existingPaper?.progress || 0) : 0,
+      localUri: undefined
+    });
     throw error;
   }
 };
@@ -433,12 +461,6 @@ export const retryPaperDownload = async (paperId: string) => {
   const existingStr = await getItem(OFFLINE_PAPERS_KEY);
   const paper = existingStr ? (JSON.parse(existingStr) as OfflinePaper[]).find((item) => item._id === paperId) : undefined;
   if (!paper) return;
-  if (paper.localUri && Platform.OS !== 'web') {
-    await FileSystem.deleteAsync(paper.localUri, { idempotent: true }).catch(() => undefined);
-  }
-  if (paper.ttsLocalUri && Platform.OS !== 'web') {
-    await FileSystem.deleteAsync(paper.ttsLocalUri, { idempotent: true }).catch(() => undefined);
-  }
   await savePaperForOffline({ ...paper, localUri: undefined, ttsLocalUri: undefined });
 };
 export const togglePinOfflinePaper = async (paperId: string) => {

@@ -4,6 +4,7 @@
     "slug": "moiconnect",
     "version": "3.0.0",
     "orientation": "default",
+    "softwareKeyboardLayoutMode": "resize",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [

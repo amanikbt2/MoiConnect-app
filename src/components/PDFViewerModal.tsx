@@ -12,12 +12,12 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
-  Image,
   useWindowDimensions
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as NavigationBar from 'expo-navigation-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, RotateDeviceIcon } from './Icons';
 import { OfflineState } from './OfflineState';
@@ -67,6 +67,7 @@ interface PDFViewerModalProps {
   document: PDFDocumentItem | null;
   onClose: () => void;
   onDownload: (doc: PDFDocumentItem) => void;
+  onRetryDownload?: (doc: PDFDocumentItem, onProgress: (progress: number) => void) => Promise<string | null>;
 }
 
 export function formatCount(input: number | string | undefined | null): string {
@@ -154,7 +155,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   visible,
   document,
   onClose,
-  onDownload
+  onDownload,
+  onRetryDownload
 }) => {
   const [activePage, setActivePage] = useState(1);
   const [actualPageCount, setActualPageCount] = useState<number | null>(null);
@@ -166,6 +168,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [downloadInfo, setDownloadInfo] = useState<{
     status?: 'downloading' | 'completed' | 'failed';
     progress?: number;
+    localUri?: string;
   }>({});
 
   const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 1.0, speechPitch: 0.8 });
@@ -176,8 +179,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const ttsSessionRef = useRef(0);
   const [hasPdfLoadError, setHasPdfLoadError] = useState<boolean>(false);
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(true);
+  const [pdfLoadProgress, setPdfLoadProgress] = useState<number | null>(null);
+  const lastPdfProgressAt = useRef<number>(Date.now());
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const loadedLocalPdfUri = useRef<string | null>(null);
   const [pdfEngineSources, setPdfEngineSources] = useState<{ core: string; worker: string } | null>(null);
   const pdfReadyRef = useRef(false);
   const [isLandscape, setIsLandscape] = useState(false);
@@ -186,19 +192,28 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   useEffect(() => {
     if (!visible) {
       setIsLandscape(false);
+      if (Platform.OS === 'android') NavigationBar.setHidden(false);
       return;
     }
     if (Platform.OS === 'web') return;
     setIsLandscape(false);
+    if (Platform.OS === 'android') NavigationBar.setHidden(false);
     void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((error) => {
       console.warn('[PDF Reader] Could not set portrait orientation:', error);
     });
     return () => {
+      if (Platform.OS === 'android') NavigationBar.setHidden(false);
       void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((error) => {
         console.warn('[PDF Reader] Could not restore portrait orientation:', error);
       });
     };
   }, [visible]);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setHidden(Boolean(visible && isLandscape));
+    }
+  }, [visible, isLandscape]);
 
   const toggleReaderOrientation = async () => {
     const nextIsLandscape = !isLandscape;
@@ -277,30 +292,62 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   useEffect(() => {
     setActualPageCount(null);
     pdfReadyRef.current = false;
+    lastPdfProgressAt.current = Date.now();
+    setPdfLoadProgress(null);
     setIsPdfLoading(Boolean(visible && document?.fileUrl));
     setHasPdfLoadError(false);
     if (!visible || !document?.fileUrl) return;
 
     if (Platform.OS === 'web') {
-      const webTimer = setTimeout(() => {
-        pdfReadyRef.current = true;
-        setIsPdfLoading(false);
-      }, 1500);
-      return () => clearTimeout(webTimer);
+      const timeout = setTimeout(() => {
+        if (!pdfReadyRef.current) {
+          setIsPdfLoading(false);
+          setHasPdfLoadError(true);
+        }
+      }, 180000);
+      return () => clearTimeout(timeout);
     }
 
-    const timeout = setTimeout(() => {
-      if (!pdfReadyRef.current) {
+    // Let a slow but active transfer continue; fail only after progress stalls.
+    const watchdog = setInterval(() => {
+      if (!pdfReadyRef.current && Date.now() - lastPdfProgressAt.current >= 120000) {
         setIsPdfLoading(false);
         setHasPdfLoadError(true);
       }
-    }, 45000);
-    return () => clearTimeout(timeout);
+    }, 10000);
+    return () => clearInterval(watchdog);
   }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
 
-  const handleRetryPdfLoad = () => {
+  const handleRetryPdfLoad = async () => {
+    if (Platform.OS !== 'web' && document && onRetryDownload) {
+      setIsPdfRetrying(true);
+      setIsPdfLoading(true);
+      setHasPdfLoadError(false);
+      setPdfLoadProgress(0);
+      lastPdfProgressAt.current = Date.now();
+      try {
+        const localUri = await onRetryDownload(document, (progress) => {
+          lastPdfProgressAt.current = Date.now();
+          setPdfLoadProgress(progress);
+        });
+        if (!localUri) throw new Error('The PDF download did not finish.');
+        loadedLocalPdfUri.current = localUri;
+        const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
+        pdfReadyRef.current = false;
+        setPdfBase64(base64);
+      } catch (error) {
+        console.warn('[PDF Reader] Resumable download failed:', error);
+        setIsPdfLoading(false);
+        setHasPdfLoadError(true);
+      } finally {
+        setIsPdfRetrying(false);
+      }
+      return;
+    }
     setIsPdfRetrying(true);
     setHasPdfLoadError(false);
+    setPdfLoadProgress(null);
+    lastPdfProgressAt.current = Date.now();
     setPdfRetryKey((k) => k + 1);
     setTimeout(() => {
       setIsPdfRetrying(false);
@@ -413,6 +460,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     if (!document) return;
     setActivePage(1);
     setZoomScale(1.0);
+    loadedLocalPdfUri.current = null;
+    setPdfBase64(null);
     setHasPdfLoadError(false);
     setIsPdfRetrying(false);
     const docId = document.id;
@@ -425,7 +474,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           p.title === document.title
       );
       if (found) {
-        setDownloadInfo({ status: found.status, progress: found.progress });
+        setDownloadInfo({ status: found.status, progress: found.progress, localUri: found.localUri });
       } else {
         setDownloadInfo({});
       }
@@ -433,6 +482,29 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
     return () => unsubscribe();
   }, [document]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !visible || !document?.fileUrl || !downloadInfo.localUri) return;
+    const sourceUrl = resolveRawPdfUrl(document.fileUrl);
+    if (/^(file|content|offline-web):/i.test(sourceUrl) || loadedLocalPdfUri.current === downloadInfo.localUri) return;
+
+    let cancelled = false;
+    const localUri = downloadInfo.localUri;
+    FileSystem.readAsStringAsync(localUri, { encoding: 'base64' }).then((base64) => {
+      if (cancelled) return;
+      loadedLocalPdfUri.current = localUri;
+      pdfReadyRef.current = false;
+      lastPdfProgressAt.current = Date.now();
+      setPdfLoadProgress(null);
+      setPdfBase64(base64);
+      setIsPdfLoading(true);
+      setHasPdfLoadError(false);
+    }).catch((error) => {
+      console.warn('[PDF Reader] Could not open the completed local PDF; keeping the online preview:', error);
+    });
+
+    return () => { cancelled = true; };
+  }, [downloadInfo.localUri, document?.fileUrl, visible]);
 
   useEffect(() => {
     if (downloadInfo.status === 'downloading') {
@@ -613,14 +685,21 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     } else {
       initialOptions = {
         url: fileUrl,
-        disableRange: true,
-        disableStream: true,
+        // Fetch the PDF in small byte ranges so the first page can render
+        // quickly on slow connections and interrupted requests can resume.
+        rangeChunkSize: 64 * 1024,
+        disableRange: false,
+        disableStream: false,
         disableAutoFetch: true
       };
     }
 
     function loadDocument(options, isRetry) {
-      pdfjsLib.getDocument(options).promise.then(function(pdf){
+      var loadingTask = pdfjsLib.getDocument(options);
+      loadingTask.onProgress = function(progress){
+        report({type:'pdfProgress',loaded:progress.loaded,total:progress.total});
+      };
+      loadingTask.promise.then(function(pdf){
         report({type:'pdfPageCount',count:pdf.numPages});
         var container = document.getElementById('container');
         var screenWidth = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0, 360);
@@ -660,8 +739,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           // Fallback to direct URL if streaming proxy has issues
           loadDocument({
             url: rawFileUrl,
-            disableRange: true,
-            disableStream: true,
+            rangeChunkSize: 64 * 1024,
+            disableRange: false,
+            disableStream: false,
             disableAutoFetch: true
           }, true);
         } else {
@@ -926,7 +1006,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
         {/* Instant PDF Preview Container */}
         <View style={styles.bodyContainer}>
-          {hasPdfLoadError ? (
+          {hasPdfLoadError && !isPdfRetrying ? (
             <View style={styles.pdfErrorWrapper}>
               <OfflineState
                 title="Failed to load PDF"
@@ -934,47 +1014,39 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 onRetry={handleRetryPdfLoad}
                 retrying={isPdfRetrying}
               />
-              {Platform.OS === 'web' && hasRealDocument ? (
-                <TouchableOpacity
-                  style={{
-                    marginTop: 18,
-                    paddingVertical: 12,
-                    paddingHorizontal: 22,
-                    backgroundColor: '#15803d',
-                    borderRadius: 10,
-                    alignSelf: 'center',
-                    alignItems: 'center'
-                  }}
-                  onPress={() => {
-                    const urlToOpen = embeddedFileUrl ? embeddedFileUrl.split('#')[0] : fileUrl;
-                    if (typeof window !== 'undefined' && urlToOpen) {
-                      window.open(urlToOpen, '_blank');
-                    }
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>
-                    Open PDF in New Browser Tab ↗
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
+            </View>
+          ) : Platform.OS !== 'web' && isPdfRetrying && !pdfBase64 ? (
+            <View style={styles.viewerLoading}>
+              <ActivityIndicator color="#15803d" size="large" />
+              <Text style={styles.viewerLoadingText}>
+                Saving PDF for reliable reading... {pdfLoadProgress ?? 0}%
+              </Text>
             </View>
           ) : Platform.OS === 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>
               <iframe
-                key={pdfRetryKey}
+                key={`${pdfRetryKey}-${pdfBase64 ? 'offline' : 'online'}`}
                 src={embeddedFileUrl}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title={document.title}
-                  onLoad={() => {
-                    pdfReadyRef.current = true;
+                onLoad={() => {
+                  pdfReadyRef.current = true;
+                  setIsPdfLoading(false);
+                  setHasPdfLoadError(false);
+                }}
+                onError={() => {
+                  if (!pdfReadyRef.current) {
                     setIsPdfLoading(false);
-                    setHasPdfLoadError(false);
-                  }}
-                  onError={() => {
-                    if (!pdfReadyRef.current) setHasPdfLoadError(true);
-                  }}
+                    setHasPdfLoadError(true);
+                  }
+                }}
               />
+              {isPdfLoading && (
+                <View style={styles.webLoadingOverlay} pointerEvents="none">
+                  <ActivityIndicator color="#15803d" size="large" />
+                  <Text style={styles.webLoadingText}>Preparing pages…</Text>
+                </View>
+              )}
             </View>
           ) : Platform.OS !== 'web' && hasRealDocument ? (
             <View style={styles.webViewerWrapper}>
@@ -989,6 +1061,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 allowFileAccessFromFileURLs
                 allowUniversalAccessFromFileURLs
                 mixedContentMode="always"
+                cacheEnabled
+                cacheMode="LOAD_DEFAULT"
                 startInLoadingState
                 renderLoading={() => (
                   <View style={styles.viewerLoading}>
@@ -996,7 +1070,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
                   </View>
                 )}
-                onLoadStart={() => { setIsPdfLoading(true); setHasPdfLoadError(false); }}
+                onLoadStart={() => {
+                  lastPdfProgressAt.current = Date.now();
+                  setIsPdfLoading(true);
+                  setHasPdfLoadError(false);
+                }}
                 onMessage={(event) => {
                   try {
                     const message = JSON.parse(event.nativeEvent.data);
@@ -1006,6 +1084,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                       pdfReadyRef.current = true;
                       setIsPdfLoading(false);
                       setHasPdfLoadError(false);
+                    } else if (message?.type === 'pdfProgress') {
+                      lastPdfProgressAt.current = Date.now();
+                      if (Number.isFinite(message.loaded) && Number.isFinite(message.total) && message.total > 0) {
+                        setPdfLoadProgress(Math.max(0, Math.min(100, Math.round((message.loaded / message.total) * 100))));
+                      }
                     } else if (message?.type === 'pdfError') {
                       console.warn('[PDF Reader WebView Error]:', message.error);
                       if (!pdfReadyRef.current) {
@@ -1031,16 +1114,13 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               />
               {isPdfLoading && (
                 <View style={styles.nativeLoadingOverlay} pointerEvents="none">
-                  {document.thumbnail ? (
-                    <Image
-                      source={{ uri: document.thumbnail }}
-                      style={styles.loadingThumbnailPreview}
-                      resizeMode="contain"
-                    />
-                  ) : null}
                   <View style={styles.loadingPillBadge}>
                     <ActivityIndicator color="#ffffff" size="small" />
-                    <Text style={styles.loadingPillBadgeText}>Loading document...</Text>
+                    <Text style={styles.loadingPillBadgeText}>
+                      {isPdfRetrying
+                        ? `Saving PDF... ${pdfLoadProgress ?? 0}%`
+                        : pdfLoadProgress === null ? 'Loading document...' : `Loading document... ${pdfLoadProgress}%`}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -1355,6 +1435,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     position: 'relative'
   },
+  webLoadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#f8fafc'
+  },
+  webLoadingText: {
+    color: '#475569',
+    fontSize: 13,
+    fontWeight: '700'
+  },
   nativeViewer: {
     flex: 1,
     backgroundColor: '#ffffff'
@@ -1375,13 +1467,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fafc'
-  },
-  loadingThumbnailPreview: {
-    ...StyleSheet.absoluteFill,
-    width: '100%',
-    height: '100%',
-    opacity: 0.9,
     backgroundColor: '#f8fafc'
   },
   loadingPillBadge: {

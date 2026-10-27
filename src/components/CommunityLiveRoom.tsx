@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Image, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Participant, Room, RoomEvent, Track } from 'livekit-client';
+import { DefaultReconnectPolicy, Participant, Room, RoomEvent, Track } from 'livekit-client';
 import { CameraIcon, CameraOffIcon, MicIcon, MicOffIcon } from './Icons';
+import { apiRequest } from '../services/api';
 
 let AudioSession: any = null;
 let VideoView: any = null;
@@ -156,7 +157,10 @@ export function CommunityLiveRoom({
         maxBitrate: 350000,
         maxFramerate: 24
       }
-    }
+    },
+    // Mobile networks often pause for longer than the SDK's short default window.
+    // Keep LiveKit's in-room recovery alive long enough for cellular/Wi-Fi handoffs.
+    reconnectPolicy: new DefaultReconnectPolicy([0, 500, 1000, 1500, 2500, 4000, 6000, 8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000])
   }), []);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
@@ -172,6 +176,12 @@ export function CommunityLiveRoom({
   const [connectionEnded, setConnectionEnded] = useState(false);
   const unifiedPressedRef = useRef(false);
   const userExitedRef = useRef(false);
+  const networkOnlineRef = useRef(isNetworkOnline);
+  networkOnlineRef.current = isNetworkOnline;
+  const micWantedRef = useRef(isHost);
+  const cameraWantedRef = useRef(isHost);
+  useEffect(() => { micWantedRef.current = !muted; }, [muted]);
+  useEffect(() => { cameraWantedRef.current = !cameraOff; }, [cameraOff]);
   const handleExit = () => {
     userExitedRef.current = true;
     onClose();
@@ -203,8 +213,63 @@ export function CommunityLiveRoom({
 
   useEffect(() => {
     let cancelled = false;
+    let recoveryRunning = false;
+    let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+    let resolveRecoveryWait: (() => void) | null = null;
     const refreshParticipants = () => {
       if (!cancelled) setParticipants([room.localParticipant, ...Array.from(room.remoteParticipants.values())]);
+    };
+    const waitBeforeRetry = (delay: number) => new Promise<void>((resolve) => {
+      resolveRecoveryWait = resolve;
+      recoveryTimer = setTimeout(() => {
+        recoveryTimer = null;
+        resolveRecoveryWait = null;
+        resolve();
+      }, delay);
+    });
+    const restoreAfterDisconnect = async () => {
+      if (recoveryRunning || cancelled || userExitedRef.current) return;
+      recoveryRunning = true;
+      setConnectionEnded(false);
+      setIsReconnecting(true);
+      setError('');
+      let attempt = 0;
+      while (!cancelled && !userExitedRef.current) {
+        // Avoid repeatedly opening sockets while Android has backgrounded the app or is offline.
+        if (AppState.currentState !== 'active' || !networkOnlineRef.current) {
+          await waitBeforeRetry(1500);
+          continue;
+        }
+        try {
+          const refreshed = await apiRequest<{ url: string; token: string }>(`/community/live/token?role=${isHost ? 'host' : 'viewer'}`);
+          if (!refreshed.success || !refreshed.data?.url || !refreshed.data?.token) {
+            throw new Error(refreshed.error || 'Could not refresh live connection credentials.');
+          }
+          await room.connect(refreshed.data.url, refreshed.data.token, { autoSubscribe: true });
+          if (cancelled || userExitedRef.current) return;
+          if (cameraWantedRef.current) {
+            try {
+              await room.localParticipant.setCameraEnabled(true, { resolution: { width: 640, height: 360, frameRate: 20 } });
+            } catch (cameraError) { console.info('[LiveKit] Camera restore skipped:', cameraError); }
+          }
+          if (micWantedRef.current) {
+            try {
+              await room.localParticipant.setMicrophoneEnabled(true, { autoGainControl: true, echoCancellation: true, noiseSuppression: false });
+            } catch (audioError) { console.info('[LiveKit] Microphone restore skipped:', audioError); }
+          }
+          refreshParticipants();
+          onReadyRef.current?.();
+          setIsReconnecting(false);
+          setConnectionEnded(false);
+          recoveryRunning = false;
+          return;
+        } catch (reconnectError) {
+          attempt += 1;
+          console.warn('[LiveKit] Rejoin attempt failed; keeping the live room open:', reconnectError);
+          await waitBeforeRetry(Math.min(1000 * 2 ** Math.min(attempt, 3), 8000));
+        }
+      }
+      recoveryRunning = false;
     };
 
     const connect = async () => {
@@ -303,7 +368,7 @@ export function CommunityLiveRoom({
         refreshParticipants();
       } catch (err: any) {
         if (!cancelled) {
-          setError(err?.message || 'Unable to connect to the live room.');
+          if (!recoveryRunning) setError(err?.message || 'Unable to connect to the live room.');
           setIsInitialLoading(false);
         }
       }
@@ -341,16 +406,18 @@ export function CommunityLiveRoom({
       .on(RoomEvent.Reconnecting, () => { setIsReconnecting(true); setConnectionEnded(false); })
       .on(RoomEvent.Reconnected, () => { setIsReconnecting(false); setConnectionEnded(false); refreshParticipants(); })
       .on(RoomEvent.Disconnected, (reason?: any) => {
-        setIsReconnecting(false);
         if (cancelled || userExitedRef.current) return;
         console.warn('[LiveKit] Room disconnected, reason:', reason);
-        setConnectionEnded(true);
+        // Don't present a transient mobile network drop as the host ending the broadcast.
+        void restoreAfterDisconnect();
       });
     void connect();
 
     return () => {
       cancelled = true;
       clearTimeout(initialSafetyTimer);
+      if (recoveryTimer) clearTimeout(recoveryTimer);
+      resolveRecoveryWait?.();
       room.removeAllListeners();
       room.disconnect();
       if (AudioSession?.stopAudioSession) {
@@ -638,6 +705,7 @@ export function CommunityLiveRoom({
         </TouchableOpacity>
       </View>
 
+      <View style={styles.roomBody}>
       {connectionEnded ? (
         <View style={styles.endedCardContainer}>
           <View style={styles.endedCard}>
@@ -772,6 +840,7 @@ export function CommunityLiveRoom({
           )}
         </>
       )}
+      </View>
     </View>
   );
 }
@@ -786,6 +855,7 @@ const styles = StyleSheet.create({
     zIndex: 120,
     elevation: 50
   },
+  roomBody: { flex: 1, minHeight: 0, position: 'relative' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   offlineBadge: { backgroundColor: '#422b16', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   offlineText: { color: '#fcd38d', fontSize: 10, fontWeight: '800' },

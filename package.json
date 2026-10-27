@@ -10,7 +10,7 @@
     "android": "npm run generate:stickers && npm run generate:pdfjs && expo run:android",
     "ios": "npm run generate:stickers && expo run:ios",
     "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js && node scripts/generate-pdfjs-assets.js",
-    "web": "expo start --web --offline --port 8082",
+    "web": "npm run generate:pdfjs && expo start --web --offline --port 8082",
     "eas": "eas"
   },
   "dependencies": {
@@ -37,6 +37,7 @@
     "expo-file-system": "~58.0.9",
     "expo-image-picker": "~58.0.10",
     "expo-linking": "~58.0.13",
+    "expo-navigation-bar": "~58.0.4",
     "expo-notifications": "~58.1.5",
     "expo-router": "~58.0.23",
     "expo-screen-orientation": "~58.0.3",

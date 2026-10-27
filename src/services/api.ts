@@ -4,6 +4,7 @@ import { config } from '../config';
 
 const ACCESS_TOKEN_KEY = 'moi_access_token';
 const REFRESH_TOKEN_KEY = 'moi_refresh_token';
+const NETWORK_ERROR_MESSAGE = 'Network Error, Check your internet';
 
 // Storage helpers with web fallback and safety try-catches
 export const getStoredToken = async (key: string): Promise<string | null> => {
@@ -146,11 +147,14 @@ export async function apiRequest<T = any>(
 
       const json = await response.json();
       if (!response.ok) {
+        if (response.status >= 500) {
+          return { success: false, error: NETWORK_ERROR_MESSAGE };
+        }
         return { success: false, error: json.error || 'Request failed' };
       }
       return json;
     } catch (error: any) {
-      return { success: false, error: error.message || 'Network connection failed' };
+      return { success: false, error: NETWORK_ERROR_MESSAGE };
     }
   })();
 

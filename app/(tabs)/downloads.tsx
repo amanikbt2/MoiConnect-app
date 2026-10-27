@@ -166,8 +166,12 @@ export default function DownloadsScreen() {
   };
 
   const handleRetry = async (paper: OfflinePaper) => {
-    await retryPaperDownload(paper._id);
-    setMenuPaper(null);
+    try {
+      await retryPaperDownload(paper._id);
+      setMenuPaper(null);
+    } catch (error) {
+      showIceMessage('Retry failed', 'Could not download this material. Check your connection and try again.');
+    }
   };
 
   const handleRemoveCompletely = (paper: OfflinePaper) => {
@@ -218,16 +222,17 @@ export default function DownloadsScreen() {
     const mediaCategory = isVideo ? 'CAMPUS VIDEO • MEDIA' : 'CAMPUS PHOTO • MEDIA';
 
     return (
+      <View key={item._id} style={styles.downloadCardItem}>
       <TouchableOpacity
-        key={item._id}
         style={[
           styles.mediaSquareCard,
           item.pinned && styles.squareCardPinned,
-          isDownloading && styles.squareCardDownloading
+          isDownloading && styles.squareCardDownloading,
+          isFailed && styles.squareCardUnavailable
         ]}
         activeOpacity={0.88}
         onPress={() => {
-          if (isDownloading) return;
+          if (isDownloading || isFailed) return;
           setMediaPreviewDoc(item);
         }}
       >
@@ -341,17 +346,30 @@ export default function DownloadsScreen() {
           {/* Card Footer: Offline Ready & Action */}
           <View style={styles.mediaCardFooter}>
             <View style={styles.mediaFooterStatus}>
-              <CheckIcon color="#15803d" size={12} />
-              <Text style={styles.mediaFooterStatusText}>Offline Ready</Text>
+              {isFailed ? <CloseIcon color="#dc2626" size={12} /> : <CheckIcon color="#15803d" size={12} />}
+              <Text style={[styles.mediaFooterStatusText, isFailed && styles.failedStatusText]}>{isFailed ? 'Not downloaded' : 'Offline Ready'}</Text>
             </View>
 
             <View style={styles.mediaFooterAction}>
-              <Text style={styles.mediaFooterActionText}>{isVideo ? 'Play' : 'View'}</Text>
-              <ChevronRightIcon color="#15803d" size={12} />
+              <Text style={[styles.mediaFooterActionText, isFailed && styles.failedStatusText]}>{isFailed ? 'Unavailable' : isVideo ? 'Play' : 'View'}</Text>
+              {!isFailed && <ChevronRightIcon color="#15803d" size={12} />}
             </View>
           </View>
         </View>
       </TouchableOpacity>
+      {isFailed && (
+        <TouchableOpacity
+          style={styles.retryDownloadButton}
+          onPress={(event) => { event.stopPropagation(); void handleRetry(item); }}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={`Retry download for ${item.title}`}
+        >
+          <RefreshCwIcon color="#ffffff" size={12} />
+          <Text style={styles.retryDownloadButtonText}>Retry download</Text>
+        </TouchableOpacity>
+      )}
+      </View>
     );
   };
 
@@ -398,14 +416,16 @@ export default function DownloadsScreen() {
             .toUpperCase();
 
           return (
+            <View key={item._id} style={styles.downloadCardItem}>
             <TouchableOpacity
               style={[
                 styles.squareCard,
                 item.pinned && styles.squareCardPinned,
-                isDownloading && styles.squareCardDownloading
+                isDownloading && styles.squareCardDownloading,
+                isFailed && styles.squareCardUnavailable
               ]}
-              activeOpacity={0.88}
-              onPress={() => handleOpenPreview(item)}
+              activeOpacity={isFailed || isDownloading ? 1 : 0.88}
+              onPress={() => { if (!isFailed && !isDownloading) handleOpenPreview(item); }}
             >
               {/* Image Banner Header */}
               <View style={styles.thumbnailHeader}>
@@ -516,6 +536,19 @@ export default function DownloadsScreen() {
                 </View>
               </View>
             </TouchableOpacity>
+            {isFailed && (
+              <TouchableOpacity
+                style={styles.retryDownloadButton}
+                onPress={(event) => { event.stopPropagation(); void handleRetry(item); }}
+                activeOpacity={0.82}
+                accessibilityRole="button"
+                accessibilityLabel={`Retry download for ${item.title}`}
+              >
+                <RefreshCwIcon color="#ffffff" size={12} />
+                <Text style={styles.retryDownloadButtonText}>Retry download</Text>
+              </TouchableOpacity>
+            )}
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -741,9 +774,14 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12
   },
-  squareCard: {
+  downloadCardItem: {
     flex: 1,
     maxWidth: '48.5%',
+    gap: 6
+  },
+  squareCard: {
+    flex: 1,
+    width: '100%',
     backgroundColor: '#ffffff',
     borderRadius: 14,
     borderWidth: 1,
@@ -765,6 +803,28 @@ const styles = StyleSheet.create({
   },
   squareCardDownloading: {
     opacity: 0.72
+  },
+  squareCardUnavailable: {
+    opacity: 0.62
+  },
+  retryDownloadButton: {
+    minHeight: 32,
+    borderRadius: 8,
+    backgroundColor: '#2563eb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6
+  },
+  retryDownloadButtonText: {
+    color: '#ffffff',
+    fontSize: 10.5,
+    fontWeight: '800'
+  },
+  failedStatusText: {
+    color: '#dc2626'
   },
   thumbnailHeader: {
     height: 96,
@@ -1052,7 +1112,7 @@ const styles = StyleSheet.create({
   /* Media Card Styles (Images & Videos) */
   mediaSquareCard: {
     flex: 1,
-    maxWidth: '48.5%',
+    width: '100%',
     backgroundColor: '#ffffff',
     borderRadius: 14,
     borderWidth: 1,
