@@ -88,7 +88,7 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "moiconnect",
-    "owner": "sliver1",
+    "owner": "sliver2",
     "extra": {
       "eas": {
         "projectId": "cd92abb9-b9be-4713-a8d4-807655da8cc6"
