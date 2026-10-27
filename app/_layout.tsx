@@ -132,6 +132,7 @@ function RootLayoutContent() {
               <Stack
                 screenOptions={{
                   headerShown: false,
+                  animation: Platform.OS === 'android' ? 'none' : 'default',
                   headerStyle: { backgroundColor: '#15803d' },
                   headerTintColor: '#ffffff',
                   headerTitleStyle: { fontWeight: '800', fontSize: 18 },

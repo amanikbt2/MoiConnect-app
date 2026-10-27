@@ -232,7 +232,6 @@ const PastPaperCarouselSection = React.memo(function PastPaperCarouselSection({
         </View>
       </View>
       <FlatList
-        removeClippedSubviews={false}
         ref={carouselRef}
         horizontal
         data={items}
@@ -1015,7 +1014,6 @@ export default function PastPapersScreen({ route }: any) {
             </View>
 
             <FlatList
-              removeClippedSubviews={false}
               ref={carouselListRef}
               data={carouselPapers}
               keyExtractor={(item) => item.id}
@@ -1211,7 +1209,6 @@ export default function PastPapersScreen({ route }: any) {
                   </View>
 
                   <FlatList
-                    removeClippedSubviews={false}
                     ref={searchCarouselListRef}
                     data={searchRecommendations.youMayAlsoLike}
                     keyExtractor={(item) => `search-like-${item.id}`}

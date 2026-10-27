@@ -289,6 +289,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      detachInactiveScreens={Platform.OS !== 'android'}
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: '#15803d' },

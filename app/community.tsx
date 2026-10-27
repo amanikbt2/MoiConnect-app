@@ -712,12 +712,18 @@ export default function CommunityScreen() {
   const prevFocusedRef = useRef(true);
 
   useEffect(() => {
+    if (!isForumFocused) {
+      prevFocusedRef.current = false;
+      setIsForumLayoutReady(false);
+      return;
+    }
+
     if (isForumFocused && !prevFocusedRef.current) {
       setWallpaperSource(FORUM_WALLPAPERS[getSmartRandomWallpaperIndex()]);
       setHasLoadedForumWallpaper(false);
       setIsForumLayoutReady(false);
     }
-    prevFocusedRef.current = isForumFocused;
+    prevFocusedRef.current = true;
   }, [isForumFocused]);
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
@@ -3409,7 +3415,6 @@ export default function CommunityScreen() {
           onError={() => setHasLoadedForumWallpaper(true)}
         >
           <FlatList
-            removeClippedSubviews={false}
             ref={flatListRef}
             data={displayMessages}
             extraData={activeReactionMsgId}
@@ -3431,6 +3436,7 @@ export default function CommunityScreen() {
             maxToRenderPerBatch={10}
             windowSize={7}
             updateCellsBatchingPeriod={30}
+            removeClippedSubviews={Platform.OS !== 'web'}
             keyExtractor={(item, index) => String(item.id || `community-message-${index}`)}
             contentContainerStyle={styles.messageList}
             maintainVisibleContentPosition={{ minIndexForVisible: 1 }}

@@ -232,7 +232,6 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
         </View>
       </View>
       <FlatList
-        removeClippedSubviews={false}
         ref={carouselRef}
         horizontal
         data={items}
@@ -1289,7 +1288,6 @@ export default function AcademicsScreen({ route }: any) {
                       </View>
 
                       <FlatList
-                        removeClippedSubviews={false}
                         ref={searchCarouselListRef}
                         data={searchRecommendations.youMayAlsoLike}
                         keyExtractor={(item) => `search-like-${item.id}`}
@@ -1409,7 +1407,6 @@ export default function AcademicsScreen({ route }: any) {
               </View>
 
               <FlatList
-                removeClippedSubviews={false}
                 ref={forYouListRef}
                 data={combinedForYou}
                 keyExtractor={(item) => item.id}
@@ -1486,7 +1483,6 @@ export default function AcademicsScreen({ route }: any) {
               </View>
 
               <FlatList
-                removeClippedSubviews={false}
                 ref={trendingListRef}
                 data={combinedTrending}
                 keyExtractor={(item) => item.id}
@@ -1563,7 +1559,6 @@ export default function AcademicsScreen({ route }: any) {
                 </View>
               </View>
               <FlatList
-                removeClippedSubviews={false}
                 ref={topRatedListRef}
                 data={topRatedNotes}
                 keyExtractor={(item) => `top-rated-${item.id}`}
