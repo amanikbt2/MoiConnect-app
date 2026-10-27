@@ -17,7 +17,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as NavigationBar from 'expo-navigation-bar';
+import { NavigationBar as SystemNavigationBar } from 'expo-navigation-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, RotateDeviceIcon } from './Icons';
 import { OfflineState } from './OfflineState';
@@ -192,17 +192,17 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   useEffect(() => {
     if (!visible) {
       setIsLandscape(false);
-      if (Platform.OS === 'android') NavigationBar.setHidden(false);
+      if (Platform.OS === 'android') SystemNavigationBar.setHidden(false);
       return;
     }
     if (Platform.OS === 'web') return;
     setIsLandscape(false);
-    if (Platform.OS === 'android') NavigationBar.setHidden(false);
+    if (Platform.OS === 'android') SystemNavigationBar.setHidden(false);
     void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((error) => {
       console.warn('[PDF Reader] Could not set portrait orientation:', error);
     });
     return () => {
-      if (Platform.OS === 'android') NavigationBar.setHidden(false);
+      if (Platform.OS === 'android') SystemNavigationBar.setHidden(false);
       void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((error) => {
         console.warn('[PDF Reader] Could not restore portrait orientation:', error);
       });
@@ -211,7 +211,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setHidden(Boolean(visible && isLandscape));
+      SystemNavigationBar.setHidden(Boolean(visible && isLandscape));
     }
   }, [visible, isLandscape]);
 
