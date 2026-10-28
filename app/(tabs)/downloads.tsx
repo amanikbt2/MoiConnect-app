@@ -566,7 +566,7 @@ export default function DownloadsScreen() {
             />
             <TouchableOpacity
               style={styles.browseTabBtn}
-              onPress={() => router.push('/(tabs)/academics')}
+              onPress={() => router.push('/past-papers')}
             >
               <Text style={styles.browseTabBtnText}>Browse Past Papers</Text>
             </TouchableOpacity>

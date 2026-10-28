@@ -18,6 +18,7 @@ import {
   AppState
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
+import { useIsFocused } from '@react-navigation/native';
 import { apiRequest } from '../../src/services/api';
 import { IPaper, MOI_SCHOOLS, PAPER_TYPES } from '@moi/shared';
 import { Skeleton } from '../../src/components/Skeleton';
@@ -34,6 +35,7 @@ import { reportMaterialSearch } from '../../src/services/searchReportService';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../../src/components/PDFViewerModal';
 import { SmartSearchHeader } from '../../src/components/SmartSearchHeader';
 import { SmartMirrorSkeleton } from '../../src/components/SmartMirrorSkeleton';
+import { VirtualizedFeedList } from '../../src/components/VirtualizedFeedList';
 import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
 import { useSearchFocus } from '../../src/hooks/useSearchFocus';
@@ -60,7 +62,7 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 340);
-const PAPER_PAGE_SIZE = 60;
+const PAPER_PAGE_SIZE = 10;
 const GRID_CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
 
 export interface NoteItem {
@@ -105,7 +107,7 @@ const FILTER_DISCS = [
 ];
 const SEARCH_TOP_MATCH_LIMIT = 6;
 
-function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
+function ShimmerGridLoader({ title, count = 6, showCarousel = false }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
     <SmartMirrorSkeleton
       carouselTitle="Recommended Study Materials"
@@ -145,7 +147,7 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
       onPress={() => onPress(item)}
     >
       <View style={styles.gridImageContainer}>
-        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
         <View style={styles.gridBadge}>
           <Text style={styles.gridBadgeText}>{paperTag}</Text>
         </View>
@@ -200,12 +202,13 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
   onOpenPreview: (item: NoteItem) => void;
   renderCard: (item: NoteItem) => React.ReactNode;
 }) {
+  const isFocused = useIsFocused();
   const [activeIndex, setActiveIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
   const isInteracting = useRef(false);
 
   useEffect(() => {
-    if (items.length <= 1) return;
+    if (!isFocused || items.length <= 1) return;
     const timer = setInterval(() => {
       if (!isInteracting.current && carouselRef.current) {
         setActiveIndex((prev) => {
@@ -218,7 +221,7 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
       }
     }, 3800);
     return () => clearInterval(timer);
-  }, [items.length]);
+  }, [items.length, isFocused]);
 
   return (
     <View style={{ marginTop: 20 }}>
@@ -265,6 +268,7 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
 
 export default function AcademicsScreen({ route }: any) {
   const router = useAppNavigation();
+  const isFocused = useIsFocused();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
   const [activeFilterDisc, setActiveFilterDisc] = useState('all');
@@ -280,6 +284,9 @@ export default function AcademicsScreen({ route }: any) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [papersPage, setPapersPage] = useState(1);
+  const papersCursorRef = useRef<string | null>(null);
+  const pageRequestInFlightRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
   const [hasMoreNotes, setHasMoreNotes] = useState(true);
   const [visibleCountSection1, setVisibleCountSection1] = useState(6);
   const [visibleCountSection2, setVisibleCountSection2] = useState(6);
@@ -316,17 +323,25 @@ export default function AcademicsScreen({ route }: any) {
   }, []);
 
   const fetchRealAcademicPapers = async (searchQueryParam?: string, page = 1, append = false) => {
+    if (append && pageRequestInFlightRef.current) return;
+    if (!append) pageRequestInFlightRef.current = false;
+    pageRequestInFlightRef.current = true;
     const requestId = ++latestSearchRequest.current;
+    lastFetchAtRef.current = Date.now();
     try {
+      if (!append) papersCursorRef.current = null;
       const isSearch = Boolean(searchQueryParam && searchQueryParam.trim());
       if (append) setLoadingMoreSection1(true);
       else if (isSearch) setIsSearchLoading(true);
       else setInitialLoading(true);
       setFetchError(false);
-      const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
+      const limit = PAPER_PAGE_SIZE;
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchQueryParam!.trim())}` : '';
-      const url = `/papers?limit=${limit}&page=${page}&type=notes${searchParam}`;
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(url);
+      const cursorParam = append && papersCursorRef.current
+        ? `&cursor=${encodeURIComponent(papersCursorRef.current)}`
+        : `&page=${page}`;
+      const url = `/papers?limit=${limit}${cursorParam}&type=notes${searchParam}&feed=1`;
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number; hasMore?: boolean; nextCursor?: string | null } }>(url);
       if (requestId !== latestSearchRequest.current) return;
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const noteMaterials = res.data.filter((p) =>
@@ -376,7 +391,8 @@ export default function AcademicsScreen({ route }: any) {
           return rankMaterialsForProfile(unique, user, searchHistory);
         });
         setPapersPage(page);
-        setHasMoreNotes(res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit);
+        papersCursorRef.current = res.pagination?.nextCursor || null;
+        setHasMoreNotes(res.pagination?.hasMore ?? (res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit));
         setInitialLoading(false);
         setIsSearchLoading(false);
         setLoadingMoreSection1(false);
@@ -389,6 +405,8 @@ export default function AcademicsScreen({ route }: any) {
     } catch (err) {
       if (requestId !== latestSearchRequest.current) return;
       console.log('Error fetching real academic papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMoreSection1(false);
+    } finally {
+      if (requestId === latestSearchRequest.current) pageRequestInFlightRef.current = false;
     }
   };
 
@@ -396,13 +414,13 @@ export default function AcademicsScreen({ route }: any) {
   useEffect(() => {
     getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
+      if (state === 'active' && isFocused && !pageRequestInFlightRef.current && Date.now() - lastFetchAtRef.current > 60_000) {
         fetchRealAcademicPapers(submittedSearchQuery.trim());
         getShowDemoMaterialsSetting().then((enabled) => setShowDemoMaterials(enabled));
       }
     });
     return () => subscription.remove();
-  }, [submittedSearchQuery]);
+  }, [submittedSearchQuery, isFocused]);
 
   const handleOpenPreview = useCallback((item: NoteItem) => {
     setPreviewDoc({
@@ -705,7 +723,7 @@ export default function AcademicsScreen({ route }: any) {
 
   // Auto-Scroll "You May Also Like" Carousel (Slides every 3.8s)
   useEffect(() => {
-    if (!smartSearchResults.isSearching || searchRecommendations.youMayAlsoLike.length <= 1) {
+    if (!isFocused || !smartSearchResults.isSearching || searchRecommendations.youMayAlsoLike.length <= 1) {
       setSearchCarouselIndex(0);
       return;
     }
@@ -721,7 +739,7 @@ export default function AcademicsScreen({ route }: any) {
       }
     }, 3800);
     return () => clearInterval(timer);
-  }, [smartSearchResults.isSearching, searchRecommendations.youMayAlsoLike.length]);
+  }, [isFocused, smartSearchResults.isSearching, searchRecommendations.youMayAlsoLike.length]);
 
   const isRandomFilter = filterShuffleSeed > 0 || ['hot', 'profile', 'new', 'trending'].includes(activeFilterDisc);
   const randomizedFilterNotes = React.useMemo(() => {
@@ -772,7 +790,7 @@ export default function AcademicsScreen({ route }: any) {
 
   // Auto Scroll For You Carousel
   useEffect(() => {
-    if (!combinedForYou || combinedForYou.length <= 1) return;
+    if (!isFocused || !combinedForYou || combinedForYou.length <= 1) return;
     const timer = setInterval(() => {
       if (!isForYouInteracting.current && forYouListRef.current) {
         const nextIndex = (forYouIndex + 1) % combinedForYou.length;
@@ -785,11 +803,11 @@ export default function AcademicsScreen({ route }: any) {
       }
     }, 4000);
     return () => clearInterval(timer);
-  }, [forYouIndex, combinedForYou?.length]);
+  }, [forYouIndex, combinedForYou?.length, isFocused]);
 
   // Auto Scroll Trending Carousel
   useEffect(() => {
-    if (!combinedTrending || combinedTrending.length <= 1) return;
+    if (!isFocused || !combinedTrending || combinedTrending.length <= 1) return;
     const timer = setInterval(() => {
       if (!isTrendingInteracting.current && trendingListRef.current) {
         const nextIndex = (trendingIndex + 1) % combinedTrending.length;
@@ -802,10 +820,10 @@ export default function AcademicsScreen({ route }: any) {
       }
     }, 4500);
     return () => clearInterval(timer);
-  }, [trendingIndex, combinedTrending?.length]);
+  }, [trendingIndex, combinedTrending?.length, isFocused]);
 
   useEffect(() => {
-    if (topRatedNotes.length <= 1) return;
+    if (!isFocused || topRatedNotes.length <= 1) return;
     const timer = setInterval(() => {
       if (!isTopRatedInteracting.current && topRatedListRef.current) {
         const nextIndex = (topRatedIndex + 1) % topRatedNotes.length;
@@ -818,7 +836,7 @@ export default function AcademicsScreen({ route }: any) {
       }
     }, 4500);
     return () => clearInterval(timer);
-  }, [topRatedIndex, topRatedNotes.length]);
+  }, [topRatedIndex, topRatedNotes.length, isFocused]);
 
   useEffect(() => {
     if (topRatedIndex >= topRatedNotes.length) setTopRatedIndex(0);
@@ -928,7 +946,7 @@ export default function AcademicsScreen({ route }: any) {
         onPress={() => handleOpenPreview(item)}
       >
         <View style={styles.carouselThumbnailContainer}>
-          <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+          <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
           <View style={styles.carouselOverlay} />
           <View style={styles.carouselBadgeRow}>
             <View style={styles.carouselTypeBadge}>
@@ -1005,7 +1023,7 @@ export default function AcademicsScreen({ route }: any) {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <VirtualizedFeedList
         style={styles.feedScroll}
         contentContainerStyle={styles.feedContent}
         showsVerticalScrollIndicator={false}
@@ -1457,7 +1475,7 @@ export default function AcademicsScreen({ route }: any) {
 
               {/* Facebook-style Bottom Shimmer Loading for Section 1 */}
               {loadingMoreSection1 && (
-                <ShimmerGridLoader title="loading more resources" count={4} />
+                <ShimmerGridLoader title="loading more resources" count={2} showCarousel={false} />
               )}
                 </>
               )}
@@ -1536,7 +1554,7 @@ export default function AcademicsScreen({ route }: any) {
 
               {/* Facebook-style Bottom Shimmer Loading for Section 2 */}
               {loadingMoreSection2 && (
-                <ShimmerGridLoader title="loading more resources" count={4} />
+                <ShimmerGridLoader title="loading more resources" count={2} showCarousel={false} />
               )}
                 </>
               )}
@@ -1605,7 +1623,7 @@ export default function AcademicsScreen({ route }: any) {
           </View>
 
           <View style={{ height: 40 }} />
-        </ScrollView>
+        </VirtualizedFeedList>
 
       {/* Upload Paper Modal */}
       <Modal visible={showUploadModal} animationType="slide" onRequestClose={() => setShowUploadModal(false)}>

@@ -1634,7 +1634,14 @@ export default function CommunityScreen() {
             if (formattedMsg.isMe || (isChatVisible() && isNearBottomRef.current)) {
               if (!formattedMsg.privateNotice) markAsRead(formattedMsg.id);
               if (formattedMsg.isMe || isNearBottomRef.current) {
-                scrollToLatestWhenReady(true);
+                if (Platform.OS === 'android' && isChatVisible() && existingIdx === -1) {
+                  // On Android the inverted FlatList can still have its old
+                  // content height when this socket callback runs. Defer the
+                  // scroll until the new row has been laid out.
+                  scrollLatestAfterLayoutRef.current = true;
+                } else {
+                  scrollToLatestWhenReady(true);
+                }
               }
             } else {
               if (!isChatVisible()) {

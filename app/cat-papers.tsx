@@ -17,6 +17,7 @@ import {
   AppState
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
+import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
@@ -27,6 +28,7 @@ import { reportMaterialSearch } from '../src/services/searchReportService';
 import { OfflineState } from '../src/components/OfflineState';
 import { SmartSearchHeader } from '../src/components/SmartSearchHeader';
 import { SmartMirrorSkeleton } from '../src/components/SmartMirrorSkeleton';
+import { VirtualizedFeedList } from '../src/components/VirtualizedFeedList';
 import { parseSmartSearchQuery } from '../src/utils/smartSearchParser';
 import { SmartSearchAutocomplete } from '../src/components/SmartSearchAutocomplete';
 import { useSearchFocus } from '../src/hooks/useSearchFocus';
@@ -78,7 +80,7 @@ export interface CATPaperItem {
 const RECOMMENDED_CAT_PAPERS: CATPaperItem[] = [];
 
 const INITIAL_CAT_PAPERS_DATA: CATPaperItem[] = [];
-const PAPER_PAGE_SIZE = 60;
+const PAPER_PAGE_SIZE = 10;
 const DISCOVERY_BLOCK_SIZE = 6;
 const SEARCH_TOP_MATCH_LIMIT = 6;
 const SEARCH_FEED_BATCH_SIZE = 12;
@@ -102,7 +104,7 @@ function shuffleBySeed<T extends { id: string }>(items: T[], seed: number): T[] 
   return [...items].sort((a, b) => hashId(a.id) - hashId(b.id));
 }
 
-function ShimmerGridLoader({ title, count = 6, showCarousel = true }: { title?: string; count?: number; showCarousel?: boolean }) {
+function ShimmerGridLoader({ title, count = 6, showCarousel = false }: { title?: string; count?: number; showCarousel?: boolean }) {
   return (
     <SmartMirrorSkeleton
       carouselTitle="Recommended CAT Quizzes"
@@ -132,7 +134,7 @@ export const CATPaperGridCard = React.memo(function CATPaperGridCard({
   return (
     <TouchableOpacity style={styles.gridCard} activeOpacity={0.88} onPress={() => onPress(item)}>
       <View style={styles.gridImageContainer}>
-        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" />
+        <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
         <View style={styles.gridBadge}>
           <Text style={styles.gridBadgeText}>{item.unitCode}</Text>
         </View>
@@ -175,12 +177,13 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
   onOpenPreview: (item: CATPaperItem) => void;
   highlightWords?: string[];
 }) {
+  const isFocused = useIsFocused();
   const carouselRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const isInteracting = useRef(false);
 
   useEffect(() => {
-    if (items.length < 2) return;
+    if (!isFocused || items.length < 2) return;
     const timer = setInterval(() => {
       if (isInteracting.current || !carouselRef.current) return;
       setActiveIndex((prev) => {
@@ -192,7 +195,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
       });
     }, 3800);
     return () => clearInterval(timer);
-  }, [items.length]);
+  }, [items.length, isFocused]);
 
   if (!items || items.length === 0) return null;
 
@@ -223,7 +226,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.carouselCard} activeOpacity={0.88} onPress={() => onOpenPreview(item)}>
             <View style={styles.carouselThumbnailContainer}>
-              <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+              <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
               <View style={styles.carouselOverlay} />
               <View style={styles.carouselBadgeRow}>
                 <View style={styles.carouselTypeBadge}><Text style={styles.carouselTypeText}>{item.catType}</Text></View>
@@ -271,6 +274,9 @@ export default function CatPapersScreen({ route }: any) {
   const [userStars, setUserStars] = useState<Record<string, boolean>>({});
 
   const [papersPage, setPapersPage] = useState(1);
+  const papersCursorRef = useRef<string | null>(null);
+  const pageRequestInFlightRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
   const [hasMorePapers, setHasMorePapers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -284,6 +290,7 @@ export default function CatPapersScreen({ route }: any) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const router = useAppNavigation();
+  const isFocused = useIsFocused();
   const { user } = useAuth();
 
   const [showDemoMaterials, setShowDemoMaterials] = useState(false);
@@ -328,8 +335,13 @@ export default function CatPapersScreen({ route }: any) {
 
   // Fetch real uploaded CAT papers from Cloudinary / backend API
   const fetchRealCatPapers = async (searchTerm = '', page = 1, append = false) => {
+    if (append && pageRequestInFlightRef.current) return;
+    if (!append) pageRequestInFlightRef.current = false;
+    pageRequestInFlightRef.current = true;
     const requestId = ++latestSearchRequest.current;
+    lastFetchAtRef.current = Date.now();
     try {
+      if (!append) papersCursorRef.current = null;
       const isSearch = searchTerm.trim().length > 0;
       if (append) setLoadingMore(true);
       else if (isSearch) setIsSearchLoading(true);
@@ -340,8 +352,11 @@ export default function CatPapersScreen({ route }: any) {
       setShowDemoMaterials(demoSetting);
 
       const searchParam = isSearch ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
-      const limit = isSearch ? 100 : PAPER_PAGE_SIZE;
-      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number } }>(`/papers?limit=${limit}&page=${page}&type=cat${searchParam}`);
+      const limit = PAPER_PAGE_SIZE;
+      const cursorParam = append && papersCursorRef.current
+        ? `&cursor=${encodeURIComponent(papersCursorRef.current)}`
+        : `&page=${page}`;
+      const res = await apiRequest<{ data: IPaper[]; pagination?: { pages?: number; hasMore?: boolean; nextCursor?: string | null } }>(`/papers?limit=${limit}${cursorParam}&type=cat${searchParam}&feed=1`);
       if (requestId !== latestSearchRequest.current) return;
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const realCatPapers: CATPaperItem[] = res.data
@@ -399,7 +414,8 @@ export default function CatPapersScreen({ route }: any) {
           return rankMaterialsForProfile(unique, user, searchHistory);
         });
         setPapersPage(page);
-        setHasMorePapers(res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit);
+        papersCursorRef.current = res.pagination?.nextCursor || null;
+        setHasMorePapers(res.pagination?.hasMore ?? (res.pagination?.pages ? page < res.pagination.pages : res.data.length === limit));
         setInitialLoading(false);
         setIsSearchLoading(false);
         setLoadingMore(false);
@@ -409,6 +425,7 @@ export default function CatPapersScreen({ route }: any) {
         if (isSearch && !append) {
           // Load the category feed as a recommendation pool when the exact
           // search has no hits; local smart ranking can still find partial matches.
+          pageRequestInFlightRef.current = false;
           void fetchRealCatPapers('', 1, true);
         } else if (!append) {
           setCatsData(demoSetting ? INITIAL_CAT_PAPERS_DATA : []);
@@ -418,16 +435,20 @@ export default function CatPapersScreen({ route }: any) {
     } catch (err) {
       if (requestId !== latestSearchRequest.current) return;
       console.log('Error fetching real CAT papers:', err); setFetchError(true); setInitialLoading(false); setIsSearchLoading(false); setLoadingMore(false);
+    } finally {
+      if (requestId === latestSearchRequest.current) pageRequestInFlightRef.current = false;
     }
   };
 
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') fetchRealCatPapers(submittedSearchQuery.trim());
+      if (state === 'active' && isFocused && !pageRequestInFlightRef.current && Date.now() - lastFetchAtRef.current > 60_000) {
+        fetchRealCatPapers(submittedSearchQuery.trim());
+      }
     });
     return () => subscription.remove();
-  }, [submittedSearchQuery]);
+  }, [submittedSearchQuery, isFocused]);
 
   useEffect(() => {
     setPapersPage(1);
@@ -437,7 +458,7 @@ export default function CatPapersScreen({ route }: any) {
 
   // Auto-Scroll Suggestions Carousel (Slides every 3.8s)
   useEffect(() => {
-    if (!RECOMMENDED_CAT_PAPERS || RECOMMENDED_CAT_PAPERS.length <= 1) return;
+    if (!isFocused || !RECOMMENDED_CAT_PAPERS || RECOMMENDED_CAT_PAPERS.length <= 1) return;
     const timer = setInterval(() => {
       if (!isCarouselInteracting.current && carouselListRef.current) {
         const nextIdx = (carouselIndex + 1) % RECOMMENDED_CAT_PAPERS.length;
@@ -450,7 +471,7 @@ export default function CatPapersScreen({ route }: any) {
       }
     }, 3800);
     return () => clearInterval(timer);
-  }, [carouselIndex]);
+  }, [carouselIndex, isFocused]);
 
   const [forcedOriginalQuery, setForcedOriginalQuery] = useState<string | null>(null);
   const downloadedCatItems = React.useMemo<CATPaperItem[]>(() => downloadedPapers.map((paper: any) => ({
@@ -570,7 +591,7 @@ export default function CatPapersScreen({ route }: any) {
 
   // Auto-Scroll "You May Also Like" Carousel (Slides every 3.8s)
   useEffect(() => {
-    if (!isSearching || searchRecommendations.youMayAlsoLike.length <= 1) {
+    if (!isFocused || !isSearching || searchRecommendations.youMayAlsoLike.length <= 1) {
       setSearchCarouselIndex(0);
       return;
     }
@@ -586,7 +607,7 @@ export default function CatPapersScreen({ route }: any) {
       }
     }, 3800);
     return () => clearInterval(timer);
-  }, [isSearching, searchRecommendations.youMayAlsoLike.length]);
+  }, [isFocused, isSearching, searchRecommendations.youMayAlsoLike.length]);
 
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
@@ -776,7 +797,7 @@ export default function CatPapersScreen({ route }: any) {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <VirtualizedFeedList
         style={styles.feedScroll}
         contentContainerStyle={styles.feedContent}
         showsVerticalScrollIndicator={false}
@@ -978,7 +999,7 @@ export default function CatPapersScreen({ route }: any) {
                   onPress={() => handleOpenPreview(item)}
                 >
                   <View style={styles.carouselThumbnailContainer}>
-                    <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+                    <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
                     <View style={styles.carouselOverlay} />
                     <View style={styles.carouselBadgeRow}>
                       <View style={styles.carouselTypeBadge}>
@@ -1173,7 +1194,7 @@ export default function CatPapersScreen({ route }: any) {
                         onPress={() => handleOpenPreview(item)}
                       >
                         <View style={styles.carouselThumbnailContainer}>
-                          <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" />
+                          <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
                           <View style={styles.carouselOverlay} />
                           <View style={styles.carouselBadgeRow}>
                             <View style={styles.carouselTypeBadge}>
@@ -1297,8 +1318,8 @@ export default function CatPapersScreen({ route }: any) {
         )}
 
         {/* Facebook Style Shimmer Skeleton Loader when fetching next 2 lines */}
-        {loadingMore && <ShimmerGridLoader title="loading more resources" count={4} />}
-      </ScrollView>
+        {loadingMore && <ShimmerGridLoader title="loading more resources" count={2} showCarousel={false} />}
+      </VirtualizedFeedList>
 
       {/* Fast In-App PDF Preview Window */}
       <PDFViewerModal

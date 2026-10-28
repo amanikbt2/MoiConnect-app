@@ -176,14 +176,17 @@ export function CommunityLiveRoom({
   const [connectionEnded, setConnectionEnded] = useState(false);
   const unifiedPressedRef = useRef(false);
   const userExitedRef = useRef(false);
+  const shutdownRoomRef = useRef<() => Promise<void>>(async () => {});
   const networkOnlineRef = useRef(isNetworkOnline);
   networkOnlineRef.current = isNetworkOnline;
   const micWantedRef = useRef(isHost);
   const cameraWantedRef = useRef(isHost);
   useEffect(() => { micWantedRef.current = !muted; }, [muted]);
   useEffect(() => { cameraWantedRef.current = !cameraOff; }, [cameraOff]);
-  const handleExit = () => {
+  const handleExit = async () => {
+    if (userExitedRef.current) return;
     userExitedRef.current = true;
+    await shutdownRoomRef.current();
     onClose();
   };
 
@@ -213,6 +216,51 @@ export function CommunityLiveRoom({
 
   useEffect(() => {
     let cancelled = false;
+    let shutdownPromise: Promise<void> | null = null;
+    const releaseLocalTrack = async (source: Track.Source.Camera | Track.Source.Microphone) => {
+      const localParticipant = room.localParticipant;
+      if (source === Track.Source.Microphone) {
+        await localParticipant.setMicrophoneEnabled(false);
+      } else {
+        await localParticipant.setCameraEnabled(false);
+      }
+      const publication = localParticipant.getTrackPublication(source);
+      if (publication?.track) {
+        // set*Enabled(false) mutes a published track; unpublishing with the
+        // default stop behavior is what releases Android's capture device.
+        await localParticipant.unpublishTrack(publication.track, true);
+      }
+    };
+    const shutdownRoom = () => {
+      if (!shutdownPromise) {
+        shutdownPromise = (async () => {
+          // Muting only stops publication; disabling the tracks releases the
+          // Android microphone and camera capture devices. Explicitly stop the
+          // native tracks too, since the SDK's mute operation can leave capture
+          // alive for a track that is expected to be reused.
+          await Promise.all([
+            releaseLocalTrack(Track.Source.Microphone).catch((err) => {
+              console.info('[LiveKit] Microphone shutdown notice:', err);
+            }),
+            releaseLocalTrack(Track.Source.Camera).catch((err) => {
+              console.info('[LiveKit] Camera shutdown notice:', err);
+            })
+          ]);
+          try {
+            await room.disconnect();
+          } catch (err) {
+            console.info('[LiveKit] Room disconnect notice:', err);
+          }
+          try {
+            await AudioSession?.stopAudioSession?.();
+          } catch (err) {
+            console.info('[LiveKit] Audio session shutdown notice:', err);
+          }
+        })();
+      }
+      return shutdownPromise;
+    };
+    shutdownRoomRef.current = shutdownRoom;
     let recoveryRunning = false;
     let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
     let resolveRecoveryWait: (() => void) | null = null;
@@ -245,16 +293,25 @@ export function CommunityLiveRoom({
           if (!refreshed.success || !refreshed.data?.url || !refreshed.data?.token) {
             throw new Error(refreshed.error || 'Could not refresh live connection credentials.');
           }
+          if (cancelled || userExitedRef.current) return;
           await room.connect(refreshed.data.url, refreshed.data.token, { autoSubscribe: true });
           if (cancelled || userExitedRef.current) return;
           if (cameraWantedRef.current) {
             try {
               await room.localParticipant.setCameraEnabled(true, { resolution: { width: 640, height: 360, frameRate: 20 } });
+              if (cancelled || userExitedRef.current) {
+                await room.localParticipant.setCameraEnabled(false);
+                return;
+              }
             } catch (cameraError) { console.info('[LiveKit] Camera restore skipped:', cameraError); }
           }
           if (micWantedRef.current) {
             try {
               await room.localParticipant.setMicrophoneEnabled(true, { autoGainControl: true, echoCancellation: true, noiseSuppression: false });
+              if (cancelled || userExitedRef.current) {
+                await room.localParticipant.setMicrophoneEnabled(false);
+                return;
+              }
             } catch (audioError) { console.info('[LiveKit] Microphone restore skipped:', audioError); }
           }
           refreshParticipants();
@@ -300,32 +357,43 @@ export function CommunityLiveRoom({
           try { await AudioSession.startAudioSession(); }
           catch (audioSessionError) { console.info('[LiveKit] Audio session setup failed; attempting room connection anyway.', audioSessionError); }
         }
+        if (cancelled || userExitedRef.current) return;
         if (AudioSession?.setDefaultRemoteAudioTrackVolume) {
           try { await AudioSession.setDefaultRemoteAudioTrackVolume(1.0); } catch {}
         }
 
         await room.connect(serverUrl, token, { autoSubscribe: true });
-        if (cancelled) return;
+        if (cancelled || userExitedRef.current) return;
 
         if (AudioSession?.selectAudioOutput) {
           try { await AudioSession.selectAudioOutput('speaker'); } catch {}
         }
+        if (cancelled || userExitedRef.current) return;
 
         onReadyRef.current?.();
         if (isHost) {
           try {
             await room.localParticipant.setCameraEnabled(true, { resolution: { width: 640, height: 360, frameRate: 20 } });
+            if (cancelled || userExitedRef.current) {
+              await room.localParticipant.setCameraEnabled(false);
+              return;
+            }
             if (!cancelled) setCameraOff(false);
           } catch (cameraError) {
             console.info('[LiveKit] Camera unavailable; continuing without video.', cameraError);
             if (!cancelled) setCameraOff(true);
           }
+          if (cancelled || userExitedRef.current) return;
           try {
             await room.localParticipant.setMicrophoneEnabled(true, {
               autoGainControl: true,
               echoCancellation: true,
               noiseSuppression: false
             });
+            if (cancelled || userExitedRef.current) {
+              await room.localParticipant.setMicrophoneEnabled(false);
+              return;
+            }
             if (!cancelled) setMuted(false);
           } catch (audioError) {
             console.info('[LiveKit] Microphone unavailable; continuing in listen-only mode.', audioError);
@@ -338,21 +406,7 @@ export function CommunityLiveRoom({
             }
           }, 350);
         } else {
-          // Pre-warm guest audio track as muted so unified "Hold to talk" is instant (0ms)
-          try {
-            await room.localParticipant.setMicrophoneEnabled(true, {
-              autoGainControl: true,
-              echoCancellation: true,
-              noiseSuppression: false
-            });
-            const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-            if (micPub?.track) {
-              await micPub.track.mute();
-            }
-            if (!cancelled) setMuted(true);
-          } catch {
-            // Handled when user presses hold to talk if mic permission prompt needed
-          }
+          // Do not open microphone capture while a guest is only listening.
           refreshParticipants();
           const hasHostVideo = Array.from(room.remoteParticipants.values()).some((p) =>
             Array.from(p.videoTrackPublications.values()).some((v) => v.isSubscribed && v.track)
@@ -419,15 +473,16 @@ export function CommunityLiveRoom({
       if (recoveryTimer) clearTimeout(recoveryTimer);
       resolveRecoveryWait?.();
       room.removeAllListeners();
-      room.disconnect();
-      if (AudioSession?.stopAudioSession) {
-        void AudioSession.stopAudioSession();
+      void shutdownRoom();
+      if (shutdownRoomRef.current === shutdownRoom) {
+        shutdownRoomRef.current = async () => {};
       }
     };
   }, [room, serverUrl, token, isHost]);
 
   // Host Instant Toggles: Updates UI immediately (0ms) so icons slash and button turns red, then controls WebRTC track
   const toggleMicrophone = async () => {
+    if (userExitedRef.current) return;
     const nextMuted = !muted;
     setMuted(nextMuted);
     try {
@@ -457,9 +512,13 @@ export function CommunityLiveRoom({
         console.warn('[LiveKit] fallback setMicrophoneEnabled error:', e2);
       }
     }
+    if (userExitedRef.current) {
+      try { await room.localParticipant?.setMicrophoneEnabled(false); } catch {}
+    }
   };
 
   const toggleCamera = async () => {
+    if (userExitedRef.current) return;
     const nextCameraOff = !cameraOff;
     setCameraOff(nextCameraOff);
     try {
@@ -489,11 +548,14 @@ export function CommunityLiveRoom({
         console.warn('[LiveKit] fallback setCameraEnabled error:', e2);
       }
     }
+    if (userExitedRef.current) {
+      try { await room.localParticipant?.setCameraEnabled(false); } catch {}
+    }
   };
 
   // Guest Unified Push-to-Talk (Hold-to-Talk): Starts both audio and video, favoring audio first
   const startUnifiedTalk = async () => {
-    if (unifiedPressedRef.current) return;
+    if (unifiedPressedRef.current || userExitedRef.current) return;
     unifiedPressedRef.current = true;
     setMuted(false);
     setCameraOff(false);
@@ -513,6 +575,10 @@ export function CommunityLiveRoom({
     } catch (err) {
       console.warn('[LiveKit] startUnifiedTalk audio error:', err);
     }
+    if (userExitedRef.current) {
+      try { await room.localParticipant?.setMicrophoneEnabled(false); } catch {}
+      return;
+    }
 
     // 2. Concurrently attempt video without blocking audio
     try {
@@ -527,6 +593,9 @@ export function CommunityLiveRoom({
     } catch (camErr) {
       // Audio is favored; video failing will not disrupt audio stream
       console.info('[LiveKit] Camera optional on hold-to-talk:', camErr);
+    }
+    if (userExitedRef.current) {
+      try { await room.localParticipant?.setCameraEnabled(false); } catch {}
     }
   };
 

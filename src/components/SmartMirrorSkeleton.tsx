@@ -1,12 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Animated,
   Dimensions,
-  Platform
+  Animated,
+  Easing,
+  useWindowDimensions
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,26 +30,61 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
   gridCount = 6,
   carouselCount = 3
 }) => {
-  const fadeAnim = useRef(new Animated.Value(0.35)).current;
+  const { width: windowWidth } = useWindowDimensions();
+  const shimmerProgress = React.useRef(new Animated.Value(0)).current;
+  const loadingPulse = React.useRef(new Animated.Value(0)).current;
+  const sweepDistance = Math.max(windowWidth, CAROUSEL_CARD_WIDTH);
 
-  useEffect(() => {
-    const pulse = Animated.loop(
+  React.useEffect(() => {
+    const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.95,
-          duration: 700,
-          useNativeDriver: Platform.OS !== 'web'
+        Animated.timing(shimmerProgress, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.linear,
+          useNativeDriver: true,
+          isInteraction: false
         }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.35,
-          duration: 700,
-          useNativeDriver: Platform.OS !== 'web'
+        Animated.delay(700)
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [shimmerProgress]);
+
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(loadingPulse, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+          isInteraction: false
+        }),
+        Animated.timing(loadingPulse, {
+          toValue: 0,
+          duration: 900,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+          isInteraction: false
         })
       ])
     );
-    pulse.start();
-    return () => pulse.stop();
-  }, [fadeAnim]);
+    animation.start();
+    return () => animation.stop();
+  }, [loadingPulse]);
+
+  const shimmerSweepStyle = {
+    transform: [{
+      translateX: shimmerProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-sweepDistance, sweepDistance]
+      })
+    }]
+  };
+  const pulseScale = loadingPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] });
+  const pulseOpacity = loadingPulse.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.22, 0.16, 0] });
 
   return (
     <View style={styles.container}>
@@ -57,10 +93,10 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
         <View style={styles.carouselSection}>
           {/* Section Header */}
           <View style={styles.sectionHeaderRow}>
-            <Animated.View style={[styles.sectionIconCircle, { opacity: fadeAnim }]} />
+            <View style={styles.sectionIconCircle} />
             <View style={{ flex: 1, gap: 5 }}>
-              <Animated.View style={[styles.shimmerLine, { width: 170, height: 16, borderRadius: 4, opacity: fadeAnim }]} />
-              <Animated.View style={[styles.shimmerLine, { width: 230, height: 11, borderRadius: 4, opacity: fadeAnim }]} />
+              <View style={[styles.shimmerLine, { width: 170, height: 16, borderRadius: 4 }]} />
+              <View style={[styles.shimmerLine, { width: 230, height: 11, borderRadius: 4 }]} />
             </View>
           </View>
 
@@ -72,7 +108,7 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
             contentContainerStyle={styles.carouselScrollContent}
           >
             {Array.from({ length: carouselCount }).map((_, i) => (
-              <Animated.View key={`carousel-shim-${i}`} style={[styles.carouselCard, { opacity: fadeAnim }]}>
+              <View key={`carousel-shim-${i}`} style={styles.carouselCard}>
                 {/* Simulated Thumbnail */}
                 <View style={styles.carouselThumbnail}>
                   <View style={styles.carouselBadgeTopLeft} />
@@ -91,7 +127,10 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
                     <View style={[styles.shimmerLine, { width: 36, height: 11 }]} />
                   </View>
                 </View>
-              </Animated.View>
+                <View pointerEvents="none" style={styles.shimmerClip}>
+                  <Animated.View style={[styles.shimmerSweep, shimmerSweepStyle]} />
+                </View>
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -99,14 +138,20 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
 
       {/* 2. GRID SECTION HEADER */}
       <View style={styles.gridHeaderRow}>
-        <Animated.View style={[styles.shimmerDot, { opacity: fadeAnim }]} />
+        <View style={styles.loadingDotWrap}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.loadingDotWave, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]}
+          />
+          <View style={styles.shimmerDot} />
+        </View>
         <Text style={styles.gridLoadingLabel}>{gridTitle}</Text>
       </View>
 
       {/* 3. RESPONSIVE 2-COLUMN GRID SHIMMER CARDS */}
       <View style={styles.gridContainer}>
         {Array.from({ length: gridCount }).map((_, idx) => (
-          <Animated.View key={`grid-shim-${idx}`} style={[styles.gridCard, { opacity: fadeAnim }]}>
+          <View key={`grid-shim-${idx}`} style={styles.gridCard}>
             {/* Thumbnail */}
             <View style={styles.gridThumbnail}>
               <View style={styles.gridBadgeTopLeft} />
@@ -127,7 +172,10 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
                 <View style={styles.miniArrowPlaceholder} />
               </View>
             </View>
-          </Animated.View>
+            <View pointerEvents="none" style={styles.shimmerClip}>
+              <Animated.View style={[styles.shimmerSweep, shimmerSweepStyle]} />
+            </View>
+          </View>
         ))}
       </View>
     </View>
@@ -165,6 +213,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
+    position: 'relative',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#000',
@@ -220,6 +269,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    backgroundColor: '#58b878'
+  },
+  loadingDotWrap: {
+    width: 12,
+    height: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  loadingDotWave: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#22c55e'
   },
   gridLoadingLabel: {
@@ -242,6 +304,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 14,
     overflow: 'hidden',
+    position: 'relative',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#000',
@@ -300,5 +363,17 @@ const styles = StyleSheet.create({
   shimmerLine: {
     backgroundColor: '#cbd5e1',
     borderRadius: 4
+  },
+  shimmerClip: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden'
+  },
+  shimmerSweep: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 64,
+    backgroundColor: 'rgba(255,255,255,0.28)'
   }
 });

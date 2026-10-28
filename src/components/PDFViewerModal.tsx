@@ -800,7 +800,14 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       loadingTask.promise.then(function(pdf){
         report({type:'pdfPageCount',count:pdf.numPages});
         var container = document.getElementById('container');
-        var screenWidth = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0, 360);
+        function getAvailablePageWidth(){
+          var viewportWidth = Math.max(
+            window.innerWidth || 0,
+            document.documentElement.clientWidth || 0,
+            document.body ? document.body.clientWidth || 0 : 0
+          );
+          return viewportWidth > 0 ? viewportWidth : 360;
+        }
         var pages = {};
         var canvases = {};
         var renderTasks = {};
@@ -811,18 +818,22 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           pdf.getPage(number).then(function(page){
             pages[number] = page;
             var unscaled = page.getViewport({scale: 1.0});
-            var targetWidth = Math.min(screenWidth - 16, 680);
-            var pageScale = Math.max(0.6, Math.min(1.2, targetWidth / unscaled.width));
+            // Read the WebView's current width each time. Keeping the initial
+            // portrait width here makes pages remain narrow after rotation.
+            var targetWidth = Math.min(Math.max(1, getAvailablePageWidth() - 16), 680);
+            var pageScale = Math.max(0.1, Math.min(1.2, targetWidth / unscaled.width));
             var viewport = page.getViewport({scale: pageScale});
             var canvas = canvases[number];
             if(!canvas){
               canvas = document.createElement('canvas');
               canvas.className = 'pdf-page';
-              canvas.style.width = Math.round(viewport.width) + 'px';
-              canvas.style.height = Math.round(viewport.height) + 'px';
               canvases[number] = canvas;
               container.appendChild(canvas);
             }
+            // CSS dimensions must change too; changing only canvas.width and
+            // canvas.height updates its backing bitmap but not its layout size.
+            canvas.style.width = Math.round(viewport.width) + 'px';
+            canvas.style.height = Math.round(viewport.height) + 'px';
 
             var viewportTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
             var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -847,13 +858,18 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             var outputScale = Math.max(1, Math.min(6, deviceScale * Math.max(1, visualScale)));
             var maxPixelRatio = Math.sqrt(18000000 / (viewport.width * viewport.height));
             outputScale = Math.max(1, Math.min(outputScale, maxPixelRatio));
-            if(canvas.dataset.outputScale && Math.abs(Number(canvas.dataset.outputScale) - outputScale) < 0.2){
+            var samePageSize =
+              Math.abs(Number(canvas.dataset.viewportWidth) - viewport.width) < 1 &&
+              Math.abs(Number(canvas.dataset.viewportHeight) - viewport.height) < 1;
+            if(samePageSize && canvas.dataset.outputScale && Math.abs(Number(canvas.dataset.outputScale) - outputScale) < 0.2){
               return Promise.resolve();
             }
             if(renderTasks[number]){
               try { renderTasks[number].cancel(); } catch(e) {}
             }
             canvas.dataset.outputScale = String(outputScale);
+            canvas.dataset.viewportWidth = String(viewport.width);
+            canvas.dataset.viewportHeight = String(viewport.height);
             canvas.width = Math.round(viewport.width * outputScale);
             canvas.height = Math.round(viewport.height * outputScale);
 
