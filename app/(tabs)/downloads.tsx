@@ -142,6 +142,13 @@ export default function DownloadsScreen() {
   }, []);
 
   const handleOpenPreview = (paper: OfflinePaper) => {
+    if (!paper.localUri) {
+      showIceMessage(
+        'PDF unavailable offline',
+        'This file is not saved on this device. Download it again while online, then open it here.'
+      );
+      return;
+    }
     setPreviewDoc({
       id: paper._id,
       mtid: paper.mtid || 'P0001',
@@ -149,9 +156,9 @@ export default function DownloadsScreen() {
       unitCode: paper.unitCode,
       unitName: paper.unitName,
       school: paper.school,
-      // Always prefer the downloaded app-private file. The remote URL is only
-      // retained as a retry/source URL and must never replace the local copy.
-      fileUrl: paper.localUri || paper.fileUrl,
+      // The Downloads reader is intentionally local-only. It never streams a
+      // remote fallback when the saved device copy is missing.
+      fileUrl: paper.localUri,
       ttsTextUrl: paper.ttsLocalUri,
       author: paper.uploadedBy?.name || 'Moi Lecturer',
       summary: paper.title,

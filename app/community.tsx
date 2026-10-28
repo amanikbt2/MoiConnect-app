@@ -7004,7 +7004,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#071b16'
   },
   liveEndedOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    minHeight: 0,
     zIndex: 999,
     elevation: 50,
     alignItems: 'center',

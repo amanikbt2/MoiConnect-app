@@ -67,7 +67,6 @@ interface PDFViewerModalProps {
   document: PDFDocumentItem | null;
   onClose: () => void;
   onDownload: (doc: PDFDocumentItem) => void;
-  onRetryDownload?: (doc: PDFDocumentItem, onProgress: (progress: number) => void) => Promise<string | null>;
 }
 
 export function formatCount(input: number | string | undefined | null): string {
@@ -151,12 +150,37 @@ const loadPdfJsSources = (): Promise<{ core: string; worker: string }> => {
   return pdfJsSourcePromise;
 };
 
+const readPdfBase64WithProgress = async (
+  uri: string,
+  onProgress: (progress: number) => void
+): Promise<string> => {
+  const info = await FileSystem.getInfoAsync(uri).catch(() => null);
+  if (!info?.exists || !('size' in info) || !info.size) {
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+    onProgress(100);
+    return base64;
+  }
+
+  const size = info.size;
+  const chunkSize = 384 * 1024; // divisible by three, so base64 chunks concatenate safely
+  const chunks: string[] = [];
+  for (let position = 0; position < size; position += chunkSize) {
+    const length = Math.min(chunkSize, size - position);
+    chunks.push(await FileSystem.readAsStringAsync(uri, {
+      encoding: 'base64',
+      position,
+      length
+    }));
+    onProgress(Math.min(100, Math.round(((position + length) / size) * 100)));
+  }
+  return chunks.join('');
+};
+
 export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   visible,
   document,
   onClose,
-  onDownload,
-  onRetryDownload
+  onDownload
 }) => {
   const [activePage, setActivePage] = useState(1);
   const [actualPageCount, setActualPageCount] = useState<number | null>(null);
@@ -170,6 +194,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     progress?: number;
     localUri?: string;
   }>({});
+  const downloadedLocalUri = downloadInfo.status === 'completed' ? downloadInfo.localUri : undefined;
 
   const [ttsState, setTtsState] = useState<TTSState>({ isSpeaking: false, isPaused: false, voices: [], selectedVoiceId: null, speechRate: 1.0, speechPitch: 0.8 });
   const [showVoicePicker, setShowVoicePicker] = useState<boolean>(false);
@@ -184,6 +209,8 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const [pdfRetryKey, setPdfRetryKey] = useState<number>(0);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const loadedLocalPdfUri = useRef<string | null>(null);
+  const previewDownloadTask = useRef<FileSystem.DownloadResumable | null>(null);
+  const previewCacheUri = useRef<string | null>(null);
   const [pdfEngineSources, setPdfEngineSources] = useState<{ core: string; worker: string } | null>(null);
   const pdfReadyRef = useRef(false);
   const [isLandscape, setIsLandscape] = useState(false);
@@ -275,7 +302,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     if (/^(file|content):/i.test(sourceUrl)) {
       const loadPrivateFile = async () => {
         try {
-          const base64 = await FileSystem.readAsStringAsync(sourceUrl, { encoding: 'base64' });
+          setPdfLoadProgress(0);
+          const base64 = await readPdfBase64WithProgress(sourceUrl, (progress) => {
+            lastPdfProgressAt.current = Date.now();
+            setPdfLoadProgress(progress);
+          });
           if (!cancelled) setPdfBase64(base64);
         } catch (error) {
           console.warn('[PDF Reader] Could not read saved PDF:', error);
@@ -288,6 +319,77 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     return () => { cancelled = true; };
   }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
   const [isPdfRetrying, setIsPdfRetrying] = useState<boolean>(false);
+
+  // Native previews are downloaded into the app cache, not the user's offline
+  // library. This gives PDF.js a stable local file and lets the reader show
+  // real transfer progress without silently creating a permanent download.
+  useEffect(() => {
+    if (Platform.OS === 'web' || !visible || !document?.fileUrl) return;
+
+    const sourceUrl = getCleanPdfUrl(resolveRawPdfUrl(document.fileUrl));
+    if (!sourceUrl || /^(file|content|offline-web):/i.test(sourceUrl)) return;
+    if (downloadedLocalUri) return;
+    if (!FileSystem.cacheDirectory) {
+      setIsPdfLoading(false);
+      setIsPdfRetrying(false);
+      setHasPdfLoadError(true);
+      return;
+    }
+
+    let cancelled = false;
+    const safeId = document.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const cacheUri = `${FileSystem.cacheDirectory}pdf-preview-${safeId}.pdf`;
+    previewCacheUri.current = cacheUri;
+    setIsPdfLoading(true);
+    setHasPdfLoadError(false);
+    setPdfLoadProgress(0);
+    lastPdfProgressAt.current = Date.now();
+
+    const task = FileSystem.createDownloadResumable(
+      sourceUrl,
+      cacheUri,
+      { headers: { Accept: 'application/pdf' } },
+      (progress) => {
+        lastPdfProgressAt.current = Date.now();
+        const total = progress.totalBytesExpectedToWrite;
+        if (total > 0) {
+          setPdfLoadProgress(Math.max(0, Math.min(99, Math.round((progress.totalBytesWritten / total) * 100))));
+        }
+      }
+    );
+    previewDownloadTask.current = task;
+
+    void task.downloadAsync().then(async (result) => {
+      if (cancelled) return;
+      if (!result || result.status < 200 || result.status >= 300) {
+        throw new Error(`PDF preview request failed (${result?.status ?? 'no response'}).`);
+      }
+      const base64 = await readPdfBase64WithProgress(result.uri, (progress) => {
+        lastPdfProgressAt.current = Date.now();
+        setPdfLoadProgress(99 + Math.round(progress / 100));
+      });
+      if (cancelled) return;
+      loadedLocalPdfUri.current = result.uri;
+      pdfReadyRef.current = false;
+      setPdfLoadProgress(100);
+      setPdfBase64(base64);
+      setHasPdfLoadError(false);
+    }).catch((error) => {
+      if (cancelled) return;
+      console.warn('[PDF Reader] Temporary preview load failed:', error);
+      setIsPdfLoading(false);
+      setIsPdfRetrying(false);
+      setHasPdfLoadError(true);
+    });
+
+    return () => {
+      cancelled = true;
+      if (previewDownloadTask.current === task) previewDownloadTask.current = null;
+      void task.cancelAsync().catch(() => undefined);
+      if (previewCacheUri.current === cacheUri) previewCacheUri.current = null;
+      void FileSystem.deleteAsync(cacheUri, { idempotent: true }).catch(() => undefined);
+    };
+  }, [document?.id, document?.fileUrl, visible, pdfRetryKey, downloadedLocalUri]);
 
   useEffect(() => {
     setActualPageCount(null);
@@ -319,39 +421,31 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   }, [document?.id, document?.fileUrl, visible, pdfRetryKey]);
 
   const handleRetryPdfLoad = async () => {
-    if (Platform.OS !== 'web' && document && onRetryDownload) {
-      setIsPdfRetrying(true);
-      setIsPdfLoading(true);
-      setHasPdfLoadError(false);
-      setPdfLoadProgress(0);
-      lastPdfProgressAt.current = Date.now();
+    setIsPdfRetrying(true);
+    setIsPdfLoading(true);
+    setHasPdfLoadError(false);
+    setPdfLoadProgress(null);
+    setPdfBase64(null);
+    lastPdfProgressAt.current = Date.now();
+    if (Platform.OS !== 'web' && downloadInfo.status === 'completed' && downloadInfo.localUri) {
       try {
-        const localUri = await onRetryDownload(document, (progress) => {
+        const base64 = await readPdfBase64WithProgress(downloadInfo.localUri, (progress) => {
           lastPdfProgressAt.current = Date.now();
           setPdfLoadProgress(progress);
         });
-        if (!localUri) throw new Error('The PDF download did not finish.');
-        loadedLocalPdfUri.current = localUri;
-        const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
+        loadedLocalPdfUri.current = downloadInfo.localUri;
         pdfReadyRef.current = false;
+        setPdfLoadProgress(100);
         setPdfBase64(base64);
       } catch (error) {
-        console.warn('[PDF Reader] Resumable download failed:', error);
+        console.warn('[PDF Reader] Could not reopen the saved PDF:', error);
         setIsPdfLoading(false);
-        setHasPdfLoadError(true);
-      } finally {
         setIsPdfRetrying(false);
+        setHasPdfLoadError(true);
       }
       return;
     }
-    setIsPdfRetrying(true);
-    setHasPdfLoadError(false);
-    setPdfLoadProgress(null);
-    lastPdfProgressAt.current = Date.now();
     setPdfRetryKey((k) => k + 1);
-    setTimeout(() => {
-      setIsPdfRetrying(false);
-    }, 1200);
   };
 
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -490,7 +584,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
 
     let cancelled = false;
     const localUri = downloadInfo.localUri;
-    FileSystem.readAsStringAsync(localUri, { encoding: 'base64' }).then((base64) => {
+    setPdfLoadProgress(0);
+    readPdfBase64WithProgress(localUri, (progress) => {
+      lastPdfProgressAt.current = Date.now();
+      setPdfLoadProgress(progress);
+    }).then((base64) => {
       if (cancelled) return;
       loadedLocalPdfUri.current = localUri;
       pdfReadyRef.current = false;
@@ -618,7 +716,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
     const safeWorker = pdfEngineSources.worker ? pdfEngineSources.worker.replace(/<\/script/gi, '<\\/script') : '';
 
     return `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=4.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=8.0, user-scalable=yes">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -703,23 +801,71 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
         report({type:'pdfPageCount',count:pdf.numPages});
         var container = document.getElementById('container');
         var screenWidth = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0, 360);
+        var pages = {};
+        var canvases = {};
+        var renderTasks = {};
+        var zoomTimer = null;
 
         function renderPage(number){
           if(number > pdf.numPages) return;
           pdf.getPage(number).then(function(page){
+            pages[number] = page;
             var unscaled = page.getViewport({scale: 1.0});
             var targetWidth = Math.min(screenWidth - 16, 680);
-            var scale = Math.max(0.6, Math.min(1.2, targetWidth / unscaled.width));
-            var viewport = page.getViewport({scale: scale});
+            var pageScale = Math.max(0.6, Math.min(1.2, targetWidth / unscaled.width));
+            var viewport = page.getViewport({scale: pageScale});
+            var canvas = canvases[number];
+            if(!canvas){
+              canvas = document.createElement('canvas');
+              canvas.className = 'pdf-page';
+              canvas.style.width = Math.round(viewport.width) + 'px';
+              canvas.style.height = Math.round(viewport.height) + 'px';
+              canvases[number] = canvas;
+              container.appendChild(canvas);
+            }
 
-            var canvas = document.createElement('canvas');
-            canvas.className = 'pdf-page';
-            canvas.width = Math.round(viewport.width);
-            canvas.height = Math.round(viewport.height);
-            container.appendChild(canvas);
+            var viewportTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
+            var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            var pageRect = canvas.getBoundingClientRect();
+            if(number !== 1 && (pageRect.bottom < viewportTop - viewportHeight || pageRect.top > viewportTop + viewportHeight * 2)){
+              if(renderTasks[number]){
+                try { renderTasks[number].cancel(); } catch(e) {}
+                renderTasks[number] = null;
+              }
+              canvas.width = 0;
+              canvas.height = 0;
+              canvas.dataset.outputScale = '0';
+              setTimeout(function(){ renderPage(number + 1); }, 50);
+              return;
+            }
 
-            var ctx = canvas.getContext('2d');
-            return page.render({canvasContext: ctx, viewport: viewport}).promise.then(function(){
+            // Render at the device's real pixel density. On pinch zoom, redraw
+            // visible pages at the higher density instead of stretching a
+            // screen-resolution bitmap into a blurry page.
+            var visualScale = window.visualViewport ? window.visualViewport.scale : 1;
+            var deviceScale = Math.min(3, window.devicePixelRatio || 1);
+            var outputScale = Math.max(1, Math.min(6, deviceScale * Math.max(1, visualScale)));
+            var maxPixelRatio = Math.sqrt(18000000 / (viewport.width * viewport.height));
+            outputScale = Math.max(1, Math.min(outputScale, maxPixelRatio));
+            if(canvas.dataset.outputScale && Math.abs(Number(canvas.dataset.outputScale) - outputScale) < 0.2){
+              return Promise.resolve();
+            }
+            if(renderTasks[number]){
+              try { renderTasks[number].cancel(); } catch(e) {}
+            }
+            canvas.dataset.outputScale = String(outputScale);
+            canvas.width = Math.round(viewport.width * outputScale);
+            canvas.height = Math.round(viewport.height * outputScale);
+
+            var ctx = canvas.getContext('2d', {alpha:false});
+            var task = page.render({
+              canvasContext: ctx,
+              viewport: viewport,
+              transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
+            });
+            renderTasks[number] = task;
+            return task.promise.then(function(){
+              if(renderTasks[number] === task) renderTasks[number] = null;
               if(number === 1){
                 report({type:'pdfReady'});
               }
@@ -727,11 +873,46 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               setTimeout(function(){
                 renderPage(number + 1);
               }, 50);
+            }).catch(function(error){
+              if(error && error.name === 'RenderingCancelledException') return;
+              throw error;
             });
           }).catch(function(error){
             report({type:'pdfError',error:String(error)});
           });
         }
+
+        function redrawVisiblePages(){
+          var top = window.visualViewport ? window.visualViewport.offsetTop : 0;
+          var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+          var bottom = top + height;
+          Object.keys(canvases).forEach(function(key){
+            var number = Number(key);
+            var rect = canvases[number].getBoundingClientRect();
+            if(rect.bottom >= top - 80 && rect.top <= bottom + 80){
+              renderPage(number);
+            } else if(rect.bottom < top - height || rect.top > bottom + height){
+              if(renderTasks[number]){
+                try { renderTasks[number].cancel(); } catch(e) {}
+                renderTasks[number] = null;
+              }
+              canvases[number].width = 0;
+              canvases[number].height = 0;
+              canvases[number].dataset.outputScale = '0';
+            }
+          });
+        }
+
+        function scheduleVisibleRedraw(){
+          clearTimeout(zoomTimer);
+          zoomTimer = setTimeout(redrawVisiblePages, 140);
+        }
+        if(window.visualViewport){
+          window.visualViewport.addEventListener('resize', scheduleVisibleRedraw);
+          window.visualViewport.addEventListener('scroll', scheduleVisibleRedraw);
+        }
+        window.addEventListener('resize', scheduleVisibleRedraw);
+        window.addEventListener('scroll', scheduleVisibleRedraw, {passive:true});
 
         renderPage(1);
       }).catch(function(error){
@@ -1018,8 +1199,9 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           ) : Platform.OS !== 'web' && isPdfRetrying && !pdfBase64 ? (
             <View style={styles.viewerLoading}>
               <ActivityIndicator color="#15803d" size="large" />
-              <Text style={styles.viewerLoadingText}>
-                Saving PDF for reliable reading... {pdfLoadProgress ?? 0}%
+              <Text style={styles.nativeLoadingTitle}>Preparing pages…</Text>
+              <Text style={styles.nativeLoadingProgress}>
+                {pdfLoadProgress === null ? 'Loading PDF' : `${pdfLoadProgress}%`}
               </Text>
             </View>
           ) : Platform.OS === 'web' && hasRealDocument ? (
@@ -1032,11 +1214,13 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 onLoad={() => {
                   pdfReadyRef.current = true;
                   setIsPdfLoading(false);
+                  setIsPdfRetrying(false);
                   setHasPdfLoadError(false);
                 }}
                 onError={() => {
                   if (!pdfReadyRef.current) {
                     setIsPdfLoading(false);
+                    setIsPdfRetrying(false);
                     setHasPdfLoadError(true);
                   }
                 }}
@@ -1060,16 +1244,11 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 allowFileAccess
                 allowFileAccessFromFileURLs
                 allowUniversalAccessFromFileURLs
+                setBuiltInZoomControls
+                setDisplayZoomControls={false}
                 mixedContentMode="always"
                 cacheEnabled
                 cacheMode="LOAD_DEFAULT"
-                startInLoadingState
-                renderLoading={() => (
-                  <View style={styles.viewerLoading}>
-                    <ActivityIndicator color="#15803d" size="large" />
-                    <Text style={styles.viewerLoadingText}>Loading PDF...</Text>
-                  </View>
-                )}
                 onLoadStart={() => {
                   lastPdfProgressAt.current = Date.now();
                   setIsPdfLoading(true);
@@ -1083,6 +1262,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                     } else if (message?.type === 'pdfReady') {
                       pdfReadyRef.current = true;
                       setIsPdfLoading(false);
+                      setIsPdfRetrying(false);
                       setHasPdfLoadError(false);
                     } else if (message?.type === 'pdfProgress') {
                       lastPdfProgressAt.current = Date.now();
@@ -1093,6 +1273,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                       console.warn('[PDF Reader WebView Error]:', message.error);
                       if (!pdfReadyRef.current) {
                         setIsPdfLoading(false);
+                        setIsPdfRetrying(false);
                         setHasPdfLoadError(true);
                       }
                     }
@@ -1101,6 +1282,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 onError={() => {
                   if (!pdfReadyRef.current) {
                     setIsPdfLoading(false);
+                    setIsPdfRetrying(false);
                     setHasPdfLoadError(true);
                   }
                 }}
@@ -1108,20 +1290,18 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                   const { nativeEvent } = syntheticEvent;
                   if (nativeEvent.statusCode >= 400 && !pdfReadyRef.current) {
                     setIsPdfLoading(false);
+                    setIsPdfRetrying(false);
                     setHasPdfLoadError(true);
                   }
                 }}
               />
               {isPdfLoading && (
                 <View style={styles.nativeLoadingOverlay} pointerEvents="none">
-                  <View style={styles.loadingPillBadge}>
-                    <ActivityIndicator color="#ffffff" size="small" />
-                    <Text style={styles.loadingPillBadgeText}>
-                      {isPdfRetrying
-                        ? `Saving PDF... ${pdfLoadProgress ?? 0}%`
-                        : pdfLoadProgress === null ? 'Loading document...' : `Loading document... ${pdfLoadProgress}%`}
-                    </Text>
-                  </View>
+                  <ActivityIndicator color="#15803d" size="large" />
+                  <Text style={styles.nativeLoadingTitle}>Preparing pages…</Text>
+                  <Text style={styles.nativeLoadingProgress}>
+                    {pdfLoadProgress === null ? 'Loading PDF' : `${pdfLoadProgress}%`}
+                  </Text>
                 </View>
               )}
             </View>
@@ -1467,28 +1647,19 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fafc'
+    backgroundColor: '#f8fafc',
+    gap: 10
   },
-  loadingPillBadge: {
-    position: 'absolute',
-    bottom: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(15, 23, 42, 0.82)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4
+  nativeLoadingTitle: {
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2
   },
-  loadingPillBadgeText: {
-    color: '#ffffff',
+  nativeLoadingProgress: {
+    color: '#64748b',
     fontSize: 12,
-    fontWeight: '700'
+    fontWeight: '600'
   },
   readerScroll: {
     flex: 1

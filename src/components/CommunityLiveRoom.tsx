@@ -590,6 +590,13 @@ export function CommunityLiveRoom({
       });
   }, [participants, hostParticipant, activeSpeakerIds]);
 
+  // Android WebRTC video is rendered by SurfaceView-backed native views. Those
+  // surfaces can sit above React Native siblings, so detach the renderers while
+  // the full-screen connection overlay is active.
+  const isRoomOverlayVisible = !connectionEnded && !error && (
+    isInitialLoading || isReconnecting || !isNetworkOnline
+  );
+
   // When a guest / participant speaks, smoothly snap the strip so they appear first in row
   useEffect(() => {
     const hasOtherSpeaker = activeSpeakerIds.some(
@@ -637,7 +644,7 @@ export function CommunityLiveRoom({
           isSpeaking && styles.speakingTile
         ]}
       >
-        {isVideoAvailable && (VideoView || Platform.OS === 'web') ? (
+        {isVideoAvailable && !isRoomOverlayVisible && (VideoView || Platform.OS === 'web') ? (
           <LiveVideoTrackView videoTrack={videoTrack} style={StyleSheet.absoluteFill} mirror={isLocal} zOrder={featured ? 0 : 1} />
         ) : (
           <View style={styles.noVideo}>
@@ -676,12 +683,13 @@ export function CommunityLiveRoom({
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topPadding, paddingBottom: bottomPadding }]}>
+    <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
         backgroundColor="#071b16"
         translucent={Platform.OS === 'android'}
       />
+      <View style={[styles.content, { paddingTop: topPadding, paddingBottom: bottomPadding }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {!isNetworkOnline && (
@@ -737,39 +745,6 @@ export function CommunityLiveRoom({
           <View style={styles.stage}>
             {hostParticipant ? renderParticipant(hostParticipant, true) : <ActivityIndicator color="#86efac" style={styles.loader} />}
           </View>
-
-          {(isInitialLoading || isReconnecting || !isNetworkOnline) && (
-            <View style={styles.reconnectionOverlay}>
-              <View style={styles.reconnectionCard}>
-                {!isNetworkOnline ? (
-                  <>
-                    <View style={styles.reconnectionOfflineBadge}>
-                      <Text style={styles.reconnectionOffline}>You’re offline</Text>
-                    </View>
-                    <Text style={styles.reconnectionTitle}>Connection lost</Text>
-                    <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
-                    <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
-                  </>
-                ) : isReconnecting ? (
-                  <>
-                    <Text style={styles.reconnectionTitle}>Reconnecting</Text>
-                    <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
-                    <Text style={styles.reconnectionMessage}>Restoring live stream…</Text>
-                  </>
-                ) : isInitialLoading ? (
-                  <>
-                    <Text style={styles.reconnectionTitle}>
-                      {isHost ? 'Initializing…' : 'Connecting…'}
-                    </Text>
-                    <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
-                    <Text style={styles.reconnectionMessage}>
-                      {isHost ? 'Starting camera & audio…' : 'Connecting to live broadcast…'}
-                    </Text>
-                  </>
-                ) : null}
-              </View>
-            </View>
-          )}
 
           {isHost ? (
             <View
@@ -841,12 +816,46 @@ export function CommunityLiveRoom({
         </>
       )}
       </View>
+      </View>
+      {isRoomOverlayVisible && (
+        <View style={styles.reconnectionOverlay}>
+          <View style={styles.reconnectionCard}>
+            {!isNetworkOnline ? (
+              <>
+                <View style={styles.reconnectionOfflineBadge}>
+                  <Text style={styles.reconnectionOffline}>You’re offline</Text>
+                </View>
+                <Text style={styles.reconnectionTitle}>Connection lost</Text>
+                <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
+                <Text style={styles.reconnectionMessage}>Reconnecting…</Text>
+              </>
+            ) : isReconnecting ? (
+              <>
+                <Text style={styles.reconnectionTitle}>Reconnecting</Text>
+                <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
+                <Text style={styles.reconnectionMessage}>Restoring live stream…</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.reconnectionTitle}>
+                  {isHost ? 'Initializing…' : 'Connecting…'}
+                </Text>
+                <ActivityIndicator color="#86efac" size="large" style={{ marginVertical: 12 }} />
+                <Text style={styles.reconnectionMessage}>
+                  {isHost ? 'Starting camera & audio…' : 'Connecting to live broadcast…'}
+                </Text>
+              </>
+            )}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#071b16', paddingHorizontal: 12 },
+  container: { flex: 1, position: 'relative', backgroundColor: '#071b16', paddingHorizontal: 12 },
+  content: { flex: 1, minHeight: 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -928,8 +937,10 @@ const styles = StyleSheet.create({
   },
   reconnectionOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-    elevation: 40,
+    left: -12,
+    right: -12,
+    zIndex: 1000,
+    elevation: 1000,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,

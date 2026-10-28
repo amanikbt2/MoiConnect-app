@@ -443,11 +443,6 @@ export default function AcademicsScreen({ route }: any) {
     onProgress
   });
 
-  const handleRetryPreview = async (doc: PDFDocumentItem, onProgress: (progress: number) => void) => {
-    const saved = await saveNoteOffline(doc, onProgress);
-    return saved.localUri || null;
-  };
-
   const handleDownload = async (doc: PDFDocumentItem) => {
     try {
       await saveNoteOffline(doc);
@@ -1648,7 +1643,6 @@ export default function AcademicsScreen({ route }: any) {
         document={previewDoc}
         onClose={() => setShowPreviewModal(false)}
         onDownload={handleDownload}
-        onRetryDownload={handleRetryPreview}
       />
     </View>
   );

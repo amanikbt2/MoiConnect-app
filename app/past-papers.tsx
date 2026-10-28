@@ -751,11 +751,6 @@ export default function PastPapersScreen({ route }: any) {
     onProgress
   });
 
-  const handleRetryPreview = async (item: PDFDocumentItem, onProgress: (progress: number) => void) => {
-    const saved = await savePastPaperOffline(item, onProgress);
-    return saved.localUri || null;
-  };
-
   const handleDownload = async (item: PDFDocumentItem | PastPaperItem) => {
     try {
       await savePastPaperOffline(item);
@@ -1376,7 +1371,6 @@ export default function PastPapersScreen({ route }: any) {
         document={previewDoc}
         onClose={() => setShowPreviewModal(false)}
         onDownload={handleDownload}
-        onRetryDownload={handleRetryPreview}
       />
     </View>
   );

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,15 @@ export const POPULAR_CAMPUS_SEARCHES = [
   'School of Engineering'
 ];
 
+const getRandomizedCampusSearches = () => {
+  const shuffled = [...POPULAR_CAMPUS_SEARCHES];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
 /**
  * Google & Spotlight-style Instant Autocomplete Dropdown (100% Offline)
  * Matches units, departments, schools, acronyms, and recent queries in < 1ms.
@@ -65,6 +74,19 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
 }) => {
   const { isDark } = useTheme();
   const trimmed = query.trim().toLowerCase();
+  const [trendingSearches, setTrendingSearches] = useState(POPULAR_CAMPUS_SEARCHES);
+  const randomizedForFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!visible) {
+      randomizedForFocusRef.current = false;
+      return;
+    }
+    if (!trimmed && !randomizedForFocusRef.current) {
+      setTrendingSearches(getRandomizedCampusSearches());
+      randomizedForFocusRef.current = true;
+    }
+  }, [visible, trimmed]);
 
   const queryTokens = useMemo(() => {
     return trimmed.split(/[^a-z0-9]+/i).filter(Boolean);
@@ -86,14 +108,8 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
         });
       });
 
-      // Rotate the trending picks each time the empty-query dropdown opens,
-      // so the same first three searches are not always shown.
-      const shuffledPopular = [...POPULAR_CAMPUS_SEARCHES];
-      for (let index = shuffledPopular.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [shuffledPopular[index], shuffledPopular[swapIndex]] = [shuffledPopular[swapIndex], shuffledPopular[index]];
-      }
-      shuffledPopular.slice(0, 3).forEach((pop, idx) => {
+      // Keep the selected trending items stable until the next focus session.
+      trendingSearches.slice(0, 3).forEach((pop, idx) => {
         items.push({
           id: `pop-${idx}-${pop}`,
           type: 'trending',
@@ -443,7 +459,7 @@ export const SmartSearchAutocomplete: React.FC<SmartSearchAutocompleteProps> = R
     }
 
     return topSuggestions.slice(0, 6);
-  }, [trimmed, queryTokens, historyEntries, showMaterialTypeSuggestion, query, visible]);
+  }, [trimmed, queryTokens, historyEntries, showMaterialTypeSuggestion, query, visible, trendingSearches]);
 
   if (!visible || suggestions.length === 0) {
     return null;
