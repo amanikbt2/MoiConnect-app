@@ -21,7 +21,7 @@ export default function RegisterScreen() {
 
   const handleSocialRegister = async (provider: 'Google' | 'Apple') => {
     if (provider === 'Apple') {
-      openNewUserProfile();
+      setError('Apple features coming soon… Use Google instead.');
     }
   };
 

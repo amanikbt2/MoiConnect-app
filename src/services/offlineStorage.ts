@@ -1058,7 +1058,7 @@ export interface CommunityUnreadSummary {
   mentions: number;
 }
 
-export const getCommunityUnreadSummary = async (user?: { email?: string; name?: string } | null): Promise<CommunityUnreadSummary> => {
+export const getCommunityUnreadSummary = async (user?: { _id?: string; id?: string; email?: string; name?: string } | null): Promise<CommunityUnreadSummary> => {
   const [messages, lastReadId, readMentionIds] = await Promise.all([
     getStoredCommunityMessages(),
     getLastReadCommunityMsgId(),
@@ -1085,12 +1085,30 @@ export const getCommunityUnreadSummary = async (user?: { email?: string; name?: 
   const name = user?.name?.toLowerCase().trim() || '';
   const firstName = name.split(' ')[0] || '';
   const nameSlug = name.replace(/\s+/g, '_');
+  const userId = String(user?._id || user?.id || '');
+  const normalizedEmail = email;
+  const matchesCurrentUser = (id?: unknown, messageEmail?: unknown) => {
+    const normalizedId = String((id as any)?._id || id || '');
+    const normalizedMessageEmail = String(messageEmail || '').toLowerCase().trim();
+    return Boolean((userId && normalizedId === userId) || (normalizedEmail && normalizedMessageEmail === normalizedEmail));
+  };
 
   const mentions = unreadMessages.filter((message: any) => {
     const messageId = message.id || message._id;
     if (!messageId || mentionIds.has(messageId) || message.isMe) return false;
     const text = String(message.text || '').toLowerCase();
+    const parentId = String(message.replyTo?.id?._id || message.replyTo?.id || '');
+    const parentMessage = parentId
+      ? messages.find((candidate: any) => String(candidate.id || candidate._id || '') === parentId)
+      : undefined;
+    const isReplyToCurrentUser = matchesCurrentUser(message.replyTo?.senderId, message.replyTo?.senderEmail) ||
+      Boolean(parentMessage && (parentMessage.isMe || matchesCurrentUser(parentMessage.senderId, parentMessage.senderEmail)));
+    const hasStructuredMention = Array.isArray(message.mentions) && userId && message.mentions.some((mentionedId: any) =>
+      String(mentionedId?._id || mentionedId) === userId
+    );
     return Boolean(
+      isReplyToCurrentUser ||
+      hasStructuredMention ||
       (email && text.includes(`@${email}`)) ||
       (emailPrefix && emailPrefix.length >= 3 && text.includes(`@${emailPrefix}`)) ||
       (name && text.includes(`@${name}`)) ||
@@ -1109,11 +1127,12 @@ type UnreadCountListener = (count: number) => void;
 const unreadCountListeners = new Set<UnreadCountListener>();
 
 type UnreadSummaryListener = (summary: CommunityUnreadSummary) => void;
-const unreadSummaryListeners = new Map<UnreadSummaryListener, { email?: string; name?: string } | null>();
+type CommunityUnreadUser = { _id?: string; id?: string; email?: string; name?: string };
+const unreadSummaryListeners = new Map<UnreadSummaryListener, CommunityUnreadUser | null>();
 
 export const subscribeToUnreadSummaryUpdates = (
   listener: UnreadSummaryListener,
-  user?: { email?: string; name?: string } | null
+  user?: CommunityUnreadUser | null
 ) => {
   unreadSummaryListeners.set(listener, user || null);
   getCommunityUnreadSummary(user).then(listener);
@@ -1189,6 +1208,9 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
           senderAvatarUrl: serverMsg.senderAvatarUrl,
           avatarBg: serverMsg.avatarBg || '#15803d',
           text: serverMsg.text || '',
+          mentions: Array.isArray(serverMsg.mentions)
+            ? serverMsg.mentions.map((id: any) => String(id?._id || id))
+            : undefined,
           timestamp: new Date(serverMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isoDate: serverMsg.createdAt,
           updatedAt: serverMsg.updatedAt,

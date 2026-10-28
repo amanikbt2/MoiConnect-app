@@ -19,7 +19,7 @@ export default function LoginScreen() {
 
   const handleSocialLogin = async (provider: 'Google' | 'Apple') => {
     if (provider === 'Apple') {
-      router.replace('/(tabs)');
+      setError('Apple features coming soon… Use Google instead.');
     }
   };
 
