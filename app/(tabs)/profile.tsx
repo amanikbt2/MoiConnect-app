@@ -422,6 +422,15 @@ export default function ProfileScreen() {
       <Modal visible={accountMenuVisible} transparent animationType="fade" onRequestClose={() => setAccountMenuVisible(false)}>
         <Pressable style={styles.accountMenuBackdrop} onPress={() => setAccountMenuVisible(false)}>
           <Pressable style={styles.accountMenu} onPress={(event) => event.stopPropagation()}>
+            <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); router.push('/privacy'); }}>
+              <ShieldCheckIcon color="#15803d" size={16} />
+              <Text style={styles.accountMenuText}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <View style={styles.accountMenuDivider} />
+            <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); router.push('/faq'); }}>
+              <Text style={styles.accountMenuText}>FAQ & Support</Text>
+            </TouchableOpacity>
+            <View style={styles.accountMenuDivider} />
             <TouchableOpacity style={styles.accountMenuRow} onPress={handleLogout}>
               <Text style={styles.accountMenuText}>Log out</Text>
             </TouchableOpacity>

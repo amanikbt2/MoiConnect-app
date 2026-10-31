@@ -8,7 +8,7 @@ import {
   SafeAreaView
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
-import { ChevronDownIcon, TrashIcon, BookIcon, ShieldCheckIcon, ArrowLeftIcon } from '../src/components/Icons';
+import { ChevronDownIcon, TrashIcon, ArrowLeftIcon } from '../src/components/Icons';
 
 export interface FAQItem {
   id: string;
@@ -23,21 +23,42 @@ const FAQ_DATA: FAQItem[] = [
     id: 'delete_account',
     category: 'Account & Data Privacy',
     question: 'How do I request deletion of my account and associated data?',
-    answer: 'MConnect provides two simple methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> tap the three-dot menu in the top-right corner -> choose "Delete account" -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. Please include your full name and registered phone number. All email deletion requests are processed within 5 business days.',
+    answer: 'MConnect provides two convenient methods to request the deletion of your account and personal data:\n\n1. In-App Deletion (Instant):\nOpen the Profile tab in the app -> tap the three-dot menu (⋮) in the top-right corner -> choose "Delete account" -> confirm deletion. Your account profile, saved items, and credentials will be immediately purged.\n\n2. Email Request:\nIf you cannot access the app, send an email to amanikbt1@gmail.com with the subject "Account Deletion Request" from your registered email address. All email deletion requests are processed within 5 business days.',
     iconTag: '🗑️'
+  },
+  {
+    id: 'delete_specific_data',
+    category: 'Account & Data Privacy',
+    question: 'Can I delete specific data without deleting my entire account?',
+    answer: 'Yes! You have full control over individual data items without needing to delete your account:\n\n• Clear Downloaded Papers: Go to Downloads tab -> tap options (⋮) on any file -> select "Delete" to free up device space.\n• Remove Favorites: Simply un-favorite any saved exam paper or hostel to remove it from your records.\n• Landlord Listings: Landlords can edit or delete specific room listings and property photos anytime.\n• Profile Updates: Update your name, phone number, and academic details anytime from the Profile screen.\n• Specific Removal Requests: Email amanikbt1@gmail.com with details of any specific file or comment you want deleted.',
+    iconTag: '⚙️'
   },
   {
     id: 'what_data_deleted',
     category: 'Account & Data Privacy',
     question: 'What user data is deleted or retained upon request?',
-    answer: 'Upon receiving your account deletion request, the following data is permanently purged from our database:\n\n• Personal Profile: Name, registered email address, phone number, and password hashes.\n• User Content: Profile picture, saved offline bookmarks, and private landlord message history.\n• Verification Records: Landlord application details and identity documents.\n\nNote: Publicly uploaded academic past papers/notes will remain on the platform to maintain community access, but will be completely anonymized to disassociate your identity.',
+    answer: 'Upon receiving your account deletion request, the following data is permanently purged from our database:\n\n• Personal Profile: Name, registered email address, phone number, and password hashes.\n• Media Assets: User profile avatar photos stored on cloud servers.\n• Direct Messages: 1-on-1 private messaging history between students and landlords.\n• Booking Records: Rental house booking inquiries and landlord property listings.\n• Device Tokens: Push notification tokens and session authorization tokens.\n\nNote: Publicly uploaded academic past papers/notes remain available to the student community to maintain educational continuity, but will be completely anonymized to disassociate your identity.',
     iconTag: '🔒'
+  },
+  {
+    id: 'permissions',
+    category: 'Security & Permissions',
+    question: 'Why does MConnect ask for Camera and Microphone permissions?',
+    answer: 'Camera and Microphone access are used strictly for optional real-time communication:\n\n• Camera: Optional real-time video calls with landlords or classmates, and taking profile photos or document pictures.\n• Microphone: Optional real-time voice calls and audio notes.\n\nGuarantee: All voice and video calls are streamed live via encrypted WebRTC connections (LiveKit) and are NEVER recorded, listened to, or stored on our servers.',
+    iconTag: '📹'
+  },
+  {
+    id: 'data_security',
+    category: 'Security & Permissions',
+    question: 'How is user data encrypted and protected?',
+    answer: 'All communications between MConnect and our backend servers are encrypted using modern Transport Layer Security (TLS 1.3 / HTTPS). Passwords are cryptographically salted and hashed using standard bcrypt algorithms before database storage. We strictly do NOT sell or share personal student information with advertisers or data brokers.',
+    iconTag: '🛡️'
   },
   {
     id: 'revision_notes',
     category: 'Academic Resources',
     question: 'How do I access and download past papers or notes?',
-    answer: 'Navigate to the Academics tab or click Quick Access cards (Notes PDF, Past Papers, CAT Papers) on the Home Screen. You can search by unit code (e.g. COM 310, STA 210) and read materials instantly in the lightning PDF viewer or tap Download to save them for offline access.',
+    answer: 'Navigate to the Academics tab or click Quick Access cards (Notes PDF, Past Papers, CAT Papers) on the Home Screen. You can search by unit code (e.g. COM 310, STA 210, BBM 101) and read materials instantly in the lightning PDF viewer or tap Download to save them for offline access.',
     iconTag: '📚'
   },
   {
@@ -48,18 +69,18 @@ const FAQ_DATA: FAQItem[] = [
     iconTag: '⚡'
   },
   {
-    id: 'rewards_points',
-    category: 'Rewards & Contributions',
-    question: 'How do student reward points work?',
-    answer: 'You receive +5 bonus points upon account registration. Each approved past paper or study guide earns a random +1 or +2 points. Points can be tracked on your profile and may unlock M-Pesa rewards at the published milestones.',
-    iconTag: '🌟'
-  },
-  {
     id: 'hostel_bookings',
     category: 'Rental Marketplace',
     question: 'How do I contact landlords for Kesses hostels?',
     answer: 'Browse available rentals under the Rentals tab, view room pricing, amenities, and location details. Tap "Call Landlord" or "WhatsApp Landlord" to communicate directly with verified property owners.',
     iconTag: '🏠'
+  },
+  {
+    id: 'rewards_points',
+    category: 'Rewards & Contributions',
+    question: 'How do student reward points work?',
+    answer: 'You receive bonus points upon account registration. Each approved past paper or study guide earns reward points. Points can be tracked on your profile and may unlock student rewards at published milestones.',
+    iconTag: '🌟'
   }
 ];
 
@@ -98,7 +119,7 @@ export default function FAQScreen() {
           <Text style={styles.appTitle}>MConnect Support</Text>
           <Text style={styles.pageTitle}>Frequently Asked Questions</Text>
           <Text style={styles.subtitle}>
-            Find quick answers on account management, data deletion, downloads, and campus services.
+            Find official guidance on account management, data privacy, sensitive permissions, downloads, and campus services.
           </Text>
         </View>
 
@@ -110,7 +131,7 @@ export default function FAQScreen() {
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <TrashIcon color="#dc2626" size={20} />
-            <Text style={styles.deletionBannerTitle}>Need to Delete Your Account?</Text>
+            <Text style={styles.deletionBannerTitle}>Need to Delete Your Account or Data?</Text>
           </View>
           <Text style={styles.deletionBannerText}>
             Go to Profile -&gt; tap the three-dot menu in the top-right corner -&gt; choose "Delete account", or tap here to read step-by-step instructions.
@@ -148,6 +169,15 @@ export default function FAQScreen() {
               </View>
             );
           })}
+        </View>
+
+        {/* Contact Support Card */}
+        <View style={styles.contactCard}>
+          <Text style={styles.contactTitle}>Still need assistance?</Text>
+          <Text style={styles.contactText}>
+            Our student platform team is here to assist you with account verification, study material uploads, or privacy queries.
+          </Text>
+          <Text style={styles.contactEmail}>amanikbt1@gmail.com</Text>
         </View>
 
         {/* Bottom Back Button */}
@@ -203,7 +233,7 @@ const styles = StyleSheet.create({
   headerCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    padding: 22,
+    padding: 24,
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
@@ -215,13 +245,13 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   headerIconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10
+    marginBottom: 12
   },
   appTitle: {
     fontSize: 12,
@@ -245,40 +275,41 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   deletionBanner: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1.5,
+    borderColor: '#bbf7d0',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#fca5a5'
+    marginBottom: 16
   },
   deletionBannerTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#dc2626'
+    color: '#15803d'
   },
   deletionBannerText: {
-    fontSize: 12,
-    color: '#991b1b',
+    fontSize: 13,
+    color: '#166534',
     lineHeight: 18
   },
   faqList: {
-    gap: 12
+    marginBottom: 16
   },
   faqCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     overflow: 'hidden'
   },
   faqCardExpanded: {
-    borderColor: '#bfdbfe',
+    borderColor: '#cbd5e1',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
-    elevation: 2
+    elevation: 1
   },
   faqHeader: {
     flexDirection: 'row',
@@ -287,15 +318,16 @@ const styles = StyleSheet.create({
     padding: 16
   },
   categoryText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#2563eb',
+    color: '#15803d',
     textTransform: 'uppercase',
-    marginBottom: 2
+    letterSpacing: 0.5,
+    marginBottom: 3
   },
   questionText: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#0f172a',
     lineHeight: 20
   },
@@ -309,14 +341,40 @@ const styles = StyleSheet.create({
   answerText: {
     fontSize: 13,
     color: '#334155',
-    lineHeight: 21
+    lineHeight: 20
+  },
+  contactCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center'
+  },
+  contactTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4
+  },
+  contactText: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 8
+  },
+  contactEmail: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#15803d'
   },
   backButton: {
     backgroundColor: '#15803d',
     borderRadius: 14,
     paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 20
+    alignItems: 'center'
   },
   backButtonText: {
     color: '#ffffff',
