@@ -1,12 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { KENYAN_UNIVERSITIES, KenyanUniversity, getKenyanUniversitySearchAliases } from '../data/kenyanUniversities';
+import { findKenyanUniversity, KENYAN_UNIVERSITIES, KenyanUniversity, getKenyanUniversitySearchAliases } from '../data/kenyanUniversities';
 import { useUniversity } from '../context/UniversityContext';
+import { useAuth } from '../context/AuthContext';
+import { showIceMessage } from './IceMessageCard';
 
-export function UniversitySetupModal() {
+export function UniversitySetupModal({ allowReselect = false, visible = false, onDismiss }: { allowReselect?: boolean; visible?: boolean; onDismiss?: () => void }) {
   const { ready, selectedUniversity, selectUniversity } = useUniversity();
+  const { user, loading: authLoading, updateUserProfile } = useAuth();
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
+  const syncedUniversityRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (authLoading || !user?._id || !user.university) return;
+    const syncKey = `${user._id}:${user.university}`;
+    if (syncedUniversityRef.current === syncKey) return;
+    syncedUniversityRef.current = syncKey;
+    const university = findKenyanUniversity(user.university);
+    if (university && selectedUniversity?.name !== university.name) void selectUniversity(university);
+  }, [authLoading, user?._id, user?.university, selectedUniversity?.name]);
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
     if (!search) return KENYAN_UNIVERSITIES;
@@ -15,17 +27,29 @@ export function UniversitySetupModal() {
 
   const choose = async (university: KenyanUniversity) => {
     setSaving(true);
-    try { await selectUniversity(university); } finally { setSaving(false); }
+    try {
+      await selectUniversity(university);
+      onDismiss?.();
+      if (user && user.university !== university.name) {
+        try {
+          await updateUserProfile({ university: university.name });
+        } catch (error: any) {
+          showIceMessage('University Saved on This Device', error?.message || 'Your university could not be synced to your account. You can try again in Profile settings.');
+        }
+      }
+    } catch (error: any) {
+      showIceMessage('University Not Saved', error?.message || 'Could not save your university on this device. Please try again.');
+    } finally { setSaving(false); }
   };
 
   return (
-    <Modal visible={ready && !selectedUniversity} animationType="fade" transparent onRequestClose={() => {}}>
+    <Modal visible={allowReselect ? visible : ready && !authLoading && !selectedUniversity} animationType="fade" transparent onRequestClose={() => { if (allowReselect) onDismiss?.(); }}>
       <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.card}>
           <View style={styles.brandMark}><Text style={styles.brandMarkText}>M</Text></View>
-          <Text style={styles.title}>Choose your university</Text>
+          <Text style={styles.title}>{allowReselect ? 'Update your university' : 'Choose your university'}</Text>
           <Text style={styles.subtitle}>Select your campus community to personalize MConnect.</Text>
-          <View style={styles.requiredPill}><Text style={styles.requiredText}>Required on first setup</Text></View>
+          {!allowReselect && <View style={styles.requiredPill}><Text style={styles.requiredText}>Required on first setup</Text></View>}
           <TextInput
             value={query}
             onChangeText={setQuery}

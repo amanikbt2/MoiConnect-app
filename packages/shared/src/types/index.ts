@@ -26,6 +26,7 @@ export interface IUser {
   email: string;
   phone?: string;
   school?: string;
+  university?: string;
   course?: string;
   yearOfStudy?: string;
   avatarUrl?: string;

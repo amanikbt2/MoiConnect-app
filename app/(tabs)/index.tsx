@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
+import { useUniversity } from '../../src/context/UniversityContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../../src/services/offlineStorage';
@@ -70,7 +71,7 @@ interface SuggestedMaterial {
 
 const SUGGESTED_MATERIALS: SuggestedMaterial[] = [];
 
-function getGreetingText(userName?: string): string {
+function getGreetingText(userName?: string, universityShortName?: string): string {
   const hour = new Date().getHours();
   let timePrefix = 'Jambo';
 
@@ -90,11 +91,12 @@ function getGreetingText(userName?: string): string {
     return `${timePrefix}, ${firstName}`;
   }
 
-  return `${timePrefix}, Moi University Student`;
+  return `${timePrefix}, ${universityShortName ? `${universityShortName} Student` : 'Student'}`;
 }
 
 
 export default function HomeScreen() {
+  const { selectedUniversity } = useUniversity();
   const [searchQuery, setSearchQuery] = useState('');
   const smartIntent = React.useMemo(() => {
     return searchQuery.trim().length > 1 ? parseSmartSearchQuery(searchQuery.trim()) : null;
@@ -236,7 +238,7 @@ export default function HomeScreen() {
           academicYear: p.academicYear || '',
           type: p.type || '',
           ratingScore: p.ratingScore || 0,
-          school: p.school || 'Moi University',
+          school: p.school || selectedUniversity?.name || 'University',
           paperType: p.type === 'cat'
             ? 'CAT Paper'
             : p.type === 'past_paper'
@@ -357,7 +359,7 @@ export default function HomeScreen() {
       {/* Welcome Banner */}
       <View style={styles.banner}>
         <Text style={styles.welcomeText}>
-          {getGreetingText(user?.name)}
+          {getGreetingText(user?.name, selectedUniversity?.shortName)}
         </Text>
         <Text style={styles.bannerSub}>Find past papers, revision notes, and verified rental houses.</Text>
 
@@ -514,18 +516,21 @@ export default function HomeScreen() {
               style={styles.quickCard}
               activeOpacity={0.7}
               onPress={() =>
-                handleOpenPortal({
-                  title: 'Moi University Student Portal',
-                  url: 'https://portal.mu.ac.ke/',
-                  domain: 'portal.mu.ac.ke'
-                })
+                selectedUniversity?.studentPortalUrl || selectedUniversity?.officialWebsiteUrl
+                  ? handleOpenPortal({
+                      title: `${selectedUniversity.name} Student Portal`,
+                      url: selectedUniversity.studentPortalUrl || selectedUniversity.officialWebsiteUrl!,
+                      domain: new URL(selectedUniversity.studentPortalUrl || selectedUniversity.officialWebsiteUrl!).hostname
+                    })
+                  : undefined
               }
+              disabled={!selectedUniversity?.studentPortalUrl && !selectedUniversity?.officialWebsiteUrl}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#e0f2fe' }]}>
                 <GraduationCapIcon color="#0284c7" size={28} />
               </View>
               <Text style={styles.quickTitle}>Student Portal</Text>
-              <Text style={styles.quickSub}>Official Moi portal</Text>
+              <Text style={styles.quickSub}>{selectedUniversity?.studentPortalUrl ? `Official ${selectedUniversity.shortName} portal` : selectedUniversity?.officialWebsiteUrl ? 'Open official university website' : 'Portal link not yet verified'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

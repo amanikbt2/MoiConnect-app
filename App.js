@@ -755,8 +755,8 @@ export default function App() {
       <NetworkProvider>
         <QueryClientProvider client={queryClient}>
           <UniversityProvider>
-            <UniversitySetupModal />
             <AuthProvider>
+              <UniversitySetupModal />
               <ThemeProvider>
               <StatusBar style="light" backgroundColor="#15803d" />
               <IceMessageHost />

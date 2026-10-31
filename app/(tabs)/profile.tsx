@@ -33,6 +33,8 @@ import { Badge } from '../../src/components/Badge';
 import { UserBadge } from '../../src/components/UserBadge';
 import { EmptyState } from '../../src/components/EmptyState';
 import { DeleteAccountConfirmModal } from '../../src/components/DeleteAccountConfirmModal';
+import { UniversitySetupModal } from '../../src/components/UniversitySetupModal';
+import { useUniversity } from '../../src/context/UniversityContext';
 import { MOI_SCHOOLS } from '@moi/shared';
 import {
   HouseIcon,
@@ -78,6 +80,8 @@ const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 export default function ProfileScreen() {
   const { user, logout, deleteAccount, updateUserProfile } = useAuth();
   const { isDark, toggleDarkTheme } = useTheme();
+  const { selectedUniversity } = useUniversity();
+  const [showUniversityPicker, setShowUniversityPicker] = useState(false);
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
     school: 'Unset',
     course: 'Unset',
@@ -442,17 +446,31 @@ export default function ProfileScreen() {
       />
       {/* Student Personal Details Card */}
       <View style={styles.studentProfileCard}>
+        <UniversitySetupModal allowReselect visible={showUniversityPicker} onDismiss={() => setShowUniversityPicker(false)} />
         <View style={styles.cardHeaderRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <AcademicCapIcon color="#15803d" size={20} />
             <View>
               <Text style={styles.cardTitle}>{isAssistant ? 'AI Assistant Profile' : 'Student Academic Profile'}</Text>
-              <Text style={styles.cardSub}>{isAssistant ? 'Official MConnect Assistant Details' : 'Official Moi University Campus Details'}</Text>
+              <Text style={styles.cardSub}>{isAssistant ? 'Official MConnect Assistant Details' : 'Your campus details'}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.detailsList}>
+          {!isAssistant && <>
+            <TouchableOpacity style={styles.detailItem} onPress={() => setShowUniversityPicker(true)} activeOpacity={0.75}>
+              <View style={styles.detailIconBox}>
+                <AcademicCapIcon color="#15803d" size={18} />
+              </View>
+              <View style={styles.detailTextContainer}>
+                <Text style={styles.detailLabelHeader}>UNIVERSITY</Text>
+                <Text style={styles.detailValueText}>{selectedUniversity?.name || user.university || 'Select your university'}</Text>
+              </View>
+              <Text style={{ color: '#15803d', fontSize: 12, fontWeight: '800' }}>Update</Text>
+            </TouchableOpacity>
+            <View style={styles.detailItemDivider} />
+          </>}
           {/* School / Faculty */}
           <View style={styles.detailItem}>
             <View style={styles.detailIconBox}>
@@ -597,40 +615,51 @@ export default function ProfileScreen() {
 
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Select School / Faculty</Text>
-              <TouchableOpacity
-                style={styles.dropdownSelector}
-                onPress={() => setShowSchoolDropdown(!showSchoolDropdown)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.dropdownSelectorText} numberOfLines={1}>
-                  {editSchool || 'Select your school/faculty...'}
-                </Text>
-                <ChevronDownIcon color="#64748b" size={18} />
-              </TouchableOpacity>
+              {selectedUniversity?.name === 'Moi University' ? <>
+                <TouchableOpacity
+                  style={styles.dropdownSelector}
+                  onPress={() => setShowSchoolDropdown(!showSchoolDropdown)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.dropdownSelectorText} numberOfLines={1}>
+                    {editSchool || 'Select your school/faculty...'}
+                  </Text>
+                  <ChevronDownIcon color="#64748b" size={18} />
+                </TouchableOpacity>
 
-              {showSchoolDropdown && (
-                <ScrollView style={styles.dropdownMenu} nestedScrollEnabled={true}>
-                  {MOI_SCHOOLS.map((sch) => {
-                    const isSelected = editSchool === sch;
-                    return (
-                      <TouchableOpacity
-                        key={sch}
-                        style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
-                        onPress={() => {
-                           setEditSchool(sch);
-                           if (profileValidationMessage) setProfileValidationMessage('');
-                          setShowSchoolDropdown(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownMenuItemText, isSelected && styles.dropdownMenuItemTextActive]}>
-                          {sch}
-                        </Text>
-                        {isSelected && <Text style={{ color: '#15803d', fontWeight: '800' }}>✓</Text>}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
+                {showSchoolDropdown && (
+                  <ScrollView style={styles.dropdownMenu} nestedScrollEnabled={true}>
+                    {MOI_SCHOOLS.map((sch) => {
+                      const isSelected = editSchool === sch;
+                      return (
+                        <TouchableOpacity
+                          key={sch}
+                          style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
+                          onPress={() => {
+                            setEditSchool(sch);
+                            if (profileValidationMessage) setProfileValidationMessage('');
+                            setShowSchoolDropdown(false);
+                          }}
+                        >
+                          <Text style={[styles.dropdownMenuItemText, isSelected && styles.dropdownMenuItemTextActive]}>
+                            {sch}
+                          </Text>
+                          {isSelected && <Text style={{ color: '#15803d', fontWeight: '800' }}>✓</Text>}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </> : <TextInput
+                style={styles.textInput}
+                placeholder="Enter your school or faculty"
+                placeholderTextColor="#94a3b8"
+                value={editSchool}
+                onChangeText={(value) => {
+                  setEditSchool(value);
+                  if (profileValidationMessage) setProfileValidationMessage('');
+                }}
+              />}
             </View>
 
             <View style={styles.formGroup}>

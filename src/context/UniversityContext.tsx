@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { KenyanUniversity } from '../data/kenyanUniversities';
+import { findKenyanUniversity, KenyanUniversity } from '../data/kenyanUniversities';
 
 const UNIVERSITY_KEY = 'moiconnect_selected_university_v1';
 
@@ -33,7 +33,13 @@ export function UniversityProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     readLocal().then((raw) => {
       if (raw) {
-        try { setSelectedUniversity(JSON.parse(raw)); } catch { /* fresh setup */ }
+        try {
+          const stored = JSON.parse(raw) as Partial<KenyanUniversity>;
+          const canonical = findKenyanUniversity(stored.name);
+          if (canonical) {
+            setSelectedUniversity(canonical);
+          }
+        } catch { /* fresh setup */ }
       }
       setReady(true);
     }).catch(() => setReady(true));

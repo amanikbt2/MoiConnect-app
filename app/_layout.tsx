@@ -122,8 +122,8 @@ function RootLayoutContent() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <UniversityProvider>
-          <UniversitySetupModal />
           <AuthProvider>
+            <UniversitySetupModal />
             <AppRuntimeServices />
           <IceMessageHost />
           <StatusBar style="light" />

@@ -10,7 +10,7 @@ interface AuthContextType {
   user: IUser | null;
   loading: boolean;
   userPoints: number;
-  updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy'>>) => Promise<void>;
+  updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy' | 'university'>>) => Promise<void>;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
   googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy'>>) => {
+  const updateUserProfile = async (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy' | 'university'>>) => {
     if (!user) return;
     let updatedUser: IUser = { ...user, ...updates, updatedAt: new Date().toISOString() };
     try {
