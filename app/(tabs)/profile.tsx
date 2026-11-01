@@ -555,10 +555,21 @@ export default function ProfileScreen() {
           </View>
           <Switch value={isDark} onValueChange={toggleDarkTheme} trackColor={{ false: '#cbd5e1', true: '#15803d' }} thumbColor="#ffffff" />
         </View>
-        <TouchableOpacity style={[styles.resetAlgorithmButton, isDark && styles.darkResetButton]} onPress={handleResetAlgorithm} activeOpacity={0.8}>
-          <Text style={styles.resetAlgorithmText}>Reset recommendation algorithm</Text>
-          <Text style={styles.resetAlgorithmHint}>Clear saved search interests and start fresh</Text>
-        </TouchableOpacity>
+        <View style={[styles.resetAlgorithmRow, isDark && styles.darkRow]}>
+          <View style={styles.resetAlgorithmInfo}>
+            <Text style={[styles.resetAlgorithmTitle, isDark && styles.darkText]}>Recommendation algorithm</Text>
+            <Text style={[styles.resetAlgorithmHint, isDark && styles.darkMutedText]}>Clear saved search interests and start fresh</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.resetAlgorithmButton, isDark && styles.darkResetButton]}
+            onPress={handleResetAlgorithm}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Reset recommendation algorithm"
+          >
+            <Text style={[styles.resetAlgorithmText, isDark && styles.darkResetText]}>Reset</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Edit Student Personal Details Modal */}
@@ -569,7 +580,7 @@ export default function ProfileScreen() {
               <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>{isAssistant ? 'Edit Assistant Profile' : 'Complete Student Profile'}</Text>
               {!profileCompletionRequired && (
                 <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                  <CloseIcon color="#ef4444" size={20} />
+                  <CloseIcon color={isDark ? colors.text : '#000000'} size={20} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1175,7 +1186,10 @@ const styles = StyleSheet.create({
   settingsRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
   settingsRowTitle: { fontSize: 13, fontWeight: '800', color: '#0f172a' },
   settingsRowSubtitle: { fontSize: 11, color: '#64748b', marginTop: 3, paddingRight: 12 },
-  resetAlgorithmButton: { marginTop: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, padding: 11 },
+  resetAlgorithmRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12, marginTop: 12 },
+  resetAlgorithmInfo: { flex: 1 },
+  resetAlgorithmTitle: { color: '#0f172a', fontSize: 12, fontWeight: '800' },
+  resetAlgorithmButton: { minWidth: 68, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   resetAlgorithmText: { color: '#15803d', fontSize: 12, fontWeight: '800' },
   resetAlgorithmHint: { color: '#64748b', fontSize: 10, marginTop: 3 },
   darkContainer: { backgroundColor: '#0f172a' },
@@ -1183,7 +1197,8 @@ const styles = StyleSheet.create({
   darkRow: { borderTopColor: '#334155' },
   darkText: { color: '#f8fafc' },
   darkMutedText: { color: '#cbd5e1' },
-  darkResetButton: { backgroundColor: '#1e293b', borderColor: '#475569' }
+  darkResetButton: { backgroundColor: '#1e293b', borderColor: '#475569' },
+  darkResetText: { color: '#86efac' }
 });
 
 

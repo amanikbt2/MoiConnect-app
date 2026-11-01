@@ -179,6 +179,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
   onOpenPreview: (item: CATPaperItem) => void;
   highlightWords?: string[];
 }) {
+  const { isDark, colors } = useTheme();
   const isFocused = useIsFocused();
   const carouselRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -205,7 +206,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
     <View style={styles.discoverySection}>
       <View style={styles.sectionHeaderRow}>
         <View style={[styles.sectionIconCircle, { backgroundColor: '#dcfce7' }]}><SparklesIcon color="#15803d" size={17} /></View>
-        <View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSub}>{subtitle}</Text></View>
+        <View><Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>{title}</Text><Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>{subtitle}</Text></View>
       </View>
       <FlatList
         ref={carouselRef}
@@ -226,7 +227,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
         getItemLayout={(_, index) => ({ length: CAROUSEL_CARD_WIDTH + 14, offset: (CAROUSEL_CARD_WIDTH + 14) * index, index })}
         onScrollToIndexFailed={(info) => carouselRef.current?.scrollToOffset({ offset: info.index * (CAROUSEL_CARD_WIDTH + 14), animated: true })}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.carouselCard} activeOpacity={0.88} onPress={() => onOpenPreview(item)}>
+          <TouchableOpacity style={[styles.carouselCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} activeOpacity={0.88} onPress={() => onOpenPreview(item)}>
             <View style={styles.carouselThumbnailContainer}>
               <Image source={{ uri: item.thumbnail }} style={styles.carouselImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
               <View style={styles.carouselOverlay} />
@@ -236,19 +237,19 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
               </View>
             </View>
             <View style={styles.carouselBody}>
-              <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+              <Text style={[styles.carouselMeta, isDark && { color: '#86efac' }]}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
               {highlightWords && highlightWords.length > 0 ? (
                 <HighlightText
                   text={item.title}
                   highlightWords={highlightWords}
-                  style={styles.carouselTitle}
+                  style={[styles.carouselTitle, isDark && { color: colors.text }]}
                   numberOfLines={2}
                 />
               ) : (
-                <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={[styles.carouselTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
               )}
-              <View style={styles.carouselFooter}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><DownloadIcon color="#15803d" size={13} /><Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text></View>
+                <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><DownloadIcon color="#15803d" size={13} /><Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloadsCount)} downloads</Text></View>
                 <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
               </View>
             </View>
@@ -823,7 +824,7 @@ export default function CatPapersScreen({ route }: any) {
         }
       >
         {/* Top Search Section */}
-        <View ref={searchContainerRef} style={styles.searchSection}>
+        <View ref={searchContainerRef} style={[styles.searchSection, isDark && { backgroundColor: colors.background }]}>
           <View style={[styles.searchBar, isDark && { backgroundColor: colors.input, borderColor: colors.border }]}>
             <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
             <TextInput
@@ -903,7 +904,7 @@ export default function CatPapersScreen({ route }: any) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.discScroll}
+          style={[styles.discScroll, isDark && { backgroundColor: colors.background, borderBottomColor: colors.border }]}
           contentContainerStyle={styles.discContent}
         >
           {FILTER_DISCS.map((disc) => {
@@ -928,7 +929,7 @@ export default function CatPapersScreen({ route }: any) {
             return (
               <TouchableOpacity
                 key={disc.id}
-                style={[styles.discPill, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+                style={[styles.discPill, isDark && !isActive && { backgroundColor: colors.surface, borderColor: colors.border }, isActive && styles.discPillActive, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}
                 onPress={() => {
                   setActiveFilterDisc(disc.id);
                   setDiscShuffleSeed((seed) => seed + 1);
@@ -941,7 +942,7 @@ export default function CatPapersScreen({ route }: any) {
                 activeOpacity={0.75}
               >
                 {renderDiscIcon(disc.iconType)}
-                <Text style={[styles.discText, isActive && styles.discTextActive]}>
+                <Text style={[styles.discText, isDark && !isActive && { color: colors.text }, isActive && styles.discTextActive]}>
                   {disc.label}
                 </Text>
               </TouchableOpacity>
@@ -957,10 +958,10 @@ export default function CatPapersScreen({ route }: any) {
                 <SparklesIcon color="#15803d" size={18} />
               </View>
               <View>
-                <Text style={styles.sectionTitle}>
+                <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>
                   {isSearching ? 'Top Matches' : 'Recommended CAT 1 & 2 Quizzes'}
                 </Text>
-                <Text style={styles.sectionSub}>
+                <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>
                   {isSearching
                     ? (smartSearch.intent.school
                         ? `Auto-matched for ${smartSearch.intent.school}`
@@ -997,7 +998,7 @@ export default function CatPapersScreen({ route }: any) {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={styles.carouselCard}
+                  style={[styles.carouselCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                   activeOpacity={0.88}
                   onPress={() => handleOpenPreview(item)}
                 >
@@ -1017,13 +1018,13 @@ export default function CatPapersScreen({ route }: any) {
                   </View>
 
                   <View style={styles.carouselBody}>
-                    <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
-                    <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                    <Text style={[styles.carouselMeta, isDark && { color: '#86efac' }]}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+                    <Text style={[styles.carouselTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
 
-                    <View style={styles.carouselFooter}>
+                    <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <DownloadIcon color="#15803d" size={13} />
-                        <Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text>
+                        <Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloadsCount)} downloads</Text>
                       </View>
                       <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
                     </View>
@@ -1076,8 +1077,8 @@ export default function CatPapersScreen({ route }: any) {
                       <SparklesIcon color="#15803d" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>Top Match Results</Text>
-                      <Text style={styles.sectionSub}>
+                      <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Top Match Results</Text>
+                      <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>
                         {smartSearch.isAutoPivoted
                           ? `Auto-matched for "${smartSearch.effectiveQuery}"`
                           : (smartSearch.intent.unitCode
@@ -1095,7 +1096,7 @@ export default function CatPapersScreen({ route }: any) {
 
               {/* ZERO DIRECT RESULTS FALLBACK */}
               {filteredCats.length === 0 && !isSearchLoading && (
-                <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                <View style={{ padding: 24, alignItems: 'center', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0' }}>
                   {requestedQuery !== null && requestedQuery === searchQuery.trim() ? (
                     <>
                       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
@@ -1159,8 +1160,8 @@ export default function CatPapersScreen({ route }: any) {
                       <SparklesIcon color="#d97706" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>You May Also Like</Text>
-                      <Text style={styles.sectionSub}>
+                      <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>You May Also Like</Text>
+                      <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>
                         Closest related to {searchRecommendations.contextLabel}
                       </Text>
                     </View>
@@ -1196,7 +1197,7 @@ export default function CatPapersScreen({ route }: any) {
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         key={item.id}
-                        style={styles.carouselCard}
+                        style={[styles.carouselCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                         activeOpacity={0.88}
                         onPress={() => handleOpenPreview(item)}
                       >
@@ -1216,22 +1217,22 @@ export default function CatPapersScreen({ route }: any) {
                         </View>
 
                         <View style={styles.carouselBody}>
-                          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+                          <Text style={[styles.carouselMeta, isDark && { color: '#86efac' }]}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
                           {isSearching && searchHighlightWords.length > 0 ? (
                             <HighlightText
                               text={item.title}
                               highlightWords={searchHighlightWords}
-                              style={styles.carouselTitle}
+                              style={[styles.carouselTitle, isDark && { color: colors.text }]}
                               numberOfLines={2}
                             />
                           ) : (
-                            <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+                            <Text style={[styles.carouselTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
                           )}
 
-                          <View style={styles.carouselFooter}>
+                          <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <DownloadIcon color="#15803d" size={13} />
-                              <Text style={styles.carouselStats}>{formatCount(item.downloadsCount)} downloads</Text>
+                              <Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloadsCount)} downloads</Text>
                             </View>
                             <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
                           </View>
@@ -1260,8 +1261,8 @@ export default function CatPapersScreen({ route }: any) {
                       <TrendingUpIcon color="#2563eb" size={18} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitle}>Trending & Recommended CAT Quizzes</Text>
-                      <Text style={styles.sectionSub}>
+                      <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Trending & Recommended CAT Quizzes</Text>
+                      <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>
                         Continue browsing popular continuous assessments & quizzes
                       </Text>
                     </View>
@@ -1313,8 +1314,8 @@ export default function CatPapersScreen({ route }: any) {
                       <BookIcon color="#15803d" size={18} />
                     </View>
                     <View>
-                      <Text style={styles.sectionTitle}>Full CAT Assessment Feed</Text>
-                      <Text style={styles.sectionSub}>Continuous assessment tests & quizzes from all faculties</Text>
+                      <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Full CAT Assessment Feed</Text>
+                      <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>Continuous assessment tests & quizzes from all faculties</Text>
                     </View>
                   </View>
                 )}

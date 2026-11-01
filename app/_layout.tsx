@@ -133,7 +133,7 @@ function RootLayoutContent() {
                 screenOptions={{
                   headerShown: false,
                   animation: Platform.OS === 'android' ? 'none' : 'default',
-                  headerStyle: { backgroundColor: '#15803d' },
+                  headerStyle: { backgroundColor: colors.header },
                   headerTintColor: '#ffffff',
                   headerTitleStyle: { fontWeight: '800', fontSize: 18 },
                   headerLeft: ({ canGoBack, tintColor }) => (

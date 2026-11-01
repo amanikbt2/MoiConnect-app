@@ -1005,7 +1005,9 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   reconnectionOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
     left: -12,
     right: -12,
     zIndex: 1000,

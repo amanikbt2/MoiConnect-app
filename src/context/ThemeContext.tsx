@@ -5,6 +5,7 @@ const DARK_THEME_KEY = 'moi_dark_theme_enabled';
 
 export interface AppThemeColors {
   background: string;
+  header: string;
   surface: string;
   surfaceElevated: string;
   surfaceSubtle: string;
@@ -16,6 +17,7 @@ export interface AppThemeColors {
 
 const LIGHT_COLORS: AppThemeColors = {
   background: '#f8fafc',
+  header: '#15803d',
   surface: '#ffffff',
   surfaceElevated: '#ffffff',
   surfaceSubtle: '#f8fafc',
@@ -26,14 +28,15 @@ const LIGHT_COLORS: AppThemeColors = {
 };
 
 const DARK_COLORS: AppThemeColors = {
-  background: '#0b1220',
-  surface: '#111c2e',
-  surfaceElevated: '#172438',
-  surfaceSubtle: '#0f1a2b',
+  background: '#111821',
+  header: '#192536',
+  surface: '#202c3a',
+  surfaceElevated: '#2a3849',
+  surfaceSubtle: '#182331',
   text: '#f1f5f9',
   mutedText: '#a7b4c7',
-  border: '#2a3a50',
-  input: '#0c1727'
+  border: '#344456',
+  input: '#182433'
 };
 
 interface ThemeContextValue {

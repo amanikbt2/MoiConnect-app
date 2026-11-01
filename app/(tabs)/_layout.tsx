@@ -6,6 +6,7 @@ import { NotificationCenterModal } from '../../src/components/NotificationCenter
 import { PointsHeaderButton } from '../../src/components/StudentRewardsModal';
 import { DeleteAccountConfirmModal } from '../../src/components/DeleteAccountConfirmModal';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import {
   subscribeToUnreadCountUpdates
 } from '../../src/services/offlineStorage';
@@ -278,6 +279,7 @@ const profileHeaderStyles = StyleSheet.create({
   }
 });
 export default function TabLayout() {
+  const { colors } = useTheme();
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
@@ -292,7 +294,7 @@ export default function TabLayout() {
       detachInactiveScreens={Platform.OS !== 'android'}
       screenOptions={{
         headerShown: true,
-        headerStyle: { backgroundColor: '#15803d' },
+        headerStyle: { backgroundColor: colors.header },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: '800', fontSize: 18 },
         headerRight: () => (
