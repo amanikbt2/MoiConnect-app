@@ -18,6 +18,7 @@ import {
   Switch
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { apiRequest } from '../../src/services/api';
@@ -78,9 +79,13 @@ const getAssistantAvatarSource = (u?: { email?: string; name?: string } | null) 
 const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout, deleteAccount, updateUserProfile } = useAuth();
   const { isDark, colors, toggleDarkTheme } = useTheme();
   const { selectedUniversity } = useUniversity();
+  const scrollBottomPadding = Platform.OS === 'android'
+    ? Math.max(88, insets.bottom + 72)
+    : 40;
   const [showUniversityPicker, setShowUniversityPicker] = useState(false);
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
     school: 'Unset',
@@ -368,7 +373,7 @@ export default function ProfileScreen() {
   ));
 
   return (
-    <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingBottom: scrollBottomPadding }]}>
       {/* Profile Avatar & Header Card */}
       <View style={[styles.userCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TouchableOpacity
