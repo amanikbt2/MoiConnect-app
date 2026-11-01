@@ -270,19 +270,19 @@ const isUnsetCommunityValue = (val?: string) => !val || val.trim() === '' || val
 const getCommunitySenderSubtitle = (
   message: CommunityMessage,
   currentUser?: any,
-  currentProfile?: StudentPersonalDetails | null,
-  currentUniversity?: string
+  currentProfile?: StudentPersonalDetails | null
 ): string => {
   if (isCampusAssistantMessage(message)) {
     return 'AI Assistant';
   }
+  const university = !isUnsetCommunityValue(message.senderUniversity) ? message.senderUniversity : undefined;
   if (message.isMe && currentUser) {
     const course = !isUnsetCommunityValue(currentUser.course) ? currentUser.course : (!isUnsetCommunityValue(currentProfile?.course) ? currentProfile?.course : undefined);
     const year = !isUnsetCommunityValue(currentUser.yearOfStudy) ? currentUser.yearOfStudy : (!isUnsetCommunityValue(currentProfile?.yearOfStudy) ? currentProfile?.yearOfStudy : undefined);
     const school = !isUnsetCommunityValue(currentUser.school) ? currentUser.school : (!isUnsetCommunityValue(currentProfile?.school) ? currentProfile?.school : undefined);
-    return formatStudentSubtitle(school, course, year, message.senderFaculty, currentUniversity || currentUser.university);
+    return formatStudentSubtitle(school, course, year, message.senderFaculty, university);
   }
-  return formatStudentSubtitle(undefined, message.senderCourse, message.senderYear, message.senderFaculty, message.senderUniversity);
+  return formatStudentSubtitle(undefined, message.senderCourse, message.senderYear, message.senderFaculty, university);
 };
 
 const getReplySenderLabel = (replyTo: NonNullable<CommunityMessage['replyTo']>, currentUser?: any): string => {
@@ -2390,7 +2390,7 @@ export default function CommunityScreen() {
         senderFaculty: saved.senderFaculty || 'Moi Student',
         senderCourse: saved.senderCourse,
         senderYear: saved.senderYear,
-        senderUniversity: saved.senderUniversity || user?.university || selectedUniversity?.name,
+        senderUniversity: saved.senderUniversity || saved.pendingPayload?.senderUniversity,
         senderAvatarUrl: saved.senderAvatarUrl || user?.avatarUrl,
         senderBadge: saved.senderBadge || user?.badge,
         avatarBg: saved.avatarBg || '#15803d',
@@ -3617,7 +3617,7 @@ export default function CommunityScreen() {
                                     <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
                                     <UserBadge badge={item.senderBadge} size={11} />
                                   </View>
-                                  <Text style={[styles.senderFaculty, isDark && { color: colors.mutedText }]}>{getCommunitySenderSubtitle(item, user, myProfile, selectedUniversity?.name)}</Text>
+                                  <Text style={[styles.senderFaculty, isDark && { color: colors.mutedText }]}>{getCommunitySenderSubtitle(item, user, myProfile)}</Text>
                                 </View>
                               )}
 

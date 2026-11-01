@@ -1204,6 +1204,7 @@ export const syncCommunityUnreadBackground = async (options: { notify?: boolean 
           senderFaculty: serverMsg.senderFaculty || 'Main Campus',
           senderCourse: serverMsg.senderCourse,
           senderYear: serverMsg.senderYear,
+          senderUniversity: serverMsg.senderUniversity || serverMsg._doc?.senderUniversity,
           senderPhone: serverMsg.senderPhone,
           senderAvatarUrl: serverMsg.senderAvatarUrl,
           avatarBg: serverMsg.avatarBg || '#15803d',
