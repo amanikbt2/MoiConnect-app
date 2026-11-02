@@ -58,6 +58,8 @@ export function UniversitySetupModal({ allowReselect = false, visible = false, o
             style={styles.search}
             autoCapitalize="words"
             underlineColorAndroid="transparent"
+            selectionColor="#15803d"
+            cursorColor="#15803d"
           />
           <FlatList
             data={filtered}
@@ -103,8 +105,8 @@ const styles = StyleSheet.create({
     height: 46,
     width: '100%',
     alignSelf: 'stretch',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderWidth: 0,
+    borderColor: 'transparent',
     borderRadius: 12,
     paddingHorizontal: 14,
     color: '#0f172a',
