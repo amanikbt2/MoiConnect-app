@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { WifiOffIcon, RefreshIcon } from './Icons';
+import { useTheme } from '../context/ThemeContext';
 
 interface OfflineStateProps {
   title?: string;
@@ -15,15 +16,16 @@ export const OfflineState: React.FC<OfflineStateProps> = ({
   onRetry,
   retrying = false
 }) => {
+  const { isDark, colors } = useTheme();
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <WifiOffIcon color="#64748b" size={38} />
+      <View style={[styles.card, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+        <View style={[styles.iconCircle, isDark && { backgroundColor: colors.surfaceSubtle }]}>
+          <WifiOffIcon color={isDark ? colors.mutedText : '#64748b'} size={38} />
         </View>
 
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.title, isDark && { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.message, isDark && { color: colors.mutedText }]}>{message}</Text>
 
         <TouchableOpacity
           style={[styles.retryBtn, retrying && styles.retryBtnDisabled]}

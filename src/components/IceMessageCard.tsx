@@ -7,6 +7,7 @@ import {
   View,
   Platform
 } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 type IceMessageButton = {
   text: string;
@@ -34,6 +35,7 @@ export const showIceMessage = (
 
 export const IceMessageHost: React.FC = () => {
   const [message, setMessage] = useState<IceMessage | null>(null);
+  const { isDark, colors } = useTheme();
 
   useEffect(() => {
     listener = (nextMessage) => {
@@ -54,22 +56,24 @@ export const IceMessageHost: React.FC = () => {
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={close}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <View style={styles.iceOrb}><Text style={styles.iceOrbText}>M</Text></View>
-          <Text style={styles.title}>{message.title}</Text>
-          {!!message.message && <Text style={styles.message}>{message.message}</Text>}
+      <View style={[styles.backdrop, isDark && { backgroundColor: 'rgba(3, 8, 14, 0.72)' }]}>
+        <View style={[styles.card, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.iceOrb, isDark && { backgroundColor: '#193449', borderColor: '#256080' }]}>
+            <Text style={[styles.iceOrbText, isDark && { color: '#7dd3fc' }]}>M</Text>
+          </View>
+          <Text style={[styles.title, isDark && { color: colors.text }]}>{message.title}</Text>
+          {!!message.message && <Text style={[styles.message, isDark && { color: colors.mutedText }]}>{message.message}</Text>}
           <View style={styles.actions}>
             {buttons.map((button, index) => (
               <Pressable
                 key={`${button.text}-${index}`}
-                style={[styles.button, button.style === 'cancel' && styles.cancelButton, button.style === 'destructive' && styles.destructiveButton]}
+                style={[styles.button, isDark && { backgroundColor: '#0284c7' }, button.style === 'cancel' && styles.cancelButton, isDark && button.style === 'cancel' && { backgroundColor: colors.surfaceElevated }, button.style === 'destructive' && styles.destructiveButton]}
                 onPress={() => {
                   close();
                   button.onPress?.();
                 }}
               >
-                <Text style={[styles.buttonText, button.style === 'cancel' && styles.cancelText, button.style === 'destructive' && styles.destructiveText]}>
+                <Text style={[styles.buttonText, button.style === 'cancel' && styles.cancelText, isDark && button.style === 'cancel' && { color: colors.text }, button.style === 'destructive' && styles.destructiveText]}>
                   {button.text}
                 </Text>
               </Pressable>

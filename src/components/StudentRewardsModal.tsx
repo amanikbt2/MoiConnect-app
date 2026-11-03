@@ -9,6 +9,7 @@ import {
   Platform
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { CloseIcon, SparklesIcon, StarIcon } from './Icons';
 
 interface RewardMilestone {
@@ -33,6 +34,7 @@ interface StudentRewardsModalProps {
 
 export function StudentRewardsModal({ visible = false, onClose }: StudentRewardsModalProps) {
   const { userPoints } = useAuth();
+  const { isDark, colors } = useTheme();
 
   // Calculate overall progress percentage for the progress line
   // Find which step user is at
@@ -67,34 +69,34 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, isDark && { backgroundColor: colors.surface }]}>
           {/* Close Button Header */}
           <View style={styles.topCloseRow}>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-              <CloseIcon color="#64748b" size={20} />
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, isDark && { backgroundColor: colors.surfaceSubtle }]} activeOpacity={0.7}>
+              <CloseIcon color={colors.mutedText} size={20} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Round Icon & Titles */}
             <View style={styles.headerSection}>
-              <View style={styles.starCircle}>
+              <View style={[styles.starCircle, isDark && { backgroundColor: '#153a2a' }]}>
                 <Text style={{ fontSize: 24 }}>🌟</Text>
               </View>
-              <Text style={styles.mainTitle}>Student Rewards</Text>
-              <Text style={styles.subTitle}>MConnect Points System</Text>
+              <Text style={[styles.mainTitle, isDark && { color: colors.text }]}>Student Rewards</Text>
+              <Text style={[styles.subTitle, isDark && { color: '#86efac' }]}>MConnect Points System</Text>
             </View>
 
             {/* Balance Card */}
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceHeader}>YOUR POINTS</Text>
-              <Text style={styles.balanceAmount}>{userPoints} pts</Text>
-              <Text style={styles.balanceSub}>Earn points by contributing study materials!</Text>
+            <View style={[styles.balanceCard, isDark && { backgroundColor: '#153526', borderColor: '#28623f' }]}>
+              <Text style={[styles.balanceHeader, isDark && { color: '#86efac' }]}>YOUR POINTS</Text>
+              <Text style={[styles.balanceAmount, isDark && { color: '#4ade80' }]}>{userPoints} pts</Text>
+              <Text style={[styles.balanceSub, isDark && { color: '#bbf7d0' }]}>Earn points by contributing study materials!</Text>
             </View>
 
             {/* Progress Section Container */}
-            <View style={styles.progressContainerCard}>
-              <Text style={styles.progressCardSub}>
+            <View style={[styles.progressContainerCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+              <Text style={[styles.progressCardSub, isDark && { color: colors.mutedText }]}>
                 {nextMilestone
                   ? `Reach ${nextMilestone.labelPts} to unlock ${nextMilestone.rewardKsh}`
                   : '🎉 Max level reached! You unlocked all top rewards!'}
@@ -103,7 +105,7 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
               {/* Step Progress Line Component */}
               <View style={styles.milestoneTracker}>
                 {/* Connecting Bar */}
-                <View style={styles.trackLineBackground}>
+                <View style={[styles.trackLineBackground, isDark && { backgroundColor: colors.border }]}>
                   <View style={[styles.trackLineFill, { width: `${progressPercent}%` }]} />
                 </View>
 
@@ -116,7 +118,7 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
                     return (
                       <View key={item.pts} style={styles.nodeColumn}>
                         {/* Top Label: Points */}
-                        <Text style={[styles.ptsTopLabel, isReached ? styles.textActive : styles.textInactive]}>
+                        <Text style={[styles.ptsTopLabel, isReached ? styles.textActive : styles.textInactive, isDark && { color: isReached ? '#4ade80' : colors.mutedText }]}>
                           {item.labelPts}
                         </Text>
 
@@ -127,19 +129,19 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
                             isReached
                               ? styles.nodeDotReached
                               : isNext
-                              ? styles.nodeDotNext
-                              : styles.nodeDotInactive
+                              ? [styles.nodeDotNext, isDark && { backgroundColor: colors.surfaceElevated, borderColor: '#4ade80' }]
+                              : [styles.nodeDotInactive, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]
                           ]}
                         >
                           {isReached ? (
                             <Text style={styles.checkmarkText}>✓</Text>
                           ) : (
-                            <View style={isNext ? styles.innerNextDot : null} />
+                            <View style={[isNext ? styles.innerNextDot : null, isDark && isNext && { backgroundColor: '#4ade80' }]} />
                           )}
                         </View>
 
                         {/* Bottom Label: Reward Money */}
-                        <Text style={[styles.kshBottomLabel, isReached ? styles.kshActive : styles.kshInactive]}>
+                        <Text style={[styles.kshBottomLabel, isReached ? styles.kshActive : styles.kshInactive, isDark && { color: isReached ? '#4ade80' : colors.mutedText }]}>
                           {item.rewardKsh}
                         </Text>
                       </View>
@@ -150,9 +152,9 @@ export function StudentRewardsModal({ visible = false, onClose }: StudentRewards
             </View>
 
             {/* How to earn points info footer */}
-            <View style={styles.infoBox}>
-              <Text style={styles.infoTitle}>💡 How points work</Text>
-              <Text style={styles.infoBody}>
+            <View style={[styles.infoBox, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+              <Text style={[styles.infoTitle, isDark && { color: colors.text }]}>💡 How points work</Text>
+              <Text style={[styles.infoBody, isDark && { color: colors.mutedText }]}>
                 • <Text style={{ fontWeight: '700' }}>+5 pts</Text> bonus upon registration.{'\n'}
                 • <Text style={{ fontWeight: '700' }}>+10 pts</Text> for uploading verified past papers or CAT notes.{'\n'}
                 • Points build up your campus status and unlock student reward tiers!

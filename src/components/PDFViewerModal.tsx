@@ -23,6 +23,7 @@ import { DownloadIcon, CheckIcon, ArrowLeftIcon, VolumeIcon, RotateDeviceIcon } 
 import { OfflineState } from './OfflineState';
 import { subscribeToDownloadUpdates, OfflinePaper, personalizeLectureText, readOfflineWebPdfBase64 } from '../services/offlineStorage';
 import { ttsService, TTSState } from '../services/ttsService';
+import { useTheme } from '../context/ThemeContext';
 import { config } from '../config';
 
 const HIDE_PDF_TOOLBAR_SCRIPT = `(function(){
@@ -215,6 +216,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   const pdfReadyRef = useRef(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { isDark, colors } = useTheme();
 
   useEffect(() => {
     if (!visible) {
@@ -982,7 +984,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       transparent={false}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={[styles.container, webLandscapeStyle]}>
+      <SafeAreaView style={[styles.container, isDark && { backgroundColor: colors.background }, webLandscapeStyle]}>
         {/* Top Header Navigation Bar */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -1202,7 +1204,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
         )}
 
         {/* Instant PDF Preview Container */}
-        <View style={styles.bodyContainer}>
+        <View style={[styles.bodyContainer, isDark && { backgroundColor: colors.background }]}>
           {hasPdfLoadError && !isPdfRetrying ? (
             <View style={styles.pdfErrorWrapper}>
               <OfflineState
@@ -1213,15 +1215,15 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               />
             </View>
           ) : Platform.OS !== 'web' && isPdfRetrying && !pdfBase64 ? (
-            <View style={styles.viewerLoading}>
-              <ActivityIndicator color="#15803d" size="large" />
-              <Text style={styles.nativeLoadingTitle}>Preparing pages…</Text>
-              <Text style={styles.nativeLoadingProgress}>
+            <View style={[styles.viewerLoading, isDark && { backgroundColor: colors.background }]}>
+              <ActivityIndicator color={isDark ? '#4ade80' : '#15803d'} size="large" />
+              <Text style={[styles.nativeLoadingTitle, isDark && { color: colors.text }]}>Preparing pages…</Text>
+              <Text style={[styles.nativeLoadingProgress, isDark && { color: colors.mutedText }]}>
                 {pdfLoadProgress === null ? 'Loading PDF' : `${pdfLoadProgress}%`}
               </Text>
             </View>
           ) : Platform.OS === 'web' && hasRealDocument ? (
-            <View style={styles.webViewerWrapper}>
+            <View style={[styles.webViewerWrapper, isDark && { backgroundColor: colors.background }]}>
               <iframe
                 key={`${pdfRetryKey}-${pdfBase64 ? 'offline' : 'online'}`}
                 src={embeddedFileUrl}
@@ -1242,14 +1244,14 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 }}
               />
               {isPdfLoading && (
-                <View style={styles.webLoadingOverlay} pointerEvents="none">
-                  <ActivityIndicator color="#15803d" size="large" />
-                  <Text style={styles.webLoadingText}>Preparing pages…</Text>
+                <View style={[styles.webLoadingOverlay, isDark && { backgroundColor: colors.background }]} pointerEvents="none">
+                  <ActivityIndicator color={isDark ? '#4ade80' : '#15803d'} size="large" />
+                  <Text style={[styles.webLoadingText, isDark && { color: colors.text }]}>Preparing pages…</Text>
                 </View>
               )}
             </View>
           ) : Platform.OS !== 'web' && hasRealDocument ? (
-            <View style={styles.webViewerWrapper}>
+            <View style={[styles.webViewerWrapper, isDark && { backgroundColor: colors.background }]}>
               <WebView
                 key={pdfRetryKey + (pdfBase64 ? '_offline' : '_stream')}
                 source={nativeWebViewSource}
@@ -1312,10 +1314,10 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                 }}
               />
               {isPdfLoading && (
-                <View style={styles.nativeLoadingOverlay} pointerEvents="none">
-                  <ActivityIndicator color="#15803d" size="large" />
-                  <Text style={styles.nativeLoadingTitle}>Preparing pages…</Text>
-                  <Text style={styles.nativeLoadingProgress}>
+                <View style={[styles.nativeLoadingOverlay, isDark && { backgroundColor: colors.background }]} pointerEvents="none">
+                  <ActivityIndicator color={isDark ? '#4ade80' : '#15803d'} size="large" />
+                  <Text style={[styles.nativeLoadingTitle, isDark && { color: colors.text }]}>Preparing pages…</Text>
+                  <Text style={[styles.nativeLoadingProgress, isDark && { color: colors.mutedText }]}>
                     {pdfLoadProgress === null ? 'Loading PDF' : `${pdfLoadProgress}%`}
                   </Text>
                 </View>
@@ -1323,7 +1325,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
             </View>
           ) : (
             <ScrollView
-              style={styles.readerScroll}
+              style={[styles.readerScroll, isDark && { backgroundColor: colors.background }]}
               contentContainerStyle={styles.readerContent}
               maximumZoomScale={3.5}
               minimumZoomScale={0.75}
@@ -1344,7 +1346,7 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
               >
                 {/* Document Cover & Header Card - Only shown on Page 1 */}
                 {activePage === 1 && (
-                  <View style={styles.docHeaderCard}>
+                  <View style={[styles.docHeaderCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border, borderTopColor: '#22c55e' }]}>
                     <View style={styles.docTagRow}>
                       <View style={styles.docCodeBadge}>
                         <Text style={styles.docCodeText}>{document.unitCode}</Text>
@@ -1354,25 +1356,25 @@ export const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
                           <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800' }}>mtid: {document.mtid}</Text>
                         </View>
                       )}
-                      <Text style={styles.docSchool}>{document.school || 'Moi University'}</Text>
+                      <Text style={[styles.docSchool, isDark && { color: colors.mutedText }]}>{document.school || 'Moi University'}</Text>
                     </View>
 
-                    <Text style={styles.docMainTitle}>{document.title}</Text>
-                    {!!document.author && <Text style={styles.docAuthor}>Author: {document.author}</Text>}
+                    <Text style={[styles.docMainTitle, isDark && { color: colors.text }]}>{document.title}</Text>
+                    {!!document.author && <Text style={[styles.docAuthor, isDark && { color: '#86efac' }]}>Author: {document.author}</Text>}
 
                     {!!document.summary && (
-                      <View style={styles.summaryBox}>
-                        <Text style={styles.summaryLabel}>Document Summary:</Text>
-                        <Text style={styles.summaryText}>{document.summary}</Text>
+                      <View style={[styles.summaryBox, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+                        <Text style={[styles.summaryLabel, isDark && { color: '#86efac' }]}>Document Summary:</Text>
+                        <Text style={[styles.summaryText, isDark && { color: colors.mutedText }]}>{document.summary}</Text>
                       </View>
                     )}
                   </View>
                 )}
 
                 {/* Fast Simulated PDF Page Preview */}
-                <View style={styles.pagePreviewContainer}>
-                  <View style={styles.pageHeader}>
-                    <Text style={styles.pageHeaderTitle}>PAGE {activePage} OF 12</Text>
+                <View style={[styles.pagePreviewContainer, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View style={[styles.pageHeader, isDark && { backgroundColor: colors.surfaceElevated, borderBottomColor: colors.border }]}>
+                    <Text style={[styles.pageHeaderTitle, isDark && { color: '#7dd3fc' }]}>PAGE {activePage} OF 12</Text>
                     <View style={styles.pageControls}>
                       <TouchableOpacity
                         disabled={activePage <= 1}

@@ -9,7 +9,7 @@
     "build": "npm run generate:stickers && npm run generate:pdfjs && npm --prefix packages/shared run build && npx expo export -p web -c",
     "android": "npm run generate:stickers && npm run generate:pdfjs && expo run:android",
     "ios": "npm run generate:stickers && expo run:ios",
-    "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js && node scripts/generate-pdfjs-assets.js",
+    "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js && node scripts/patch-rich-chat-input.js && node scripts/generate-pdfjs-assets.js",
     "web": "npm run generate:pdfjs && expo start --web --offline --port 8082",
     "eas": "eas"
   },

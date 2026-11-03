@@ -134,7 +134,7 @@ export const CATPaperGridCard = React.memo(function CATPaperGridCard({
 }: CATPaperGridCardProps) {
   const { isDark, colors } = useTheme();
   return (
-    <TouchableOpacity style={[styles.gridCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]} activeOpacity={0.88} onPress={() => onPress(item)}>
+    <TouchableOpacity style={[styles.gridCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} activeOpacity={0.88} onPress={() => onPress(item)}>
       <View style={styles.gridImageContainer}>
         <Image source={{ uri: item.thumbnail }} style={styles.gridImage} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
         <View style={styles.gridBadge}>
@@ -144,7 +144,7 @@ export const CATPaperGridCard = React.memo(function CATPaperGridCard({
         <View style={styles.gridRatingBadge}><StarIcon color="#eab308" size={11} /><Text style={styles.gridRatingText}>{item.ratingScore}</Text></View>
       </View>
       <View style={styles.gridBody}>
-        <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
+        <Text style={[styles.gridPaperType, isDark && { color: colors.mutedText }]}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.catType} • {item.examYear}</Text>
         {highlightWords && highlightWords.length > 0 ? (
           <HighlightText
             text={item.title}
@@ -156,8 +156,8 @@ export const CATPaperGridCard = React.memo(function CATPaperGridCard({
           <Text style={[styles.gridTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
         )}
         <Text style={[styles.gridSub, isDark && { color: colors.mutedText }]}>{item.school}</Text>
-        <View style={styles.gridFooter}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><DownloadIcon color="#15803d" size={12} /><Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text></View>
+        <View style={[styles.gridFooter, isDark && { borderTopColor: colors.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={12} /><Text style={[styles.gridDownloads, isDark && { color: '#4ade80' }]}>{formatCount(item.downloadsCount)}</Text></View>
           <TouchableOpacity style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]} onPress={(event) => onToggleStar(item.id, event)}><StarIcon color={isStarred ? '#ca8a04' : '#64748b'} size={12} /></TouchableOpacity>
           <View style={styles.miniArrow}><ChevronRightIcon color="#15803d" size={14} /></View>
         </View>
@@ -249,7 +249,7 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
                 <Text style={[styles.carouselTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
               )}
                 <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><DownloadIcon color="#15803d" size={13} /><Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloadsCount)} downloads</Text></View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={13} /><Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloadsCount)} downloads</Text></View>
                 <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>
               </View>
             </View>

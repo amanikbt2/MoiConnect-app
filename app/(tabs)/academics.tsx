@@ -144,7 +144,7 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
 
   return (
     <TouchableOpacity
-      style={[styles.gridCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.gridCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
       activeOpacity={0.88}
       onPress={() => onPress(item)}
     >
@@ -174,12 +174,12 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
           <Text style={[styles.gridTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
         )}
 
-        <View style={styles.gridDivider} />
+        <View style={[styles.gridDivider, isDark && { backgroundColor: colors.border }]} />
 
-        <View style={styles.gridFooter}>
+        <View style={[styles.gridFooter, isDark && { borderTopColor: colors.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <DownloadIcon color="#15803d" size={11} />
-            <Text style={styles.gridDownloads}>{formatCount(item.downloads)} downloads</Text>
+            <DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={11} />
+            <Text style={[styles.gridDownloads, isDark && { color: '#4ade80' }]}>{formatCount(item.downloads)} downloads</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <StarIcon color="#eab308" size={11} />
@@ -945,7 +945,7 @@ export default function AcademicsScreen({ route }: any) {
     return (
       <TouchableOpacity
         key={item.id}
-        style={styles.carouselCard}
+        style={[styles.carouselCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
         activeOpacity={0.88}
         onPress={() => handleOpenPreview(item)}
       >
@@ -964,26 +964,26 @@ export default function AcademicsScreen({ route }: any) {
         </View>
 
         <View style={styles.carouselBody}>
-          <Text style={styles.carouselMeta}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
+          <Text style={[styles.carouselMeta, isDark && { color: '#86efac' }]}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.unitCode} • {item.school}</Text>
           {smartSearchResults.isSearching && searchHighlightWords.length > 0 ? (
             <HighlightText
               text={item.title}
               highlightWords={searchHighlightWords}
-              style={styles.carouselTitle}
+              style={[styles.carouselTitle, isDark && { color: colors.text }]}
               numberOfLines={2}
             />
           ) : (
-            <Text style={styles.carouselTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={[styles.carouselTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
           )}
 
-          <View style={styles.carouselFooter}>
+          <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <DownloadIcon color="#15803d" size={13} />
-              <Text style={styles.carouselStats}>{formatCount(item.downloads)} downloads</Text>
+              <DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={13} />
+              <Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloads)} downloads</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <StarIcon color="#f59e0b" size={12} />
-              <Text style={styles.ratingText}>{cleanRating}</Text>
+              <Text style={[styles.ratingText, isDark && { color: colors.text }]}>{cleanRating}</Text>
             </View>
           </View>
         </View>
@@ -1188,13 +1188,13 @@ export default function AcademicsScreen({ route }: any) {
                 </View>
               ) : (
                 <>
-                  <View style={{ backgroundColor: '#f0fdf4', padding: 14, borderRadius: 14, borderColor: '#bbf7d0', borderWidth: 1, marginBottom: 20, marginHorizontal: 16 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#166534' }}>
+                  <View style={{ backgroundColor: isDark ? '#1d332b' : '#f0fdf4', padding: 14, borderRadius: 14, borderColor: isDark ? '#28563d' : '#bbf7d0', borderWidth: 1, marginBottom: 20, marginHorizontal: 16 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: isDark ? '#bbf7d0' : '#166534' }}>
                       {smartSearchResults.isAutoPivoted
                         ? `Showing results for "${smartSearchResults.effectiveQuery}"`
                         : `Search results for "${searchQuery}"`}
                     </Text>
-                    <Text style={{ fontSize: 12, color: '#15803d', marginTop: 3 }}>
+                    <Text style={{ fontSize: 12, color: isDark ? '#86efac' : '#15803d', marginTop: 3 }}>
                       {smartSearchResults.topMatches.length} Top Match(es) • {smartSearchResults.relatedMatches.length} Related Material(s)
                       {isSearchLoading ? ' • updating...' : ''}
                     </Text>
@@ -1236,39 +1236,39 @@ export default function AcademicsScreen({ route }: any) {
 
                   {/* ZERO RESULTS FALLBACK: SMART RECOMMENDATIONS + REQUEST BUTTON */}
                   {!isSearchLoading && smartSearchResults.topMatches.length === 0 && smartSearchResults.relatedMatches.length === 0 && (
-                    <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                    <View style={{ padding: 24, alignItems: 'center', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0' }}>
                       {requestedQuery === searchQuery.trim() ? (
                         <>
-                          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: isDark ? '#153a2a' : '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                             <CheckIcon color="#15803d" size={24} />
                           </View>
-                          <Text style={{ fontSize: 16, fontWeight: '800', color: '#15803d', textAlign: 'center' }}>
+                          <Text style={{ fontSize: 16, fontWeight: '800', color: isDark ? '#4ade80' : '#15803d', textAlign: 'center' }}>
                             Request Sent Successfully
                           </Text>
-                          <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 320, lineHeight: 18 }}>
+                          <Text style={{ fontSize: 13, color: isDark ? colors.mutedText : '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 320, lineHeight: 18 }}>
                             Your request for "{searchQuery.trim()}" has been recorded. You'll receive a notification once it's available.
                           </Text>
                           <TouchableOpacity
                             activeOpacity={0.8}
-                            style={{ marginTop: 14, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                            style={{ marginTop: 14, backgroundColor: isDark ? colors.surfaceSubtle : '#f1f5f9', borderWidth: 1, borderColor: isDark ? colors.border : '#cbd5e1', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
                             onPress={() => {
                               setSearchQuery('');
                               setRequestedQuery(null);
                             }}
                           >
-                            <ChevronRightIcon color="#0f172a" size={13} style={{ transform: [{ rotate: '180deg' }] }} />
-                            <Text style={{ color: '#0f172a', fontWeight: '700', fontSize: 12 }}>
+                            <ChevronRightIcon color={isDark ? colors.text : '#0f172a'} size={13} style={{ transform: [{ rotate: '180deg' }] }} />
+                            <Text style={{ color: isDark ? colors.text : '#0f172a', fontWeight: '700', fontSize: 12 }}>
                               Back to Notes PDF
                             </Text>
                           </TouchableOpacity>
                         </>
                       ) : (
                         <>
-                          <DocumentIcon color="#94a3b8" size={36} />
-                          <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 10, textAlign: 'center' }}>
+                          <DocumentIcon color={isDark ? colors.mutedText : '#94a3b8'} size={36} />
+                          <Text style={{ fontSize: 16, fontWeight: '800', color: isDark ? colors.text : '#0f172a', marginTop: 10, textAlign: 'center' }}>
                             No exact materials found for "{searchQuery}"
                           </Text>
-                          <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+                          <Text style={{ fontSize: 13, color: isDark ? colors.mutedText : '#64748b', marginTop: 4, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
                             {smartSearchResults.intent.didYouMeanText
                               ? `We found a close match: "${smartSearchResults.intent.didYouMeanText}". Tap the recommendation above, or browse related notes below.`
                               : 'Try searching by unit code (e.g. COM 110, CSC 112), subject (e.g. Calculus), or explore recommendations below.'}
@@ -1276,7 +1276,7 @@ export default function AcademicsScreen({ route }: any) {
 
                           <TouchableOpacity
                             activeOpacity={0.8}
-                            style={{ marginTop: 14, backgroundColor: '#15803d', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                            style={{ marginTop: 14, backgroundColor: isDark ? '#16a34a' : '#15803d', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
                             onPress={handleRequestMissingMaterial}
                           >
                             <SparklesIcon color="#ffffff" size={14} />

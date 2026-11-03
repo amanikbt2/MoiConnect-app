@@ -12,6 +12,7 @@ import {
 import { apiRequest } from '../services/api';
 import { getSocket } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   getReadNotificationIds,
   saveReadNotificationId,
@@ -38,6 +39,8 @@ export interface INotificationItem {
 
 export function NotificationCenterModal() {
   const { user } = useAuth();
+  const { isDark, colors } = useTheme();
+  const accentColor = isDark ? '#4ade80' : '#15803d';
   const [modalVisible, setModalVisible] = useState(false);
   const [notifications, setNotifications] = useState<INotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -176,16 +179,16 @@ export function NotificationCenterModal() {
   const renderMonochromeIcon = (iconName: string) => {
     switch (iconName) {
       case 'academic':
-        return <AcademicCapIcon color="#15803d" size={20} />;
+        return <AcademicCapIcon color={accentColor} size={20} />;
       case 'house':
-        return <HouseIcon color="#15803d" size={20} />;
+        return <HouseIcon color={accentColor} size={20} />;
       case 'alert':
         return <AlertTriangleIcon color="#d97706" size={20} />;
       case 'moiconnect':
       case 'app':
-        return <MoiConnectBadgeIcon color="#15803d" size={20} />;
+        return <MoiConnectBadgeIcon color={accentColor} size={20} />;
       default:
-        return <BellIcon color="#15803d" size={20} />;
+        return <BellIcon color={accentColor} size={20} />;
     }
   };
 
@@ -193,16 +196,16 @@ export function NotificationCenterModal() {
     <>
       {/* Bell Icon Trigger with Unread Badge */}
       <TouchableOpacity
-        style={styles.bellButton}
+        style={[styles.bellButton, isDark && { backgroundColor: colors.surfaceSubtle }]}
         onPress={async () => {
           setModalVisible(true);
           void fetchNotifications();
         }}
         activeOpacity={0.7}
       >
-        <BellIcon color="#0f172a" size={22} />
+        <BellIcon color={isDark ? colors.text : '#0f172a'} size={22} />
         {unreadCount > 0 && (
-          <View style={styles.badge}>
+          <View style={[styles.badge, isDark && { borderColor: colors.surface }]}>
             <Text style={styles.badgeText}>
               {unreadCount > 9 ? '9+' : unreadCount}
             </Text>
@@ -218,14 +221,14 @@ export function NotificationCenterModal() {
         onRequestClose={handleClose}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+          <View style={[styles.modalContent, isDark && { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: colors.border }]}>
               <View style={styles.headerTitleRow}>
-                <BellIcon color="#15803d" size={22} />
-                <Text style={styles.modalTitle}>Notifications</Text>
+                <BellIcon color={accentColor} size={22} />
+                <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>Notifications</Text>
                 {unreadCount > 0 && (
-                  <View style={styles.headerCountBadge}>
-                    <Text style={styles.headerCountText}>{unreadCount} new</Text>
+                  <View style={[styles.headerCountBadge, isDark && { backgroundColor: '#153a2a', borderColor: '#28623f' }]}>
+                    <Text style={[styles.headerCountText, isDark && { color: '#86efac' }]}>{unreadCount} new</Text>
                   </View>
                 )}
               </View>
@@ -237,38 +240,38 @@ export function NotificationCenterModal() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
               {loading ? (
                 <View style={styles.centerContainer}>
-                  <ActivityIndicator color="#15803d" size="large" />
+                  <ActivityIndicator color={accentColor} size="large" />
                 </View>
               ) : notifications.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <BellIcon color="#94a3b8" size={36} />
-                  <Text style={styles.emptyTitle}>No Notifications Yet</Text>
-                  <Text style={styles.emptySub}>Official updates and campus notifications will appear here.</Text>
+                  <BellIcon color={colors.mutedText} size={36} />
+                  <Text style={[styles.emptyTitle, isDark && { color: colors.text }]}>No Notifications Yet</Text>
+                  <Text style={[styles.emptySub, isDark && { color: colors.mutedText }]}>Official updates and campus notifications will appear here.</Text>
                 </View>
               ) : (
                 notifications.map(item => (
                   <TouchableOpacity
                     key={item._id}
-                    style={[styles.notificationCard, !item.isRead && styles.unreadCard]}
+                    style={[styles.notificationCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, !item.isRead && (isDark ? styles.unreadCardDark : styles.unreadCard)]}
                     onPress={() => handleMarkRead(item._id)}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.iconContainer}>
+                    <View style={[styles.iconContainer, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
                       {renderMonochromeIcon(item.icon)}
                     </View>
 
                     <View style={styles.textContainer}>
                       <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
+                        <Text style={[styles.cardTitle, isDark && { color: colors.text }]}>{item.title}</Text>
                         {!item.isRead && <View style={styles.unreadDot} />}
                       </View>
 
                       {item.subtitle ? (
-                        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                        <Text style={[styles.cardSubtitle, isDark && { color: '#86efac' }]}>{item.subtitle}</Text>
                       ) : null}
 
-                      <Text style={styles.cardBody}>{item.body}</Text>
-                      <Text style={styles.cardTime}>
+                      <Text style={[styles.cardBody, isDark && { color: colors.text }]}>{item.body}</Text>
+                      <Text style={[styles.cardTime, isDark && { color: colors.mutedText }]}>
                         {new Date(item.createdAt).toLocaleDateString()} • {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
@@ -277,7 +280,7 @@ export function NotificationCenterModal() {
               )}
             </ScrollView>
             <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.75}>
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={[styles.closeButtonText, isDark && { color: colors.mutedText }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -403,6 +406,10 @@ const styles = StyleSheet.create({
   unreadCard: {
     backgroundColor: '#f0fdf4',
     borderColor: '#bbf7d0'
+  },
+  unreadCardDark: {
+    backgroundColor: '#183629',
+    borderColor: '#28623f'
   },
   iconContainer: {
     width: 38,

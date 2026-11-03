@@ -236,6 +236,7 @@ export default function DownloadsScreen() {
       <TouchableOpacity
         style={[
           styles.mediaSquareCard,
+          isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
           item.pinned && styles.squareCardPinned,
           isDownloading && styles.squareCardDownloading,
           isFailed && styles.squareCardUnavailable
@@ -320,11 +321,11 @@ export default function DownloadsScreen() {
 
         {/* Card Body */}
         <View style={styles.mediaCardBody}>
-          <Text style={styles.mediaCategoryLabel} numberOfLines={1}>
+          <Text style={[styles.mediaCategoryLabel, isDark && { color: '#4ade80' }]} numberOfLines={1}>
             {mediaCategory}
           </Text>
 
-          <Text style={styles.mediaCardTitle} numberOfLines={2}>
+          <Text style={[styles.mediaCardTitle, isDark && { color: colors.text }]} numberOfLines={2}>
             {item.title}
           </Text>
 
@@ -351,18 +352,18 @@ export default function DownloadsScreen() {
             </View>
           )}
 
-          <View style={styles.cardDivider} />
+          <View style={[styles.cardDivider, isDark && { backgroundColor: colors.border }]} />
 
           {/* Card Footer: Offline Ready & Action */}
           <View style={styles.mediaCardFooter}>
             <View style={styles.mediaFooterStatus}>
-              {isFailed ? <CloseIcon color="#dc2626" size={12} /> : <CheckIcon color="#15803d" size={12} />}
-              <Text style={[styles.mediaFooterStatusText, isFailed && styles.failedStatusText]}>{isFailed ? 'Not downloaded' : 'Offline Ready'}</Text>
+              {isFailed ? <CloseIcon color="#dc2626" size={12} /> : <CheckIcon color={isDark ? '#4ade80' : '#15803d'} size={12} />}
+              <Text style={[styles.mediaFooterStatusText, isDark && { color: colors.mutedText }, isFailed && styles.failedStatusText]}>{isFailed ? 'Not downloaded' : 'Offline Ready'}</Text>
             </View>
 
             <View style={styles.mediaFooterAction}>
-              <Text style={[styles.mediaFooterActionText, isFailed && styles.failedStatusText]}>{isFailed ? 'Unavailable' : isVideo ? 'Play' : 'View'}</Text>
-              {!isFailed && <ChevronRightIcon color="#15803d" size={12} />}
+              <Text style={[styles.mediaFooterActionText, isDark && { color: '#4ade80' }, isFailed && styles.failedStatusText]}>{isFailed ? 'Unavailable' : isVideo ? 'Play' : 'View'}</Text>
+              {!isFailed && <ChevronRightIcon color={isDark ? '#4ade80' : '#15803d'} size={12} />}
             </View>
           </View>
         </View>
@@ -430,7 +431,7 @@ export default function DownloadsScreen() {
             <TouchableOpacity
               style={[
                 styles.squareCard,
-                isDark && { backgroundColor: colors.surface, borderColor: colors.border },
+                isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
                 item.pinned && styles.squareCardPinned,
                 isDownloading && styles.squareCardDownloading,
                 isFailed && styles.squareCardUnavailable
@@ -529,20 +530,20 @@ export default function DownloadsScreen() {
                 )}
 
                 {/* Divider Line */}
-                <View style={styles.cardDivider} />
+                <View style={[styles.cardDivider, isDark && { backgroundColor: colors.border }]} />
 
                 {/* Card Footer: Downloads Count & Rating */}
                 <View style={styles.cardFooter}>
                   <View style={styles.footerDownloads}>
-                    <DownloadIcon color="#15803d" size={11} />
-                    <Text style={styles.footerDownloadsText}>
+                    <DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={11} />
+                    <Text style={[styles.footerDownloadsText, isDark && { color: '#4ade80' }]}>
                       {formatCompactNumber(downloadsCount)}
                     </Text>
                   </View>
 
                   <View style={styles.footerRating}>
                     <StarIcon color="#eab308" size={11} />
-                    <Text style={styles.footerRatingText}>{rating}</Text>
+                    <Text style={[styles.footerRatingText, isDark && { color: colors.text }]}>{rating}</Text>
                   </View>
                 </View>
               </View>
@@ -590,13 +591,13 @@ export default function DownloadsScreen() {
           activeOpacity={1}
           onPress={() => setMenuPaper(null)}
         >
-          <View style={styles.optionsSheet}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle} numberOfLines={1}>
+          <View style={[styles.optionsSheet, isDark && { backgroundColor: colors.surface }]}>
+            <View style={[styles.sheetHeader, isDark && { borderBottomColor: colors.border }]}>
+              <Text style={[styles.sheetTitle, isDark && { color: colors.text }]} numberOfLines={1}>
                 {menuPaper?.title}
               </Text>
               <TouchableOpacity onPress={() => setMenuPaper(null)}>
-                <CloseIcon color="#64748b" size={20} />
+                <CloseIcon color={colors.mutedText} size={20} />
               </TouchableOpacity>
             </View>
 
@@ -604,11 +605,11 @@ export default function DownloadsScreen() {
               <View style={styles.sheetContent}>
                 {/* Action 1: Pin / Unpin */}
                 <TouchableOpacity
-                  style={styles.optionRow}
+                  style={[styles.optionRow, isDark && { backgroundColor: colors.surfaceSubtle }]}
                   onPress={() => handleTogglePin(menuPaper)}
                 >
                   <PinIcon color={menuPaper.pinned ? '#ca8a04' : '#64748b'} size={20} />
-                  <Text style={styles.optionText}>
+                  <Text style={[styles.optionText, isDark && { color: colors.text }]}>
                     {menuPaper.pinned ? 'Unpin from Top' : 'Pin to Top of Downloads'}
                   </Text>
                 </TouchableOpacity>
@@ -616,7 +617,7 @@ export default function DownloadsScreen() {
                 {/* Action 2: Retry if failed */}
                 {menuPaper.status === 'failed' && (
                   <TouchableOpacity
-                    style={styles.optionRow}
+                    style={[styles.optionRow, isDark && { backgroundColor: colors.surfaceSubtle }]}
                     onPress={() => handleRetry(menuPaper)}
                   >
                     <RefreshCwIcon color="#2563eb" size={20} />
@@ -646,7 +647,7 @@ export default function DownloadsScreen() {
                   ) : (
                     <BookIcon color="#15803d" size={20} />
                   )}
-                  <Text style={styles.optionText}>
+                  <Text style={[styles.optionText, isDark && { color: colors.text }]}>
                     {isVideoDownload(menuPaper)
                       ? 'Play Video Full Screen'
                       : isImageDownload(menuPaper)
@@ -657,13 +658,13 @@ export default function DownloadsScreen() {
 
                 {/* Action 4: Delete */}
                 <TouchableOpacity
-                  style={[styles.optionRow, styles.optionRowDanger]}
+                  style={[styles.optionRow, styles.optionRowDanger, isDark && { backgroundColor: '#3b1f29' }]}
                   onPress={() => handleRemoveCompletely(menuPaper)}
                 >
                   <TrashIcon color="#dc2626" size={20} />
                   <View>
                     <Text style={styles.optionTextDanger}>Delete</Text>
-                    <Text style={styles.optionSubDanger}>
+                    <Text style={[styles.optionSubDanger, isDark && { color: '#fca5a5' }]}>
                       Remove saved file from this device
                     </Text>
                   </View>

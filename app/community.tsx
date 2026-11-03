@@ -2459,6 +2459,33 @@ export default function CommunityScreen() {
   };
 
   const handleInputChange = (text: string) => {
+    // Android rich-content keyboards commit an attachment marker through the
+    // native TextInput bridge; turn it into the existing media upload flow.
+    const richMediaMatch = text.match(/\[\[MCONNECT_MEDIA:([^:]+):([^\]]+)\]\]/);
+    if (richMediaMatch) {
+      try {
+        const uri = decodeURIComponent(richMediaMatch[1]);
+        const mimeType = decodeURIComponent(richMediaMatch[2]).toLowerCase();
+        const kind: 'image' | 'video' = mimeType.startsWith('video/') ? 'video' : 'image';
+        if (!uri.startsWith('content://') || (!mimeType.startsWith('image/') && !mimeType.startsWith('video/'))) {
+          throw new Error('This keyboard item is not a supported image or video.');
+        }
+        const extension = mimeType.split('/')[1]?.split(';')[0]?.replace(/[^a-z0-9]/g, '') || (kind === 'video' ? 'mp4' : 'png');
+        const item = {
+          uri,
+          name: `keyboard_${Date.now()}.${extension}`,
+          mimeType,
+          kind
+        };
+        setPendingUploadItem(item);
+        setSelectedFile({ name: item.name, url: uri, size: 'Preparing…', type: kind });
+        void executeUpload(item);
+      } catch (error: any) {
+        showIceMessage('Could not add media', error?.message || 'Choose a photo, sticker, GIF, or video from your keyboard.');
+      }
+      text = text.replace(richMediaMatch[0], '');
+    }
+
     // Smart GIF & Image Paste / Keyboard insertion detector
     const pastedDiff = text.length - prevInputTextLengthRef.current;
     if (pastedDiff > 4 || (!selectedFile && (text.startsWith('http') || text.startsWith('data:image/')))) {
@@ -3113,6 +3140,28 @@ export default function CommunityScreen() {
     }
   };
 
+  const handlePasteClipboardImage = async () => {
+    try {
+      const clipboardImage = await Clipboard.getImageAsync({ format: 'png' });
+      if (!clipboardImage?.data) {
+        showIceMessage('No image copied', 'Copy an image or sticker first, then choose Paste image.');
+        return;
+      }
+      const cacheDirectory = ExpoFileSystem.cacheDirectory;
+      if (!cacheDirectory) throw new Error('Temporary storage is unavailable on this device.');
+      const base64 = clipboardImage.data.replace(/^data:image\/[^;]+;base64,/, '');
+      const uri = `${cacheDirectory}forum_clipboard_${Date.now()}.png`;
+      await ExpoFileSystem.writeAsStringAsync(uri, base64, { encoding: ExpoFileSystem.EncodingType.Base64 });
+      const item = { uri, name: 'clipboard-image.png', mimeType: 'image/png', kind: 'image' as const };
+      setPendingUploadItem(item);
+      setSelectedFile({ name: item.name, url: uri, size: 'Preparing…', type: 'image' });
+      setShowFileModal(false);
+      await executeUpload(item);
+    } catch (error: any) {
+      showIceMessage('Could not paste image', error?.message || 'Try saving the image to your phone and attaching it from the gallery.');
+    }
+  };
+
   const handlePickMedia = async (kind: 'image' | 'video') => {
     try {
       setPickingMediaKind(kind);
@@ -3589,8 +3638,15 @@ export default function CommunityScreen() {
                       <View style={[styles.bubbleContainer, isPickerOpen && { position: 'relative', zIndex: 999999, elevation: 99999 }]}>
                         {(() => {
                           const hasMedia = Boolean(item.fileAttachment && isMediaAttachment(item.fileAttachment));
-                          const isMediaOnly = hasMedia && !item.text?.trim() && !item.replyTo && !item.stickerId;
-                          const isStickerOnly = Boolean(item.stickerId && !item.text?.trim() && !item.replyTo && !item.fileAttachment);
+                          const isGifMedia = Boolean(
+                            hasMedia && item.fileAttachment && !isVideoAttachment(item.fileAttachment) &&
+                            (isGifUrl(item.fileAttachment.url) || isGifUrl(item.fileAttachment.name))
+                          );
+                          const isMediaOnly = hasMedia && !isGifMedia && !item.text?.trim() && !item.replyTo && !item.stickerId;
+                          const isStickerOnly = Boolean(
+                            (item.stickerId && !item.text?.trim() && !item.replyTo && !item.fileAttachment) ||
+                            (isGifMedia && !item.text?.trim() && !item.replyTo)
+                          );
 
                           return (
                             <TouchableOpacity
@@ -3662,7 +3718,7 @@ export default function CommunityScreen() {
                                 <View style={hasMedia ? styles.mediaAttachmentWrapper : styles.docAttachmentWrapper}>
                                   {hasMedia ? (
                                     <TouchableOpacity
-                                      style={styles.chatMediaPreview}
+                                      style={isGifMedia ? styles.chatGifPreview : styles.chatMediaPreview}
                                       delayLongPress={500}
                                       onLongPress={() => setSelectedMsgForOptions(item)}
                                       onPress={() => {
@@ -3676,18 +3732,27 @@ export default function CommunityScreen() {
                                       }}
                                       activeOpacity={0.88}
                                     >
-                                      <SmartMediaThumbnail
-                                        uri={isVideoAttachment(item.fileAttachment)
-                                          ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url)
-                                          : item.fileAttachment.url}
-                                        videoUrl={item.fileAttachment.url}
-                                        type={isVideoAttachment(item.fileAttachment) ? 'video' : 'image'}
-                                        title={item.fileAttachment.name}
-                                        fileSize={item.fileAttachment.size}
-                                        fileType={item.fileAttachment.type}
-                                        showPlayBadge={true}
-                                        style={styles.chatMediaImage}
-                                      />
+                                      {isGifMedia ? (
+                                        <Image source={{ uri: item.fileAttachment.url }} style={styles.chatMediaImage} resizeMode="cover" />
+                                      ) : (
+                                        <SmartMediaThumbnail
+                                          uri={isVideoAttachment(item.fileAttachment)
+                                            ? getCloudinaryVideoPreviewUrl(item.fileAttachment.url)
+                                            : item.fileAttachment.url}
+                                          videoUrl={item.fileAttachment.url}
+                                          type={isVideoAttachment(item.fileAttachment) ? 'video' : 'image'}
+                                          title={item.fileAttachment.name}
+                                          fileSize={item.fileAttachment.size}
+                                          fileType={item.fileAttachment.type}
+                                          showPlayBadge={true}
+                                          style={styles.chatMediaImage}
+                                        />
+                                      )}
+                                      {isGifMedia && (
+                                        <View style={styles.chatGifBadge}>
+                                          <Text style={styles.chatGifBadgeText}>GIF</Text>
+                                        </View>
+                                      )}
 
                                       {/* WhatsApp-style Bit-by-bit Download Progress Overlay with Cancel */}
                                       {(() => {
@@ -3731,7 +3796,7 @@ export default function CommunityScreen() {
                                       )}
 
                                       {/* WhatsApp-style Save/Download button on media for incoming messages */}
-                                      {!item.isMe && (!activeMediaDownloads[item.fileAttachment.paperId || item.fileAttachment.url] || activeMediaDownloads[item.fileAttachment.paperId || item.fileAttachment.url]?.status !== 'downloading') && downloadAttachmentFailedKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && (
+                                      {!isGifMedia && !item.isMe && (!activeMediaDownloads[item.fileAttachment.paperId || item.fileAttachment.url] || activeMediaDownloads[item.fileAttachment.paperId || item.fileAttachment.url]?.status !== 'downloading') && downloadAttachmentFailedKey !== (item.fileAttachment.paperId || item.fileAttachment.url) && (
                                         <TouchableOpacity
                                           style={styles.chatMediaDownloadCornerBtn}
                                           onPress={(e) => {
@@ -3754,8 +3819,8 @@ export default function CommunityScreen() {
                                         <FileTextIcon color="#15803d" size={24} />
                                       </View>
                                       <View style={styles.fileInfo}>
-                                        <Text style={styles.fileName} numberOfLines={1}>{item.fileAttachment.name}</Text>
-                                        <Text style={styles.fileMeta}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
+                                        <Text style={[styles.fileName, isDark && { color: colors.text }]} numberOfLines={1}>{item.fileAttachment.name}</Text>
+                                        <Text style={[styles.fileMeta, isDark && { color: colors.mutedText }]}>{item.fileAttachment.size} • {item.fileAttachment.type.toUpperCase()}</Text>
                                       </View>
                                       {!item.isMe && (
                                         <TouchableOpacity
@@ -4300,6 +4365,7 @@ export default function CommunityScreen() {
                 <SmileIcon color={showStickerPicker ? '#15803d' : '#8696a0'} size={21} />
               </TouchableOpacity>
               <TextInput
+                nativeID="mconnect-community-composer"
                 style={[styles.input, isDark && { color: colors.text }, { height: inputHeight }]}
                 multiline
                 {...(Platform.OS !== 'web' ? { submitBehavior: 'submit' as const } : {})}
@@ -4337,17 +4403,19 @@ export default function CommunityScreen() {
                       const clipboardData = e.clipboardData || (typeof window !== 'undefined' && (window as any).clipboardData);
                       if (clipboardData?.items) {
                         for (const item of clipboardData.items) {
-                          if (item.type?.startsWith('image/')) {
+                          if (item.type?.startsWith('image/') || item.type?.startsWith('video/')) {
                             e.preventDefault?.();
                             const file = item.getAsFile();
                             if (file) {
                               const blobUrl = URL.createObjectURL(file);
                               const isGif = item.type.includes('gif');
+                              const kind = item.type.startsWith('video/') ? 'video' : 'image';
+                              const extension = item.type.split('/')[1]?.split(';')[0] || (kind === 'video' ? 'mp4' : isGif ? 'gif' : 'png');
                               const uploadItem = {
                                 uri: blobUrl,
-                                name: file.name || `pasted_media_${Date.now()}.${isGif ? 'gif' : 'png'}`,
+                                name: file.name || `pasted_media_${Date.now()}.${extension}`,
                                 mimeType: item.type,
-                                kind: 'image' as const,
+                                kind: kind as 'image' | 'video',
                                 rawFile: file
                               };
                               setPendingUploadItem(uploadItem);
@@ -4355,7 +4423,7 @@ export default function CommunityScreen() {
                                 name: uploadItem.name,
                                 url: blobUrl,
                                 size: `${Math.round(file.size / 1024)} KB`,
-                                type: 'image'
+                                type: kind
                               });
                               void executeUpload(uploadItem);
                               return;
@@ -4409,8 +4477,8 @@ export default function CommunityScreen() {
             pointerEvents="auto"
           >
             <View style={[styles.forumLoadingCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <ActivityIndicator color="#15803d" size="small" />
-              <Text style={styles.forumLoadingText}>
+              <ActivityIndicator color={isDark ? '#4ade80' : '#15803d'} size="small" />
+              <Text style={[styles.forumLoadingText, isDark && { color: colors.text }]}>
                 Logging you into Forum…
               </Text>
             </View>
@@ -4450,11 +4518,11 @@ export default function CommunityScreen() {
         {/* Compact community profile preview */}
         <Modal visible={!!selectedProfile} transparent animationType="fade" onRequestClose={() => setSelectedProfile(null)}>
           <Pressable style={styles.profileModalOverlay} onPress={() => setSelectedProfile(null)}>
-            <Pressable style={styles.profileModalCard} onPress={(event) => event.stopPropagation()}>
+            <Pressable style={[styles.profileModalCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} onPress={(event) => event.stopPropagation()}>
               {selectedProfile && (
                 <>
                   <TouchableOpacity style={styles.profileModalClose} onPress={() => setSelectedProfile(null)}>
-                    <CloseIcon color="#64748b" size={16} />
+                    <CloseIcon color={colors.mutedText} size={16} />
                   </TouchableOpacity>
                   <View style={[styles.profileModalAvatar, { backgroundColor: selectedProfile.avatarBg }]}>
                     {isCampusBotMessage(selectedProfile) ? (
@@ -4468,15 +4536,15 @@ export default function CommunityScreen() {
                     )}
                   </View>
                   <View style={styles.profileModalNameRow}>
-                    <Text style={styles.profileModalName}>{selectedProfile.senderName}</Text>
+                    <Text style={[styles.profileModalName, isDark && { color: colors.text }]}>{selectedProfile.senderName}</Text>
                     <UserBadge badge={selectedProfile.senderBadge} size={18} />
                   </View>
-                  <Text style={styles.profileModalRole}>{isCampusAssistantMessage(selectedProfile) ? 'AI Assistant' : 'MConnect community member'}</Text>
-                  <View style={styles.profileInfoList}>
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Academic</Text><Text style={styles.profileInfoValue}>{getCommunitySenderSubtitle(selectedProfile, user, myProfile)}</Text></View>
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Course</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderCourse && selectedProfile.senderCourse.toLowerCase() !== 'unset' ? selectedProfile.senderCourse : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Year</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderYear && selectedProfile.senderYear.toLowerCase() !== 'unset' ? selectedProfile.senderYear : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
-                    <View style={styles.profileInfoRow}><Text style={styles.profileInfoLabel}>Phone</Text><Text style={styles.profileInfoValue}>{selectedProfile.senderPhone && selectedProfile.senderPhone.toLowerCase() !== 'unset' ? selectedProfile.senderPhone : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
+                  <Text style={[styles.profileModalRole, isDark && { color: colors.mutedText }]}>{isCampusAssistantMessage(selectedProfile) ? 'AI Assistant' : 'MConnect community member'}</Text>
+                  <View style={[styles.profileInfoList, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
+                    <View style={[styles.profileInfoRow, isDark && { borderBottomColor: colors.border }]}><Text style={[styles.profileInfoLabel, isDark && { color: colors.mutedText }]}>Academic</Text><Text style={[styles.profileInfoValue, isDark && { color: colors.text }]}>{getCommunitySenderSubtitle(selectedProfile, user, myProfile)}</Text></View>
+                    <View style={[styles.profileInfoRow, isDark && { borderBottomColor: colors.border }]}><Text style={[styles.profileInfoLabel, isDark && { color: colors.mutedText }]}>Course</Text><Text style={[styles.profileInfoValue, isDark && { color: colors.text }]}>{selectedProfile.senderCourse && selectedProfile.senderCourse.toLowerCase() !== 'unset' ? selectedProfile.senderCourse : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
+                    <View style={[styles.profileInfoRow, isDark && { borderBottomColor: colors.border }]}><Text style={[styles.profileInfoLabel, isDark && { color: colors.mutedText }]}>Year</Text><Text style={[styles.profileInfoValue, isDark && { color: colors.text }]}>{selectedProfile.senderYear && selectedProfile.senderYear.toLowerCase() !== 'unset' ? selectedProfile.senderYear : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
+                    <View style={styles.profileInfoRow}><Text style={[styles.profileInfoLabel, isDark && { color: colors.mutedText }]}>Phone</Text><Text style={[styles.profileInfoValue, isDark && { color: colors.text }]}>{selectedProfile.senderPhone && selectedProfile.senderPhone.toLowerCase() !== 'unset' ? selectedProfile.senderPhone : (isCampusAssistantMessage(selectedProfile) ? 'AI assistant' : 'Not provided')}</Text></View>
                   </View>
                 </>
               )}
@@ -4491,49 +4559,55 @@ export default function CommunityScreen() {
             activeOpacity={1}
             onPress={() => setShowFileModal(false)}
           >
-            <Pressable style={[styles.modalCard, { paddingBottom: Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 20 : 20 }]} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Share Campus File & Document</Text>
+            <Pressable style={[styles.modalCard, isDark && { backgroundColor: colors.surface }, { paddingBottom: Platform.OS === 'android' && insets.bottom > 0 ? insets.bottom + 20 : 20 }]} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.modalHeader, isDark && { borderBottomColor: colors.border }]}>
+                <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>Share Campus File & Document</Text>
                 <TouchableOpacity
                   onPress={() => setShowFileModal(false)}
-                  style={styles.closeIconBtn}
+                  style={[styles.closeIconBtn, isDark && { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border }]}
                   disabled={isUploadingMedia}
                   activeOpacity={0.7}
                 >
-                  <CloseIcon color="#0f172a" size={16} />
+                  <CloseIcon color={isDark ? colors.text : '#0f172a'} size={16} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.modalSubtitle}>Select materials from your downloads or phone's storage:</Text>
+              <Text style={[styles.modalSubtitle, isDark && { color: colors.mutedText }]}>Select materials from your downloads or phone's storage:</Text>
 
               <View style={styles.mediaOptionsRow}>
-                <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={() => handlePickMedia('image')}>
+                {Platform.OS !== 'web' && (
+                  <TouchableOpacity style={[styles.mediaOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handlePasteClipboardImage}>
+                    <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><ImageIcon color="#15803d" size={21} /></View>
+                    <Text style={[styles.mediaOptionLabel, isDark && { color: colors.text }]}>Paste image</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={[styles.mediaOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={() => handlePickMedia('image')}>
                   <View style={[styles.mediaOptionIcon, { backgroundColor: '#eff6ff' }]}><ImageIcon color="#2563eb" size={21} /></View>
-                  <Text style={styles.mediaOptionLabel}>Image</Text>
+                  <Text style={[styles.mediaOptionLabel, isDark && { color: colors.text }]}>Image</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={() => handlePickMedia('video')}>
+                <TouchableOpacity style={[styles.mediaOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={() => handlePickMedia('video')}>
                   <View style={[styles.mediaOptionIcon, { backgroundColor: '#fff7ed' }]}><VideoIcon color="#f97316" size={21} /></View>
-                  <Text style={styles.mediaOptionLabel}>Video</Text>
+                  <Text style={[styles.mediaOptionLabel, isDark && { color: colors.text }]}>Video</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handlePickFromPhone}>
+                <TouchableOpacity style={[styles.mediaOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handlePickFromPhone}>
                   <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><FileTextIcon color="#15803d" size={21} /></View>
-                  <Text style={styles.mediaOptionLabel}>Document</Text>
+                  <Text style={[styles.mediaOptionLabel, isDark && { color: colors.text }]}>Document</Text>
                 </TouchableOpacity>
-              <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handleTakeMedia}>
+              <TouchableOpacity style={[styles.mediaOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={handleTakeMedia}>
                 <View style={[styles.mediaOptionIcon, { backgroundColor: '#fdf2f8' }]}><CameraIcon color="#db2777" size={21} /></View>
-                <Text style={styles.mediaOptionLabel}>Camera</Text>
+                <Text style={[styles.mediaOptionLabel, isDark && { color: colors.text }]}>Camera</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.mediaOption, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={openPrivateMessageComposer}>
+              <TouchableOpacity style={[styles.mediaOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isUploadingMedia && styles.mediaOptionDisabled]} disabled={isUploadingMedia} onPress={openPrivateMessageComposer}>
                 <View style={[styles.mediaOptionIcon, { backgroundColor: '#f0fdf4' }]}><LockIcon color="#15803d" size={20} /></View>
-                <Text style={[styles.mediaOptionLabel, styles.privateOptionLabel]}>Private Message</Text>
+                <Text style={[styles.mediaOptionLabel, styles.privateOptionLabel, isDark && { color: colors.text }]}>Private Message</Text>
               </TouchableOpacity>
             </View>
-              <Text style={styles.downloadedSectionTitle}>Downloaded materials</Text>
+              <Text style={[styles.downloadedSectionTitle, isDark && { color: colors.text }]}>Downloaded materials</Text>
               <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
                 {availableFiles.map((file, idx) => (
                   <TouchableOpacity
                     key={idx}
-                    style={styles.sampleFileOption}
+                    style={[styles.sampleFileOption, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                     onPress={() => {
                       setSelectedFile(file);
                       setShowFileModal(false);
@@ -4543,8 +4617,8 @@ export default function CommunityScreen() {
                       <FileTextIcon color="#15803d" size={22} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sampleFileName}>{file.title || file.name}</Text>
-                      <Text style={styles.sampleFileMeta}>{file.size} • Ready to share</Text>
+                      <Text style={[styles.sampleFileName, isDark && { color: colors.text }]}>{file.title || file.name}</Text>
+                      <Text style={[styles.sampleFileMeta, isDark && { color: colors.mutedText }]}>{file.size} • Ready to share</Text>
                     </View>
                     <Text style={styles.attachLabel}>+ Attach</Text>
                   </TouchableOpacity>
@@ -4553,10 +4627,10 @@ export default function CommunityScreen() {
 
               {isUploadingMedia && (
                 <View style={styles.mediaUploadOverlay} pointerEvents="auto">
-                  <View style={styles.mediaUploadCard}>
+              <View style={[styles.mediaUploadCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
                     <ActivityIndicator size="large" color="#15803d" />
-                    <Text style={styles.mediaUploadTitle}>Uploading media…</Text>
-                    <Text style={styles.mediaUploadText}>Please wait while it is prepared for chat.</Text>
+                    <Text style={[styles.mediaUploadTitle, isDark && { color: colors.text }]}>Uploading media…</Text>
+                    <Text style={[styles.mediaUploadText, isDark && { color: colors.mutedText }]}>Please wait while it is prepared for chat.</Text>
                   </View>
                 </View>
               )}
@@ -4569,28 +4643,28 @@ export default function CommunityScreen() {
         <Modal visible={showPrivateMessageModal} transparent animationType="fade" onRequestClose={() => setShowPrivateMessageModal(false)}>
           <KeyboardAvoidingView style={styles.privateMessageOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPrivateMessageModal(false)} />
-            <View style={styles.privateMessageCard}>
-              <View style={styles.privateMessageHeader}>
+            <View style={[styles.privateMessageCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+              <View style={[styles.privateMessageHeader, isDark && { borderBottomColor: colors.border }]}>
                 <View style={styles.privateMessageTitleWrap}>
                   <View style={styles.privateMessageIcon}><LockIcon color="#15803d" size={17} /></View>
                   <View>
-                    <Text style={styles.privateMessageTitle}>Private message</Text>
-                    <Text style={styles.privateMessageSubtitle}>Only you and the recipient can read it</Text>
+                    <Text style={[styles.privateMessageTitle, isDark && { color: colors.text }]}>Private message</Text>
+                    <Text style={[styles.privateMessageSubtitle, isDark && { color: colors.mutedText }]}>Only you and the recipient can read it</Text>
                   </View>
                 </View>
                 <TouchableOpacity style={styles.closeIconBtn} onPress={() => setShowPrivateMessageModal(false)} disabled={privateMessageSending}>
-                  <CloseIcon color="#64748b" size={16} />
+                  <CloseIcon color={colors.mutedText} size={16} />
                 </TouchableOpacity>
               </View>
 
               {privateRecipient ? (
-                <View style={styles.privateSelectedRecipient}>
+                <View style={[styles.privateSelectedRecipient, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
                   {privateRecipient.avatarUrl
                     ? <Image source={{ uri: privateRecipient.avatarUrl }} style={styles.privateRecipientAvatar} />
                     : <View style={styles.privateRecipientAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{privateRecipient.name[0]?.toUpperCase()}</Text></View>}
                   <View style={styles.mentionUserText}>
-                    <Text style={styles.mentionUserName} numberOfLines={1}>{privateRecipient.name}</Text>
-                    <Text style={styles.mentionUserSubtitle}>Message recipient</Text>
+                    <Text style={[styles.mentionUserName, isDark && { color: colors.text }]} numberOfLines={1}>{privateRecipient.name}</Text>
+                    <Text style={[styles.mentionUserSubtitle, isDark && { color: colors.mutedText }]}>Message recipient</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.privateChangeRecipient}
@@ -4602,25 +4676,25 @@ export default function CommunityScreen() {
                 </View>
               ) : (
                 <>
-                  <Text style={styles.privateFieldLabel}>To</Text>
-                  <View style={styles.privateSearchBox}>
+                  <Text style={[styles.privateFieldLabel, isDark && { color: colors.text }]}>To</Text>
+                  <View style={[styles.privateSearchBox, isDark && { backgroundColor: colors.input, borderColor: colors.border }]}>
                     <TextInput
                       value={privateSearchQuery}
                       onChangeText={setPrivateSearchQuery}
                       placeholder="Search a student's name"
                       placeholderTextColor="#94a3b8"
-                      style={styles.privateSearchInput}
+                      style={[styles.privateSearchInput, isDark && { color: colors.text }]}
                       autoCapitalize="words"
                       autoCorrect={false}
                     />
                     {privateSuggestionsLoading && <ActivityIndicator size="small" color="#15803d" />}
                   </View>
                   {privateSearchQuery.trim().length > 0 && (
-                    <ScrollView style={styles.privateSuggestionList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                    <ScrollView style={[styles.privateSuggestionList, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
                       {privateSuggestions.map((entry) => (
                         <TouchableOpacity
                           key={entry.id}
-                          style={styles.mentionRow}
+                          style={[styles.mentionRow, isDark && { borderBottomColor: colors.border }]}
                           onPress={() => { setPrivateRecipient(entry); setPrivateSearchQuery(''); setPrivateSuggestions([]); }}
                           activeOpacity={0.75}
                         >
@@ -4628,33 +4702,33 @@ export default function CommunityScreen() {
                             ? <Image source={{ uri: entry.avatarUrl }} style={styles.mentionAvatar} />
                             : <View style={styles.mentionAvatarFallback}><Text style={styles.mentionAvatarFallbackText}>{entry.name[0]?.toUpperCase()}</Text></View>}
                           <View style={styles.mentionUserText}>
-                            <Text style={styles.mentionUserName} numberOfLines={1}>{entry.name}</Text>
-                            <Text style={styles.mentionUserSubtitle}>MConnect user</Text>
+                            <Text style={[styles.mentionUserName, isDark && { color: colors.text }]} numberOfLines={1}>{entry.name}</Text>
+                            <Text style={[styles.mentionUserSubtitle, isDark && { color: colors.mutedText }]}>MConnect user</Text>
                           </View>
                         </TouchableOpacity>
                       ))}
                       {!privateSuggestionsLoading && privateSuggestions.length === 0 && (
-                        <Text style={styles.privateNoResults}>No students found</Text>
+                        <Text style={[styles.privateNoResults, isDark && { color: colors.mutedText }]}>No students found</Text>
                       )}
                     </ScrollView>
                   )}
                 </>
               )}
 
-              <Text style={styles.privateFieldLabel}>Message</Text>
+              <Text style={[styles.privateFieldLabel, isDark && { color: colors.text }]}>Message</Text>
               <TextInput
                 value={privateMessageText}
                 onChangeText={setPrivateMessageText}
                 placeholder={privateRecipient ? `Write to ${privateRecipient.name}…` : 'Choose a recipient first'}
                 placeholderTextColor="#94a3b8"
-                style={[styles.privateMessageInput, !privateRecipient && styles.privateMessageInputDisabled]}
+                style={[styles.privateMessageInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }, !privateRecipient && styles.privateMessageInputDisabled]}
                 multiline
                 maxLength={2000}
                 editable={!!privateRecipient && !privateMessageSending}
                 textAlignVertical="top"
               />
               <View style={styles.privateMessageFooter}>
-                <Text style={styles.privateCharacterCount}>{privateMessageText.length}/2000</Text>
+                <Text style={[styles.privateCharacterCount, isDark && { color: colors.mutedText }]}>{privateMessageText.length}/2000</Text>
                 <TouchableOpacity
                   style={[styles.privateSendButton, (!privateRecipient || !privateMessageText.trim() || privateMessageSending) && styles.privateSendButtonDisabled]}
                   onPress={sendPrivateCommunityMessage}
@@ -5406,6 +5480,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     position: 'relative',
     alignSelf: 'stretch',
+  },
+  chatGifPreview: {
+    width: 240,
+    maxWidth: '100%',
+    height: 190,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    alignSelf: 'stretch',
+  },
+  chatGifBadge: {
+    position: 'absolute',
+    left: 9,
+    top: 9,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+  },
+  chatGifBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   chatMediaImage: {
     width: '100%',

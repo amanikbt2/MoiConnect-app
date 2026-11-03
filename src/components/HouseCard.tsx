@@ -50,7 +50,7 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
   const isFullyBooked = availRooms === 0;
 
   return (
-    <TouchableOpacity style={[styles.card, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.88}>
+    <TouchableOpacity style={[styles.card, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.88}>
       {/* House Image Thumbnail with Badges */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: imageUrl }} style={styles.thumbnail} resizeMode="cover" />
@@ -93,17 +93,17 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
         <Text style={[styles.title, isDark && { color: colors.text }]} numberOfLines={1}>{house.title}</Text>
 
         <View style={styles.locationRow}>
-          <LocationIcon color="#15803d" size={13} />
+          <LocationIcon color={isDark ? '#4ade80' : '#15803d'} size={13} />
           <Text style={[styles.locationText, isDark && { color: colors.mutedText }]} numberOfLines={1}>
             {locationText}
           </Text>
         </View>
 
         {/* Footer Link Row */}
-        <View style={styles.footerRow}>
-          <Text style={styles.viewDetailsText}>View details & contact</Text>
-          <View style={styles.arrowCircle}>
-            <ChevronRightIcon color="#15803d" size={13} />
+        <View style={[styles.footerRow, isDark && { borderTopColor: colors.border }]}>
+          <Text style={[styles.viewDetailsText, isDark && { color: '#4ade80' }]}>View details & contact</Text>
+          <View style={[styles.arrowCircle, isDark && { backgroundColor: '#1d4932' }]}>
+            <ChevronRightIcon color={isDark ? '#4ade80' : '#15803d'} size={13} />
           </View>
         </View>
       </View>

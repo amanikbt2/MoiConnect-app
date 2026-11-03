@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { apiRequest } from '../src/services/api';
 import { IHouse, MOI_LOCATIONS, PROPERTY_TYPES } from '@moi/shared';
 import {
@@ -41,6 +42,7 @@ import {
 export default function LandlordPortalScreen() {
   const router = useAppNavigation();
   const { user } = useAuth();
+  const { isDark, colors } = useTheme();
 
   // Verification Credentials State
   const [landlordMID, setLandlordMID] = useState('');
@@ -669,7 +671,7 @@ export default function LandlordPortalScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={[styles.safeContainer, isDark && { backgroundColor: colors.background }]}>
       {/* Top Header */}
       <View style={styles.headerBar}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
@@ -687,27 +689,27 @@ export default function LandlordPortalScreen() {
 
       {!isVerified ? (
         /* STEP 1: VERIFICATION FORM */
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          <View style={styles.securityBannerCard}>
-            <View style={styles.shieldCircle}>
+        <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+          <View style={[styles.securityBannerCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.shieldCircle, isDark && { backgroundColor: colors.surfaceElevated }]}>
               <ShieldCheckIcon color="#15803d" size={32} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.securityTitle}>In-Person Admin Account Verification</Text>
-              <Text style={styles.securitySub}>
+              <Text style={[styles.securityTitle, isDark && { color: '#86efac' }]}>In-Person Admin Account Verification</Text>
+              <Text style={[styles.securitySub, isDark && { color: colors.mutedText }]}>
                 To prevent fraud, landlord listings and broadcast notifications require authentication.
               </Text>
             </View>
           </View>
 
-          <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Enter Assigned Verification Keys</Text>
-            <Text style={styles.formSubtitle}>Input your official MID, Serial, and Security Key:</Text>
+          <View style={[styles.formCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.formTitle, isDark && { color: colors.text }]}>Enter Assigned Verification Keys</Text>
+            <Text style={[styles.formSubtitle, isDark && { color: colors.mutedText }]}>Input your official MID, Serial, and Security Key:</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>1. Landlord / Admin MID <Text style={styles.required}>*</Text></Text>
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>1. Landlord / Admin MID <Text style={styles.required}>*</Text></Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="e.g. LL-8842-MOI"
                 placeholderTextColor="#94a3b8"
                 value={landlordMID}
@@ -717,9 +719,9 @@ export default function LandlordPortalScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>2. Hardware Serial Number <Text style={styles.required}>*</Text></Text>
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>2. Hardware Serial Number <Text style={styles.required}>*</Text></Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="e.g. SN-9920-KESSES"
                 placeholderTextColor="#94a3b8"
                 value={landlordSerial}
@@ -729,9 +731,9 @@ export default function LandlordPortalScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>3. Security Master Key <Text style={styles.required}>*</Text></Text>
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>3. Security Master Key <Text style={styles.required}>*</Text></Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="••••••••••••••••"
                 placeholderTextColor="#94a3b8"
                 value={securityKey}
@@ -759,7 +761,7 @@ export default function LandlordPortalScreen() {
         </ScrollView>
       ) : (
         /* STEP 2: VERIFIED DASHBOARD WITH NOTIFY TAB */
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
           {/* Main Top Navigation Tabs (Listings, Approvals, Server Temp, Notify) */}
           <ScrollView
             horizontal
@@ -767,41 +769,41 @@ export default function LandlordPortalScreen() {
             contentContainerStyle={styles.mainTabSwitchRow}
           >
             <TouchableOpacity
-              style={[styles.mainTabBtn, portalTab === 'listings' && styles.mainTabBtnActive]}
+              style={[styles.mainTabBtn, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, portalTab === 'listings' && styles.mainTabBtnActive]}
               onPress={() => setPortalTab('listings')}
             >
-              <HouseIcon color={portalTab === 'listings' ? '#ffffff' : '#64748b'} size={16} />
-              <Text style={[styles.mainTabText, portalTab === 'listings' && styles.mainTabTextActive]}>
+              <HouseIcon color={portalTab === 'listings' ? '#ffffff' : (isDark ? colors.mutedText : '#64748b')} size={16} />
+              <Text style={[styles.mainTabText, isDark && { color: colors.text }, portalTab === 'listings' && styles.mainTabTextActive]}>
                 Apartments
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.mainTabBtn, portalTab === 'materials' && styles.mainTabBtnActiveMaterials]}
+              style={[styles.mainTabBtn, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, portalTab === 'materials' && styles.mainTabBtnActiveMaterials]}
               onPress={() => setPortalTab('materials')}
             >
-              <DocumentIcon color={portalTab === 'materials' ? '#ffffff' : '#047857'} size={16} />
-              <Text style={[styles.mainTabText, portalTab === 'materials' && styles.mainTabTextActive]}>
+              <DocumentIcon color={portalTab === 'materials' ? '#ffffff' : (isDark ? '#86efac' : '#047857')} size={16} />
+              <Text style={[styles.mainTabText, isDark && { color: colors.text }, portalTab === 'materials' && styles.mainTabTextActive]}>
                 Approvals {pendingPapers.length > 0 ? `(${pendingPapers.length})` : ''}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.mainTabBtn, portalTab === 'temp' && styles.mainTabBtnActiveTemp]}
+              style={[styles.mainTabBtn, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, portalTab === 'temp' && styles.mainTabBtnActiveTemp]}
               onPress={() => setPortalTab('temp')}
             >
-              <FolderIcon color={portalTab === 'temp' ? '#ffffff' : '#b45309'} size={16} />
-              <Text style={[styles.mainTabText, portalTab === 'temp' && styles.mainTabTextActive]}>
+              <FolderIcon color={portalTab === 'temp' ? '#ffffff' : (isDark ? '#fdba74' : '#b45309')} size={16} />
+              <Text style={[styles.mainTabText, isDark && { color: colors.text }, portalTab === 'temp' && styles.mainTabTextActive]}>
                 Server Media (Temp) {tempStats.totalFiles > 0 ? `(${tempStats.totalFiles})` : ''}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.mainTabBtn, portalTab === 'notify' && styles.mainTabBtnActiveNotify]}
+              style={[styles.mainTabBtn, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, portalTab === 'notify' && styles.mainTabBtnActiveNotify]}
               onPress={() => setPortalTab('notify')}
             >
-              <SparklesIcon color={portalTab === 'notify' ? '#ffffff' : '#2563eb'} size={16} />
-              <Text style={[styles.mainTabText, portalTab === 'notify' && styles.mainTabTextActive]}>
+              <SparklesIcon color={portalTab === 'notify' ? '#ffffff' : (isDark ? '#93c5fd' : '#2563eb')} size={16} />
+              <Text style={[styles.mainTabText, isDark && { color: colors.text }, portalTab === 'notify' && styles.mainTabTextActive]}>
                 Notify (Popups)
               </Text>
             </TouchableOpacity>
@@ -811,42 +813,42 @@ export default function LandlordPortalScreen() {
             /* LISTINGS SECTION */
             <>
               {/* Verified Landlord Profile Card */}
-              <View style={styles.landlordBadgeCard}>
+              <View style={[styles.landlordBadgeCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.landlordBadgeHeader}>
-                  <View style={styles.verifiedAvatar}>
-                    <HouseIcon color="#15803d" size={24} />
+                  <View style={[styles.verifiedAvatar, isDark && { backgroundColor: '#193a2b' }]}>
+                    <HouseIcon color={isDark ? '#86efac' : '#15803d'} size={24} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.landlordName}>{user?.name || 'Moi Verified Admin'}</Text>
-                    <Text style={styles.landlordMeta}>MID: {landlordMID || 'LL-8842-MOI'} • Serial: {landlordSerial || 'SN-9920'}</Text>
+                    <Text style={[styles.landlordName, isDark && { color: colors.text }]}>{user?.name || 'Moi Verified Admin'}</Text>
+                    <Text style={[styles.landlordMeta, isDark && { color: colors.mutedText }]}>MID: {landlordMID || 'LL-8842-MOI'} • Serial: {landlordSerial || 'SN-9920'}</Text>
                   </View>
-                  <View style={styles.verifiedTag}>
-                    <Text style={styles.verifiedTagText}>🟢 Verified Active</Text>
+                  <View style={[styles.verifiedTag, isDark && { backgroundColor: '#193a2b' }]}>
+                    <Text style={[styles.verifiedTagText, isDark && { color: '#86efac' }]}>🟢 Verified Active</Text>
                   </View>
                 </View>
               </View>
 
               {/* Stats Summary Bar */}
               <View style={styles.statsRow}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>{listings.length}</Text>
-                  <Text style={styles.statLabel}>Apartments</Text>
+                <View style={[styles.statBox, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                  <Text style={[styles.statNumber, isDark && { color: '#4ade80' }]}>{listings.length}</Text>
+                  <Text style={[styles.statLabel, isDark && { color: colors.mutedText }]}>Apartments</Text>
                 </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
+                <View style={[styles.statBox, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                  <Text style={[styles.statNumber, isDark && { color: '#4ade80' }]}>
                     {listings.reduce((acc, h) => acc + (h.availableRooms !== undefined ? h.availableRooms : (h.occupancyStatus === 'available' ? 1 : 0)), 0)}
                   </Text>
-                  <Text style={styles.statLabel}>Vacant Rooms</Text>
+                  <Text style={[styles.statLabel, isDark && { color: colors.mutedText }]}>Vacant Rooms</Text>
                 </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>18</Text>
-                  <Text style={styles.statLabel}>Student Contacts</Text>
+                <View style={[styles.statBox, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                  <Text style={[styles.statNumber, isDark && { color: '#4ade80' }]}>18</Text>
+                  <Text style={[styles.statLabel, isDark && { color: colors.mutedText }]}>Student Contacts</Text>
                 </View>
               </View>
 
               {/* Section Header */}
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>My Apartment Buildings</Text>
+                <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>My Apartment Buildings</Text>
                 <TouchableOpacity
                   style={styles.addHouseBtn}
                   onPress={() => setShowAddModal(true)}
@@ -861,7 +863,7 @@ export default function LandlordPortalScreen() {
               {listings.map((house) => {
                 const avail = house.availableRooms !== undefined ? house.availableRooms : (house.occupancyStatus === 'available' ? 1 : 0);
                 return (
-                  <View key={house._id} style={styles.houseCard}>
+                  <View key={house._id} style={[styles.houseCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.cardImageHeader}>
                       <Image source={{ uri: house.photos[0] }} style={styles.cardThumbnail} resizeMode="cover" />
                       <View style={styles.locationBadge}>
@@ -869,16 +871,16 @@ export default function LandlordPortalScreen() {
                       </View>
                     </View>
                     <View style={styles.houseCardBody}>
-                      <Text style={styles.houseTitle}>{house.title}</Text>
+                      <Text style={[styles.houseTitle, isDark && { color: colors.text }]}>{house.title}</Text>
                       <Text style={styles.housePrice}>KSh {house.monthlyRent || house.pricePerMonth} / month</Text>
 
                       <View style={styles.contactRow}>
-                        <View style={styles.contactChip}>
-                          <PhoneIcon color="#334155" size={12} />
-                          <Text style={styles.contactChipText}>{house.phoneContact}</Text>
+                        <View style={[styles.contactChip, isDark && { backgroundColor: colors.surfaceElevated }]}>
+                          <PhoneIcon color={isDark ? colors.mutedText : '#334155'} size={12} />
+                          <Text style={[styles.contactChipText, isDark && { color: colors.text }]}>{house.phoneContact}</Text>
                         </View>
-                        <View style={styles.whatsappChip}>
-                          <Text style={styles.whatsappChipText}>💬 {house.whatsappContact}</Text>
+                        <View style={[styles.whatsappChip, isDark && { backgroundColor: '#193a2b' }]}>
+                          <Text style={[styles.whatsappChipText, isDark && { color: '#86efac' }]}>💬 {house.whatsappContact}</Text>
                         </View>
                       </View>
                     </View>

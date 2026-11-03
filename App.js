@@ -82,6 +82,7 @@ const repairNotificationText = (value) => {
 };
 
 function HeaderNotificationBell() {
+  const { isDark, colors } = useTheme();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [notifications, setNotifications] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -186,7 +187,7 @@ function HeaderNotificationBell() {
             style={{
               width: 320,
               maxHeight: 450,
-              backgroundColor: '#ffffff',
+              backgroundColor: isDark ? colors.surface : '#ffffff',
               borderRadius: 16,
               padding: 16,
               shadowColor: '#000',
@@ -195,57 +196,57 @@ function HeaderNotificationBell() {
               shadowRadius: 8,
               elevation: 8,
               borderWidth: 1,
-              borderColor: '#e2e8f0'
+              borderColor: isDark ? colors.border : '#e2e8f0'
             }}
             onStartShouldSetResponder={() => true}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: isDark ? colors.border : '#f1f5f9' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>Notifications</Text>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: isDark ? colors.text : '#0f172a' }}>Notifications</Text>
                 {unreadCount > 0 && (
-                  <View style={{ backgroundColor: '#dcfce7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#15803d' }}>{unreadCount} new</Text>
+                  <View style={{ backgroundColor: isDark ? '#153a2a' : '#dcfce7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#86efac' : '#15803d' }}>{unreadCount} new</Text>
                   </View>
                 )}
               </View>
               {unreadCount > 0 && (
                 <TouchableOpacity onPress={markAllRead}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#15803d' }}>Mark all read</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#4ade80' : '#15803d' }}>Mark all read</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             <ScrollView style={{ maxHeight: 340 }}>
               {loading ? (
-                <Text style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>Loading notifications…</Text>
+                <Text style={{ padding: 24, textAlign: 'center', color: isDark ? colors.mutedText : '#64748b' }}>Loading notifications…</Text>
               ) : notifications.length === 0 ? (
-                <Text style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>No notifications yet.</Text>
+                <Text style={{ padding: 24, textAlign: 'center', color: isDark ? colors.mutedText : '#64748b' }}>No notifications yet.</Text>
               ) : notifications.map((item) => (
                 <View
                   key={item.id}
                   style={{
                     padding: 10,
                     borderRadius: 10,
-                    backgroundColor: item.read ? '#f8fafc' : '#f0fdf4',
+                    backgroundColor: item.read ? (isDark ? colors.surfaceSubtle : '#f8fafc') : (isDark ? '#183629' : '#f0fdf4'),
                     marginBottom: 8,
                     borderLeftWidth: 3,
-                    borderLeftColor: item.read ? '#94a3b8' : '#22c55e'
+                    borderLeftColor: item.read ? (isDark ? colors.border : '#94a3b8') : '#22c55e'
                   }}
                 >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a', flex: 1 }}>{item.title}</Text>
-                    <Text style={{ fontSize: 10, color: '#64748b' }}>{item.time}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.text : '#0f172a', flex: 1 }}>{item.title}</Text>
+                    <Text style={{ fontSize: 10, color: isDark ? colors.mutedText : '#64748b' }}>{item.time}</Text>
                   </View>
-                  <Text style={{ fontSize: 12, color: '#334155', lineHeight: 16 }}>{item.message}</Text>
+                  <Text style={{ fontSize: 12, color: isDark ? colors.text : '#334155', lineHeight: 16 }}>{item.message}</Text>
                 </View>
               ))}
             </ScrollView>
 
             <TouchableOpacity
               onPress={closeModal}
-              style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', alignItems: 'center' }}
+              style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: isDark ? colors.border : '#f1f5f9', alignItems: 'center' }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#64748b' }}>Close</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.mutedText : '#64748b' }}>Close</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -256,6 +257,7 @@ function HeaderNotificationBell() {
 
 function HeaderPointsBadge() {
   const { user, userPoints } = useAuth();
+  const { isDark, colors } = useTheme();
   const [modalVisible, setModalVisible] = React.useState(false);
 
   if (!user) return null;
@@ -302,7 +304,7 @@ function HeaderPointsBadge() {
             style={{
               width: '100%',
               maxWidth: 320,
-              backgroundColor: '#ffffff',
+              backgroundColor: isDark ? colors.surface : '#ffffff',
               borderRadius: 20,
               padding: 20,
               shadowColor: '#000',
@@ -314,22 +316,22 @@ function HeaderPointsBadge() {
             onStartShouldSetResponder={() => true}
           >
             <View style={{ alignItems: 'center', marginBottom: 14 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: isDark ? '#153a2a' : '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                 <Text style={{ fontSize: 24 }}>🌟</Text>
               </View>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: '#0f172a' }}>Student Rewards</Text>
-              <Text style={{ fontSize: 12, color: '#15803d', fontWeight: '600', marginTop: 2 }}>MConnect Points System</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? colors.text : '#0f172a' }}>Student Rewards</Text>
+              <Text style={{ fontSize: 12, color: isDark ? '#86efac' : '#15803d', fontWeight: '600', marginTop: 2 }}>MConnect Points System</Text>
             </View>
 
-            <View style={{ backgroundColor: '#f0fdf4', borderRadius: 14, padding: 14, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#bbf7d0' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#166634', textTransform: 'uppercase' }}>Your Points</Text>
-              <Text style={{ fontSize: 28, fontWeight: '900', color: '#15803d', marginVertical: 2 }}>{userPoints} pts</Text>
-              <Text style={{ fontSize: 11, color: '#15803d' }}>Earn points by contributing study materials!</Text>
+            <View style={{ backgroundColor: isDark ? '#153526' : '#f0fdf4', borderRadius: 14, padding: 14, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#86efac' : '#166634', textTransform: 'uppercase' }}>Your Points</Text>
+              <Text style={{ fontSize: 28, fontWeight: '900', color: isDark ? '#4ade80' : '#15803d', marginVertical: 2 }}>{userPoints} pts</Text>
+              <Text style={{ fontSize: 11, color: isDark ? '#bbf7d0' : '#15803d' }}>Earn points by contributing study materials!</Text>
             </View>
 
             {/* Progress Section Container */}
-            <View style={{ width: '100%', backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 16 }}>
-              <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600', marginBottom: 16 }}>
+            <View style={{ width: '100%', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0', padding: 14, marginBottom: 16 }}>
+              <Text style={{ fontSize: 11, color: isDark ? colors.mutedText : '#64748b', fontWeight: '600', marginBottom: 16 }}>
                 {userPoints >= 3000
                   ? '🎉 Max level reached!'
                   : userPoints >= 1500
@@ -346,7 +348,7 @@ function HeaderPointsBadge() {
               {/* Progress Line Component */}
               <View style={{ position: 'relative', paddingVertical: 6, marginBottom: 4 }}>
                 {/* Connecting Line */}
-                <View style={{ position: 'absolute', top: 26, left: 16, right: 16, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2 }}>
+                <View style={{ position: 'absolute', top: 26, left: 16, right: 16, height: 4, backgroundColor: isDark ? colors.border : '#e2e8f0', borderRadius: 2 }}>
                   <View
                     style={{
                       height: '100%',
@@ -381,7 +383,7 @@ function HeaderPointsBadge() {
                     const isReached = userPoints >= m.pts;
                     return (
                       <View key={m.pts} style={{ alignItems: 'center', width: 48 }}>
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: isReached ? '#15803d' : '#94a3b8', marginBottom: 6 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: isReached ? (isDark ? '#4ade80' : '#15803d') : (isDark ? colors.mutedText : '#94a3b8'), marginBottom: 6 }}>
                           {m.label}
                         </Text>
                         <View
@@ -389,16 +391,16 @@ function HeaderPointsBadge() {
                             width: 18,
                             height: 18,
                             borderRadius: 9,
-                            backgroundColor: isReached ? '#16a34a' : '#ffffff',
+                            backgroundColor: isReached ? '#16a34a' : (isDark ? colors.surfaceElevated : '#ffffff'),
                             borderWidth: 2,
-                            borderColor: isReached ? '#15803d' : '#cbd5e1',
+                            borderColor: isReached ? '#15803d' : (isDark ? colors.border : '#cbd5e1'),
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}
                         >
                           {isReached && <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '900' }}>✓</Text>}
                         </View>
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: isReached ? '#15803d' : '#64748b', marginTop: 6 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: isReached ? (isDark ? '#4ade80' : '#15803d') : (isDark ? colors.mutedText : '#64748b'), marginTop: 6 }}>
                           {m.reward}
                         </Text>
                       </View>

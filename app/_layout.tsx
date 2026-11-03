@@ -3,6 +3,8 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../src/context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationBar as AndroidNavigationBar } from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
 import { AppState, Platform, View, TouchableOpacity } from 'react-native';
 import { ArrowLeftIcon } from '../src/components/Icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -84,7 +86,7 @@ function AppRuntimeServices() {
   );
 }
 function RootLayoutContent() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -118,6 +120,16 @@ function RootLayoutContent() {
     }
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    // Android draws the system navigation area against the window background.
+    // Keep that background and the system button contrast in step with the app theme.
+    void SystemUI.setBackgroundColorAsync(colors.background).catch((error) => {
+      console.warn('[Theme] Could not update Android system navigation background:', error);
+    });
+  }, [colors.background]);
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
@@ -127,6 +139,7 @@ function RootLayoutContent() {
             <AppRuntimeServices />
           <IceMessageHost />
           <StatusBar style="light" />
+          {Platform.OS === 'android' ? <AndroidNavigationBar style={isDark ? 'light' : 'dark'} /> : null}
           <View style={{ flex: 1, backgroundColor: colors.background }}>
             <View style={{ flex: 1 }}>
               <Stack

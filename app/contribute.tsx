@@ -333,8 +333,8 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
       <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
         {/* Banner */}
         <View style={[styles.bannerCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.bannerIconCircle}>
-            <UploadIcon color="#15803d" size={26} />
+          <View style={[styles.bannerIconCircle, isDark && { backgroundColor: colors.surfaceElevated }]}>
+            <UploadIcon color={isDark ? '#86efac' : '#15803d'} size={26} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.bannerTitle, isDark && { color: colors.text }]}>{agentMode ? 'Agent Material Workspace' : 'Share with Campus Community'}</Text>
@@ -396,15 +396,15 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
             </View>
           ) : (
             <TouchableOpacity
-              style={styles.dropzoneCard}
+              style={[styles.dropzoneCard, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
               onPress={handlePickDocument}
               activeOpacity={0.8}
             >
-              <View style={styles.uploadCircle}>
-                <UploadIcon color="#15803d" size={32} />
+              <View style={[styles.uploadCircle, isDark && { backgroundColor: '#193a2b' }]}>
+                <UploadIcon color={isDark ? '#86efac' : '#15803d'} size={32} />
               </View>
               <Text style={[styles.dropzoneTitle, isDark && { color: colors.text }]}>Tap to select from Phone Storage</Text>
-              <Text style={[styles.dropzoneSub, isDark && { color: colors.text }]}>Supports PDF, DOCX, DOC & Images. Select multiple files or mix images + PDF.</Text>
+              <Text style={[styles.dropzoneSub, isDark && { color: colors.mutedText }]}>Supports PDF, DOCX, DOC & Images. Select multiple files or mix images + PDF.</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -419,12 +419,12 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
               return (
                 <TouchableOpacity
                   key={item.value}
-                  style={[styles.typePill, isSelected && styles.typePillActive]}
+                  style={[styles.typePill, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, isSelected && styles.typePillActive, isDark && isSelected && { backgroundColor: '#193a2b', borderColor: '#25834b' }]}
                   onPress={() => setType(item.value)}
                   activeOpacity={0.8}
                 >
-                  <IconComp color={isSelected ? '#15803d' : '#64748b'} size={18} />
-                  <Text style={[styles.typePillText, isSelected && styles.typePillTextActive]}>
+                  <IconComp color={isSelected ? (isDark ? '#86efac' : '#15803d') : (isDark ? colors.mutedText : '#64748b')} size={18} />
+                  <Text style={[styles.typePillText, isDark && { color: colors.text }, isSelected && styles.typePillTextActive, isDark && isSelected && { color: '#86efac' }]}>
                     {item.label}
                   </Text>
                 </TouchableOpacity>

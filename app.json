@@ -61,6 +61,13 @@
     "plugins": [
       "./scripts/withOptionalLiveFeatures",
       [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "style": "dark"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",

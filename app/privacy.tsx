@@ -22,10 +22,10 @@ export default function PrivacyPolicyScreen() {
       <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
         {/* Header Section */}
         <View style={[styles.headerCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.iconCircle}>
-            <ShieldCheckIcon color="#15803d" size={32} />
+          <View style={[styles.iconCircle, isDark && { backgroundColor: '#193a2b' }]}>
+            <ShieldCheckIcon color={isDark ? '#86efac' : '#15803d'} size={32} />
           </View>
-          <Text style={[styles.appBadge, isDark && { color: colors.text }]}>Official Privacy Document</Text>
+          <Text style={[styles.appBadge, isDark && { color: '#86efac', backgroundColor: '#193a2b' }]}>Official Privacy Document</Text>
           <Text style={[styles.appTitle, isDark && { color: colors.text }]}>MConnect</Text>
           <Text style={[styles.packageId, isDark && { color: colors.text }]}>com.amanikbt1.moiconnect</Text>
           <Text style={[styles.lastUpdated, isDark && { color: colors.text }]}>Last Updated: {lastUpdated}</Text>
@@ -74,38 +74,38 @@ export default function PrivacyPolicyScreen() {
           <Text style={[styles.paragraph, isDark && { color: colors.text }]}>
             In accordance with Google Play's Sensitive Permissions Policy, we explicitly disclose why each sensitive hardware permission is requested and how the data is handled:
           </Text>
-          <View style={styles.permissionCard}>
+          <View style={[styles.permissionCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={[styles.permissionTitle, isDark && { color: colors.text }]}>CAMERA (Camera Access)</Text>
-            <Text style={[styles.permissionDesc, isDark && { color: colors.text }]}>
+            <Text style={[styles.permissionDesc, isDark && { color: colors.mutedText }]}>
               Used for real-time video calls with verified landlords or study groups, capturing user profile pictures, and taking photos of revision documents or rental listings. <Text style={[styles.bold, isDark && { color: colors.text }]}>Video streams are transmitted live via WebRTC and are NEVER recorded, monitored, or stored on our servers.</Text>
             </Text>
           </View>
-          <View style={styles.permissionCard}>
+          <View style={[styles.permissionCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={[styles.permissionTitle, isDark && { color: colors.text }]}>RECORD_AUDIO & AUDIO SETTINGS (Microphone)</Text>
-            <Text style={[styles.permissionDesc, isDark && { color: colors.text }]}>
+            <Text style={[styles.permissionDesc, isDark && { color: colors.mutedText }]}>
               Used for real-time voice calls and audio notes, as well as routing audio dynamically to speakerphones, earpieces, or connected Bluetooth headsets. <Text style={[styles.bold, isDark && { color: colors.text }]}>Voice call audio is streamed in real-time and is NEVER recorded, listened to, or stored.</Text>
             </Text>
           </View>
-          <View style={styles.permissionCard}>
+          <View style={[styles.permissionCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={[styles.permissionTitle, isDark && { color: colors.text }]}>POST_NOTIFICATIONS (Push Notifications)</Text>
-            <Text style={[styles.permissionDesc, isDark && { color: colors.text }]}>
+            <Text style={[styles.permissionDesc, isDark && { color: colors.mutedText }]}>
               Delivers instant alerts for incoming voice/video calls, new direct messages from landlords or classmates, and critical academic updates. Can be disabled at any time in system settings.
             </Text>
           </View>
-          <View style={styles.permissionCard}>
+          <View style={[styles.permissionCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={[styles.permissionTitle, isDark && { color: colors.text }]}>SYSTEM_ALERT_WINDOW (Incoming Call Banner)</Text>
-            <Text style={[styles.permissionDesc, isDark && { color: colors.text }]}>
+            <Text style={[styles.permissionDesc, isDark && { color: colors.mutedText }]}>
               Displays an incoming call alert overlay banner on the screen when a call is received while using other apps.
             </Text>
           </View>
-          <View style={styles.permissionCard}>
+          <View style={[styles.permissionCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={[styles.permissionTitle, isDark && { color: colors.text }]}>INTERNET & NETWORK STATE</Text>
-            <Text style={[styles.permissionDesc, isDark && { color: colors.text }]}>
+            <Text style={[styles.permissionDesc, isDark && { color: colors.mutedText }]}>
               Enables secure API communication over HTTPS/TLS, real-time messaging, and downloading approved academic papers.
             </Text>
           </View>
-          <View style={styles.subNoteBox}>
-            <Text style={[styles.subNoteText, isDark && { color: colors.text }]}>
+          <View style={[styles.subNoteBox, isDark && { backgroundColor: '#382d19', borderLeftColor: '#fbbf24' }]}>
+            <Text style={[styles.subNoteText, isDark && { color: '#fcd58b' }]}>
               <Text style={[styles.bold, isDark && { color: colors.text }]}>Note on Storage:</Text> MConnect does NOT request broad external storage access. All photo and document selections are handled safely through the native Android system file and media pickers.
             </Text>
           </View>

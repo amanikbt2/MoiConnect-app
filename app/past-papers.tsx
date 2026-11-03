@@ -136,7 +136,7 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
   const { isDark, colors } = useTheme();
   return (
     <TouchableOpacity
-      style={[styles.gridCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.gridCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
       activeOpacity={0.88}
       onPress={() => onPress(item)}
     >
@@ -157,7 +157,7 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
       </View>
 
       <View style={styles.gridBody}>
-        <Text style={styles.gridPaperType}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.semester} • {item.examYear}</Text>
+        <Text style={[styles.gridPaperType, isDark && { color: colors.mutedText }]}>{item.mtid ? `mtid: ${item.mtid} • ` : ''}{item.semester} • {item.examYear}</Text>
         {highlightWords && highlightWords.length > 0 ? (
           <HighlightText
             text={item.title}
@@ -170,10 +170,10 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
         )}
         <Text style={[styles.gridSub, isDark && { color: colors.mutedText }]}>{item.school}</Text>
 
-        <View style={styles.gridFooter}>
+        <View style={[styles.gridFooter, isDark && { borderTopColor: colors.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <DownloadIcon color="#15803d" size={12} />
-            <Text style={styles.gridDownloads}>{formatCount(item.downloadsCount)}</Text>
+            <DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={12} />
+            <Text style={[styles.gridDownloads, isDark && { color: '#4ade80' }]}>{formatCount(item.downloadsCount)}</Text>
           </View>
           <TouchableOpacity
             style={[styles.miniStarBtn, isStarred && styles.miniStarBtnActive]}
@@ -287,7 +287,7 @@ const PastPaperCarouselSection = React.memo(function PastPaperCarouselSection({
               )}
               <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <DownloadIcon color="#15803d" size={13} />
+                  <DownloadIcon color={isDark ? '#4ade80' : '#15803d'} size={13} />
                   <Text style={[styles.carouselStats, isDark && { color: colors.mutedText }]}>{formatCount(item.downloadsCount)} downloads</Text>
                 </View>
                 <Text style={styles.ratingText}>⭐ {item.ratingScore}</Text>

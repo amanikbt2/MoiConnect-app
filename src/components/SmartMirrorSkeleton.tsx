@@ -9,6 +9,7 @@ import {
   Easing,
   useWindowDimensions
 } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAROUSEL_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.85, 340);
@@ -30,6 +31,7 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
   gridCount = 6,
   carouselCount = 3
 }) => {
+  const { isDark, colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const shimmerProgress = React.useRef(new Animated.Value(0)).current;
   const loadingPulse = React.useRef(new Animated.Value(0)).current;
@@ -93,10 +95,10 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
         <View style={styles.carouselSection}>
           {/* Section Header */}
           <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionIconCircle} />
+            <View style={[styles.sectionIconCircle, isDark && { backgroundColor: '#153a2a' }]} />
             <View style={{ flex: 1, gap: 5 }}>
-              <View style={[styles.shimmerLine, { width: 170, height: 16, borderRadius: 4 }]} />
-              <View style={[styles.shimmerLine, { width: 230, height: 11, borderRadius: 4 }]} />
+              <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: 170, height: 16, borderRadius: 4 }]} />
+              <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: 230, height: 11, borderRadius: 4 }]} />
             </View>
           </View>
 
@@ -108,27 +110,27 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
             contentContainerStyle={styles.carouselScrollContent}
           >
             {Array.from({ length: carouselCount }).map((_, i) => (
-              <View key={`carousel-shim-${i}`} style={styles.carouselCard}>
+              <View key={`carousel-shim-${i}`} style={[styles.carouselCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
                 {/* Simulated Thumbnail */}
-                <View style={styles.carouselThumbnail}>
-                  <View style={styles.carouselBadgeTopLeft} />
-                  <View style={styles.carouselBadgeTopRight} />
+                <View style={[styles.carouselThumbnail, isDark && { backgroundColor: '#344456' }]}>
+                  <View style={[styles.carouselBadgeTopLeft, isDark && { backgroundColor: '#506176' }]} />
+                  <View style={[styles.carouselBadgeTopRight, isDark && { backgroundColor: '#3a4b5e' }]} />
                 </View>
 
                 {/* Simulated Card Body */}
                 <View style={styles.carouselBody}>
-                  <View style={[styles.shimmerLine, { width: '45%', height: 10 }]} />
-                  <View style={[styles.shimmerLine, { width: '90%', height: 14, marginTop: 4 }]} />
-                  <View style={[styles.shimmerLine, { width: '65%', height: 14, marginTop: 2 }]} />
+                  <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '45%', height: 10 }]} />
+                  <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '90%', height: 14, marginTop: 4 }]} />
+                  <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '65%', height: 14, marginTop: 2 }]} />
 
                   {/* Simulated Footer */}
-                  <View style={styles.carouselFooter}>
-                    <View style={[styles.shimmerLine, { width: 80, height: 11 }]} />
-                    <View style={[styles.shimmerLine, { width: 36, height: 11 }]} />
+                  <View style={[styles.carouselFooter, isDark && { borderTopColor: colors.border }]}>
+                    <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: 80, height: 11 }]} />
+                    <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: 36, height: 11 }]} />
                   </View>
                 </View>
                 <View pointerEvents="none" style={styles.shimmerClip}>
-                  <Animated.View style={[styles.shimmerSweep, shimmerSweepStyle]} />
+                  <Animated.View style={[styles.shimmerSweep, isDark && { backgroundColor: 'rgba(255,255,255,0.10)' }, shimmerSweepStyle]} />
                 </View>
               </View>
             ))}
@@ -145,35 +147,35 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
           />
           <View style={styles.shimmerDot} />
         </View>
-        <Text style={styles.gridLoadingLabel}>{gridTitle}</Text>
+        <Text style={[styles.gridLoadingLabel, isDark && { color: '#4ade80' }]}>{gridTitle}</Text>
       </View>
 
       {/* 3. RESPONSIVE 2-COLUMN GRID SHIMMER CARDS */}
       <View style={styles.gridContainer}>
         {Array.from({ length: gridCount }).map((_, idx) => (
-          <View key={`grid-shim-${idx}`} style={styles.gridCard}>
+          <View key={`grid-shim-${idx}`} style={[styles.gridCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             {/* Thumbnail */}
-            <View style={styles.gridThumbnail}>
-              <View style={styles.gridBadgeTopLeft} />
-              <View style={styles.gridBadgeTopRight} />
+            <View style={[styles.gridThumbnail, isDark && { backgroundColor: '#344456' }]}>
+              <View style={[styles.gridBadgeTopLeft, isDark && { backgroundColor: '#506176' }]} />
+              <View style={[styles.gridBadgeTopRight, isDark && { backgroundColor: '#3a4b5e' }]} />
             </View>
 
             {/* Body */}
             <View style={styles.gridBody}>
-              <View style={[styles.shimmerLine, { width: '50%', height: 9 }]} />
-              <View style={[styles.shimmerLine, { width: '92%', height: 12, marginTop: 4 }]} />
-              <View style={[styles.shimmerLine, { width: '60%', height: 12, marginTop: 2 }]} />
-              <View style={[styles.shimmerLine, { width: '40%', height: 9, marginTop: 4 }]} />
+              <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '50%', height: 9 }]} />
+              <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '92%', height: 12, marginTop: 4 }]} />
+              <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '60%', height: 12, marginTop: 2 }]} />
+              <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: '40%', height: 9, marginTop: 4 }]} />
 
               {/* Footer */}
-              <View style={styles.gridFooter}>
-                <View style={[styles.shimmerLine, { width: 42, height: 10 }]} />
-                <View style={styles.miniStarPlaceholder} />
-                <View style={styles.miniArrowPlaceholder} />
+              <View style={[styles.gridFooter, isDark && { borderTopColor: colors.border }]}>
+                <View style={[styles.shimmerLine, isDark && { backgroundColor: '#45576c' }, { width: 42, height: 10 }]} />
+                <View style={[styles.miniStarPlaceholder, isDark && { backgroundColor: '#344456' }]} />
+                <View style={[styles.miniArrowPlaceholder, isDark && { backgroundColor: '#1d4932' }]} />
               </View>
             </View>
             <View pointerEvents="none" style={styles.shimmerClip}>
-              <Animated.View style={[styles.shimmerSweep, shimmerSweepStyle]} />
+              <Animated.View style={[styles.shimmerSweep, isDark && { backgroundColor: 'rgba(255,255,255,0.10)' }, shimmerSweepStyle]} />
             </View>
           </View>
         ))}

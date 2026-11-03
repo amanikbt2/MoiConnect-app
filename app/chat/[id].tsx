@@ -889,10 +889,10 @@ export default function ChatRoomScreen({ route }: any) {
               <Text style={styles.modalTitle}>Share Campus File & Document</Text>
               <TouchableOpacity
                 onPress={() => setShowFileModal(false)}
-                style={styles.closeIconBtn}
+                style={[styles.closeIconBtn, isDark && { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border }]}
                 activeOpacity={0.7}
               >
-                <CloseIcon color="#0f172a" size={16} />
+                <CloseIcon color={isDark ? colors.text : '#0f172a'} size={16} />
               </TouchableOpacity>
             </View>
 

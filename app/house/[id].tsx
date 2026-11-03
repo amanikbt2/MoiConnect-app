@@ -314,13 +314,13 @@ export default function HouseDetailScreen({ route }: any) {
         {/* Rent & Deposit */}
         <View style={[styles.priceCard, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
           <View>
-            <Text style={styles.priceLabel}>Monthly Rent</Text>
-            <Text style={styles.priceVal}>KES {house.monthlyRent.toLocaleString()}</Text>
+            <Text style={[styles.priceLabel, isDark && { color: '#86efac' }]}>Monthly Rent</Text>
+            <Text style={[styles.priceVal, isDark && { color: '#4ade80' }]}>KES {house.monthlyRent.toLocaleString()}</Text>
           </View>
           {house.deposit > 0 && (
             <View>
-              <Text style={styles.priceLabel}>Deposit</Text>
-              <Text style={styles.priceVal}>KES {house.deposit.toLocaleString()}</Text>
+              <Text style={[styles.priceLabel, isDark && { color: '#86efac' }]}>Deposit</Text>
+              <Text style={[styles.priceVal, isDark && { color: '#4ade80' }]}>KES {house.deposit.toLocaleString()}</Text>
             </View>
           )}
         </View>
@@ -343,13 +343,13 @@ export default function HouseDetailScreen({ route }: any) {
         <Text style={[styles.description, isDark && { color: colors.mutedText }]}>{house.description}</Text>
 
         {/* Landlord Info */}
-        <View style={[styles.landlordCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={styles.landlordHeader}>Landlord Contact Info</Text>
+        <View style={[styles.landlordCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+          <Text style={[styles.landlordHeader, isDark && { color: colors.mutedText }]}>Landlord Contact Info</Text>
           <Text style={[styles.landlordName, isDark && { color: colors.text }]}>{landlord?.name || 'Verified Landlord'}</Text>
           {landlord?.phone && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
               <PhoneIcon color="#15803d" size={14} />
-              <Text style={styles.landlordPhone}>Phone: {landlord.phone}</Text>
+              <Text style={[styles.landlordPhone, isDark && { color: '#4ade80' }]}>Phone: {landlord.phone}</Text>
             </View>
           )}
         </View>
@@ -377,10 +377,10 @@ export default function HouseDetailScreen({ route }: any) {
       {/* Booking Modal */}
       <Modal visible={showBookingModal} animationType="slide" onRequestClose={() => setShowBookingModal(false)}>
         <View style={[styles.modalContent, isDark && { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, isDark && { borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 12 }]}>
             <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>Request House Booking</Text>
             <TouchableOpacity onPress={() => setShowBookingModal(false)}>
-              <Text style={styles.closeBtn}>Close</Text>
+              <Text style={[styles.closeBtn, isDark && { color: '#fca5a5' }]}>Close</Text>
             </TouchableOpacity>
           </View>
 
@@ -404,7 +404,7 @@ export default function HouseDetailScreen({ route }: any) {
             numberOfLines={3}
           />
 
-          <Text style={styles.disclaimerBox}>
+          <Text style={[styles.disclaimerBox, isDark && { backgroundColor: '#2a2b21', borderColor: '#57513a', color: '#d6d3c5' }]}>
             Notice: A booking request does not constitute a tenancy agreement or proof of payment. It alerts the landlord to your interest.
           </Text>
 

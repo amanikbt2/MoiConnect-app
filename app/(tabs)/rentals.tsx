@@ -341,18 +341,18 @@ export default function RentalsScreen() {
         ListHeaderComponent={
           <View style={{ marginBottom: 14 }}>
             {/* Top Header Action Row with Landlord Portal Small Icon */}
-            <View style={styles.topHeaderRow}>
+              <View style={[styles.topHeaderRow, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.topHeaderTitle, isDark && { color: colors.text }]}>Available Houses</Text>
                 <Text style={[styles.topHeaderSub, isDark && { color: colors.mutedText }]}>Verified student rentals around Moi Campus</Text>
               </View>
               <TouchableOpacity
-                style={styles.landlordIconButton}
+                style={[styles.landlordIconButton, isDark && { backgroundColor: '#153a2a', borderColor: '#28623f' }]}
                 onPress={() => router.push('/landlord-portal')}
                 activeOpacity={0.8}
               >
-                <KeyIcon color="#15803d" size={16} />
-                <Text style={styles.landlordIconText}>Landlord Portal</Text>
+                <KeyIcon color={isDark ? '#4ade80' : '#15803d'} size={16} />
+                <Text style={[styles.landlordIconText, isDark && { color: '#86efac' }]}>Landlord Portal</Text>
               </TouchableOpacity>
             </View>
 
@@ -364,7 +364,7 @@ export default function RentalsScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmitEditing={fetchHouses}
-                style={[styles.searchInput, isDark && { color: colors.text }]}
+                style={[styles.searchInput, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
               />
               <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses} activeOpacity={0.8}>
                 <SearchIcon color="#2563eb" size={18} />
@@ -373,7 +373,7 @@ export default function RentalsScreen() {
 
             {/* Location Filter Chips */}
             <View style={styles.filterSectionHeader}>
-              <LocationIcon color="#475569" size={12} />
+              <LocationIcon color={isDark ? colors.mutedText : '#475569'} size={12} />
               <Text style={[styles.filterSectionTitle, isDark && { color: colors.mutedText }]}>Filter by Location</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
@@ -388,9 +388,9 @@ export default function RentalsScreen() {
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       {loc === 'All Locations' ? (
-                        <GlobeIcon color={isActive ? '#ffffff' : '#15803d'} size={12} />
+                        <GlobeIcon color={isActive ? '#ffffff' : (isDark ? '#4ade80' : '#15803d')} size={12} />
                       ) : (
-                        <LocationIcon color={isActive ? '#ffffff' : '#15803d'} size={12} />
+                        <LocationIcon color={isActive ? '#ffffff' : (isDark ? '#4ade80' : '#15803d')} size={12} />
                       )}
                       <Text style={[styles.locationPillText, isDark && !isActive && { color: colors.text }, isActive && styles.locationPillTextActive]}>
                         {loc}
@@ -403,12 +403,12 @@ export default function RentalsScreen() {
 
             {/* Property Type Pills */}
             <View style={styles.filterSectionHeader}>
-              <HouseIcon color="#475569" size={12} />
+              <HouseIcon color={isDark ? colors.mutedText : '#475569'} size={12} />
               <Text style={[styles.filterSectionTitle, isDark && { color: colors.mutedText }]}>Room Type</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               <TouchableOpacity
-                style={[styles.pill, selectedType === '' && styles.pillActive]}
+                style={[styles.pill, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, selectedType === '' && styles.pillActive]}
                 onPress={() => setSelectedType('')}
                 activeOpacity={0.75}
               >
@@ -462,11 +462,11 @@ export default function RentalsScreen() {
 
       {/* Create Listing Modal */}
       <Modal visible={showCreateModal} animationType="slide" onRequestClose={() => setShowCreateModal(false)}>
-        <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Publish House Listing</Text>
+        <ScrollView contentContainerStyle={[styles.modalContent, isDark && { backgroundColor: colors.surface }]} keyboardShouldPersistTaps="handled">
+          <View style={[styles.modalHeader, isDark && { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>Publish House Listing</Text>
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-              <Text style={styles.closeBtn}>Close</Text>
+              <Text style={[styles.closeBtn, isDark && { color: '#fca5a5' }]}>Close</Text>
             </TouchableOpacity>
           </View>
 
@@ -476,17 +476,17 @@ export default function RentalsScreen() {
           <Input label="Deposit (KES)" placeholder="4500" value={deposit} onChangeText={setDeposit} keyboardType="numeric" />
           <Input label="Photo Image URL *" placeholder="https://res.cloudinary.com/.../house.jpg" value={photoUrl} onChangeText={setPhotoUrl} />
 
-          <Text style={styles.amenitiesHeader}>Amenities</Text>
+          <Text style={[styles.amenitiesHeader, isDark && { color: colors.text }]}>Amenities</Text>
           <View style={styles.amenitiesGrid}>
             {RENTAL_AMENITIES.map((am) => {
               const selected = selectedAmenities.includes(am);
               return (
                 <TouchableOpacity
                   key={am}
-                  style={[styles.amenityChip, selected && styles.amenityChipSelected]}
+                  style={[styles.amenityChip, isDark && !selected && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, selected && styles.amenityChipSelected]}
                   onPress={() => toggleAmenity(am)}
                 >
-                  <Text style={[styles.amenityChipText, selected && styles.amenityChipTextSelected]}>
+                  <Text style={[styles.amenityChipText, isDark && !selected && { color: colors.text }, selected && styles.amenityChipTextSelected]}>
                     {selected ? '• ' : ''}{am}
                   </Text>
                 </TouchableOpacity>

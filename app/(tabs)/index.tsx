@@ -29,6 +29,7 @@ import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
 import { useSearchFocus } from '../../src/hooks/useSearchFocus';
 import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   SearchIcon,
@@ -97,6 +98,7 @@ function getGreetingText(userName?: string, universityShortName?: string): strin
 
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { selectedUniversity } = useUniversity();
   const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -301,7 +303,7 @@ export default function HomeScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.suggestedCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={[styles.suggestedCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
         activeOpacity={0.88}
         onPress={handleCardPress}
       >
@@ -353,7 +355,7 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={[styles.container, isDark && { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: Platform.OS === 'android' ? Math.max(120, insets.bottom + 96) : styles.content.paddingBottom }]}
       keyboardShouldPersistTaps="handled"
       onScrollBeginDrag={closeSearch}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#15803d']} />}
@@ -447,7 +449,7 @@ export default function HomeScreen() {
         <View style={styles.gridContainer}>
           {/* Notes PDF row (full-width feature card) */}
           <TouchableOpacity
-            style={[styles.notesCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.notesCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
             activeOpacity={0.7}
             onPress={() => router.push('/(tabs)/academics')}
           >
@@ -463,7 +465,7 @@ export default function HomeScreen() {
 
           <View style={styles.cardRow}>
             <TouchableOpacity
-              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/past-papers')}
             >
@@ -475,7 +477,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/cat-papers')}
             >
@@ -489,7 +491,7 @@ export default function HomeScreen() {
 
           <View style={styles.cardRow}>
             <TouchableOpacity
-              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/(tabs)/rentals')}
             >
@@ -501,7 +503,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/contribute')}
             >
@@ -515,7 +517,7 @@ export default function HomeScreen() {
 
           <View style={styles.cardRow}>
             <TouchableOpacity
-              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() =>
                 selectedUniversity?.studentPortalUrl || selectedUniversity?.officialWebsiteUrl
@@ -536,21 +538,33 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
-              onPress={() =>
+              onPress={() => {
+                const hasVerifiedPortal = Boolean(selectedUniversity?.elearningPortalUrl);
+                const portalUrl = selectedUniversity?.elearningPortalUrl || 'https://elearning.mu.ac.ke/';
                 handleOpenPortal({
-                  title: 'MuSOMi E-Learning Portal',
-                  url: 'https://elearning.mu.ac.ke/',
-                  domain: 'elearning.mu.ac.ke'
-                })
-              }
+                  title: hasVerifiedPortal
+                    ? selectedUniversity?.elearningPortalName || `${selectedUniversity?.name} E-Learning Portal`
+                    : 'MUSOMI E-Learning Portal',
+                  url: portalUrl,
+                  domain: new URL(portalUrl).hostname
+                });
+              }}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#d1fae5' }]}>
                 <LaptopIcon color="#059669" size={28} />
               </View>
-              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>MUSOMI E-Learning</Text>
-              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Online portal & lectures</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>
+                {selectedUniversity?.elearningPortalUrl
+                  ? selectedUniversity.elearningPortalName || `${selectedUniversity.shortName} E-Learning`
+                  : 'MUSOMI E-Learning'}
+              </Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>
+                {selectedUniversity?.elearningPortalUrl
+                  ? 'Online portal & lectures'
+                  : `No verified ${selectedUniversity?.shortName || 'university'} link; opening MUSOMI`}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -571,7 +585,7 @@ export default function HomeScreen() {
         </View>
 
         {user && !profileComplete ? (
-          <View style={[styles.loginPromptCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.loginPromptCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <View style={styles.loginPromptIconContainer}>
               <SparklesIcon color="#15803d" size={24} />
             </View>
@@ -632,12 +646,12 @@ export default function HomeScreen() {
               </View>
             </>
           ) : (
-            <View style={{ padding: 20, alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 12, marginHorizontal: 16 }}>
-              <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '600' }}>No academic materials available yet.</Text>
+            <View style={{ padding: 20, alignItems: 'center', backgroundColor: isDark ? colors.surfaceElevated : '#f8fafc', borderRadius: 12, marginHorizontal: 16, borderWidth: isDark ? 1 : 0, borderColor: colors.border }}>
+              <Text style={{ fontSize: 13, color: isDark ? colors.mutedText : '#64748b', fontWeight: '600' }}>No academic materials available yet.</Text>
             </View>
           )
         ) : (
-          <View style={[styles.loginPromptCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.loginPromptCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <View style={styles.loginPromptIconContainer}>
               <SparklesIcon color="#15803d" size={24} />
             </View>

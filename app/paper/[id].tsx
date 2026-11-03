@@ -138,39 +138,39 @@ export default function PaperDetailScreen({ route }: any) {
       <Text style={[styles.title, isDark && { color: colors.text }]}>{paper.title}</Text>
       <Text style={[styles.unitName, isDark && { color: colors.mutedText }]}>{paper.unitName}</Text>
 
-      <View style={[styles.infoCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.infoCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>School:</Text>
+          <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>School:</Text>
           <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.school}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Department:</Text>
+          <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>Department:</Text>
           <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.department}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Course Code:</Text>
+          <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>Course Code:</Text>
           <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.courseCode}</Text>
         </View>
         {paper.academicYear && (
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Academic Year:</Text>
+            <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>Academic Year:</Text>
             <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.academicYear}</Text>
           </View>
         )}
         {paper.semester && (
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Semester:</Text>
+            <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>Semester:</Text>
             <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.semester}</Text>
           </View>
         )}
         {paper.examYear && (
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Exam Year:</Text>
+            <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>Exam Year:</Text>
             <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.examYear}</Text>
           </View>
         )}
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Downloads:</Text>
+          <Text style={[styles.infoLabel, isDark && { color: colors.mutedText }]}>Downloads:</Text>
           <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{formatCompactNumber(paper.downloads || (paper as any).downloadCount)}</Text>
         </View>
       </View>

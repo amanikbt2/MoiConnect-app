@@ -34,8 +34,8 @@ import { Badge } from '../../src/components/Badge';
 import { UserBadge } from '../../src/components/UserBadge';
 import { EmptyState } from '../../src/components/EmptyState';
 import { DeleteAccountConfirmModal } from '../../src/components/DeleteAccountConfirmModal';
-import { UniversitySetupModal } from '../../src/components/UniversitySetupModal';
 import { useUniversity } from '../../src/context/UniversityContext';
+import { findKenyanUniversity, getKenyanUniversitySearchAliases, KENYAN_UNIVERSITIES } from '../../src/data/kenyanUniversities';
 import { MOI_SCHOOLS } from '@moi/shared';
 import {
   HouseIcon,
@@ -47,7 +47,6 @@ import {
   CloseIcon,
   PhoneIcon,
   BookIcon,
-  ChevronDownIcon,
   MoreVerticalIcon,
   TrashIcon,
 
@@ -78,15 +77,52 @@ const getAssistantAvatarSource = (u?: { email?: string; name?: string } | null) 
 
 const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
+// Common school and faculty names used across Kenyan universities. Keep the
+// input editable so students can still enter names that are institution-specific.
+const COMMON_SCHOOL_FACULTIES = [
+  'Faculty of Agriculture',
+  'Faculty of Arts',
+  'Faculty of Built Environment',
+  'Faculty of Business and Management Sciences',
+  'Faculty of Commerce',
+  'Faculty of Computing and Information Technology',
+  'Faculty of Education',
+  'Faculty of Engineering',
+  'Faculty of Environmental Studies',
+  'Faculty of Health Sciences',
+  'Faculty of Humanities and Social Sciences',
+  'Faculty of Law',
+  'Faculty of Science',
+  'Faculty of Social Sciences',
+  'Faculty of Veterinary Medicine',
+  'School of Agriculture and Food Sciences',
+  'School of Arts and Social Sciences',
+  'School of Business',
+  'School of Computing and Information Technology',
+  'School of Education',
+  'School of Engineering and Technology',
+  'School of Environmental Studies',
+  'School of Health Sciences',
+  'School of Humanities',
+  'School of Law',
+  'School of Medicine',
+  'School of Nursing',
+  'School of Pharmacy',
+  'School of Public Health',
+  'School of Science',
+  'School of Social Sciences',
+  'School of Veterinary Medicine',
+];
+const SCHOOL_FACULTY_OPTIONS = Array.from(new Set([...MOI_SCHOOLS, ...COMMON_SCHOOL_FACULTIES]));
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout, deleteAccount, updateUserProfile } = useAuth();
   const { isDark, colors, toggleDarkTheme } = useTheme();
-  const { selectedUniversity } = useUniversity();
+  const { selectedUniversity, selectUniversity } = useUniversity();
   const scrollBottomPadding = Platform.OS === 'android'
     ? Math.max(88, insets.bottom + 72)
     : 40;
-  const [showUniversityPicker, setShowUniversityPicker] = useState(false);
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
     school: 'Unset',
     course: 'Unset',
@@ -102,6 +138,17 @@ export default function ProfileScreen() {
   const autoOpenedForUserId = useRef<string | null>(null);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   const [editSchool, setEditSchool] = useState('');
+  const [showUniversityDropdown, setShowUniversityDropdown] = useState(false);
+  const [editUniversity, setEditUniversity] = useState('');
+  const filteredUniversities = KENYAN_UNIVERSITIES.filter((university) =>
+    getKenyanUniversitySearchAliases(university).some((alias) => alias.toLowerCase().includes(editUniversity.trim().toLowerCase()))
+  ).slice(0, editUniversity.trim() ? 12 : KENYAN_UNIVERSITIES.length);
+  const filteredSchoolOptions = SCHOOL_FACULTY_OPTIONS
+    .filter((school) => school.toLowerCase().includes(editSchool.trim().toLowerCase()))
+    .slice(0, editSchool.trim() ? 12 : SCHOOL_FACULTY_OPTIONS.length);
+  const hasExactSchoolMatch = SCHOOL_FACULTY_OPTIONS.some(
+    (school) => school.toLowerCase() === editSchool.trim().toLowerCase()
+  );
   const [editCourse, setEditCourse] = useState('');
   const [editYear, setEditYear] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -191,6 +238,7 @@ export default function ProfileScreen() {
     const rawCourse = studentDetails.course || user?.course || '';
     const rawYear = studentDetails.yearOfStudy || user?.yearOfStudy || '';
     setEditSchool(rawSchool === 'Unset' ? defaultVal : (rawSchool || defaultVal));
+    setEditUniversity(selectedUniversity?.name || user?.university || '');
     setEditCourse(rawCourse === 'Unset' ? defaultVal : (rawCourse || defaultVal));
     setEditYear(rawYear === 'Unset' ? defaultVal : (rawYear || defaultVal));
     setEditPhone(studentDetails.phone || user?.phone || (isBotOrAI ? 'AI assistant' : ''));
@@ -198,6 +246,7 @@ export default function ProfileScreen() {
     setEditAvatarUri(studentDetails.avatarUri || user?.avatarUrl);
     setProfileValidationMessage('');
     setShowSchoolDropdown(false);
+    setShowUniversityDropdown(false);
     setShowEditModal(true);
   };
 
@@ -228,7 +277,9 @@ export default function ProfileScreen() {
   }, [user?._id, user?.school, user?.course, user?.yearOfStudy, user?.email, user?.name]);
 
   const handleSaveProfileSubmit = async () => {
+    const chosenUniversity = findKenyanUniversity(editUniversity);
     const missingFields = [
+      !chosenUniversity ? 'university (choose one from the suggestions)' : '',
       (!editCourse.trim() || editCourse.trim().toLowerCase() === 'unset') ? 'course / degree program' : '',
       (!editSchool.trim() || editSchool.trim().toLowerCase() === 'unset') ? 'school / faculty' : '',
       (!editYear.trim() || editYear.trim().toLowerCase() === 'unset') ? 'year of study' : ''
@@ -286,8 +337,12 @@ export default function ProfileScreen() {
         school: updated.school,
         course: updated.course,
         yearOfStudy: updated.yearOfStudy,
+        university: chosenUniversity!.name,
         ...(persistedAvatarUri ? { avatarUrl: persistedAvatarUri } : {})
       });
+      if (chosenUniversity && selectedUniversity?.name !== chosenUniversity.name) {
+        await selectUniversity(chosenUniversity);
+      }
       const savedProfile = { ...updated, avatarUri: persistedAvatarUri };
       await saveStudentPersonalDetails(savedProfile);
       setStudentDetails(savedProfile);
@@ -460,7 +515,6 @@ export default function ProfileScreen() {
       />
       {/* Student Personal Details Card */}
       <View style={[styles.studentProfileCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <UniversitySetupModal allowReselect visible={showUniversityPicker} onDismiss={() => setShowUniversityPicker(false)} />
         <View style={styles.cardHeaderRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <AcademicCapIcon color="#15803d" size={20} />
@@ -473,7 +527,7 @@ export default function ProfileScreen() {
 
         <View style={[styles.detailsList, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
           {!isAssistant && <>
-            <TouchableOpacity style={styles.detailItem} onPress={() => setShowUniversityPicker(true)} activeOpacity={0.75}>
+            <View style={styles.detailItem}>
               <View style={styles.detailIconBox}>
                 <AcademicCapIcon color="#15803d" size={18} />
               </View>
@@ -481,8 +535,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.detailLabelHeader, isDark && { color: colors.mutedText }]}>UNIVERSITY</Text>
                 <Text style={[styles.detailValueText, isDark && { color: colors.text }]}>{selectedUniversity?.name || user.university || 'Select your university'}</Text>
               </View>
-              <Text style={{ color: '#15803d', fontSize: 12, fontWeight: '800' }}>Update</Text>
-            </TouchableOpacity>
+            </View>
             <View style={styles.detailItemDivider} />
           </>}
           {/* School / Faculty */}
@@ -581,8 +634,8 @@ export default function ProfileScreen() {
       <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => { if (!profileCompletionRequired) setShowEditModal(false); }}>
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={[styles.modalContent, isDark && { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>{isAssistant ? 'Edit Assistant Profile' : 'Complete Student Profile'}</Text>
+            <View style={[styles.modalHeader, isDark && { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>{isAssistant ? 'Edit Assistant Profile' : (profileCompletionRequired ? 'Complete Student Profile' : 'Edit Student Profile')}</Text>
               {!profileCompletionRequired && (
                 <TouchableOpacity onPress={() => setShowEditModal(false)}>
                   <CloseIcon color={isDark ? colors.text : '#000000'} size={20} />
@@ -592,7 +645,7 @@ export default function ProfileScreen() {
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Profile Picture</Text>
-              <View style={styles.editPhotoRow}>
+              <View style={[styles.editPhotoRow, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
                 {editAvatarUri && (editAvatarUri.startsWith('http://') || editAvatarUri.startsWith('https://') || editAvatarUri.startsWith('file://') || editAvatarUri.startsWith('data:') || editAvatarUri.startsWith('blob:')) ? (
                   <Image source={{ uri: editAvatarUri }} style={styles.editAvatarImage} />
                 ) : assistantAvatar ? (
@@ -603,8 +656,8 @@ export default function ProfileScreen() {
                   </View>
                 )}
                 <View style={styles.editPhotoInfo}>
-                  <Text style={styles.editPhotoTitle}>Add a clear profile photo</Text>
-                  <Text style={styles.editPhotoHint}>Use a square image for the best result.</Text>
+                  <Text style={[styles.editPhotoTitle, isDark && { color: colors.text }]}>Add a clear profile photo</Text>
+                  <Text style={[styles.editPhotoHint, isDark && { color: colors.mutedText }]}>Use a square image for the best result.</Text>
                   <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickProfileImage} activeOpacity={0.8}>
                     <CameraIcon color="#ffffff" size={14} />
                     <Text style={styles.changePhotoText}>Choose image</Text>
@@ -616,7 +669,7 @@ export default function ProfileScreen() {
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Full Student Name</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="e.g. Amani Kibet"
                 placeholderTextColor="#94a3b8"
                 value={editName}
@@ -625,9 +678,50 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>University</Text>
+              <TextInput
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
+                placeholder="Type to search your university"
+                placeholderTextColor="#94a3b8"
+                value={editUniversity}
+                onFocus={() => setShowUniversityDropdown(true)}
+                onChangeText={(value) => {
+                  setEditUniversity(value);
+                  setShowUniversityDropdown(true);
+                }}
+                autoCapitalize="words"
+              />
+              {showUniversityDropdown && (
+                <ScrollView style={[styles.dropdownMenu, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} nestedScrollEnabled keyboardShouldPersistTaps="always">
+                  {filteredUniversities.map((university) => {
+                    const isSelected = editUniversity.trim().toLowerCase() === university.name.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={university.name}
+                        style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
+                        onPress={() => {
+                          setEditUniversity(university.name);
+                          setShowUniversityDropdown(false);
+                        }}
+                      >
+                        <Text style={[styles.dropdownMenuItemText, isDark && { color: colors.text }, isSelected && styles.dropdownMenuItemTextActive]}>
+                          {university.name}
+                        </Text>
+                        {isSelected && <Text style={{ color: '#15803d', fontWeight: '800' }}>✓</Text>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {filteredUniversities.length === 0 && (
+                    <Text style={[styles.dropdownMenuItemText, { padding: 14 }, isDark && { color: colors.mutedText }]}>No university found. Try its abbreviation.</Text>
+                  )}
+                </ScrollView>
+              )}
+            </View>
+
+            <View style={styles.formGroup}>
               <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Course / Degree Program <Text style={{ color: '#ef4444' }}>*</Text></Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="e.g. BSc. Computer Science"
                 placeholderTextColor="#94a3b8"
                 value={editCourse}
@@ -640,51 +734,57 @@ export default function ProfileScreen() {
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Select School / Faculty</Text>
-              {selectedUniversity?.name === 'Moi University' ? <>
-                <TouchableOpacity
-                  style={styles.dropdownSelector}
-                  onPress={() => setShowSchoolDropdown(!showSchoolDropdown)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.dropdownSelectorText} numberOfLines={1}>
-                    {editSchool || 'Select your school/faculty...'}
-                  </Text>
-                  <ChevronDownIcon color="#64748b" size={18} />
-                </TouchableOpacity>
-
-                {showSchoolDropdown && (
-                  <ScrollView style={styles.dropdownMenu} nestedScrollEnabled={true}>
-                    {MOI_SCHOOLS.map((sch) => {
-                      const isSelected = editSchool === sch;
-                      return (
-                        <TouchableOpacity
-                          key={sch}
-                          style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
-                          onPress={() => {
-                            setEditSchool(sch);
-                            if (profileValidationMessage) setProfileValidationMessage('');
-                            setShowSchoolDropdown(false);
-                          }}
-                        >
-                          <Text style={[styles.dropdownMenuItemText, isSelected && styles.dropdownMenuItemTextActive]}>
-                            {sch}
-                          </Text>
-                          {isSelected && <Text style={{ color: '#15803d', fontWeight: '800' }}>✓</Text>}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </> : <TextInput
+              <TextInput
                 style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
-                placeholder="Enter your school or faculty"
+                placeholder="Type to search or enter your school/faculty"
                 placeholderTextColor="#94a3b8"
                 value={editSchool}
+                onFocus={() => setShowSchoolDropdown(true)}
                 onChangeText={(value) => {
                   setEditSchool(value);
+                  setShowSchoolDropdown(true);
                   if (profileValidationMessage) setProfileValidationMessage('');
                 }}
-              />}
+              />
+              {showSchoolDropdown && (
+                <ScrollView style={[styles.dropdownMenu, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} nestedScrollEnabled keyboardShouldPersistTaps="always">
+                  {filteredSchoolOptions.map((school) => {
+                    const isSelected = editSchool.trim().toLowerCase() === school.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={school}
+                        style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
+                        onPress={() => {
+                          setEditSchool(school);
+                          if (profileValidationMessage) setProfileValidationMessage('');
+                          setShowSchoolDropdown(false);
+                        }}
+                      >
+                        <Text style={[styles.dropdownMenuItemText, isDark && { color: colors.text }, isSelected && styles.dropdownMenuItemTextActive]}>
+                          {school}
+                        </Text>
+                        {isSelected && <Text style={{ color: '#15803d', fontWeight: '800' }}>✓</Text>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {editSchool.trim().length > 0 && !hasExactSchoolMatch && (
+                    <TouchableOpacity
+                      style={styles.dropdownMenuItem}
+                      onPress={() => {
+                        if (profileValidationMessage) setProfileValidationMessage('');
+                        setShowSchoolDropdown(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownMenuItemText, isDark && { color: colors.text }]}>
+                        Use custom: “{editSchool.trim()}”
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {filteredSchoolOptions.length === 0 && editSchool.trim().length === 0 && (
+                    <Text style={[styles.dropdownMenuItemText, { padding: 14 }, isDark && { color: colors.mutedText }]}>Start typing to search.</Text>
+                  )}
+                </ScrollView>
+              )}
             </View>
 
             <View style={styles.formGroup}>
@@ -693,13 +793,13 @@ export default function ProfileScreen() {
                 {YEARS_LIST.map((yr) => (
                   <TouchableOpacity
                     key={yr}
-                    style={[styles.chip, editYear === yr && styles.chipActive]}
+                    style={[styles.chip, isDark && editYear !== yr && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }, editYear === yr && styles.chipActive]}
                      onPress={() => {
                        setEditYear(yr);
                        if (profileValidationMessage) setProfileValidationMessage('');
                      }}
                   >
-                    <Text style={[styles.chipText, editYear === yr && styles.chipTextActive]}>{yr}</Text>
+                    <Text style={[styles.chipText, isDark && editYear !== yr && { color: colors.text }, editYear === yr && styles.chipTextActive]}>{yr}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -708,7 +808,7 @@ export default function ProfileScreen() {
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Phone Contact Number (Optional)</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="e.g. 0712 345 678"
                 placeholderTextColor="#94a3b8"
                 value={editPhone}
@@ -718,7 +818,7 @@ export default function ProfileScreen() {
             </View>
 
             {profileValidationMessage ? (
-              <View style={styles.profileValidationBox}>
+              <View style={[styles.profileValidationBox, isDark && { backgroundColor: '#3b1f29', borderColor: '#6b2737' }]}>
                 <Text style={styles.profileValidationText}>{profileValidationMessage}</Text>
               </View>
             ) : null}

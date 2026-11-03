@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, DimensionValue } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface SkeletonProps {
   width?: DimensionValue;
@@ -14,7 +15,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   borderRadius = 8,
   style
 }) => {
-  return <View style={[styles.skeleton, { width, height, borderRadius }, style]} />;
+  const { isDark } = useTheme();
+  return <View style={[styles.skeleton, { width, height, borderRadius }, style, isDark && { backgroundColor: '#45576c' }]} />;
 };
 
 const styles = StyleSheet.create({
