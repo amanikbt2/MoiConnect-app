@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
   Easing,
+  Platform,
   useWindowDimensions
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -36,6 +37,10 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
   const shimmerProgress = React.useRef(new Animated.Value(0)).current;
   const loadingPulse = React.useRef(new Animated.Value(0)).current;
   const sweepDistance = Math.max(windowWidth, CAROUSEL_CARD_WIDTH);
+  const sweepWidth = Platform.OS === 'android' ? 88 : 64;
+  const sweepColor = Platform.OS === 'android'
+    ? (isDark ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.50)')
+    : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.28)');
 
   React.useEffect(() => {
     const animation = Animated.loop(
@@ -130,7 +135,7 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
                   </View>
                 </View>
                 <View pointerEvents="none" style={styles.shimmerClip}>
-                  <Animated.View style={[styles.shimmerSweep, isDark && { backgroundColor: 'rgba(255,255,255,0.10)' }, shimmerSweepStyle]} />
+                  <Animated.View style={[styles.shimmerSweep, { width: sweepWidth, backgroundColor: sweepColor }, shimmerSweepStyle]} />
                 </View>
               </View>
             ))}
@@ -175,7 +180,7 @@ export const SmartMirrorSkeleton: React.FC<SmartMirrorSkeletonProps> = ({
               </View>
             </View>
             <View pointerEvents="none" style={styles.shimmerClip}>
-              <Animated.View style={[styles.shimmerSweep, isDark && { backgroundColor: 'rgba(255,255,255,0.10)' }, shimmerSweepStyle]} />
+              <Animated.View style={[styles.shimmerSweep, { width: sweepWidth, backgroundColor: sweepColor }, shimmerSweepStyle]} />
             </View>
           </View>
         ))}

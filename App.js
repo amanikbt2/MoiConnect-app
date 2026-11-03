@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Platform, Modal, ScrollView, Image } from 'react-native';
+import { View, Text, Platform, Modal, ScrollView, Image, Pressable } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,6 +10,8 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { UniversityProvider } from './src/context/UniversityContext';
 import { UniversitySetupModal } from './src/components/UniversitySetupModal';
 import { NetworkProvider } from './src/context/NetworkContext';
+import { PopupActionProvider } from './src/context/PopupActionContext';
+import { usePopupAction } from './src/context/PopupActionContext';
 import { StatusBar } from 'expo-status-bar';
 import { GlobalBottomBar } from './src/components/GlobalBottomBar';
 
@@ -42,12 +44,14 @@ import ChatRoomScreen from './app/chat/[id]';
 
 import { TouchableOpacity } from 'react-native';
 import { useAuth } from './src/context/AuthContext';
-import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon, ArrowLeftIcon } from './src/components/Icons';
+import { HomeIcon, BookIcon, DownloadIcon, HouseIcon, MessageIcon, ProfileIcon, BellIcon, CommunityIcon, ArrowLeftIcon, CopyIcon, CheckIcon, UsersIcon } from './src/components/Icons';
 import { InAppPopupModal } from './src/components/InAppPopupModal';
 import { IceMessageHost } from './src/components/IceMessageCard';
 import { checkAppPopups } from './src/services/popupService';
 import { setupNotificationResponseListener } from './src/services/notificationService';
 import { apiRequest } from './src/services/api';
+import * as Clipboard from 'expo-clipboard';
+import { capturePlayInstallReferral, fetchReferralSummary } from './src/services/referralService';
 import {
   getReadNotificationIds,
   saveReadNotificationIdsBatch
@@ -83,6 +87,7 @@ const repairNotificationText = (value) => {
 
 function HeaderNotificationBell() {
   const { isDark, colors } = useTheme();
+  const { popupAction, consumePopupAction } = usePopupAction();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [notifications, setNotifications] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -112,6 +117,13 @@ function HeaderNotificationBell() {
   React.useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  React.useEffect(() => {
+    if (popupAction !== 'notifications') return;
+    setModalVisible(true);
+    void loadNotifications();
+    consumePopupAction('notifications');
+  }, [popupAction, consumePopupAction, loadNotifications]);
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
 
@@ -256,11 +268,43 @@ function HeaderNotificationBell() {
 }
 
 function HeaderPointsBadge() {
-  const { user, userPoints } = useAuth();
+  const { user, userPoints, refreshUser } = useAuth();
   const { isDark, colors } = useTheme();
+  const { popupAction, consumePopupAction } = usePopupAction();
   const [modalVisible, setModalVisible] = React.useState(false);
+  const [referralSummary, setReferralSummary] = React.useState(null);
+  const [referralCopied, setReferralCopied] = React.useState(false);
 
-  if (!user) return null;
+  React.useEffect(() => {
+    if (!modalVisible || !user) return;
+    let isActive = true;
+    void fetchReferralSummary().then((summary) => {
+      if (isActive) setReferralSummary(summary);
+    });
+    void refreshUser();
+    return () => { isActive = false; };
+  }, [modalVisible, user?._id]);
+
+  const handleCopyReferralLink = async () => {
+    const shareUrl = referralSummary?.googlePlayUrl || referralSummary?.shareUrl;
+    if (!shareUrl) return;
+    try {
+      await Clipboard.setStringAsync(shareUrl);
+      setReferralCopied(true);
+      setTimeout(() => setReferralCopied(false), 2200);
+    } catch (error) {
+      console.warn('[Referrals] Could not copy invite link:', error);
+      setReferralCopied(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (popupAction !== 'rewards') return;
+    setModalVisible(true);
+    consumePopupAction('rewards');
+  }, [popupAction, consumePopupAction]);
+
+  if (!user && !modalVisible) return null;
 
   return (
     <View style={{ marginRight: 6 }}>
@@ -300,38 +344,35 @@ function HeaderPointsBadge() {
           activeOpacity={1}
           onPress={() => setModalVisible(false)}
         >
-          <View
+          <Pressable
             style={{
               width: '100%',
               maxWidth: 320,
+          maxHeight: '92%',
               backgroundColor: isDark ? colors.surface : '#ffffff',
               borderRadius: 20,
-              padding: 20,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
-              elevation: 6
+              overflow: 'hidden'
             }}
-            onStartShouldSetResponder={() => true}
+            onPress={(event) => event.stopPropagation()}
           >
-            <View style={{ alignItems: 'center', marginBottom: 14 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: isDark ? '#153a2a' : '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                <Text style={{ fontSize: 24 }}>🌟</Text>
+          <View style={{ padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 }}>
+            <View style={{ alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: isDark ? '#153a2a' : '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                <Text style={{ fontSize: 22 }}>🌟</Text>
               </View>
               <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? colors.text : '#0f172a' }}>Student Rewards</Text>
               <Text style={{ fontSize: 12, color: isDark ? '#86efac' : '#15803d', fontWeight: '600', marginTop: 2 }}>MConnect Points System</Text>
             </View>
 
-            <View style={{ backgroundColor: isDark ? '#153526' : '#f0fdf4', borderRadius: 14, padding: 14, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0' }}>
+            <View style={{ backgroundColor: isDark ? '#153526' : '#f0fdf4', borderRadius: 14, padding: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0' }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#86efac' : '#166634', textTransform: 'uppercase' }}>Your Points</Text>
               <Text style={{ fontSize: 28, fontWeight: '900', color: isDark ? '#4ade80' : '#15803d', marginVertical: 2 }}>{userPoints} pts</Text>
               <Text style={{ fontSize: 11, color: isDark ? '#bbf7d0' : '#15803d' }}>Earn points by contributing study materials!</Text>
             </View>
 
             {/* Progress Section Container */}
-            <View style={{ width: '100%', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0', padding: 14, marginBottom: 16 }}>
-              <Text style={{ fontSize: 11, color: isDark ? colors.mutedText : '#64748b', fontWeight: '600', marginBottom: 16 }}>
+            <View style={{ width: '100%', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0', padding: 12, marginBottom: 12 }}>
+              <Text style={{ fontSize: 11, color: isDark ? colors.mutedText : '#64748b', fontWeight: '600', marginBottom: 10 }}>
                 {userPoints >= 3000
                   ? '🎉 Max level reached!'
                   : userPoints >= 1500
@@ -410,13 +451,42 @@ function HeaderPointsBadge() {
               </View>
             </View>
 
+            <View style={{ width: '100%', borderRadius: 12, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0', backgroundColor: isDark ? '#102c21' : '#f0fdf4', padding: 9, marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+                <UsersIcon color={isDark ? '#86efac' : '#15803d'} size={15} />
+                <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: isDark ? '#bbf7d0' : '#166534' }}>Refer a friend and earn {referralSummary?.rewardPointsPerReferral ?? 3} points</Text>
+              </View>
+              {user ? (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={{ flex: 1, minWidth: 0, fontSize: 10, color: referralCopied ? (isDark ? '#86efac' : '#15803d') : (isDark ? colors.text : '#334155'), backgroundColor: referralCopied ? (isDark ? '#153a2a' : '#dcfce7') : (isDark ? colors.surfaceElevated : '#ffffff'), borderWidth: 1, borderColor: referralCopied ? (isDark ? '#28623f' : '#86efac') : (isDark ? colors.border : '#dcfce7'), borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7 }}>
+                      {referralCopied ? 'Copied successfully' : (referralSummary?.googlePlayUrl || referralSummary?.shareUrl || (referralSummary ? `Code ${referralSummary.referralCode}` : 'Preparing your invite link…'))}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleCopyReferralLink}
+                      disabled={!referralSummary?.shareUrl}
+                      style={{ width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: referralCopied ? '#166534' : '#15803d', opacity: (referralSummary?.googlePlayUrl || referralSummary?.shareUrl) ? 1 : 0.55 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={referralCopied ? 'Referral link copied successfully' : 'Copy referral link'}
+                    >
+                      {referralCopied ? <CheckIcon color="#ffffff" size={16} /> : <CopyIcon color="#ffffff" size={16} />}
+                    </TouchableOpacity>
+                  </View>
+                  {referralCopied && <Text style={{ fontSize: 10, color: isDark ? '#86efac' : '#15803d', fontWeight: '700', marginTop: 3 }}>Link copied</Text>}
+                </>
+              ) : (
+                <Text style={{ fontSize: 10, color: isDark ? '#86efac' : '#15803d', fontWeight: '700' }}>Sign in to get your personal invite link.</Text>
+              )}
+            </View>
+
             <TouchableOpacity
-              style={{ backgroundColor: '#15803d', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+              style={{ width: '100%', backgroundColor: '#15803d', paddingVertical: 11, borderRadius: 12, alignItems: 'center' }}
               onPress={() => setModalVisible(false)}
             >
               <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>Got It!</Text>
             </TouchableOpacity>
           </View>
+          </Pressable>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -553,49 +623,60 @@ function ProfileHeaderTitle() {
   );
 }
 
-function MainTabs({ navigation }) {
+function MainTabs({ navigation, route }) {
+  const [popupAction, setPopupAction] = React.useState(null);
+
+  React.useEffect(() => {
+    const requestedAction = route?.params?.popupAction;
+    if (!requestedAction) return;
+    setPopupAction(requestedAction);
+    navigation.setParams({ popupAction: undefined });
+  }, [route?.params?.popupAction, navigation]);
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: true,
-        headerStyle: { backgroundColor: '#15803d' },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: { fontWeight: '800', fontSize: 18 },
-        headerRight: () => (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <HeaderPointsBadge />
-            <HeaderNotificationBell />
-            <HeaderProfileAvatar navigation={navigation} />
-          </View>
-        ),
-        tabBarStyle: { display: 'none' }
-      }}
-    >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeScreen}
-        options={{
-          title: 'Home',
-          headerTitle: () => <HomeHeaderTitle />,
+    <PopupActionProvider action={popupAction}>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: true,
+          headerStyle: { backgroundColor: '#15803d' },
+          headerTintColor: '#ffffff',
+          headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <HeaderPointsBadge />
+              <HeaderNotificationBell />
+              <HeaderProfileAvatar navigation={navigation} />
+            </View>
+          ),
+          tabBarStyle: { display: 'none' }
         }}
-      />
-      <Tab.Screen
-        name="DownloadsTab"
-        component={DownloadsScreen}
-        options={{
-          title: 'Downloads',
-          headerTitle: () => <DownloadsHeaderTitle />,
-        }}
-      />
-      <Tab.Screen
-        name="MessagesTab"
-        component={CommunityScreen}
-        options={{
-          title: 'Community',
-          headerShown: false,
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="HomeTab"
+          component={HomeScreen}
+          options={{
+            title: 'Home',
+            headerTitle: () => <HomeHeaderTitle />,
+          }}
+        />
+        <Tab.Screen
+          name="DownloadsTab"
+          component={DownloadsScreen}
+          options={{
+            title: 'Downloads',
+            headerTitle: () => <DownloadsHeaderTitle />,
+          }}
+        />
+        <Tab.Screen
+          name="MessagesTab"
+          component={CommunityScreen}
+          options={{
+            title: 'Forum Chat',
+            headerShown: false,
+          }}
+        />
+      </Tab.Navigator>
+    </PopupActionProvider>
   );
 }
 
@@ -604,6 +685,10 @@ function AppNavigator({ currentRoute }) {
   const { isDark } = useTheme();
   const [activePopup, setActivePopup] = React.useState(null);
   const [popupVisible, setPopupVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    void capturePlayInstallReferral();
+  }, []);
 
   React.useEffect(() => {
     const removeNotificationListener = setupNotificationResponseListener((screenPath) => {

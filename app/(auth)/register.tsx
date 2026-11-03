@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
@@ -7,6 +7,7 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { AppleIcon, ArrowLeftIcon } from '../../src/components/Icons';
 import { GoogleAuthButton } from '../../src/components/GoogleAuthButton';
+import { getPendingReferralCode } from '../../src/services/referralService';
 
 export default function RegisterScreen() {
   const { isDark, colors } = useTheme();
@@ -14,12 +15,17 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { register: registerUser, login, googleLogin } = useAuth();
   const router = useAppNavigation();
   const openNewUserProfile = () => router.replace('/(tabs)/profile?complete=1');
+
+  useEffect(() => {
+    getPendingReferralCode().then(setReferralCode).catch(() => {});
+  }, []);
 
   const handleSocialRegister = async (provider: 'Google' | 'Apple') => {
     if (provider === 'Apple') {
@@ -41,7 +47,7 @@ export default function RegisterScreen() {
     setError(null);
     setLoading(true);
 
-    const res = await registerUser({ name, email, password, phone });
+    const res = await registerUser({ name, email, password, phone, referralCode });
     setLoading(false);
 
     if (res.success) {
@@ -88,6 +94,7 @@ export default function RegisterScreen() {
           </View>
           <GoogleAuthButton
             googleLogin={googleLogin}
+            referralCode={referralCode}
             onSuccess={openNewUserProfile}
             onError={(err) => setError(err)}
           />
@@ -142,6 +149,14 @@ export default function RegisterScreen() {
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
+        />
+
+        <Input
+          label="Referral Code (Optional)"
+          placeholder="Enter a friend's code"
+          value={referralCode}
+          onChangeText={setReferralCode}
+          autoCapitalize="characters"
         />
 
         <Button title="Create Account" onPress={handleRegister} loading={loading} style={styles.btn} />

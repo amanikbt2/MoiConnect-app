@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/context/AuthContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
@@ -264,6 +265,10 @@ const CatFeedCarousel = React.memo(function CatFeedCarousel({
 });
 
 export default function CatPapersScreen({ route }: any) {
+  const insets = useSafeAreaInsets();
+  const feedBottomPadding = Platform.OS === 'android'
+    ? Math.max(96, insets.bottom + 72)
+    : 32;
   const { isDark, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
   const [submittedSearchQuery, setSubmittedSearchQuery] = useState(route?.params?.search || '');
@@ -803,7 +808,7 @@ export default function CatPapersScreen({ route }: any) {
     <View style={[styles.container, isDark && { backgroundColor: colors.background }]}>
       <VirtualizedFeedList
         style={styles.feedScroll}
-        contentContainerStyle={styles.feedContent}
+        contentContainerStyle={[styles.feedContent, { paddingBottom: feedBottomPadding }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={closeSearch}

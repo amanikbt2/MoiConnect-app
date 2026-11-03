@@ -35,6 +35,7 @@ export interface IUser {
   landlordStatus: LandlordStatus;
   accountStatus: AccountStatus;
   points?: number;
+  referralCode?: string;
   badge?: UserBadge;
   createdAt: string;
   updatedAt: string;

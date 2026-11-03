@@ -1,7 +1,7 @@
 import { showIceMessage } from '../../src/components/IceMessageCard';
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -49,6 +49,8 @@ import {
   BookIcon,
   MoreVerticalIcon,
   TrashIcon,
+  HelpCircleIcon,
+  LogOutIcon,
 
 } from '../../src/components/Icons';
 
@@ -123,6 +125,9 @@ export default function ProfileScreen() {
   const scrollBottomPadding = Platform.OS === 'android'
     ? Math.max(88, insets.bottom + 72)
     : 40;
+  const editModalBottomPadding = Platform.OS === 'android'
+    ? Math.max(88, insets.bottom + 72)
+    : 20;
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
     school: 'Unset',
     course: 'Unset',
@@ -161,7 +166,9 @@ export default function ProfileScreen() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const { complete } = useLocalSearchParams<{ complete?: string }>();
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const completeParam = complete || route.params?.complete;
+  const openEditParam = route.params?.openEdit;
 
   const router = useAppNavigation();
 
@@ -249,6 +256,15 @@ export default function ProfileScreen() {
     setShowUniversityDropdown(false);
     setShowEditModal(true);
   };
+
+  useEffect(() => {
+    if ((openEditParam !== '1' && completeParam !== '1') || !user) return;
+    const timer = setTimeout(() => {
+      handleOpenEditModal();
+      navigation.setParams({ openEdit: undefined, complete: undefined });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [openEditParam, completeParam, user?._id]);
 
   useEffect(() => {
     if (!user?._id) return;
@@ -488,10 +504,12 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
             <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); router.push('/faq'); }}>
+              <HelpCircleIcon color="#2563eb" size={16} />
               <Text style={[styles.accountMenuText, isDark && { color: colors.text }]}>FAQ & Support</Text>
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
             <TouchableOpacity style={styles.accountMenuRow} onPress={handleLogout}>
+              <LogOutIcon color="#64748b" size={16} />
               <Text style={[styles.accountMenuText, isDark && { color: colors.text }]}>Log out</Text>
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
@@ -633,7 +651,14 @@ export default function ProfileScreen() {
       {/* Edit Student Personal Details Modal */}
       <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => { if (!profileCompletionRequired) setShowEditModal(false); }}>
         <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modalScroll} contentContainerStyle={[styles.modalContent, isDark && { backgroundColor: colors.surface }]}>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={[
+              styles.modalContent,
+              isDark && { backgroundColor: colors.surface },
+              { paddingBottom: editModalBottomPadding }
+            ]}
+          >
             <View style={[styles.modalHeader, isDark && { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>{isAssistant ? 'Edit Assistant Profile' : (profileCompletionRequired ? 'Complete Student Profile' : 'Edit Student Profile')}</Text>
               {!profileCompletionRequired && (

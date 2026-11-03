@@ -20,6 +20,22 @@ export function useAppNavigation() {
       return { screen: 'ChatRoom', params: { id, ...params } };
     }
 
+    if (target === '/popup/student-portal') {
+      return { screen: '(tabs)', params: { screen: 'index', params: { popupAction: 'studentPortal', ...params } } };
+    }
+    if (target === '/popup/learning-portal') {
+      return { screen: '(tabs)', params: { screen: 'index', params: { popupAction: 'learningPortal', ...params } } };
+    }
+    if (target === '/popup/rewards') {
+      return { screen: 'MainTabs', params: { screen: 'HomeTab', popupAction: 'rewards', ...params } };
+    }
+    if (target === '/popup/notifications') {
+      return { screen: 'MainTabs', params: { screen: 'HomeTab', popupAction: 'notifications', ...params } };
+    }
+    if (target === '/popup/forum-live') {
+      return { screen: 'community', params: { openLive: '1', ...params } };
+    }
+
     switch (target) {
       case '/(auth)/login':
       case '/login':
@@ -52,10 +68,10 @@ export function useAppNavigation() {
       case '/(tabs)/profile':
       case '/profile':
       case 'Profile':
-        return { screen: 'Profile', params };
+        return { screen: '(tabs)', params: { screen: 'profile', params } };
       case '/community':
       case 'Community':
-        return { screen: 'Community', params };
+        return { screen: 'community', params };
       case '/privacy':
       case 'Privacy':
         return { screen: 'Privacy', params };

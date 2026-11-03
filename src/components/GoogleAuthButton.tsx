@@ -24,13 +24,16 @@ interface GoogleAuthButtonProps {
     email?: string;
     name?: string;
     avatarUrl?: string;
+    referralCode?: string;
   }) => Promise<{ success: boolean; error?: string }>;
+  referralCode?: string;
 }
 
 export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   onSuccess,
   onError,
-  googleLogin
+  googleLogin,
+  referralCode
 }) => {
   const [clientId, setClientId] = useState<string>(
     config.google.webClientId || DEFAULT_GOOGLE_CLIENT_ID
@@ -104,7 +107,8 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           accessToken,
           email: googleUser.email,
           name: googleUser.name,
-          avatarUrl: googleUser.picture
+          avatarUrl: googleUser.picture,
+          referralCode
         });
 
         if (res.success) {
@@ -133,7 +137,8 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         idToken,
         email: user?.email,
         name: user?.name,
-        avatarUrl: user?.photo
+        avatarUrl: user?.photo,
+        referralCode
       });
 
       if (res.success) {
@@ -238,7 +243,8 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
               accessToken,
               email: googleUser.email,
               name: googleUser.name,
-              avatarUrl: googleUser.picture
+              avatarUrl: googleUser.picture,
+              referralCode
             });
 
             if (res.success) {

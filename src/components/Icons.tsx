@@ -235,6 +235,24 @@ export function ShieldCheckIcon({ color = '#15803d', size = 20, style }: IconPro
   );
 }
 
+export function HelpCircleIcon({ color = '#2563eb', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+      <Path d="M9.6 9a2.5 2.5 0 1 1 4.6 1.4c-.8 1.1-2.2 1.3-2.2 2.8M12 17h.01" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function LogOutIcon({ color = '#64748b', size = 20, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Path d="M10 17l5-5-5-5M15 12H3" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export function PendingApprovalsIcon({ color = '#475569', size = 16, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
@@ -842,6 +860,15 @@ export function CloseIcon({ color = '#ef4444', size = 20, style }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
       <Path d="M18 6L6 18M6 6L18 18" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function CopyIcon({ color = '#15803d', size = 18, style }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+      <Rect x="8" y="8" width="13" height="13" rx="2" stroke={color} strokeWidth="2" />
+      <Path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </Svg>
   );
 }

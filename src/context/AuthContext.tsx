@@ -5,6 +5,7 @@ import { apiRequest, saveAuthTokens, clearAuthTokens, getStoredToken, setStoredT
 import { getSocket, disconnectSocket } from '../services/socket';
 import { notifyLoginSuccess, registerForPushNotificationsAsync, stopPushTokenRegistrationRetries } from '../services/notificationService';
 import { wipeAllAppData } from '../services/offlineStorage';
+import { clearPendingReferralCode, getPendingReferralCode } from '../services/referralService';
 
 interface AuthContextType {
   user: IUser | null;
@@ -12,7 +13,7 @@ interface AuthContextType {
   userPoints: number;
   updateUserProfile: (updates: Partial<Pick<IUser, 'name' | 'avatarUrl' | 'phone' | 'school' | 'course' | 'yearOfStudy' | 'university'>>) => Promise<void>;
   login: (input: LoginInput) => Promise<{ success: boolean; error?: string }>;
-  googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string; referralCode?: string }) => Promise<{ success: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
   requestLandlordStatus: (input: RequestLandlordInput) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -110,11 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user?._id]);
 
-  const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string }) => {
+  const googleLogin = async (payload?: { email?: string; name?: string; avatarUrl?: string; idToken?: string; accessToken?: string; referralCode?: string }) => {
     try {
+      const referralCode = payload?.referralCode || await getPendingReferralCode();
       const res = await apiRequest('/auth/google', {
         method: 'POST',
-        body: JSON.stringify(payload || { email: 'student.google@moi.ac.ke', name: 'Google Student' })
+        body: JSON.stringify({ ...(payload || { email: 'student.google@moi.ac.ke', name: 'Google Student' }), referralCode })
       });
 
       if (res.success && res.data) {
@@ -122,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { user: authedUser, tokens } = res.data;
         await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
         await saveUserProfile(authedUser);
+        await clearPendingReferralCode();
         void notifyLoginSuccess(authedUser.name);
         return { success: true };
       }
@@ -283,9 +286,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (input: RegisterInput) => {
+    const referralCode = input.referralCode || await getPendingReferralCode();
     const res = await apiRequest('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(input)
+      body: JSON.stringify({ ...input, referralCode })
     });
 
     if (res.success && res.data) {
@@ -293,6 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { user: authedUser, tokens } = res.data;
       await saveAuthTokens(tokens.accessToken, tokens.refreshToken);
       await saveUserProfile(authedUser);
+      await clearPendingReferralCode();
       void notifyLoginSuccess(authedUser.name);
       return { success: true };
     }

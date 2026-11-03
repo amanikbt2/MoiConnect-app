@@ -34,7 +34,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import * as ExpoFileSystem from 'expo-file-system/legacy';
 import { WebView } from 'react-native-webview';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
 import { useTheme } from '../src/context/ThemeContext';
@@ -663,6 +663,8 @@ export default function CommunityScreen() {
   const { isDark, colors } = useTheme();
   const campusName = selectedUniversity?.shortName || 'Campus';
   const router = useAppNavigation();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const isForumFocused = useIsFocused();
   const { isOnline: networkOnline } = useNetwork();
   const { focusMention } = useLocalSearchParams<{ focusMention?: string }>();
@@ -1037,6 +1039,15 @@ export default function CommunityScreen() {
       setLiveLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (route.params?.openLive !== '1' || !isForumFocused || authLoading) return;
+    const timer = setTimeout(() => {
+      navigation.setParams({ openLive: undefined });
+      void handleGoLivePress();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [route.params?.openLive, isForumFocused, authLoading, user?._id]);
 
   const handleLiveRoomReady = () => {
     const socket = socketInstanceRef.current;

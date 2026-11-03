@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,11 @@ import {
   FlatList,
   Image,
   Dimensions,
-  Linking,
   Platform,
   AppState
 } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useUniversity } from '../../src/context/UniversityContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -30,6 +30,7 @@ import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocom
 import { useSearchFocus } from '../../src/hooks/useSearchFocus';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { showIceMessage } from '../../src/components/IceMessageCard';
 
 import {
   SearchIcon,
@@ -99,7 +100,13 @@ function getGreetingText(userName?: string, universityShortName?: string): strin
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { selectedUniversity } = useUniversity();
+  const { selectedUniversity, ready: universityReady } = useUniversity();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const popupAction = route.params?.popupAction;
+  const consumePopupAction = useCallback((action: string) => {
+    if (route.params?.popupAction === action) navigation.setParams({ popupAction: undefined });
+  }, [navigation, route.params?.popupAction]);
   const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const smartIntent = React.useMemo(() => {
@@ -119,19 +126,46 @@ export default function HomeScreen() {
   // Track which userId we've already shown the prompt for in this component lifetime
   const promptedForUserId = useRef<string | null>(null);
 
-  const handleOpenPortal = async (config: PortalConfig) => {
-
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined') {
-        window.open(config.url, '_blank', 'noopener,noreferrer');
-      } else {
-        Linking.openURL(config.url);
-      }
-      return;
-    }
+  const handleOpenPortal = (config: PortalConfig) => {
     setActivePortal(config);
     setShowPortalModal(true);
   };
+
+  const openStudentPortal = () => {
+    const url = selectedUniversity?.studentPortalUrl || selectedUniversity?.officialWebsiteUrl;
+    if (!url) {
+      showIceMessage('Portal link unavailable', 'Choose your university in Profile settings, then try again.');
+      return;
+    }
+    let domain = selectedUniversity?.shortName || 'university';
+    try { domain = new URL(url).hostname; } catch {}
+    void handleOpenPortal({ title: `${selectedUniversity?.name || 'University'} Student Portal`, url, domain });
+  };
+
+  const openLearningPortal = () => {
+    const hasVerifiedPortal = Boolean(selectedUniversity?.elearningPortalUrl);
+    const url = selectedUniversity?.elearningPortalUrl || 'https://elearning.mu.ac.ke/';
+    let domain = 'elearning.mu.ac.ke';
+    try { domain = new URL(url).hostname; } catch {}
+    void handleOpenPortal({
+      title: hasVerifiedPortal
+        ? selectedUniversity?.elearningPortalName || `${selectedUniversity?.name} E-Learning Portal`
+        : 'MUSOMI E-Learning Portal',
+      url,
+      domain
+    });
+  };
+
+  useEffect(() => {
+    if (!universityReady) return;
+    if (popupAction === 'studentPortal') {
+      consumePopupAction('studentPortal');
+      openStudentPortal();
+    } else if (popupAction === 'learningPortal') {
+      consumePopupAction('learningPortal');
+      openLearningPortal();
+    }
+  }, [popupAction, universityReady, selectedUniversity, consumePopupAction]);
 
   const {
     isSearchFocused,
@@ -519,15 +553,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
-              onPress={() =>
-                selectedUniversity?.studentPortalUrl || selectedUniversity?.officialWebsiteUrl
-                  ? handleOpenPortal({
-                      title: `${selectedUniversity.name} Student Portal`,
-                      url: selectedUniversity.studentPortalUrl || selectedUniversity.officialWebsiteUrl!,
-                      domain: new URL(selectedUniversity.studentPortalUrl || selectedUniversity.officialWebsiteUrl!).hostname
-                    })
-                  : undefined
-              }
+              onPress={openStudentPortal}
               disabled={!selectedUniversity?.studentPortalUrl && !selectedUniversity?.officialWebsiteUrl}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#e0f2fe' }]}>
@@ -540,17 +566,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
-              onPress={() => {
-                const hasVerifiedPortal = Boolean(selectedUniversity?.elearningPortalUrl);
-                const portalUrl = selectedUniversity?.elearningPortalUrl || 'https://elearning.mu.ac.ke/';
-                handleOpenPortal({
-                  title: hasVerifiedPortal
-                    ? selectedUniversity?.elearningPortalName || `${selectedUniversity?.name} E-Learning Portal`
-                    : 'MUSOMI E-Learning Portal',
-                  url: portalUrl,
-                  domain: new URL(portalUrl).hostname
-                });
-              }}
+              onPress={openLearningPortal}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#d1fae5' }]}>
                 <LaptopIcon color="#059669" size={28} />
