@@ -339,7 +339,7 @@ function HeaderPointsBadge() {
             backgroundColor: 'rgba(0, 0, 0, 0.45)',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: 24
+            padding: 16
           }}
           activeOpacity={1}
           onPress={() => setModalVisible(false)}
@@ -348,30 +348,30 @@ function HeaderPointsBadge() {
             style={{
               width: '100%',
               maxWidth: 320,
-          maxHeight: '92%',
+              maxHeight: '96%',
               backgroundColor: isDark ? colors.surface : '#ffffff',
               borderRadius: 20,
               overflow: 'hidden'
             }}
             onPress={(event) => event.stopPropagation()}
           >
-          <View style={{ padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 }}>
-            <View style={{ alignItems: 'center', marginBottom: 10 }}>
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: isDark ? '#153a2a' : '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+          <View style={{ padding: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 }}>
+            <View style={{ alignItems: 'center', marginBottom: 7 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#153a2a' : '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
                 <Text style={{ fontSize: 22 }}>🌟</Text>
               </View>
               <Text style={{ fontSize: 18, fontWeight: '800', color: isDark ? colors.text : '#0f172a' }}>Student Rewards</Text>
               <Text style={{ fontSize: 12, color: isDark ? '#86efac' : '#15803d', fontWeight: '600', marginTop: 2 }}>MConnect Points System</Text>
             </View>
 
-            <View style={{ backgroundColor: isDark ? '#153526' : '#f0fdf4', borderRadius: 14, padding: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0' }}>
+            <View style={{ backgroundColor: isDark ? '#153526' : '#f0fdf4', borderRadius: 14, padding: 9, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0' }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#86efac' : '#166634', textTransform: 'uppercase' }}>Your Points</Text>
               <Text style={{ fontSize: 28, fontWeight: '900', color: isDark ? '#4ade80' : '#15803d', marginVertical: 2 }}>{userPoints} pts</Text>
               <Text style={{ fontSize: 11, color: isDark ? '#bbf7d0' : '#15803d' }}>Earn points by contributing study materials!</Text>
             </View>
 
             {/* Progress Section Container */}
-            <View style={{ width: '100%', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0', padding: 12, marginBottom: 12 }}>
+            <View style={{ width: '100%', backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0', padding: 9, marginBottom: 8 }}>
               <Text style={{ fontSize: 11, color: isDark ? colors.mutedText : '#64748b', fontWeight: '600', marginBottom: 10 }}>
                 {userPoints >= 3000
                   ? '🎉 Max level reached!'
@@ -451,7 +451,7 @@ function HeaderPointsBadge() {
               </View>
             </View>
 
-            <View style={{ width: '100%', borderRadius: 12, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0', backgroundColor: isDark ? '#102c21' : '#f0fdf4', padding: 9, marginBottom: 12 }}>
+            <View style={{ width: '100%', borderRadius: 12, borderWidth: 1, borderColor: isDark ? '#28623f' : '#bbf7d0', backgroundColor: isDark ? '#102c21' : '#f0fdf4', padding: 8, marginBottom: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                 <UsersIcon color={isDark ? '#86efac' : '#15803d'} size={15} />
                 <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: isDark ? '#bbf7d0' : '#166534' }}>Refer a friend and earn {referralSummary?.rewardPointsPerReferral ?? 3} points</Text>
@@ -480,7 +480,7 @@ function HeaderPointsBadge() {
             </View>
 
             <TouchableOpacity
-              style={{ width: '100%', backgroundColor: '#15803d', paddingVertical: 11, borderRadius: 12, alignItems: 'center' }}
+              style={{ width: '100%', backgroundColor: '#15803d', paddingVertical: 10, borderRadius: 12, alignItems: 'center', flexShrink: 0 }}
               onPress={() => setModalVisible(false)}
             >
               <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>Got It!</Text>
