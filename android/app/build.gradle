@@ -182,4 +182,40 @@ dependencies {
     }
 }
 
+// Temporary EAS release diagnostics: expose dependency resolution and R8's
+// missing-class report in the build log while keeping minification enabled.
+def printReleaseDiagnostics = tasks.register("printReleaseDiagnostics") {
+    group = "verification"
+    description = "Prints release dependency and R8 diagnostics for EAS troubleshooting."
+    doLast {
+        println "\n========== RELEASE BUILD DIAGNOSTICS =========="
+        println "Gradle: ${gradle.gradleVersion}"
+        println "JVM: ${System.getProperty('java.version')} (${System.getProperty('java.vendor')})"
+        println "Android Gradle Plugin: ${com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION}"
+        println "Minify release: ${android.buildTypes.release.minifyEnabled}"
+        println "Compile SDK: ${android.compileSdk} | Target SDK: ${android.defaultConfig.targetSdk} | Min SDK: ${android.defaultConfig.minSdk}"
+        println "Architectures: ${project.findProperty('reactNativeArchitectures') ?: 'default'}"
+        println "\n--- Resolved releaseRuntimeClasspath ---"
+        configurations.releaseRuntimeClasspath.resolvedConfiguration.lenientConfiguration.allModuleDependencies.each { dep ->
+            println "${dep.module.id}"
+        }
+        println "\n--- LiveKit/WebRTC/JNI resolved artifacts ---"
+        configurations.releaseRuntimeClasspath.resolvedConfiguration.lenientConfiguration.artifacts
+            .findAll { it.moduleVersion.id.toString() =~ /(?i)(livekit|webrtc|jni.?zero)/ }
+            .each { artifact -> println "${artifact.moduleVersion.id} -> ${artifact.file.name}" }
+        println "\n--- R8 missing_rules.txt ---"
+        def missingRules = layout.buildDirectory.file("outputs/mapping/release/missing_rules.txt").get().asFile
+        if (missingRules.exists()) {
+            println missingRules.text
+        } else {
+            println "Not generated at ${missingRules}"
+        }
+        println "========== END RELEASE BUILD DIAGNOSTICS ==========\n"
+    }
+}
+
+tasks.matching { it.name == "minifyReleaseWithR8" }.configureEach {
+    finalizedBy(printReleaseDiagnostics)
+}
+
 apply plugin: 'com.google.gms.google-services'
