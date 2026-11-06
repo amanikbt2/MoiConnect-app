@@ -130,6 +130,7 @@ export interface CommunityMessage {
   senderBadge?: 'blue' | 'red' | 'green';
   avatarBg: string;
   text: string;
+  isEdited?: boolean;
   isPrivate?: boolean;
   privateNotice?: boolean;
   recipientId?: string;
@@ -924,6 +925,9 @@ export default function CommunityScreen() {
 
   // Options & Report Modal State
   const [selectedMsgForOptions, setSelectedMsgForOptions] = useState<CommunityMessage | null>(null);
+  const [editingCommunityMessage, setEditingCommunityMessage] = useState<CommunityMessage | null>(null);
+  const [editedMessageText, setEditedMessageText] = useState('');
+  const [savingMessageEdit, setSavingMessageEdit] = useState(false);
   const [selectedMsgForReport, setSelectedMsgForReport] = useState<CommunityMessage | null>(null);
   const [reportReason, setReportReason] = useState<string>('inappropriate_content');
   const [reportDetails, setReportDetails] = useState<string>('');
@@ -1587,6 +1591,7 @@ export default function CommunityScreen() {
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text || '',
+            isEdited: Boolean(serverMsg.isEdited),
             mentions: Array.isArray(serverMsg.mentions) ? serverMsg.mentions.map((id: any) => String(id?._id || id)) : undefined,
             isPrivate: Boolean(serverMsg.isPrivate),
             privateNotice: Boolean(serverMsg.privateNotice),
@@ -1878,6 +1883,17 @@ export default function CommunityScreen() {
             return updated;
           });
         });
+
+        socket.on('community:message_edited', (data: { messageId: string; text: string; isEdited?: boolean; updatedAt?: string }) => {
+          if (!data?.messageId) return;
+          setMessages((previous) => {
+            const updated = previous.map((message) => message.id === data.messageId
+              ? { ...message, text: data.text, isEdited: Boolean(data.isEdited), updatedAt: data.updatedAt || new Date().toISOString() }
+              : message);
+            saveCommunityMessages(updated);
+            return updated;
+          });
+        });
       }
     });
 
@@ -1909,6 +1925,7 @@ export default function CommunityScreen() {
         activeSocket.off('community:user_updated');
         activeSocket.off('community:reaction_updated');
         activeSocket.off('community:message_deleted');
+        activeSocket.off('community:message_edited');
         activeSocket.off('community:system_event');
         activeSocket.off('community:online_count');
         activeSocket.off('community:live_start');
@@ -1999,6 +2016,7 @@ export default function CommunityScreen() {
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
             text: serverMsg.text ?? serverMsg._doc?.text ?? '',
+            isEdited: Boolean(serverMsg.isEdited ?? serverMsg._doc?.isEdited),
             mentions: Array.isArray(serverMsg.mentions ?? serverMsg._doc?.mentions)
               ? (serverMsg.mentions ?? serverMsg._doc?.mentions).map((id: any) => String(id?._id || id))
               : undefined,
@@ -2114,6 +2132,7 @@ export default function CommunityScreen() {
           senderBadge: serverMsg.senderBadge,
           avatarBg: serverMsg.avatarBg || '#15803d',
           text: serverMsg.text ?? serverMsg._doc?.text ?? '',
+          isEdited: Boolean(serverMsg.isEdited ?? serverMsg._doc?.isEdited),
           mentions: Array.isArray(serverMsg.mentions ?? serverMsg._doc?.mentions)
             ? (serverMsg.mentions ?? serverMsg._doc?.mentions).map((id: any) => String(id?._id || id))
             : undefined,
@@ -3005,6 +3024,47 @@ export default function CommunityScreen() {
     }
   };
 
+  const startEditingCommunityMessage = (msg: CommunityMessage) => {
+    setSelectedMsgForOptions(null);
+    setEditedMessageText(msg.text || '');
+    setEditingCommunityMessage(msg);
+  };
+
+  const saveCommunityMessageEdit = async () => {
+    if (!editingCommunityMessage || savingMessageEdit) return;
+    const text = editedMessageText.trim();
+    if (!text) {
+      showIceMessage('Message is empty', 'Enter some text before saving your edit.');
+      return;
+    }
+    if (text.length > 2000) {
+      showIceMessage('Message is too long', 'Keep the message under 2,000 characters.');
+      return;
+    }
+    setSavingMessageEdit(true);
+    try {
+      const response = await apiRequest<any>(`/community/messages/${encodeURIComponent(editingCommunityMessage.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ text })
+      });
+      if (!response.success || !response.data) throw new Error(response.error || 'Could not save message edit.');
+      const saved = response.data;
+      setMessages((previous) => {
+        const updated = previous.map((message) => message.id === editingCommunityMessage.id
+          ? { ...message, text: saved.text, isEdited: true, updatedAt: saved.updatedAt || new Date().toISOString() }
+          : message);
+        saveCommunityMessages(updated);
+        return updated;
+      });
+      setEditingCommunityMessage(null);
+      showIceMessage('Message updated', 'Your edited message is now visible in the forum.');
+    } catch (error: any) {
+      showIceMessage('Edit failed', error?.message || 'Could not save your message edit.');
+    } finally {
+      setSavingMessageEdit(false);
+    }
+  };
+
   const handleOpenReportModal = (msg: CommunityMessage) => {
     setSelectedMsgForOptions(null);
     setSelectedMsgForReport(msg);
@@ -3876,7 +3936,7 @@ export default function CommunityScreen() {
                                 </TouchableOpacity>
 
                                 <Text style={[styles.timestamp, item.isMe ? styles.myTimestamp : styles.otherTimestamp, isStickerOnly && styles.stickerTimestamp]}>
-                                  {item.timestamp}
+                                  {item.timestamp}{item.isEdited ? ' · edited' : ''}
                                 </Text>
                                 {item.isMe && (
                                   item.deliveryStatus === 'queued' ? (
@@ -4916,6 +4976,18 @@ export default function CommunityScreen() {
 
             {/* Actions List */}
             <View style={styles.optionsList}>
+              {selectedMsgForOptions?.isMe && user && !selectedMsgForOptions.isPrivate && selectedMsgForOptions.text?.trim() && /^[a-f\d]{24}$/i.test(selectedMsgForOptions.id) && (
+                <TouchableOpacity
+                  style={styles.optionRowItem}
+                  onPress={() => selectedMsgForOptions && startEditingCommunityMessage(selectedMsgForOptions)}
+                >
+                  <View style={[styles.optionIconCircle, { backgroundColor: '#ede9fe' }]}>
+                    <Text style={{ fontSize: 16 }}>✏️</Text>
+                  </View>
+                  <Text style={styles.optionRowText}>Edit Message</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={styles.optionRowItem}
                 onPress={() => {
@@ -4982,6 +5054,41 @@ export default function CommunityScreen() {
             </TouchableOpacity>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      <Modal
+        visible={Boolean(editingCommunityMessage)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !savingMessageEdit && setEditingCommunityMessage(null)}
+      >
+        <KeyboardAvoidingView style={styles.optionsSheetOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => !savingMessageEdit && setEditingCommunityMessage(null)} />
+          <View style={{ width: '100%', maxWidth: 480, padding: 18, borderRadius: 20, backgroundColor: isDark ? colors.surfaceElevated : '#ffffff', gap: 12 }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: isDark ? colors.text : '#0f172a' }}>Edit message</Text>
+            <TextInput
+              value={editedMessageText}
+              onChangeText={setEditedMessageText}
+              multiline
+              maxLength={2000}
+              autoFocus
+              textAlignVertical="top"
+              placeholder="Write your message…"
+              placeholderTextColor="#94a3b8"
+              style={{ minHeight: 110, maxHeight: 220, borderWidth: 1, borderColor: isDark ? colors.border : '#cbd5e1', borderRadius: 12, padding: 12, color: isDark ? colors.text : '#0f172a', backgroundColor: isDark ? colors.input : '#f8fafc', fontSize: 15 }}
+            />
+            <Text style={{ alignSelf: 'flex-end', color: isDark ? colors.mutedText : '#64748b', fontSize: 11 }}>{editedMessageText.length}/2000</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+              <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 11, borderRadius: 10, backgroundColor: isDark ? colors.surfaceSubtle : '#f1f5f9' }} onPress={() => setEditingCommunityMessage(null)} disabled={savingMessageEdit}>
+                <Text style={{ color: isDark ? colors.text : '#475569', fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ paddingHorizontal: 18, paddingVertical: 11, borderRadius: 10, backgroundColor: '#15803d', opacity: editedMessageText.trim() && !savingMessageEdit ? 1 : 0.6, flexDirection: 'row', alignItems: 'center', gap: 7 }} onPress={saveCommunityMessageEdit} disabled={!editedMessageText.trim() || savingMessageEdit}>
+                {savingMessageEdit && <ActivityIndicator size="small" color="#ffffff" />}
+                <Text style={{ color: '#ffffff', fontWeight: '800' }}>{savingMessageEdit ? 'Saving…' : 'Save edit'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 2. Report Message Modal */}

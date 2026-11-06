@@ -63,7 +63,7 @@ export function getGlobalSearchDestination(query: string, materialTypeOverride?:
   if (hasPhrase(['rent', 'rental', 'house', 'hostel', 'accommodation', 'room', 'bedsitter', 'apartment', 'housing', 'landlord', 'stage', 'kesses', 'mabs'])) {
     return `/rentals?search=${encodedQuery}`;
   }
-  return `/(tabs)/academics?search=${encodedQuery}`;
+  return `/past-papers?search=${encodedQuery}`;
 }
 
 export function normalizeSchoolName(school?: string): string {
