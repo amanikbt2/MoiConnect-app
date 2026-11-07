@@ -481,18 +481,18 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Quick Access</Text>
 
         <View style={styles.gridContainer}>
-          {/* Notes PDF row (full-width feature card) */}
+          {/* Past Papers row (full-width feature card) */}
           <TouchableOpacity
-            style={[styles.notesCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            style={[styles.featureCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
             activeOpacity={0.7}
-            onPress={() => router.push('/(tabs)/academics')}
+            onPress={() => router.push('/past-papers')}
           >
-            <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
-              <NotesIcon color="#2563eb" size={28} />
+            <View style={[styles.iconWrapper, { backgroundColor: '#dcfce7' }]}>
+              <FileTextIcon color="#15803d" size={28} />
             </View>
-            <View style={styles.notesCardText}>
-              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Notes PDF</Text>
-              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Lecture notes & study guides</Text>
+            <View style={styles.featureCardText}>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Past Papers</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Exam revision papers</Text>
             </View>
             <ChevronRightIcon color="#94a3b8" size={18} />
           </TouchableOpacity>
@@ -501,13 +501,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={[styles.quickCard, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
               activeOpacity={0.7}
-              onPress={() => router.push('/past-papers')}
+              onPress={() => router.push('/(tabs)/academics')}
             >
-              <View style={[styles.iconWrapper, { backgroundColor: '#dcfce7' }]}>
-                <FileTextIcon color="#15803d" size={28} />
+              <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
+                <NotesIcon color="#2563eb" size={28} />
               </View>
-              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Past Papers</Text>
-              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Exam revision papers</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Notes PDF</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Lecture notes & study guides</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -878,7 +878,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#64748b'
   },
-  notesCard: {
+  featureCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     gap: 14
   },
-  notesCardText: {
+  featureCardText: {
     flex: 1
   },
   /* Suggested Materials Section Styles */
