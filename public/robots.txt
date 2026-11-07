@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin2
+Disallow: /chat/
+
+Sitemap: https://mconnect-app.keysire.com/sitemap.xml
