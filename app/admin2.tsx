@@ -539,75 +539,6 @@ function LegacyManageMaterialsSection() {
 function AiOveragesSection() {
   const [aiData, setAiData] = useState(() => INITIAL_AI_TELEMETRY);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activePanel, setActivePanel] = useState<'overages' | 'playground'>('overages');
-  const [apiOptions, setApiOptions] = useState<{ apiIndex: number; apiLabel: string }[]>([]);
-  const [models, setModels] = useState<string[]>(['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']);
-  const [selectedApiIndex, setSelectedApiIndex] = useState(0);
-  const [useCustomApi, setUseCustomApi] = useState(false);
-  const [customApiKey, setCustomApiKey] = useState('');
-  const [model, setModel] = useState('gemini-2.5-flash');
-  const [testMessage, setTestMessage] = useState('Hi, can you introduce yourself?');
-  const [testResult, setTestResult] = useState<any>(null);
-  const [testError, setTestError] = useState('');
-  const [isTesting, setIsTesting] = useState(false);
-  const [optionsError, setOptionsError] = useState('');
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadOptions = async () => {
-      try {
-        const token = await getStoredToken('admin2_access_token');
-        if (!token) throw new Error('Sign in to Admin2 to use the API playground.');
-        const response = await fetch(`${config.apiUrl}/dashboard/ai-playground/options`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.error || 'Could not load configured APIs.');
-        if (!isMounted) return;
-        const nextApis = Array.isArray(result.data?.apis) ? result.data.apis : [];
-        const nextModels = Array.isArray(result.data?.models) && result.data.models.length ? result.data.models : ['gemini-2.5-flash'];
-        setApiOptions(nextApis);
-        setModels(nextModels);
-        setSelectedApiIndex(nextApis[0]?.apiIndex ?? 0);
-        setModel(nextModels[0]);
-      } catch (error: any) {
-        if (isMounted) setOptionsError(error?.message || 'Could not load configured APIs.');
-      }
-    };
-    void loadOptions();
-    return () => { isMounted = false; };
-  }, []);
-
-  const runPlaygroundTest = async () => {
-    if (isTesting) return;
-    setIsTesting(true);
-    setTestError('');
-    setTestResult(null);
-    try {
-      const token = await getStoredToken('admin2_access_token');
-      if (!token) throw new Error('Your Admin2 session is missing. Sign in again.');
-      const response = await fetch(`${config.apiUrl}/dashboard/ai-playground/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          apiIndex: useCustomApi ? undefined : selectedApiIndex,
-          customApiKey: useCustomApi ? customApiKey : undefined,
-          model,
-          message: testMessage,
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        const statusText = result.data?.providerStatus ? ` (provider status ${result.data.providerStatus})` : '';
-        throw new Error(`${result.error || 'API request failed.'}${statusText}`);
-      }
-      setTestResult(result.data);
-    } catch (error: any) {
-      setTestError(error?.message || 'The API playground request failed.');
-    } finally {
-      setIsTesting(false);
-    }
-  };
 
   const handleRefresh = () => {
     if (isRefreshing) return;
@@ -632,100 +563,23 @@ function AiOveragesSection() {
           </View>
           <Text style={styles.cardSub}>Secret-safe Gemini API rotation telemetry, rate limits, and fallback logs.</Text>
         </View>
-        {activePanel === 'overages' ? (
-          <TouchableOpacity
-            style={[styles.clearButton, isRefreshing && { opacity: 0.65 }]}
-            onPress={handleRefresh}
-            disabled={isRefreshing}
-            activeOpacity={0.85}
-          >
-            {isRefreshing ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                <ActivityIndicator size="small" color="#15803d" />
-                <Text style={styles.clearButtonText}>Loading telemetry (4s)…</Text>
-              </View>
-            ) : (
-              <Text style={styles.clearButtonText}>↻ Refresh Telemetry</Text>
-            )}
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 18, marginBottom: 12 }}>
-        {([{ key: 'overages', label: 'Overages' }, { key: 'playground', label: 'API Playground' }] as const).map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9, backgroundColor: activePanel === tab.key ? '#15803d' : '#f1f5f9', borderWidth: 1, borderColor: activePanel === tab.key ? '#15803d' : '#e2e8f0' }}
-            onPress={() => setActivePanel(tab.key)}
-            activeOpacity={0.8}
-          >
-            <Text style={{ color: activePanel === tab.key ? '#ffffff' : '#475569', fontWeight: '800', fontSize: 12 }}>{tab.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {activePanel === 'playground' ? (
-        <View style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 14, padding: 16, gap: 14, backgroundColor: '#ffffff' }}>
-          <View>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: '#0f172a' }}>Test an AI API</Text>
-            <Text style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Uses the saved Campus AI instructions with the test sender named Admin. Tests are private and do not enter chat or pool telemetry.</Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            {([{ custom: false, label: 'Configured API' }, { custom: true, label: 'Custom API key' }] as const).map((mode) => (
-              <TouchableOpacity key={mode.label} onPress={() => { setUseCustomApi(mode.custom); setTestError(''); setTestResult(null); }} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: useCustomApi === mode.custom ? '#dcfce7' : '#f8fafc', borderWidth: 1, borderColor: useCustomApi === mode.custom ? '#86efac' : '#e2e8f0' }}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: useCustomApi === mode.custom ? '#166534' : '#475569' }}>{mode.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {useCustomApi ? (
-            <View>
-              <Text style={styles.fieldLabel}>Gemini API key</Text>
-              <TextInput value={customApiKey} onChangeText={setCustomApiKey} placeholder="Paste a Gemini API key (used for this request only)" placeholderTextColor="#94a3b8" style={styles.input} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+        <TouchableOpacity
+          style={[styles.clearButton, isRefreshing && { opacity: 0.65 }]}
+          onPress={handleRefresh}
+          disabled={isRefreshing}
+          activeOpacity={0.85}
+        >
+          {isRefreshing ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+              <ActivityIndicator size="small" color="#15803d" />
+              <Text style={styles.clearButtonText}>Loading telemetry (4s)…</Text>
             </View>
           ) : (
-            <View>
-              <Text style={styles.fieldLabel}>Configured API</Text>
-              {optionsError ? <Text style={{ fontSize: 12, color: '#dc2626' }}>{optionsError}</Text> : apiOptions.length ? (
-                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                  {apiOptions.map((api) => (
-                    <TouchableOpacity key={api.apiIndex} onPress={() => setSelectedApiIndex(api.apiIndex)} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: selectedApiIndex === api.apiIndex ? '#dcfce7' : '#f8fafc', borderWidth: 1, borderColor: selectedApiIndex === api.apiIndex ? '#86efac' : '#e2e8f0' }}>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: selectedApiIndex === api.apiIndex ? '#166534' : '#475569' }}>{api.apiLabel}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : <Text style={{ fontSize: 12, color: '#64748b' }}>No Gemini API keys are configured in the backend pool.</Text>}
-            </View>
+            <Text style={styles.clearButtonText}>↻ Refresh Telemetry</Text>
           )}
+        </TouchableOpacity>
+      </View>
 
-          <View>
-            <Text style={styles.fieldLabel}>Gemini model</Text>
-            {Platform.OS === 'web' && !useCustomApi ? (
-              <select value={model} onChange={(event: any) => setModel(event.target.value)} style={{ width: '100%', height: 42, borderRadius: 8, padding: '0 10px', borderColor: '#cbd5e1', backgroundColor: '#ffffff', color: '#0f172a' }}>
-                {[...new Set([...models, model].filter(Boolean))].map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-              </select>
-            ) : <TextInput value={model} onChangeText={setModel} style={styles.input} autoCapitalize="none" />}
-          </View>
-
-          <View>
-            <Text style={styles.fieldLabel}>Message from Admin</Text>
-            <TextInput value={testMessage} onChangeText={setTestMessage} placeholder="Write a test message for the AI" placeholderTextColor="#94a3b8" style={[styles.input, { minHeight: 110, paddingTop: 10, textAlignVertical: 'top' }]} multiline maxLength={4000} />
-            <Text style={{ fontSize: 11, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}>{testMessage.length}/4000</Text>
-          </View>
-
-          <TouchableOpacity onPress={runPlaygroundTest} disabled={isTesting || (useCustomApi ? !customApiKey.trim() : !apiOptions.length)} style={[styles.clearButton, { backgroundColor: '#15803d', borderColor: '#15803d', alignSelf: 'flex-start', minWidth: 150, opacity: isTesting || (useCustomApi ? !customApiKey.trim() : !apiOptions.length) ? 0.6 : 1 }]}>
-            {isTesting ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><ActivityIndicator size="small" color="#ffffff" /><Text style={[styles.clearButtonText, { color: '#ffffff' }]}>Sending request…</Text></View> : <Text style={[styles.clearButtonText, { color: '#ffffff' }]}>Send test message</Text>}
-          </TouchableOpacity>
-
-          {testError ? <View style={{ borderWidth: 1, borderColor: '#fecaca', backgroundColor: '#fef2f2', borderRadius: 9, padding: 12 }}><Text style={{ color: '#b91c1c', fontSize: 12, fontWeight: '800', marginBottom: 4 }}>API error</Text><Text selectable style={{ color: '#7f1d1d', fontSize: 12 }}>{testError}</Text></View> : null}
-          {testResult ? <View style={{ borderWidth: 1, borderColor: '#bbf7d0', backgroundColor: '#f0fdf4', borderRadius: 9, padding: 12, gap: 7 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}><Text style={{ color: '#166534', fontSize: 12, fontWeight: '900' }}>Response · {testResult.apiLabel} · {testResult.model}</Text><Text style={{ color: '#64748b', fontSize: 11 }}>{testResult.durationMs} ms</Text></View>
-            <Text selectable style={{ color: '#0f172a', fontSize: 13, lineHeight: 20 }}>{testResult.text}</Text>
-          </View> : null}
-        </View>
-      ) : (
-      <>
       <View style={styles.aiStatRow}>
         <View style={styles.aiStatCard}>
           <Text style={styles.aiStatLabel}>Configured APIs</Text>
@@ -775,8 +629,6 @@ function AiOveragesSection() {
           ))}
         </View>
       </ScrollView>
-      </>
-      )}
     </View>
   );
 }
