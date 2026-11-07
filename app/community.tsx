@@ -3715,7 +3715,7 @@ export default function CommunityScreen() {
                           );
                           const isMediaOnly = hasMedia && !isGifMedia && !item.text?.trim() && !item.replyTo && !item.stickerId;
                           const isStickerOnly = Boolean(
-                            (item.stickerId && !item.text?.trim() && !item.replyTo && !item.fileAttachment) ||
+                            (item.stickerId && !item.text?.trim() && !item.fileAttachment) ||
                             (isGifMedia && !item.text?.trim() && !item.replyTo)
                           );
 
