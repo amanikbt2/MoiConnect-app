@@ -18,6 +18,7 @@ import {
   AppState
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
 import { apiRequest } from '../../src/services/api';
 import { IPaper, MOI_SCHOOLS, PAPER_TYPES } from '@moi/shared';
@@ -130,6 +131,7 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
   onPress,
   highlightWords
 }: AcademicGridCardProps) {
+  const { isDark, colors } = useTheme();
   const rawRating = String(item.rating || (item as any).ratingScore || '4.5');
   const cleanRating = rawRating.replace(/[^0-9.]/g, '').trim();
   const mtidText = item.mtid || 'P0001';
@@ -142,7 +144,7 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
 
   return (
     <TouchableOpacity
-      style={styles.gridCard}
+      style={[styles.gridCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
       activeOpacity={0.88}
       onPress={() => onPress(item)}
     >
@@ -158,18 +160,18 @@ export const AcademicGridCard = React.memo(function AcademicGridCard({
       </View>
 
       <View style={styles.gridBody}>
-        <Text style={styles.gridMetaLine} numberOfLines={1}>
+        <Text style={[styles.gridMetaLine, isDark && { color: '#4ade80' }]} numberOfLines={1}>
           MTID: {mtidText} • {item.unitCode} • {shortSchool}
         </Text>
         {highlightWords && highlightWords.length > 0 ? (
           <HighlightText
             text={item.title}
             highlightWords={highlightWords}
-            style={styles.gridTitle}
+            style={[styles.gridTitle, isDark && { color: colors.text }]}
             numberOfLines={2}
           />
         ) : (
-          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.gridTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
         )}
 
         <View style={styles.gridDivider} />
@@ -202,6 +204,7 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
   onOpenPreview: (item: NoteItem) => void;
   renderCard: (item: NoteItem) => React.ReactNode;
 }) {
+  const { isDark, colors } = useTheme();
   const isFocused = useIsFocused();
   const [activeIndex, setActiveIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
@@ -230,8 +233,8 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
           <SparklesIcon color="#d97706" size={18} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          <Text style={styles.sectionSub}>{subtitle}</Text>
+          <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>{title}</Text>
+          <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>{subtitle}</Text>
         </View>
       </View>
       <FlatList
@@ -268,6 +271,7 @@ const NoteCarouselSection = React.memo(function NoteCarouselSection({
 
 export default function AcademicsScreen({ route }: any) {
   const router = useAppNavigation();
+  const { isDark, colors } = useTheme();
   const isFocused = useIsFocused();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'submissions' | 'offline'>('browse');
@@ -1022,7 +1026,7 @@ export default function AcademicsScreen({ route }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: colors.background }]}>
       <VirtualizedFeedList
         style={styles.feedScroll}
         contentContainerStyle={styles.feedContent}
@@ -1049,11 +1053,11 @@ export default function AcademicsScreen({ route }: any) {
       >
           {/* Top Search Bar */}
           <View ref={searchContainerRef} style={styles.searchSection}>
-            <View style={styles.searchBar}>
+            <View style={[styles.searchBar, isDark && { backgroundColor: colors.input, borderColor: colors.border }]}>
               <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
               <TextInput
                 placeholder="Describe what you want..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? colors.mutedText : '#94a3b8'}
                 value={searchQuery}
                 onFocus={handleSearchFocus}
                 onBlur={handleSearchBlur}
@@ -1070,7 +1074,7 @@ export default function AcademicsScreen({ route }: any) {
                   void reportMaterialSearch(searchQuery, 'notes');
                 }}
                 returnKeyType="search"
-                style={styles.searchInput}
+                style={[styles.searchInput, isDark && { color: colors.text }]}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setRequestedQuery(null); }}>
@@ -1202,8 +1206,8 @@ export default function AcademicsScreen({ route }: any) {
                       <SparklesIcon color="#15803d" size={18} />
                     </View>
                     <View>
-                      <Text style={styles.sectionTitle}>Top Match Results</Text>
-                      <Text style={styles.sectionSub}>Auto-matched for {smartSearchResults.intent.unitCode ? `${smartSearchResults.intent.unitCode} • ${smartSearchResults.topMatches.length} note${smartSearchResults.topMatches.length === 1 ? '' : 's'} found` : (smartSearchResults.intent.school || 'your search')}</Text>
+                      <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Top Match Results</Text>
+                      <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>Auto-matched for {smartSearchResults.intent.unitCode ? `${smartSearchResults.intent.unitCode} • ${smartSearchResults.topMatches.length} note${smartSearchResults.topMatches.length === 1 ? '' : 's'} found` : (smartSearchResults.intent.school || 'your search')}</Text>
                     </View>
                   </View>
 
@@ -1219,8 +1223,8 @@ export default function AcademicsScreen({ route }: any) {
                       <BookIcon color="#2563eb" size={18} />
                     </View>
                     <View>
-                      <Text style={styles.sectionTitle}>Related Materials</Text>
-                      <Text style={styles.sectionSub}>Matched by semester, year level, department or category</Text>
+                      <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Related Materials</Text>
+                      <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>Matched by semester, year level, department or category</Text>
                     </View>
                   </View>
 
@@ -1293,8 +1297,8 @@ export default function AcademicsScreen({ route }: any) {
                           <SparklesIcon color="#d97706" size={18} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.sectionTitle}>You May Also Like</Text>
-                          <Text style={styles.sectionSub}>
+                          <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>You May Also Like</Text>
+                          <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>
                             Closest related to {searchRecommendations.contextLabel}
                           </Text>
                         </View>
@@ -1350,8 +1354,8 @@ export default function AcademicsScreen({ route }: any) {
                           <TrendingUpIcon color="#2563eb" size={18} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.sectionTitle}>Trending & Recommended Revision Notes</Text>
-                          <Text style={styles.sectionSub}>
+                          <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Trending & Recommended Revision Notes</Text>
+                          <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>
                             Continue browsing popular lecture notes & revision guides
                           </Text>
                         </View>
@@ -1385,14 +1389,14 @@ export default function AcademicsScreen({ route }: any) {
             <>
               {/* ZERO RESULTS FALLBACK */}
               {allBrowseNotes.length === 0 && (
-                <View style={{ padding: 32, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 18, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                <View style={{ padding: 32, alignItems: 'center', backgroundColor: isDark ? colors.surface : '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 18, borderWidth: 1, borderColor: isDark ? colors.border : '#e2e8f0' }}>
                   <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
                     <BookIcon color="#15803d" size={26} />
                   </View>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', textAlign: 'center' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: isDark ? colors.text : '#0f172a', textAlign: 'center' }}>
                     No Notes Available Yet
                   </Text>
-                  <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center', maxWidth: 300, lineHeight: 18, marginTop: 4 }}>
+                  <Text style={{ fontSize: 13, color: isDark ? colors.mutedText : '#64748b', textAlign: 'center', maxWidth: 300, lineHeight: 18, marginTop: 4 }}>
                     Academic revision notes and study guides will appear here once uploaded and approved.
                   </Text>
                   <TouchableOpacity
@@ -1414,8 +1418,8 @@ export default function AcademicsScreen({ route }: any) {
                   <SparklesIcon color="#15803d" size={18} />
                 </View>
                 <View>
-                  <Text style={styles.sectionTitle}>Based on your profile</Text>
-                  <Text style={styles.sectionSub}>Recommended for your course & year</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Based on your profile</Text>
+                  <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>Recommended for your course & year</Text>
                 </View>
               </View>
 
@@ -1464,8 +1468,8 @@ export default function AcademicsScreen({ route }: any) {
                   <BookIcon color="#15803d" size={18} />
                 </View>
                 <View>
-                    <Text style={styles.sectionTitle}>{isRandomFilter ? `${activeFilterLabel} Materials` : 'Essential Course Notes & Papers'}</Text>
-                    <Text style={styles.sectionSub}>{isRandomFilter ? 'A fresh selection for you' : 'Top rated revision materials'}</Text>
+                    <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>{isRandomFilter ? `${activeFilterLabel} Materials` : 'Essential Course Notes & Papers'}</Text>
+                    <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>{isRandomFilter ? 'A fresh selection for you' : 'Top rated revision materials'}</Text>
                 </View>
               </View>
 
@@ -1490,8 +1494,8 @@ export default function AcademicsScreen({ route }: any) {
                   <FlameIcon color="#ea580c" size={18} />
                 </View>
                 <View>
-                  <Text style={styles.sectionTitle}>Trending on Campus</Text>
-                  <Text style={styles.sectionSub}>Most downloaded notes this week</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Trending on Campus</Text>
+                  <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>Most downloaded notes this week</Text>
                 </View>
               </View>
 
@@ -1543,8 +1547,8 @@ export default function AcademicsScreen({ route }: any) {
                   <FileTextIcon color="#2563eb" size={18} />
                 </View>
                 <View>
-                  <Text style={styles.sectionTitle}>Recently Uploaded & Recommended</Text>
-                  <Text style={styles.sectionSub}>Fresh notes uploaded by students & lecturers</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Recently Uploaded & Recommended</Text>
+                  <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>Fresh notes uploaded by students & lecturers</Text>
                 </View>
               </View>
 
@@ -1567,8 +1571,8 @@ export default function AcademicsScreen({ route }: any) {
                   <StarIcon color="#d97706" size={18} />
                 </View>
                 <View>
-                  <Text style={styles.sectionTitle}>Top Rated</Text>
-                  <Text style={styles.sectionSub}>The highest-rated notes and study guides</Text>
+                  <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Top Rated</Text>
+                  <Text style={[styles.sectionSub, isDark && { color: colors.mutedText }]}>The highest-rated notes and study guides</Text>
                 </View>
               </View>
               <FlatList

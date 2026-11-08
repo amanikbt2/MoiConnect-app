@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { IPaper } from '@moi/shared';
 import { formatCompactNumber } from '../utils/formatters';
 import { DownloadIcon, StarIcon } from './Icons';
+import { useTheme } from '../context/ThemeContext';
 
 interface PaperCardProps {
   paper: IPaper;
@@ -12,13 +13,14 @@ interface PaperCardProps {
 const FALLBACK_THUMBNAIL = 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=600&q=80';
 
 export const PaperCard: React.FC<PaperCardProps> = ({ paper, onPress }) => {
+  const { isDark, colors } = useTheme();
   const mtidText = (paper as any).mtid || 'P0001';
   const paperTypeLabel = (paper.type || 'Exam Pack').replace('_', ' ');
   const downloadsCount = (paper as any).downloads || (paper as any).downloadCount || 2200;
   const ratingScore = (paper as any).ratingScore || '4.8';
 
   return (
-    <TouchableOpacity style={styles.squareCard} onPress={onPress} activeOpacity={0.88}>
+    <TouchableOpacity style={[styles.squareCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.88}>
       {/* Thumbnail Banner Header */}
       <View style={styles.thumbnailHeader}>
         <Image
@@ -38,7 +40,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onPress }) => {
         {/* Top-Right Unit Code Badge */}
         <View style={styles.topRightBadge}>
           <View style={styles.unitBadge}>
-            <Text style={styles.unitBadgeText}>{paper.unitCode}</Text>
+        <Text style={[styles.unitBadgeText, isDark && { color: colors.text }]}>{paper.unitCode}</Text>
           </View>
         </View>
       </View>
@@ -51,12 +53,12 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onPress }) => {
         </Text>
 
         {/* Title */}
-        <Text style={styles.cardTitle} numberOfLines={2}>
+        <Text style={[styles.cardTitle, isDark && { color: colors.text }]} numberOfLines={2}>
           {paper.title}
         </Text>
 
         {/* Subtitle */}
-        <Text style={styles.cardSub} numberOfLines={1}>
+        <Text style={[styles.cardSub, isDark && { color: colors.mutedText }]} numberOfLines={1}>
           {paper.unitName} • {paper.examYear}
         </Text>
 

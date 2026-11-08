@@ -2,6 +2,7 @@ export interface KenyanUniversity {
   name: string;
   shortName: string;
   aliases?: string[];
+  chatAbbreviation?: string;
   studentPortalUrl?: string;
   officialWebsiteUrl?: string;
 }
@@ -39,6 +40,110 @@ export function findKenyanUniversity(name?: string | null): KenyanUniversity | u
     [university.name, university.shortName, ...(university.aliases || [])]
       .some((alias) => alias.trim().toLowerCase() === normalized)
   );
+}
+
+const CHAT_ABBREVIATIONS: Record<string, string> = {
+  'University of Nairobi': 'UON',
+  'Kenyatta University': 'KU',
+  'Jomo Kenyatta University of Agriculture and Technology': 'JKUAT',
+  'Egerton University': 'EGU',
+  'Moi University': 'MU',
+  'Maseno University': 'MSU',
+  'Masinde Muliro University of Science and Technology': 'MMUST',
+  'Technical University of Kenya': 'TUK',
+  'Technical University of Mombasa': 'TUM',
+  'Dedan Kimathi University of Technology': 'DKUT',
+  'University of Eldoret': 'UOE',
+  'Kisii University': 'KISU',
+  'Chuka University': 'CHU',
+  'Pwani University': 'PU',
+  'South Eastern Kenya University': 'SEKU',
+  'Meru University of Science and Technology': 'MUST',
+  'University of Embu': 'UEMB',
+  'Jaramogi Oginga Odinga University of Science and Technology': 'JOOUST',
+  'Laikipia University': 'LU',
+  'Karatina University': 'KARU',
+  'Kibabii University': 'KIBU',
+  'Taita Taveta University': 'TTU',
+  'Maasai Mara University': 'MMRU',
+  'Kaimosi Friends University': 'KAFU',
+  'Alupe University': 'AU',
+  'Bomet University': 'BU',
+  'Tharaka University': 'TU',
+  'Garissa University': 'GAU',
+  "Murang'a University of Technology": 'MUT',
+  'Koitaleel Samoei University College': 'KSU',
+  'National Defence University-Kenya': 'NDUK',
+  'Open University of Kenya': 'OUK',
+  'Co-operative University of Kenya': 'CUK',
+  'University of Kabianga': 'UOK',
+  'United States International University-Africa': 'USIU-A',
+  'Strathmore University': 'STRATH',
+  'Daystar University': 'DAYSTAR',
+  'Catholic University of Eastern Africa': 'CUEA',
+  'Mount Kenya University': 'MKU',
+  'Kabarak University': 'KABU',
+  'Africa Nazarene University': 'ANU',
+  'University of Eastern Africa, Baraton': 'UEAB',
+  'Riara University': 'RIARA',
+  'Zetech University': 'ZETECH',
+  'KAG East University': 'KAGU',
+  "St. Paul's University": 'SPU',
+  'Pan Africa Christian University': 'PACU',
+  'Presbyterian University of East Africa': 'PUEA',
+  'Adventist University of Africa': 'AUA',
+  'International Leadership University': 'ILU',
+  'Aga Khan University': 'AKU',
+  'Gretsa University': 'GU',
+  'Umma University': 'UU',
+  'Management University of Africa': 'MUA',
+  'Scott Christian University': 'SCU',
+  'Great Lakes University of Kisumu': 'GLUK',
+  'Uzima University': 'UZU',
+  'Kenya Methodist University': 'KeMU',
+  "Kiriri Women's University of Science and Technology": 'KWUST',
+  'Consolata International University': 'CIU',
+  'Multimedia University of Kenya': 'MMUK',
+  'Machakos University': 'MKSU',
+  'Kirinyaga University': 'KYU',
+  'Tom Mboya University': 'TMU',
+  'Africa International University': 'AIU',
+  'Kenya Highlands Evangelical University': 'KHEU',
+  'KCA University': 'KCAU',
+  'The East African University': 'TEAU',
+  'Lukenya University': 'LUK',
+  'Tangaza University': 'TANG',
+  'Islamic University of Kenya': 'IUK',
+  'Amref International University': 'AMIU',
+  'National Intelligence Research University': 'NIRU',
+  'Kenya Advanced Institute of Science and Technology': 'KAIST',
+  'Turkana University College': 'TUC',
+  'Mama Ngina University College': 'MNUC',
+  'Nyandarua University College': 'NYUC',
+  'Kabarnet University College': 'KUC',
+  'Makueni University College': 'MUC',
+  'Hekima University College': 'HUC',
+  'Marist International University College': 'MIUC',
+  'Pioneer International University': 'PIU'
+};
+
+/** Return a compact, deterministic chat label for any institution in the picker. */
+export function getUniversityChatAbbreviation(name?: string | null): string {
+  const normalized = String(name || '').trim();
+  if (!normalized) return '';
+  const university = findKenyanUniversity(normalized);
+  const canonicalName = university?.name || normalized;
+  const explicit = university?.chatAbbreviation || CHAT_ABBREVIATIONS[canonicalName];
+  if (explicit) return explicit.replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase();
+
+  const initials = canonicalName
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word && !['the', 'and', 'for', 'of'].includes(word.toLowerCase()))
+    .map((word) => word[0])
+    .join('');
+  return initials.slice(0, 8).toUpperCase() || 'UNI';
 }
 
 // CUE-authorized universities, university colleges, and institutions with interim authority.

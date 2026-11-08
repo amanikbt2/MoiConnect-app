@@ -79,7 +79,7 @@ const YEARS_LIST = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate'];
 
 export default function ProfileScreen() {
   const { user, logout, deleteAccount, updateUserProfile } = useAuth();
-  const { isDark, toggleDarkTheme } = useTheme();
+  const { isDark, colors, toggleDarkTheme } = useTheme();
   const { selectedUniversity } = useUniversity();
   const [showUniversityPicker, setShowUniversityPicker] = useState(false);
   const [studentDetails, setStudentDetails] = useState<StudentPersonalDetails>({
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={styles.container}>
+        <View style={[styles.container, isDark && { backgroundColor: colors.background }]}>
         <EmptyState title="Not Signed In" message="Log in or create a student account to manage your profile." />
         <Button title="Sign In to MConnect" onPress={() => router.push('/(auth)/login')} style={{ marginHorizontal: 24, marginTop: 16 }} />
       </View>
@@ -368,9 +368,9 @@ export default function ProfileScreen() {
   ));
 
   return (
-    <ScrollView style={[styles.container, isDark && styles.darkContainer]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       {/* Profile Avatar & Header Card */}
-      <View style={styles.userCard}>
+      <View style={[styles.userCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TouchableOpacity
           style={styles.avatarTouchContainer}
           onPress={handleOpenEditModal}
@@ -392,10 +392,10 @@ export default function ProfileScreen() {
 
         <View style={styles.userInfo}>
           <View style={styles.userNameRow}>
-            <Text style={styles.userName}>{studentDetails.fullName || user.name}</Text>
+            <Text style={[styles.userName, isDark && { color: colors.text }]}>{studentDetails.fullName || user.name}</Text>
             <UserBadge badge={user.badge} size={18} />
           </View>
-          <Text style={styles.userEmail}>{user.email}</Text>
+          <Text style={[styles.userEmail, isDark && { color: colors.mutedText }]}>{user.email}</Text>
           <View style={styles.userBadgeRow}>
             {isAssistant ? (
               <Badge label="AI Assistant" variant="success" />
@@ -421,18 +421,18 @@ export default function ProfileScreen() {
 
       <Modal visible={accountMenuVisible} transparent animationType="fade" onRequestClose={() => setAccountMenuVisible(false)}>
         <Pressable style={styles.accountMenuBackdrop} onPress={() => setAccountMenuVisible(false)}>
-          <Pressable style={styles.accountMenu} onPress={(event) => event.stopPropagation()}>
+        <Pressable style={[styles.accountMenu, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} onPress={(event) => event.stopPropagation()}>
             <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); router.push('/privacy'); }}>
               <ShieldCheckIcon color="#15803d" size={16} />
-              <Text style={styles.accountMenuText}>Privacy Policy</Text>
+              <Text style={[styles.accountMenuText, isDark && { color: colors.text }]}>Privacy Policy</Text>
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
             <TouchableOpacity style={styles.accountMenuRow} onPress={() => { setAccountMenuVisible(false); router.push('/faq'); }}>
-              <Text style={styles.accountMenuText}>FAQ & Support</Text>
+              <Text style={[styles.accountMenuText, isDark && { color: colors.text }]}>FAQ & Support</Text>
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
             <TouchableOpacity style={styles.accountMenuRow} onPress={handleLogout}>
-              <Text style={styles.accountMenuText}>Log out</Text>
+              <Text style={[styles.accountMenuText, isDark && { color: colors.text }]}>Log out</Text>
             </TouchableOpacity>
             <View style={styles.accountMenuDivider} />
             <TouchableOpacity style={styles.accountMenuRow} onPress={handleOpenDeleteConfirm}>
@@ -454,27 +454,27 @@ export default function ProfileScreen() {
         isDeleting={isDeletingAccount}
       />
       {/* Student Personal Details Card */}
-      <View style={styles.studentProfileCard}>
+      <View style={[styles.studentProfileCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <UniversitySetupModal allowReselect visible={showUniversityPicker} onDismiss={() => setShowUniversityPicker(false)} />
         <View style={styles.cardHeaderRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <AcademicCapIcon color="#15803d" size={20} />
             <View>
-              <Text style={styles.cardTitle}>{isAssistant ? 'AI Assistant Profile' : 'Student Academic Profile'}</Text>
-              <Text style={styles.cardSub}>{isAssistant ? 'Official MConnect Assistant Details' : 'Your campus details'}</Text>
+              <Text style={[styles.cardTitle, isDark && { color: colors.text }]}>{isAssistant ? 'AI Assistant Profile' : 'Student Academic Profile'}</Text>
+              <Text style={[styles.cardSub, isDark && { color: colors.mutedText }]}>{isAssistant ? 'Official MConnect Assistant Details' : 'Your campus details'}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.detailsList}>
+        <View style={[styles.detailsList, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
           {!isAssistant && <>
             <TouchableOpacity style={styles.detailItem} onPress={() => setShowUniversityPicker(true)} activeOpacity={0.75}>
               <View style={styles.detailIconBox}>
                 <AcademicCapIcon color="#15803d" size={18} />
               </View>
               <View style={styles.detailTextContainer}>
-                <Text style={styles.detailLabelHeader}>UNIVERSITY</Text>
-                <Text style={styles.detailValueText}>{selectedUniversity?.name || user.university || 'Select your university'}</Text>
+                <Text style={[styles.detailLabelHeader, isDark && { color: colors.mutedText }]}>UNIVERSITY</Text>
+                <Text style={[styles.detailValueText, isDark && { color: colors.text }]}>{selectedUniversity?.name || user.university || 'Select your university'}</Text>
               </View>
               <Text style={{ color: '#15803d', fontSize: 12, fontWeight: '800' }}>Update</Text>
             </TouchableOpacity>
@@ -486,8 +486,8 @@ export default function ProfileScreen() {
               <HouseIcon color="#15803d" size={18} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={styles.detailLabelHeader}>SCHOOL / FACULTY</Text>
-              <Text style={styles.detailValueText}>
+              <Text style={[styles.detailLabelHeader, isDark && { color: colors.mutedText }]}>SCHOOL / FACULTY</Text>
+              <Text style={[styles.detailValueText, isDark && { color: colors.text }]}>
                 {studentDetails.school && studentDetails.school !== 'Unset' ? studentDetails.school : (isAssistant ? 'AI assistant' : 'Unset')}
               </Text>
             </View>
@@ -501,8 +501,8 @@ export default function ProfileScreen() {
               <BookIcon color="#15803d" size={18} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={styles.detailLabelHeader}>COURSE / PROGRAM</Text>
-              <Text style={styles.detailValueBold}>
+              <Text style={[styles.detailLabelHeader, isDark && { color: colors.mutedText }]}>COURSE / PROGRAM</Text>
+              <Text style={[styles.detailValueBold, isDark && { color: '#4ade80' }]}>
                 {studentDetails.course && studentDetails.course !== 'Unset' ? studentDetails.course : (isAssistant ? 'AI assistant' : 'Unset')}
               </Text>
             </View>
@@ -516,8 +516,8 @@ export default function ProfileScreen() {
               <CalendarIcon color="#15803d" size={18} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={styles.detailLabelHeader}>YEAR OF STUDY</Text>
-              <Text style={styles.detailValueText}>
+              <Text style={[styles.detailLabelHeader, isDark && { color: colors.mutedText }]}>YEAR OF STUDY</Text>
+              <Text style={[styles.detailValueText, isDark && { color: colors.text }]}>
                 {studentDetails.yearOfStudy && studentDetails.yearOfStudy !== 'Unset' ? studentDetails.yearOfStudy : (isAssistant ? 'AI assistant' : 'Unset')}
               </Text>
             </View>
@@ -531,8 +531,8 @@ export default function ProfileScreen() {
               <PhoneIcon color="#15803d" size={18} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={styles.detailLabelHeader}>PHONE CONTACT (OPTIONAL)</Text>
-              <Text style={styles.detailValueText}>
+              <Text style={[styles.detailLabelHeader, isDark && { color: colors.mutedText }]}>PHONE CONTACT (OPTIONAL)</Text>
+              <Text style={[styles.detailValueText, isDark && { color: colors.text }]}>
                 {studentDetails.phone || (isAssistant ? 'AI assistant' : 'Unset')}
               </Text>
             </View>
@@ -564,9 +564,9 @@ export default function ProfileScreen() {
       {/* Edit Student Personal Details Modal */}
       <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => { if (!profileCompletionRequired) setShowEditModal(false); }}>
         <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={[styles.modalContent, isDark && { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{isAssistant ? 'Edit Assistant Profile' : 'Complete Student Profile'}</Text>
+              <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>{isAssistant ? 'Edit Assistant Profile' : 'Complete Student Profile'}</Text>
               {!profileCompletionRequired && (
                 <TouchableOpacity onPress={() => setShowEditModal(false)}>
                   <CloseIcon color="#ef4444" size={20} />
@@ -575,7 +575,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Profile Picture</Text>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Profile Picture</Text>
               <View style={styles.editPhotoRow}>
                 {editAvatarUri && (editAvatarUri.startsWith('http://') || editAvatarUri.startsWith('https://') || editAvatarUri.startsWith('file://') || editAvatarUri.startsWith('data:') || editAvatarUri.startsWith('blob:')) ? (
                   <Image source={{ uri: editAvatarUri }} style={styles.editAvatarImage} />
@@ -598,7 +598,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Full Student Name</Text>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Full Student Name</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. Amani Kibet"
@@ -609,7 +609,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Course / Degree Program <Text style={{ color: '#ef4444' }}>*</Text></Text>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Course / Degree Program <Text style={{ color: '#ef4444' }}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. BSc. Computer Science"
@@ -623,7 +623,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Select School / Faculty</Text>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Select School / Faculty</Text>
               {selectedUniversity?.name === 'Moi University' ? <>
                 <TouchableOpacity
                   style={styles.dropdownSelector}
@@ -660,7 +660,7 @@ export default function ProfileScreen() {
                   </ScrollView>
                 )}
               </> : <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 placeholder="Enter your school or faculty"
                 placeholderTextColor="#94a3b8"
                 value={editSchool}
@@ -672,7 +672,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Year of Study</Text>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Year of Study</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 {YEARS_LIST.map((yr) => (
                   <TouchableOpacity
@@ -690,7 +690,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Phone Contact Number (Optional)</Text>
+              <Text style={[styles.formLabel, isDark && { color: colors.text }]}>Phone Contact Number (Optional)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. 0712 345 678"

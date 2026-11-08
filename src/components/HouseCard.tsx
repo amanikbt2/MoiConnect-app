@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { IHouse } from '@moi/shared';
 import { LocationIcon, ChevronRightIcon } from './Icons';
+import { useTheme } from '../context/ThemeContext';
 
 interface HouseCardProps {
   house: IHouse;
@@ -18,6 +19,7 @@ const DEFAULT_HOSTEL_IMAGES: Record<string, string> = {
 };
 
 export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
+  const { isDark, colors } = useTheme();
   const imageUrl =
     house.photos && house.photos.length > 0 && house.photos[0]
       ? house.photos[0]
@@ -48,7 +50,7 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
   const isFullyBooked = availRooms === 0;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
+    <TouchableOpacity style={[styles.card, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.88}>
       {/* House Image Thumbnail with Badges */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: imageUrl }} style={styles.thumbnail} resizeMode="cover" />
@@ -88,11 +90,11 @@ export const HouseCard: React.FC<HouseCardProps> = ({ house, onPress }) => {
 
       {/* Card Content Body */}
       <View style={styles.cardContent}>
-        <Text style={styles.title} numberOfLines={1}>{house.title}</Text>
+        <Text style={[styles.title, isDark && { color: colors.text }]} numberOfLines={1}>{house.title}</Text>
 
         <View style={styles.locationRow}>
           <LocationIcon color="#15803d" size={13} />
-          <Text style={styles.locationText} numberOfLines={1}>
+          <Text style={[styles.locationText, isDark && { color: colors.mutedText }]} numberOfLines={1}>
             {locationText}
           </Text>
         </View>

@@ -26,6 +26,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { apiRequest } from '../../src/services/api';
 import { getSocket } from '../../src/services/socket';
 import {
@@ -213,6 +214,7 @@ function SwipeableMessageItem({
 
 
 export default function ChatRoomScreen({ route }: any) {
+  const { isDark, colors } = useTheme();
   const conversationId = route?.params?.id;
   const [messages, setMessages] = useState<any[]>([]);
   const displayMessages = React.useMemo(() => [...messages].reverse(), [messages]);
@@ -591,14 +593,14 @@ export default function ChatRoomScreen({ route }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, isDark && { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#15803d" />
-          <Text style={styles.loadingText}>Loading Messages...</Text>
+          <Text style={[styles.loadingText, isDark && { color: colors.mutedText }]}>Loading Messages...</Text>
         </View>
       ) : (
         <FlatList
@@ -655,7 +657,7 @@ export default function ChatRoomScreen({ route }: any) {
                     onPress={() => {
                       if (isPickerOpen) setActiveReactionMsgId(null);
                     }}
-                    style={[styles.messageBubble, isMe ? styles.myBubble : styles.otherBubble]}
+                    style={[styles.messageBubble, isMe ? styles.myBubble : styles.otherBubble, isDark && !isMe && { backgroundColor: colors.surface, borderColor: colors.border }]}
                   >
                     {!isMe && sender && <Text style={styles.senderName}>{sender.name}</Text>}
 
@@ -740,7 +742,7 @@ export default function ChatRoomScreen({ route }: any) {
                     {/* Text content with clean text wrapping */}
                     {!!item.text && (
                       <LinkifiedText
-                        style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}
+                        style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText, isDark && !isMe && { color: colors.text }]}
                         onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
                       >
                         {item.text}
@@ -850,7 +852,7 @@ export default function ChatRoomScreen({ route }: any) {
             placeholderTextColor="#8696a0"
             value={text}
             onChangeText={setText}
-            style={styles.textInput}
+            style={[styles.textInput, isDark && { color: colors.text }]}
             returnKeyType="send"
             onSubmitEditing={handleSend}
             blurOnSubmit={false}

@@ -25,6 +25,7 @@ import { OfflineState } from '../../src/components/OfflineState';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
+import { useTheme } from '../../src/context/ThemeContext';
 
 import { LocationIcon, PlusIcon, KeyIcon, ShieldCheckIcon, GlobeIcon, HouseIcon, SearchIcon } from '../../src/components/Icons';
 
@@ -172,6 +173,7 @@ const MOCK_RENTAL_HOUSES: IHouse[] = [
 ];
 
 export default function RentalsScreen() {
+  const { isDark, colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'browse' | 'my_listings'>('browse');
   const [houses, setHouses] = useState<IHouse[]>([]);
   const [myListings, setMyListings] = useState<IHouse[]>([]);
@@ -328,7 +330,7 @@ export default function RentalsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: colors.background }]}>
       <FlatList
         data={houses}
         keyExtractor={(item) => item._id}
@@ -341,8 +343,8 @@ export default function RentalsScreen() {
             {/* Top Header Action Row with Landlord Portal Small Icon */}
             <View style={styles.topHeaderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.topHeaderTitle}>Available Houses</Text>
-                <Text style={styles.topHeaderSub}>Verified student rentals around Moi Campus</Text>
+                <Text style={[styles.topHeaderTitle, isDark && { color: colors.text }]}>Available Houses</Text>
+                <Text style={[styles.topHeaderSub, isDark && { color: colors.mutedText }]}>Verified student rentals around Moi Campus</Text>
               </View>
               <TouchableOpacity
                 style={styles.landlordIconButton}
@@ -355,14 +357,14 @@ export default function RentalsScreen() {
             </View>
 
             {/* Search Bar - Full Width with Inline Small Blue Search SVG */}
-            <View style={styles.searchRow}>
+            <View style={[styles.searchRow, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 placeholder="Search Stage, Mabs, Kesses, Bedsitter..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDark ? colors.mutedText : '#94a3b8'}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmitEditing={fetchHouses}
-                style={styles.searchInput}
+                style={[styles.searchInput, isDark && { color: colors.text }]}
               />
               <TouchableOpacity style={styles.searchBtn} onPress={fetchHouses} activeOpacity={0.8}>
                 <SearchIcon color="#2563eb" size={18} />
@@ -372,7 +374,7 @@ export default function RentalsScreen() {
             {/* Location Filter Chips */}
             <View style={styles.filterSectionHeader}>
               <LocationIcon color="#475569" size={12} />
-              <Text style={styles.filterSectionTitle}>Filter by Location</Text>
+              <Text style={[styles.filterSectionTitle, isDark && { color: colors.mutedText }]}>Filter by Location</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               {LOCATIONS_LIST.map((loc) => {
@@ -380,7 +382,7 @@ export default function RentalsScreen() {
                 return (
                   <TouchableOpacity
                     key={loc}
-                    style={[styles.locationPill, isActive && styles.locationPillActive]}
+                    style={[styles.locationPill, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, isActive && styles.locationPillActive]}
                     onPress={() => setSelectedLocation(loc)}
                     activeOpacity={0.75}
                   >
@@ -390,7 +392,7 @@ export default function RentalsScreen() {
                       ) : (
                         <LocationIcon color={isActive ? '#ffffff' : '#15803d'} size={12} />
                       )}
-                      <Text style={[styles.locationPillText, isActive && styles.locationPillTextActive]}>
+                      <Text style={[styles.locationPillText, isDark && !isActive && { color: colors.text }, isActive && styles.locationPillTextActive]}>
                         {loc}
                       </Text>
                     </View>
@@ -402,7 +404,7 @@ export default function RentalsScreen() {
             {/* Property Type Pills */}
             <View style={styles.filterSectionHeader}>
               <HouseIcon color="#475569" size={12} />
-              <Text style={styles.filterSectionTitle}>Room Type</Text>
+              <Text style={[styles.filterSectionTitle, isDark && { color: colors.mutedText }]}>Room Type</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               <TouchableOpacity
@@ -410,7 +412,7 @@ export default function RentalsScreen() {
                 onPress={() => setSelectedType('')}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.pillText, selectedType === '' && styles.pillTextActive]}>All Types</Text>
+                <Text style={[styles.pillText, isDark && { color: colors.text }, selectedType === '' && styles.pillTextActive]}>All Types</Text>
               </TouchableOpacity>
               {PROPERTY_TYPES.map((pt) => {
                 const pType = pt as string;
@@ -425,11 +427,11 @@ export default function RentalsScreen() {
                 return (
                   <TouchableOpacity
                     key={pt}
-                    style={[styles.pill, selectedType === pt && styles.pillActive]}
+                    style={[styles.pill, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, selectedType === pt && styles.pillActive]}
                     onPress={() => setSelectedType(selectedType === pt ? '' : pt)}
                     activeOpacity={0.75}
                   >
-                    <Text style={[styles.pillText, selectedType === pt && styles.pillTextActive]}>
+                    <Text style={[styles.pillText, isDark && selectedType !== pt && { color: colors.text }, selectedType === pt && styles.pillTextActive]}>
                       {label}
                     </Text>
                   </TouchableOpacity>

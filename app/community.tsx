@@ -37,6 +37,7 @@ import { WebView } from 'react-native-webview';
 import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
 import { useUniversity } from '../src/context/UniversityContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { STICKERS } from '../src/data/stickers';
 import { GIFS, getLocalGifSource } from '../src/data/gifs';
 import { extractImageOrGifUrl, isGifUrl } from '../src/utils/mediaUrlUtils';
@@ -95,6 +96,7 @@ import { useNetwork } from '../src/context/NetworkContext';
 import { getSmartReplySnippet, getReplyAttachmentThumbnail } from '../src/utils/chatReplyUtils';
 import { SmartMediaThumbnail, getCloudinaryVideoPreviewUrl } from '../src/components/SmartMediaThumbnail';
 import { CommunityLiveRoom } from '../src/components/CommunityLiveRoom';
+import { getUniversityChatAbbreviation } from '../src/data/kenyanUniversities';
 
 export interface FileAttachment {
   name: string;
@@ -122,6 +124,7 @@ export interface CommunityMessage {
   senderFaculty: string;
   senderCourse?: string;
   senderYear?: string;
+  senderUniversity?: string;
   senderPhone?: string;
   senderAvatarUrl?: string;
   senderBadge?: 'blue' | 'red' | 'green';
@@ -267,7 +270,8 @@ const isUnsetCommunityValue = (val?: string) => !val || val.trim() === '' || val
 const getCommunitySenderSubtitle = (
   message: CommunityMessage,
   currentUser?: any,
-  currentProfile?: StudentPersonalDetails | null
+  currentProfile?: StudentPersonalDetails | null,
+  currentUniversity?: string
 ): string => {
   if (isCampusAssistantMessage(message)) {
     return 'AI Assistant';
@@ -276,9 +280,9 @@ const getCommunitySenderSubtitle = (
     const course = !isUnsetCommunityValue(currentUser.course) ? currentUser.course : (!isUnsetCommunityValue(currentProfile?.course) ? currentProfile?.course : undefined);
     const year = !isUnsetCommunityValue(currentUser.yearOfStudy) ? currentUser.yearOfStudy : (!isUnsetCommunityValue(currentProfile?.yearOfStudy) ? currentProfile?.yearOfStudy : undefined);
     const school = !isUnsetCommunityValue(currentUser.school) ? currentUser.school : (!isUnsetCommunityValue(currentProfile?.school) ? currentProfile?.school : undefined);
-    return formatStudentSubtitle(school, course, year, message.senderFaculty);
+    return formatStudentSubtitle(school, course, year, message.senderFaculty, currentUniversity || currentUser.university);
   }
-  return formatStudentSubtitle(undefined, message.senderCourse, message.senderYear, message.senderFaculty);
+  return formatStudentSubtitle(undefined, message.senderCourse, message.senderYear, message.senderFaculty, message.senderUniversity);
 };
 
 const getReplySenderLabel = (replyTo: NonNullable<CommunityMessage['replyTo']>, currentUser?: any): string => {
@@ -567,7 +571,8 @@ export function formatStudentSubtitle(
   school?: string,
   course?: string,
   yearOfStudy?: string,
-  facultyFallback?: string
+  facultyFallback?: string,
+  universityName?: string
 ): string {
   let programStr = !isUnsetCommunityValue(course) ? course!.trim() : '';
   let yearStr = !isUnsetCommunityValue(yearOfStudy) ? yearOfStudy!.trim() : '';
@@ -619,17 +624,9 @@ export function formatStudentSubtitle(
     programStr = '';
   }
 
-  // If unset then just show default Moi Student
-  if (!programStr) {
-    return 'Moi Student';
-  }
-
   const shortYear = formatYearShort(yearStr);
-  if (shortYear) {
-    return `${programStr} • ${shortYear}`;
-  }
-
-  return programStr;
+  const universityAbbreviation = getUniversityChatAbbreviation(universityName);
+  return [programStr || 'Student', shortYear, universityAbbreviation].filter(Boolean).join(' • ');
 }
 
 const SAMPLE_ATTACHMENTS: FileAttachment[] = [];
@@ -663,6 +660,7 @@ const isHardcodedCommunityMessage = (message: CommunityMessage) => Boolean(messa
 export default function CommunityScreen() {
   const { user, loading: authLoading } = useAuth();
   const { selectedUniversity } = useUniversity();
+  const { isDark, colors } = useTheme();
   const campusName = selectedUniversity?.shortName || 'Campus';
   const router = useAppNavigation();
   const isForumFocused = useIsFocused();
@@ -1572,6 +1570,7 @@ export default function CommunityScreen() {
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             senderCourse: serverMsg.senderCourse,
             senderYear: serverMsg.senderYear,
+            senderUniversity: serverMsg.senderUniversity,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
             senderBadge: serverMsg.senderBadge,
@@ -1681,6 +1680,7 @@ export default function CommunityScreen() {
             senderFaculty: serverMsg.senderFaculty || 'Moi Student',
             senderCourse: serverMsg.senderCourse,
             senderYear: serverMsg.senderYear,
+            senderUniversity: serverMsg.senderUniversity,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
             senderBadge: serverMsg.senderBadge,
             avatarBg: serverMsg.avatarBg || '#15803d',
@@ -1982,6 +1982,7 @@ export default function CommunityScreen() {
             senderFaculty: serverMsg.senderFaculty || 'Main Campus',
             senderCourse: serverMsg.senderCourse,
             senderYear: serverMsg.senderYear,
+            senderUniversity: serverMsg.senderUniversity || serverMsg._doc?.senderUniversity,
             senderPhone: serverMsg.senderPhone,
             senderAvatarUrl: serverMsg.senderAvatarUrl,
             senderBadge: serverMsg.senderBadge,
@@ -2096,6 +2097,7 @@ export default function CommunityScreen() {
           senderFaculty: serverMsg.senderFaculty || 'Main Campus',
           senderCourse: serverMsg.senderCourse,
           senderYear: serverMsg.senderYear,
+          senderUniversity: serverMsg.senderUniversity || serverMsg._doc?.senderUniversity,
           senderPhone: serverMsg.senderPhone,
           senderAvatarUrl: serverMsg.senderAvatarUrl,
           senderBadge: serverMsg.senderBadge,
@@ -2388,6 +2390,7 @@ export default function CommunityScreen() {
         senderFaculty: saved.senderFaculty || 'Moi Student',
         senderCourse: saved.senderCourse,
         senderYear: saved.senderYear,
+        senderUniversity: saved.senderUniversity || user?.university || selectedUniversity?.name,
         senderAvatarUrl: saved.senderAvatarUrl || user?.avatarUrl,
         senderBadge: saved.senderBadge || user?.badge,
         avatarBg: saved.avatarBg || '#15803d',
@@ -2803,6 +2806,7 @@ export default function CommunityScreen() {
       senderFaculty: facultySubtitle,
       senderCourse: effectiveCourse,
       senderYear: effectiveYear,
+      senderUniversity: selectedUniversity?.name || user?.university,
       senderPhone: user?.phone || myProfile?.phone,
       senderAvatarUrl: user?.avatarUrl || myProfile?.avatarUri,
       senderBadge: user?.badge,
@@ -2821,6 +2825,7 @@ export default function CommunityScreen() {
       senderFaculty: payload.senderFaculty,
       senderCourse: payload.senderCourse,
       senderYear: payload.senderYear,
+      senderUniversity: payload.senderUniversity,
       senderPhone: payload.senderPhone,
       senderAvatarUrl: payload.senderAvatarUrl,
       senderBadge: payload.senderBadge,
@@ -3291,9 +3296,9 @@ export default function CommunityScreen() {
   }, [isForumFocused, showStickerPicker, selectedFile, replyingTo, handleExitForum]);
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={[styles.safeContainer, isDark && { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, isDark && { backgroundColor: colors.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
@@ -3415,8 +3420,8 @@ export default function CommunityScreen() {
         {/* WhatsApp-Style Chat Wallpaper (Randomized from 5 themed wallpapers) */}
         <ImageBackground
           source={wallpaperSource}
-          style={styles.chatBackground}
-          imageStyle={styles.chatWallpaperImage}
+          style={[styles.chatBackground, isDark && { backgroundColor: colors.background }]}
+          imageStyle={[styles.chatWallpaperImage, isDark && { opacity: 0.18 }]}
           resizeMode="cover"
           onLoadEnd={() => setHasLoadedForumWallpaper(true)}
           onError={() => setHasLoadedForumWallpaper(true)}
@@ -3598,6 +3603,9 @@ export default function CommunityScreen() {
                               style={[
                                 styles.bubble,
                                 item.isMe ? styles.myBubble : styles.otherBubble,
+                                isDark && (item.isMe
+                                  ? { backgroundColor: '#173b2b' }
+                                  : { backgroundColor: colors.surfaceElevated }),
                                 highlightedMsgId === item.id && styles.highlightedBubble,
                                 isMediaOnly && styles.mediaOnlyBubble,
                                 isStickerOnly && styles.stickerOnlyBubble
@@ -3609,7 +3617,7 @@ export default function CommunityScreen() {
                                     <Text style={[styles.senderName, { color: item.avatarBg }]}>{item.senderName}</Text>
                                     <UserBadge badge={item.senderBadge} size={11} />
                                   </View>
-                                  <Text style={styles.senderFaculty}>{getCommunitySenderSubtitle(item, user, myProfile)}</Text>
+                                  <Text style={[styles.senderFaculty, isDark && { color: colors.mutedText }]}>{getCommunitySenderSubtitle(item, user, myProfile, selectedUniversity?.name)}</Text>
                                 </View>
                               )}
 
@@ -3777,7 +3785,7 @@ export default function CommunityScreen() {
                               ) : !!item.text ? (
                                 <ExpandableMessageText
                                   text={item.text}
-                                  style={[styles.messageText, item.isMe ? styles.myText : styles.otherText]}
+                                  style={[styles.messageText, item.isMe ? styles.myText : styles.otherText, isDark && { color: colors.text }]}
                                   onPressVideo={(videoUrl) => setMediaPreview({ name: 'Video', url: videoUrl, size: '', type: 'video' })}
                                 />
                               ) : null}
@@ -4082,7 +4090,7 @@ export default function CommunityScreen() {
             <View
               ref={stickerPickerRef}
               {...({ 'data-sticker-picker': 'true' } as any)}
-              style={styles.stickerPicker}
+              style={[styles.stickerPicker, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
               {/* WhatsApp-Style Tab Selector */}
               <View style={styles.pickerTabRow}>
@@ -4274,7 +4282,7 @@ export default function CommunityScreen() {
               );
             })()}
             <View style={styles.inputComposerRow}>
-            <View style={styles.inputPill}>
+            <View style={[styles.inputPill, isDark && { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 
 
 
@@ -4292,7 +4300,7 @@ export default function CommunityScreen() {
                 <SmileIcon color={showStickerPicker ? '#15803d' : '#8696a0'} size={21} />
               </TouchableOpacity>
               <TextInput
-                style={[styles.input, { height: inputHeight }]}
+                style={[styles.input, isDark && { color: colors.text }, { height: inputHeight }]}
                 multiline
                 {...(Platform.OS !== 'web' ? { submitBehavior: 'submit' as const } : {})}
                 scrollEnabled={inputHeight >= 60}
@@ -4306,7 +4314,7 @@ export default function CommunityScreen() {
                   setInputHeight(Math.max(40, Math.min(60, contentHeight + 8)));
                 }}
                 placeholder="@bot or @ai to mention"
-                placeholderTextColor="#8696a0"
+                placeholderTextColor={isDark ? colors.mutedText : '#8696a0'}
                 value={inputText}
                 onChangeText={(text) => {
                   handleInputChange(text);
@@ -4397,10 +4405,10 @@ export default function CommunityScreen() {
 
         {showForumLoading && (
           <View
-            style={[styles.forumLoadingOverlay, forumHeaderHeight > 0 && { top: forumHeaderHeight }]}
+            style={[styles.forumLoadingOverlay, isDark && { backgroundColor: colors.background }, forumHeaderHeight > 0 && { top: forumHeaderHeight }]}
             pointerEvents="auto"
           >
-            <View style={styles.forumLoadingCard}>
+            <View style={[styles.forumLoadingCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <ActivityIndicator color="#15803d" size="small" />
               <Text style={styles.forumLoadingText}>
                 Logging you into Forum…

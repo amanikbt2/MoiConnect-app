@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { AppleIcon, ArrowLeftIcon } from '../../src/components/Icons';
 import { GoogleAuthButton } from '../../src/components/GoogleAuthButton';
 
 export default function RegisterScreen() {
+  const { isDark, colors } = useTheme();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,14 +64,14 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={isDark ? { backgroundColor: colors.background } : undefined} contentContainerStyle={[styles.container, isDark && { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
       <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
-        <ArrowLeftIcon size={20} color="#0f172a" />
+        <ArrowLeftIcon size={20} color={colors.text} />
       </TouchableOpacity>
 
       <View style={styles.header}>
-        <Text style={styles.title}>Create Student Account</Text>
-        <Text style={styles.subtitle}>Join MConnect to access past papers, notes, and houses</Text>
+        <Text style={[styles.title, isDark && { color: colors.text }]}>Create Student Account</Text>
+        <Text style={[styles.subtitle, isDark && { color: colors.mutedText }]}>Join MConnect to access past papers, notes, and houses</Text>
       </View>
 
       {error && (
@@ -104,7 +106,7 @@ export default function RegisterScreen() {
       {/* Divider */}
       <View style={styles.dividerContainer}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or register with email</Text>
+        <Text style={[styles.dividerText, isDark && { color: colors.mutedText }]}>or register with email</Text>
         <View style={styles.dividerLine} />
       </View>
 
@@ -145,7 +147,7 @@ export default function RegisterScreen() {
         <Button title="Create Account" onPress={handleRegister} loading={loading} style={styles.btn} />
 
         <TouchableOpacity onPress={() => router.push('/(auth)/login')} style={styles.linkContainer}>
-          <Text style={styles.linkText}>Already have an account? <Text style={styles.linkBold}>Sign in</Text></Text>
+          <Text style={[styles.linkText, isDark && { color: colors.mutedText }]}>Already have an account? <Text style={styles.linkBold}>Sign in</Text></Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

@@ -84,7 +84,7 @@ function AppRuntimeServices() {
   );
 }
 function RootLayoutContent() {
-  const { isDark } = useTheme();
+  const { colors } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -127,7 +127,7 @@ function RootLayoutContent() {
             <AppRuntimeServices />
           <IceMessageHost />
           <StatusBar style="light" />
-          <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
             <View style={{ flex: 1 }}>
               <Stack
                 screenOptions={{

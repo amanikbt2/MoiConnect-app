@@ -46,6 +46,7 @@ import {
   ImageIcon
 } from '../../src/components/Icons';
 import { SmartMediaThumbnail, getCloudinaryVideoPreviewUrl } from '../../src/components/SmartMediaThumbnail';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export const isVideoDownload = (item?: OfflinePaper | null): boolean => {
   if (!item) return false;
@@ -86,12 +87,13 @@ const isLocalFileUri = (uri?: string): boolean => {
 };
 
 function OfflineCardThumbnail({ uri, unitCode }: { uri?: string; unitCode?: string }) {
+  const { isDark, colors } = useTheme();
   const [loadFailed, setLoadFailed] = useState(false);
   if (!uri || loadFailed) {
     return (
-      <View style={styles.thumbnailImageFallback}>
+      <View style={[styles.thumbnailImageFallback, isDark && { backgroundColor: colors.surfaceSubtle }]}>
         <BookIcon color="#38bdf8" size={26} />
-        <Text style={styles.thumbnailFallbackCode} numberOfLines={1}>
+        <Text style={[styles.thumbnailFallbackCode, isDark && { color: colors.text }]} numberOfLines={1}>
           {unitCode || 'ACADEMIC'}
         </Text>
       </View>
@@ -108,6 +110,7 @@ function OfflineCardThumbnail({ uri, unitCode }: { uri?: string; unitCode?: stri
 }
 
 export default function DownloadsScreen() {
+  const { isDark, colors } = useTheme();
   const [downloadedPapers, setDownloadedPapers] = useState<OfflinePaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -381,7 +384,7 @@ export default function DownloadsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: colors.background }]}>
       <FlatList
         data={downloadedPapers}
         keyExtractor={(item) => item._id}
@@ -427,6 +430,7 @@ export default function DownloadsScreen() {
             <TouchableOpacity
               style={[
                 styles.squareCard,
+                isDark && { backgroundColor: colors.surface, borderColor: colors.border },
                 item.pinned && styles.squareCardPinned,
                 isDownloading && styles.squareCardDownloading,
                 isFailed && styles.squareCardUnavailable
@@ -463,7 +467,7 @@ export default function DownloadsScreen() {
                     }}
                     activeOpacity={0.75}
                   >
-                    <MoreVerticalIcon color="#0f172a" size={14} />
+                    <MoreVerticalIcon color={isDark ? colors.text : '#0f172a'} size={14} />
                   </TouchableOpacity>
                 </View>
 
@@ -491,12 +495,12 @@ export default function DownloadsScreen() {
               {/* Card Body */}
               <View style={styles.cardBody}>
                 {/* Meta Line: MTID: P0001 • STA 210 • SCIENCE */}
-                <Text style={styles.metaLine} numberOfLines={1}>
+                <Text style={[styles.metaLine, isDark && { color: '#4ade80' }]} numberOfLines={1}>
                   MTID: {mtidText} • {item.unitCode} • {shortSchool}
                 </Text>
 
                 {/* Card Title */}
-                <Text style={styles.cardTitle} numberOfLines={2}>
+                <Text style={[styles.cardTitle, isDark && { color: colors.text }]} numberOfLines={2}>
                   {item.title}
                 </Text>
 

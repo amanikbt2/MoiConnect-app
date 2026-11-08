@@ -19,6 +19,7 @@ import {
 import { useAppNavigation } from '../src/utils/navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../src/context/AuthContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { getDownloadedPapers, saveDownloadedPaper, getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../src/services/offlineStorage';
 import { PDFViewerModal, formatCount, PDFDocumentItem } from '../src/components/PDFViewerModal';
 import { apiRequest } from '../src/services/api';
@@ -132,9 +133,10 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
   onToggleStar,
   highlightWords
 }: PastPaperGridCardProps) {
+  const { isDark, colors } = useTheme();
   return (
     <TouchableOpacity
-      style={styles.gridCard}
+      style={[styles.gridCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
       activeOpacity={0.88}
       onPress={() => onPress(item)}
     >
@@ -160,13 +162,13 @@ export const PastPaperGridCard = React.memo(function PastPaperGridCard({
           <HighlightText
             text={item.title}
             highlightWords={highlightWords}
-            style={styles.gridTitle}
+            style={[styles.gridTitle, isDark && { color: colors.text }]}
             numberOfLines={2}
           />
         ) : (
-          <Text style={styles.gridTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.gridTitle, isDark && { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
         )}
-        <Text style={styles.gridSub}>{item.school}</Text>
+        <Text style={[styles.gridSub, isDark && { color: colors.mutedText }]}>{item.school}</Text>
 
         <View style={styles.gridFooter}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -306,6 +308,7 @@ const PastPaperCarouselSection = React.memo(function PastPaperCarouselSection({
 });
 
 export default function PastPapersScreen({ route }: any) {
+  const { isDark, colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState(route?.params?.search || '');
   const [submittedSearchQuery, setSubmittedSearchQuery] = useState(route?.params?.search || '');
   const [downloadedPapers, setDownloadedPapers] = useState<any[]>([]);
@@ -855,7 +858,7 @@ export default function PastPapersScreen({ route }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && { backgroundColor: colors.background }]}>
       <VirtualizedFeedList
         style={styles.feedScroll}
         contentContainerStyle={styles.feedContent}
@@ -880,11 +883,11 @@ export default function PastPapersScreen({ route }: any) {
       >
         {/* Top Search Section */}
         <View ref={searchContainerRef} style={styles.searchSection}>
-          <View style={styles.searchBar}>
+          <View style={[styles.searchBar, isDark && { backgroundColor: colors.input, borderColor: colors.border }]}>
             <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
             <TextInput
               placeholder="Describe what you want..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={isDark ? colors.mutedText : '#94a3b8'}
               value={searchQuery}
               onFocus={handleSearchFocus}
               onBlur={handleSearchBlur}
@@ -898,7 +901,7 @@ export default function PastPapersScreen({ route }: any) {
                 submitSearch(event?.nativeEvent?.text ?? searchQuery);
               }}
               returnKeyType="search"
-              style={styles.searchInput}
+              style={[styles.searchInput, isDark && { color: colors.text }]}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setRequestedQuery(null); }}>
@@ -1158,7 +1161,7 @@ export default function PastPapersScreen({ route }: any) {
               {/* ZERO DIRECT RESULTS FALLBACK */}
               {filteredPapers.length === 0 && !isSearchLoading && (
                 <View style={{ padding: 24, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16, marginHorizontal: 16, marginVertical: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                  {requestedQuery === searchQuery.trim() ? (
+                  {requestedQuery !== null && requestedQuery === searchQuery.trim() ? (
                     <>
                       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                         <CheckIcon color="#15803d" size={24} />
@@ -1174,7 +1177,11 @@ export default function PastPapersScreen({ route }: any) {
                         style={{ marginTop: 14, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
                         onPress={() => {
                           setSearchQuery('');
+                          setSubmittedSearchQuery('');
                           setRequestedQuery(null);
+                          setForcedOriginalQuery(null);
+                          setPapersPage(1);
+                          setHasMorePapers(true);
                         }}
                       >
                         <ChevronRightIcon color="#0f172a" size={13} style={{ transform: [{ rotate: '180deg' }] }} />

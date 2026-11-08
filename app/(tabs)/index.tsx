@@ -17,6 +17,7 @@ import {
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { useUniversity } from '../../src/context/UniversityContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { apiRequest } from '../../src/services/api';
 import { getShowDemoMaterialsSetting } from '../../src/services/appSettingsService';
 import { getMaterialSearchHistoryEntries, saveMaterialSearchQuery, clearMaterialSearchHistory } from '../../src/services/offlineStorage';
@@ -97,6 +98,7 @@ function getGreetingText(userName?: string, universityShortName?: string): strin
 
 export default function HomeScreen() {
   const { selectedUniversity } = useUniversity();
+  const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const smartIntent = React.useMemo(() => {
     return searchQuery.trim().length > 1 ? parseSmartSearchQuery(searchQuery.trim()) : null;
@@ -299,7 +301,7 @@ export default function HomeScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.suggestedCard}
+        style={[styles.suggestedCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
         activeOpacity={0.88}
         onPress={handleCardPress}
       >
@@ -327,10 +329,10 @@ export default function HomeScreen() {
 
         {/* Card Body */}
         <View style={styles.cardBody}>
-          <Text style={styles.cardMeta}>
+          <Text style={[styles.cardMeta, isDark && { color: colors.mutedText }]}>
             {item.code} • {item.school}
           </Text>
-          <Text style={styles.cardTitle} numberOfLines={2}>
+          <Text style={[styles.cardTitle, isDark && { color: colors.text }]} numberOfLines={2}>
             {item.title}
           </Text>
 
@@ -350,7 +352,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, isDark && { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       onScrollBeginDrag={closeSearch}
@@ -365,11 +367,11 @@ export default function HomeScreen() {
 
         {/* Global Search Bar & Autocomplete Dropdown Container */}
         <View ref={searchContainerRef} style={{ position: 'relative', zIndex: 100 }}>
-          <View style={styles.searchBox}>
+          <View style={[styles.searchBox, isDark && { backgroundColor: colors.input, borderWidth: 1, borderColor: colors.border }]}>
             <SearchIcon color="#94a3b8" size={18} style={{ marginRight: 8 }} />
             <TextInput
               placeholder="Describe what you want..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={colors.mutedText}
               value={searchQuery}
               onChangeText={setSearchQuery}
               onFocus={handleSearchFocus}
@@ -378,7 +380,7 @@ export default function HomeScreen() {
               onKeyPress={handleSearchKeyPress}
               returnKeyType="search"
               blurOnSubmit={false}
-              style={styles.searchInput}
+              style={[styles.searchInput, isDark && { color: colors.text }]}
             />
             {searchQuery.trim().length > 0 && (
               <TouchableOpacity
@@ -419,7 +421,7 @@ export default function HomeScreen() {
               style={styles.homeDidYouMeanRow}
             >
               <SparklesIcon color="#15803d" size={14} />
-              <Text style={styles.homeDidYouMeanText}>
+              <Text style={[styles.homeDidYouMeanText, isDark && { color: colors.text }]}>
                 Did you mean:{' '}
                 <Text style={styles.homeDidYouMeanBold}>{smartIntent.didYouMeanText}</Text>?
               </Text>
@@ -440,12 +442,12 @@ export default function HomeScreen() {
 
       {/* Quick Access Actions (2x2 Grid) */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Access</Text>
+        <Text style={[styles.sectionTitle, isDark && { color: colors.text }]}>Quick Access</Text>
 
         <View style={styles.gridContainer}>
           {/* Notes PDF row (full-width feature card) */}
           <TouchableOpacity
-            style={styles.notesCard}
+            style={[styles.notesCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
             activeOpacity={0.7}
             onPress={() => router.push('/(tabs)/academics')}
           >
@@ -453,67 +455,67 @@ export default function HomeScreen() {
               <NotesIcon color="#2563eb" size={28} />
             </View>
             <View style={styles.notesCardText}>
-              <Text style={styles.quickTitle}>Notes PDF</Text>
-              <Text style={styles.quickSub}>Lecture notes & study guides</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Notes PDF</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Lecture notes & study guides</Text>
             </View>
             <ChevronRightIcon color="#94a3b8" size={18} />
           </TouchableOpacity>
 
           <View style={styles.cardRow}>
             <TouchableOpacity
-              style={styles.quickCard}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/past-papers')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#dcfce7' }]}>
                 <FileTextIcon color="#15803d" size={28} />
               </View>
-              <Text style={styles.quickTitle}>Past Papers</Text>
-              <Text style={styles.quickSub}>Exam revision papers</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Past Papers</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Exam revision papers</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickCard}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/cat-papers')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#fef3c7' }]}>
                 <BookIcon color="#d97706" size={28} />
               </View>
-              <Text style={styles.quickTitle}>CAT Papers</Text>
-              <Text style={styles.quickSub}>Continuous assessment</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>CAT Papers</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Continuous assessment</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.cardRow}>
             <TouchableOpacity
-              style={styles.quickCard}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/(tabs)/rentals')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#dbeafe' }]}>
                 <HouseIcon color="#2563eb" size={28} />
               </View>
-              <Text style={styles.quickTitle}>Rentals around Stage</Text>
-              <Text style={styles.quickSub}>Student housing</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Rentals around Stage</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Student housing</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickCard}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() => router.push('/contribute')}
             >
               <View style={[styles.iconWrapper, { backgroundColor: '#f3e8ff' }]}>
                 <UploadIcon color="#7c3aed" size={28} />
               </View>
-              <Text style={styles.quickTitle}>Contribute</Text>
-              <Text style={styles.quickSub}>Upload study materials</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Contribute</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Upload study materials</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.cardRow}>
             <TouchableOpacity
-              style={styles.quickCard}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() =>
                 selectedUniversity?.studentPortalUrl || selectedUniversity?.officialWebsiteUrl
@@ -529,12 +531,12 @@ export default function HomeScreen() {
               <View style={[styles.iconWrapper, { backgroundColor: '#e0f2fe' }]}>
                 <GraduationCapIcon color="#0284c7" size={28} />
               </View>
-              <Text style={styles.quickTitle}>Student Portal</Text>
-              <Text style={styles.quickSub}>{selectedUniversity?.studentPortalUrl ? `Official ${selectedUniversity.shortName} portal` : selectedUniversity?.officialWebsiteUrl ? 'Open official university website' : 'Portal link not yet verified'}</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>Student Portal</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>{selectedUniversity?.studentPortalUrl ? `Official ${selectedUniversity.shortName} portal` : selectedUniversity?.officialWebsiteUrl ? 'Open official university website' : 'Portal link not yet verified'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickCard}
+              style={[styles.quickCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}
               activeOpacity={0.7}
               onPress={() =>
                 handleOpenPortal({
@@ -547,8 +549,8 @@ export default function HomeScreen() {
               <View style={[styles.iconWrapper, { backgroundColor: '#d1fae5' }]}>
                 <LaptopIcon color="#059669" size={28} />
               </View>
-              <Text style={styles.quickTitle}>MUSOMI E-Learning</Text>
-              <Text style={styles.quickSub}>Online portal & lectures</Text>
+              <Text style={[styles.quickTitle, isDark && { color: colors.text }]}>MUSOMI E-Learning</Text>
+              <Text style={[styles.quickSub, isDark && { color: colors.mutedText }]}>Online portal & lectures</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -562,20 +564,20 @@ export default function HomeScreen() {
               <SparklesIcon color="#15803d" size={18} />
             </View>
             <View>
-              <Text style={styles.sectionTitleNoMargin}>Suggested materials</Text>
-              <Text style={styles.sectionSubtitle}>based on your profile</Text>
+              <Text style={[styles.sectionTitleNoMargin, isDark && { color: colors.text }]}>Suggested materials</Text>
+              <Text style={[styles.sectionSubtitle, isDark && { color: '#4ade80' }]}>based on your profile</Text>
             </View>
           </View>
         </View>
 
         {user && !profileComplete ? (
-          <View style={styles.loginPromptCard}>
+          <View style={[styles.loginPromptCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.loginPromptIconContainer}>
               <SparklesIcon color="#15803d" size={24} />
             </View>
             <View style={styles.loginPromptTextGroup}>
-              <Text style={styles.loginPromptTitle}>Complete profile to get suggested material</Text>
-              <Text style={styles.loginPromptSub}>
+              <Text style={[styles.loginPromptTitle, isDark && { color: colors.text }]}>Complete profile to get suggested material</Text>
+              <Text style={[styles.loginPromptSub, isDark && { color: colors.mutedText }]}>
                 Add your course, school/faculty, and year so we can show your best matches.
               </Text>
             </View>
@@ -635,13 +637,13 @@ export default function HomeScreen() {
             </View>
           )
         ) : (
-          <View style={styles.loginPromptCard}>
+          <View style={[styles.loginPromptCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.loginPromptIconContainer}>
               <SparklesIcon color="#15803d" size={24} />
             </View>
             <View style={styles.loginPromptTextGroup}>
-              <Text style={styles.loginPromptTitle}>Sign in to get suggested materials</Text>
-              <Text style={styles.loginPromptSub}>
+              <Text style={[styles.loginPromptTitle, isDark && { color: colors.text }]}>Sign in to get suggested materials</Text>
+              <Text style={[styles.loginPromptSub, isDark && { color: colors.mutedText }]}>
                 Get personalized past papers, CATs, and study notes tailored for your course.
               </Text>
             </View>

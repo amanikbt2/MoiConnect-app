@@ -24,10 +24,12 @@ import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { Skeleton } from '../../src/components/Skeleton';
 import { Input } from '../../src/components/Input';
+import { useTheme } from '../../src/context/ThemeContext';
 
 import { LocationIcon, CheckIcon, PhoneIcon, MessageIcon, ShieldCheckIcon } from '../../src/components/Icons';
 
 export default function HouseDetailScreen({ route }: any) {
+  const { isDark, colors } = useTheme();
   const id = route?.params?.id;
   const [house, setHouse] = useState<IHouse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -270,7 +272,7 @@ export default function HouseDetailScreen({ route }: any) {
 
   if (loading) {
     return (
-      <View style={{ padding: 20 }}>
+      <View style={{ padding: 20, flex: 1, backgroundColor: colors.background }}>
         <Skeleton height={200} />
         <Skeleton height={30} width="70%" />
         <Skeleton height={20} width="40%" />
@@ -280,8 +282,8 @@ export default function HouseDetailScreen({ route }: any) {
 
   if (!house) {
     return (
-      <View style={{ padding: 24, alignItems: 'center' }}>
-        <Text style={{ fontSize: 16, color: '#64748b' }}>Rental house not found.</Text>
+      <View style={{ padding: 24, flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <Text style={{ fontSize: 16, color: colors.mutedText }}>Rental house not found.</Text>
       </View>
     );
   }
@@ -289,7 +291,7 @@ export default function HouseDetailScreen({ route }: any) {
   const landlord = typeof house.landlordId === 'object' ? (house.landlordId as any) : null;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={[styles.container, isDark && { backgroundColor: colors.background }]}>
       {/* Photos Carousel / Main Image */}
       {house.photos && house.photos.length > 0 && (
         <View style={styles.imageBox}>
@@ -303,14 +305,14 @@ export default function HouseDetailScreen({ route }: any) {
           <Badge label={house.occupancyStatus} variant={house.occupancyStatus === 'available' ? 'info' : 'neutral'} />
         </View>
 
-        <Text style={styles.title}>{house.title}</Text>
+        <Text style={[styles.title, isDark && { color: colors.text }]}>{house.title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 16 }}>
           <LocationIcon color="#64748b" size={16} />
-          <Text style={styles.location}>{house.location}</Text>
+          <Text style={[styles.location, isDark && { color: colors.mutedText }]}>{house.location}</Text>
         </View>
 
         {/* Rent & Deposit */}
-        <View style={styles.priceCard}>
+        <View style={[styles.priceCard, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}>
           <View>
             <Text style={styles.priceLabel}>Monthly Rent</Text>
             <Text style={styles.priceVal}>KES {house.monthlyRent.toLocaleString()}</Text>
@@ -324,26 +326,26 @@ export default function HouseDetailScreen({ route }: any) {
         </View>
 
         {/* Amenities */}
-        <Text style={styles.sectionHeader}>Amenities & Features</Text>
+        <Text style={[styles.sectionHeader, isDark && { color: colors.text }]}>Amenities & Features</Text>
         <View style={styles.amenitiesGrid}>
           {house.amenities.map((am, idx) => (
-            <View key={idx} style={styles.amenityChip}>
+            <View key={idx} style={[styles.amenityChip, isDark && { backgroundColor: colors.surfaceSubtle }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <CheckIcon color="#15803d" size={14} />
-                <Text style={styles.amenityText}>{am}</Text>
+                <Text style={[styles.amenityText, isDark && { color: colors.text }]}>{am}</Text>
               </View>
             </View>
           ))}
         </View>
 
         {/* Description */}
-        <Text style={styles.sectionHeader}>Description</Text>
-        <Text style={styles.description}>{house.description}</Text>
+        <Text style={[styles.sectionHeader, isDark && { color: colors.text }]}>Description</Text>
+        <Text style={[styles.description, isDark && { color: colors.mutedText }]}>{house.description}</Text>
 
         {/* Landlord Info */}
-        <View style={styles.landlordCard}>
+        <View style={[styles.landlordCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.landlordHeader}>Landlord Contact Info</Text>
-          <Text style={styles.landlordName}>{landlord?.name || 'Verified Landlord'}</Text>
+          <Text style={[styles.landlordName, isDark && { color: colors.text }]}>{landlord?.name || 'Verified Landlord'}</Text>
           {landlord?.phone && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
               <PhoneIcon color="#15803d" size={14} />
@@ -374,16 +376,16 @@ export default function HouseDetailScreen({ route }: any) {
 
       {/* Booking Modal */}
       <Modal visible={showBookingModal} animationType="slide" onRequestClose={() => setShowBookingModal(false)}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, isDark && { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Request House Booking</Text>
+            <Text style={[styles.modalTitle, isDark && { color: colors.text }]}>Request House Booking</Text>
             <TouchableOpacity onPress={() => setShowBookingModal(false)}>
               <Text style={styles.closeBtn}>Close</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.modalSub}>
-            Property: <Text style={{ fontWeight: '800', color: '#0f172a' }}>{house.title}</Text>
+            <Text style={[styles.modalSub, isDark && { color: colors.mutedText }]}>
+            Property: <Text style={{ fontWeight: '800', color: colors.text }}>{house.title}</Text>
           </Text>
 
           <Input

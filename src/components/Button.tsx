@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -20,11 +21,13 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle
 }) => {
+  const { isDark } = useTheme();
   return (
     <TouchableOpacity
       style={[
         styles.button,
         styles[variant],
+        isDark && variant === 'secondary' && styles.secondaryDark,
         (disabled || loading) && styles.disabled,
         style
       ]}
@@ -35,7 +38,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? '#15803d' : '#ffffff'} />
       ) : (
-        <Text style={[styles.text, styles[`${variant}Text`], textStyle]}>{title}</Text>
+        <Text style={[styles.text, styles[`${variant}Text`], isDark && variant === 'secondary' && styles.secondaryTextDark, textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
@@ -55,6 +58,9 @@ const styles = StyleSheet.create<any>({
   },
   secondary: {
     backgroundColor: '#e2e8f0'
+  },
+  secondaryDark: {
+    backgroundColor: '#26364b'
   },
   outline: {
     backgroundColor: 'transparent',
@@ -76,6 +82,9 @@ const styles = StyleSheet.create<any>({
   },
   secondaryText: {
     color: '#334155'
+  },
+  secondaryTextDark: {
+    color: '#e2e8f0'
   },
   outlineText: {
     color: '#15803d'

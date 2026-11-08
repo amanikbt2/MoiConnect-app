@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '../src/utils/navigation';
 import { ChevronDownIcon, TrashIcon, ArrowLeftIcon } from '../src/components/Icons';
+import { useTheme } from '../src/context/ThemeContext';
 
 export interface FAQItem {
   id: string;
@@ -85,6 +86,7 @@ const FAQ_DATA: FAQItem[] = [
 ];
 
 export default function FAQScreen() {
+  const { isDark, colors } = useTheme();
   const router = useAppNavigation();
   const [expandedId, setExpandedId] = useState<string | null>('delete_account');
 
@@ -101,39 +103,39 @@ export default function FAQScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={[styles.safeContainer, isDark && { backgroundColor: colors.background }]}>
       {/* Top Header Bar */}
-      <View style={styles.topHeaderBar}>
-        <TouchableOpacity style={styles.topBackBtn} onPress={handleBack} activeOpacity={0.7}>
-          <ArrowLeftIcon color="#0f172a" size={20} />
-          <Text style={styles.topBackBtnText}>Back</Text>
+      <View style={[styles.topHeaderBar, isDark && { backgroundColor: colors.background }]}>
+        <TouchableOpacity style={[styles.topBackBtn, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleBack} activeOpacity={0.7}>
+          <ArrowLeftIcon color={colors.text} size={20} />
+          <Text style={[styles.topBackBtnText, isDark && { color: colors.text }]}>Back</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
         {/* Header Section */}
-        <View style={styles.headerCard}>
+        <View style={[styles.headerCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.headerIconCircle}>
             <Text style={{ fontSize: 28 }}>❓</Text>
           </View>
-          <Text style={styles.appTitle}>MConnect Support</Text>
-          <Text style={styles.pageTitle}>Frequently Asked Questions</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.appTitle, isDark && { color: colors.text }]}>MConnect Support</Text>
+          <Text style={[styles.pageTitle, isDark && { color: colors.text }]}>Frequently Asked Questions</Text>
+          <Text style={[styles.subtitle, isDark && { color: colors.mutedText }]}>
             Find official guidance on account management, data privacy, sensitive permissions, downloads, and campus services.
           </Text>
         </View>
 
         {/* Highlighted Account Deletion Quick Banner */}
         <TouchableOpacity
-          style={styles.deletionBanner}
+          style={[styles.deletionBanner, isDark && { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
           onPress={() => setExpandedId('delete_account')}
           activeOpacity={0.88}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <TrashIcon color="#dc2626" size={20} />
-            <Text style={styles.deletionBannerTitle}>Need to Delete Your Account or Data?</Text>
+            <Text style={[styles.deletionBannerTitle, isDark && { color: colors.text }]}>Need to Delete Your Account or Data?</Text>
           </View>
-          <Text style={styles.deletionBannerText}>
+            <Text style={[styles.deletionBannerText, isDark && { color: colors.mutedText }]}>
             Go to Profile -&gt; tap the three-dot menu in the top-right corner -&gt; choose "Delete account", or tap here to read step-by-step instructions.
           </Text>
         </TouchableOpacity>
@@ -143,7 +145,7 @@ export default function FAQScreen() {
           {FAQ_DATA.map((item) => {
             const isExpanded = expandedId === item.id;
             return (
-              <View style={[styles.faqCard, isExpanded && styles.faqCardExpanded]} key={item.id}>
+              <View style={[styles.faqCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }, isExpanded && styles.faqCardExpanded]} key={item.id}>
                 <TouchableOpacity
                   style={styles.faqHeader}
                   onPress={() => toggleExpand(item.id)}
@@ -152,8 +154,8 @@ export default function FAQScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 8 }}>
                     {!!item.iconTag && <Text style={{ fontSize: 18 }}>{item.iconTag}</Text>}
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.categoryText}>{item.category}</Text>
-                      <Text style={styles.questionText}>{item.question}</Text>
+                      <Text style={[styles.categoryText, isDark && { color: colors.text }]}>{item.category}</Text>
+                      <Text style={[styles.questionText, isDark && { color: colors.text }]}>{item.question}</Text>
                     </View>
                   </View>
                   <View style={{ transform: [{ rotate: isExpanded ? '180deg' : '0deg' }] }}>
@@ -162,8 +164,8 @@ export default function FAQScreen() {
                 </TouchableOpacity>
 
                 {isExpanded && (
-                  <View style={styles.faqBody}>
-                    <Text style={styles.answerText}>{item.answer}</Text>
+                  <View style={[styles.faqBody, isDark && { borderTopColor: colors.border }]}>
+                    <Text style={[styles.answerText, isDark && { color: colors.mutedText }]}>{item.answer}</Text>
                   </View>
                 )}
               </View>
@@ -172,12 +174,12 @@ export default function FAQScreen() {
         </View>
 
         {/* Contact Support Card */}
-        <View style={styles.contactCard}>
-          <Text style={styles.contactTitle}>Still need assistance?</Text>
-          <Text style={styles.contactText}>
+        <View style={[styles.contactCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.contactTitle, isDark && { color: colors.text }]}>Still need assistance?</Text>
+          <Text style={[styles.contactText, isDark && { color: colors.mutedText }]}>
             Our student platform team is here to assist you with account verification, study material uploads, or privacy queries.
           </Text>
-          <Text style={styles.contactEmail}>amanikbt1@gmail.com</Text>
+          <Text style={[styles.contactEmail, isDark && { color: colors.text }]}>amanikbt1@gmail.com</Text>
         </View>
 
         {/* Bottom Back Button */}
@@ -186,7 +188,7 @@ export default function FAQScreen() {
           onPress={handleBack}
           activeOpacity={0.8}
         >
-          <Text style={styles.backButtonText}>← Back to App</Text>
+          <Text style={[styles.backButtonText, isDark && { color: colors.text }]}>← Back to App</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

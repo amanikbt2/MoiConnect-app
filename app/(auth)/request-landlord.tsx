@@ -5,8 +5,10 @@ import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
+import { useTheme } from '../../src/context/ThemeContext';
 
 export default function RequestLandlordScreen() {
+  const { isDark, colors } = useTheme();
   const [idNumber, setIdNumber] = useState('');
   const [proofDetails, setProofDetails] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,10 +46,10 @@ export default function RequestLandlordScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={isDark ? { backgroundColor: colors.background } : undefined} contentContainerStyle={[styles.container, isDark && { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Apply for Landlord Account</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, isDark && { color: colors.text }]}>Apply for Landlord Account</Text>
+        <Text style={[styles.subtitle, isDark && { color: colors.mutedText }]}>
           Landlord accounts are verified by administrators before publishing rental listings to protect students.
         </Text>
       </View>

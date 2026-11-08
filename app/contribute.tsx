@@ -16,6 +16,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
+import { useTheme } from '../src/context/ThemeContext';
 import { apiRequest } from '../src/services/api';
 import {
   UploadIcon,
@@ -49,6 +50,7 @@ export interface PickedFileItem {
 }
 
 export default function ContributeScreen({ agentMode = false }: { agentMode?: boolean }) {
+  const { isDark, colors } = useTheme();
   const router = useAppNavigation();
   const { user } = useAuth();
 
@@ -315,28 +317,28 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
   };
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={[styles.safeContainer, isDark && { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.headerBar}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <ArrowLeftIcon color="#ffffff" size={20} />
         </TouchableOpacity>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, isDark && { color: colors.text }]}>
           <Text style={{ color: '#ffffff' }}>{agentMode ? 'Agent ' : 'Contribute '}</Text>
           <Text style={{ color: '#a7f3d0' }}>{agentMode ? 'Submission' : 'Material'}</Text>
         </Text>
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={[styles.container, isDark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
         {/* Banner */}
-        <View style={styles.bannerCard}>
+        <View style={[styles.bannerCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.bannerIconCircle}>
             <UploadIcon color="#15803d" size={26} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>{agentMode ? 'Agent Material Workspace' : 'Share with Campus Community'}</Text>
-            <Text style={styles.bannerSub}>
+            <Text style={[styles.bannerTitle, isDark && { color: colors.text }]}>{agentMode ? 'Agent Material Workspace' : 'Share with Campus Community'}</Text>
+            <Text style={[styles.bannerSub, isDark && { color: colors.mutedText }]}>
               {agentMode
                 ? 'Prepare and submit a polished PDF, thumbnail, and TTS material for administrator review.'
                 : 'Upload past papers, CATs, or notes directly from your phone storage to help fellow Moi University students.'}
@@ -345,9 +347,9 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
         </View>
 
         {/* 1. Phone Storage File Selection Area */}
-        <View style={styles.formSection}>
-          <Text style={styles.fieldLabel}>
-            1. Select Document File(s) / Materials <Text style={styles.required}>*</Text>
+        <View style={[styles.formSection, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.fieldLabel, isDark && { color: colors.text }]}>
+            1. Select Document File(s) / Materials <Text style={[styles.required, isDark && { color: colors.text }]}>*</Text>
           </Text>
 
           {pickedFiles.length > 0 ? (
@@ -356,18 +358,18 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
                 const ext = fileItem.name.split('.').pop()?.toUpperCase() || 'FILE';
                 const isImg = ['JPG', 'JPEG', 'PNG', 'WEBP', 'GIF'].includes(ext);
                 return (
-                  <View key={fileItem.id} style={styles.selectedFileCard}>
+                  <View key={fileItem.id} style={[styles.selectedFileCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={[styles.fileIconCircle, isImg && { backgroundColor: '#fdf2f8' }]}>
                       <FileTextIcon color={isImg ? '#db2777' : '#15803d'} size={24} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.fileIndexBadge}>Doc #{idx + 1}</Text>
-                        <Text style={styles.selectedFileName} numberOfLines={1}>
+                        <Text style={[styles.fileIndexBadge, isDark && { color: colors.text }]}>Doc #{idx + 1}</Text>
+                        <Text style={[styles.selectedFileName, isDark && { color: colors.text }]} numberOfLines={1}>
                           {fileItem.name}
                         </Text>
                       </View>
-                      <Text style={styles.selectedFileMeta}>
+                      <Text style={[styles.selectedFileMeta, isDark && { color: colors.text }]}>
                         {formatFileSize(fileItem.size)} • {ext}
                       </Text>
                     </View>
@@ -376,7 +378,7 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
                       onPress={() => handleRemoveFile(fileItem.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.removeFileBtnText}>✕ Remove</Text>
+                      <Text style={[styles.removeFileBtnText, isDark && { color: colors.text }]}>✕ Remove</Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -389,7 +391,7 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
                 activeOpacity={0.8}
               >
                 <UploadIcon color="#15803d" size={18} style={{ marginRight: 6 }} />
-                <Text style={styles.addMoreFilesBtnText}>+ Add Another File / Material (Images/PDF/DOC)</Text>
+                <Text style={[styles.addMoreFilesBtnText, isDark && { color: colors.text }]}>+ Add Another File / Material (Images/PDF/DOC)</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -401,15 +403,15 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
               <View style={styles.uploadCircle}>
                 <UploadIcon color="#15803d" size={32} />
               </View>
-              <Text style={styles.dropzoneTitle}>Tap to select from Phone Storage</Text>
-              <Text style={styles.dropzoneSub}>Supports PDF, DOCX, DOC & Images. Select multiple files or mix images + PDF.</Text>
+              <Text style={[styles.dropzoneTitle, isDark && { color: colors.text }]}>Tap to select from Phone Storage</Text>
+              <Text style={[styles.dropzoneSub, isDark && { color: colors.text }]}>Supports PDF, DOCX, DOC & Images. Select multiple files or mix images + PDF.</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* 2. Material Type Selection */}
-        <View style={styles.formSection}>
-          <Text style={styles.fieldLabel}>2. Category / Material Type</Text>
+        <View style={[styles.formSection, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.fieldLabel, isDark && { color: colors.text }]}>2. Category / Material Type</Text>
           <View style={styles.typeGrid}>
             {MATERIAL_TYPES.map((item) => {
               const isSelected = type === item.value;
@@ -432,50 +434,50 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
         </View>
 
         {/* 3. Course & Unit Details */}
-        <View style={styles.formSection}>
-          <Text style={styles.fieldLabel}>3. Course & Unit Details</Text>
+        <View style={[styles.formSection, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.fieldLabel, isDark && { color: colors.text }]}>3. Course & Unit Details</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Unit Title / Exam Name <Text style={styles.required}>*</Text></Text>
-            <TextInput style={styles.textInput} placeholder="e.g. Database Management Systems Main Exam" placeholderTextColor="#94a3b8" value={title} onChangeText={setTitle} />
+            <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Unit Title / Exam Name <Text style={[styles.required, isDark && { color: colors.text }]}>*</Text></Text>
+            <TextInput style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="e.g. Database Management Systems Main Exam" placeholderTextColor="#94a3b8" value={title} onChangeText={setTitle} />
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Unit Code <Text style={styles.required}>*</Text></Text>
-              <TextInput style={styles.textInput} placeholder="e.g. COM 310" placeholderTextColor="#94a3b8" value={unitCode} onChangeText={setUnitCode} autoCapitalize="characters" />
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Unit Code <Text style={[styles.required, isDark && { color: colors.text }]}>*</Text></Text>
+              <TextInput style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="e.g. COM 310" placeholderTextColor="#94a3b8" value={unitCode} onChangeText={setUnitCode} autoCapitalize="characters" />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Department <Text style={styles.required}>*</Text></Text>
-              <TextInput style={styles.textInput} placeholder="e.g. Computer Science" placeholderTextColor="#94a3b8" value={department} onChangeText={setDepartment} />
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Department <Text style={[styles.required, isDark && { color: colors.text }]}>*</Text></Text>
+              <TextInput style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="e.g. Computer Science" placeholderTextColor="#94a3b8" value={department} onChangeText={setDepartment} />
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Academic Level / Year</Text>
-              <TextInput style={styles.textInput} placeholder="e.g. Year 3" placeholderTextColor="#94a3b8" value={academicLevel} onChangeText={setAcademicLevel} />
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Academic Level / Year</Text>
+              <TextInput style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="e.g. Year 3" placeholderTextColor="#94a3b8" value={academicLevel} onChangeText={setAcademicLevel} />
             </View>
           </View>
         </View>
 
         {/* 4. Academic Classification */}
-        <View style={styles.formSection}>
-          <Text style={styles.fieldLabel}>4. Academic Classification</Text>
+        <View style={[styles.formSection, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.fieldLabel, isDark && { color: colors.text }]}>4. Academic Classification</Text>
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Semester</Text>
-              <TextInput style={styles.textInput} placeholder="e.g. Semester 1" placeholderTextColor="#94a3b8" value={semester} onChangeText={setSemester} />
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Semester</Text>
+              <TextInput style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="e.g. Semester 1" placeholderTextColor="#94a3b8" value={semester} onChangeText={setSemester} />
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Exam / Resource Year</Text>
-              <TextInput style={styles.textInput} placeholder="2025" placeholderTextColor="#94a3b8" value={examYear} onChangeText={setExamYear} keyboardType="numeric" />
+              <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Exam / Resource Year</Text>
+              <TextInput style={[styles.textInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="2025" placeholderTextColor="#94a3b8" value={examYear} onChangeText={setExamYear} keyboardType="numeric" />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>School / Faculty</Text>
+            <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>School / Faculty</Text>
             <View style={[styles.searchableInputWrapper, showSchoolPicker && styles.dropdownInputFocused]}>
-              <TextInput style={styles.textInputInWrapper} placeholder="Select or type School / Faculty..." placeholderTextColor="#94a3b8" value={schoolInput} onChangeText={(value) => { setSchoolInput(value); setSchool(value as any); setShowSchoolPicker(true); }} onFocus={() => setShowSchoolPicker(true)} />
+              <TextInput style={[styles.textInputInWrapper, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="Select or type School / Faculty..." placeholderTextColor="#94a3b8" value={schoolInput} onChangeText={(value) => { setSchoolInput(value); setSchool(value as any); setShowSchoolPicker(true); }} onFocus={() => setShowSchoolPicker(true)} />
               <TouchableOpacity style={styles.dropdownChevronBtn} onPress={() => setShowSchoolPicker(!showSchoolPicker)} activeOpacity={0.7}>
                 <Text style={{ color: showSchoolPicker ? '#15803d' : '#64748b', fontSize: 12, fontWeight: '700' }}>{showSchoolPicker ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -492,7 +494,7 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
                       </TouchableOpacity>
                     );
                   }) : (
-                    <View style={styles.dropdownItemEmpty}><Text style={styles.dropdownItemEmptyText}>No matching school. Your custom entry will be saved.</Text></View>
+                    <View style={styles.dropdownItemEmpty}><Text style={[styles.dropdownItemEmptyText, isDark && { color: colors.text }]}>No matching school. Your custom entry will be saved.</Text></View>
                   )}
                 </ScrollView>
               </View>
@@ -500,35 +502,35 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Description / Overview <Text style={styles.optional}>(Optional)</Text></Text>
-            <TextInput style={[styles.textInput, styles.textArea]} placeholder="Add a short overview, topics covered, or useful instructions for students..." placeholderTextColor="#94a3b8" value={description} onChangeText={setDescription} multiline numberOfLines={4} textAlignVertical="top" />
+            <Text style={[styles.inputLabel, isDark && { color: colors.text }]}>Description / Overview <Text style={[styles.optional, isDark && { color: colors.text }]}>(Optional)</Text></Text>
+            <TextInput style={[styles.textInput, styles.textArea, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]} placeholder="Add a short overview, topics covered, or useful instructions for students..." placeholderTextColor="#94a3b8" value={description} onChangeText={setDescription} multiline numberOfLines={4} textAlignVertical="top" />
           </View>
         </View>
 
         {agentMode && (
-          <View style={styles.formSection}>
-            <Text style={styles.fieldLabel}>Optional AI Assets</Text>
-            <Text style={styles.agentHint}>Add a polished cover and reading text for local TTS. Both files are sent with this submission for administrator review.</Text>
+          <View style={[styles.formSection, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.fieldLabel, isDark && { color: colors.text }]}>Optional AI Assets</Text>
+            <Text style={[styles.agentHint, isDark && { color: colors.text }]}>Add a polished cover and reading text for local TTS. Both files are sent with this submission for administrator review.</Text>
             <TouchableOpacity style={styles.optionalFileRow} onPress={() => handlePickOptionalFile('thumbnail')} activeOpacity={0.8}>
               <View style={styles.optionalFileIcon}><UploadIcon color="#15803d" size={18} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.optionalFileTitle}>Custom Cover Thumbnail <Text style={styles.optional}>(Optional)</Text></Text>
-                <Text style={styles.optionalFileMeta} numberOfLines={1}>{customThumbnail?.name || 'Choose an image file'}</Text>
+                <Text style={[styles.optionalFileTitle, isDark && { color: colors.text }]}>Custom Cover Thumbnail <Text style={[styles.optional, isDark && { color: colors.text }]}>(Optional)</Text></Text>
+                <Text style={[styles.optionalFileMeta, isDark && { color: colors.text }]} numberOfLines={1}>{customThumbnail?.name || 'Choose an image file'}</Text>
               </View>
-              {customThumbnail ? <Text style={styles.clearOptional} onPress={() => setCustomThumbnail(null)}>Remove</Text> : <Text style={styles.chooseOptional}>Choose</Text>}
+              {customThumbnail ? <Text style={[styles.clearOptional, isDark && { color: colors.text }]} onPress={() => setCustomThumbnail(null)}>Remove</Text> : <Text style={[styles.chooseOptional, isDark && { color: colors.text }]}>Choose</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.optionalFileRow} onPress={() => handlePickOptionalFile('tts')} activeOpacity={0.8}>
               <View style={styles.optionalFileIcon}><FileTextIcon color="#15803d" size={18} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.optionalFileTitle}>Lecture Reading Text File <Text style={styles.optional}>(Optional)</Text></Text>
-                <Text style={styles.optionalFileMeta} numberOfLines={1}>{ttsFile?.name || 'Choose a .txt file for local TTS'}</Text>
+                <Text style={[styles.optionalFileTitle, isDark && { color: colors.text }]}>Lecture Reading Text File <Text style={[styles.optional, isDark && { color: colors.text }]}>(Optional)</Text></Text>
+                <Text style={[styles.optionalFileMeta, isDark && { color: colors.text }]} numberOfLines={1}>{ttsFile?.name || 'Choose a .txt file for local TTS'}</Text>
               </View>
-              {ttsFile ? <Text style={styles.clearOptional} onPress={() => setTtsFile(null)}>Remove</Text> : <Text style={styles.chooseOptional}>Choose</Text>}
+              {ttsFile ? <Text style={[styles.clearOptional, isDark && { color: colors.text }]} onPress={() => setTtsFile(null)}>Remove</Text> : <Text style={[styles.chooseOptional, isDark && { color: colors.text }]}>Choose</Text>}
             </TouchableOpacity>
           </View>
         )}
 
-        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+        {formError ? <Text style={[styles.formError, isDark && { color: colors.text }]}>{formError}</Text> : null}
 
         {/* Submit Button */}
         <TouchableOpacity
@@ -542,7 +544,7 @@ export default function ContributeScreen({ agentMode = false }: { agentMode?: bo
           ) : (
             <>
               <UploadIcon color="#ffffff" size={20} style={{ marginRight: 8 }} />
-              <Text style={styles.submitBtnText}>Submit for Approval</Text>
+              <Text style={[styles.submitBtnText, isDark && { color: colors.text }]}>Submit for Approval</Text>
             </>
           )}
         </TouchableOpacity>

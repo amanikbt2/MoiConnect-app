@@ -14,11 +14,13 @@ import { Button } from '../../src/components/Button';
 import { Badge } from '../../src/components/Badge';
 import { Skeleton } from '../../src/components/Skeleton';
 import { formatCompactNumber } from '../../src/utils/formatters';
+import { useTheme } from '../../src/context/ThemeContext';
 
 
 import { DownloadIcon, CheckIcon, StarIcon } from '../../src/components/Icons';
 
 export default function PaperDetailScreen({ route }: any) {
+  const { isDark, colors } = useTheme();
   const id = route?.params?.id;
   const [paper, setPaper] = useState<IPaper | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function PaperDetailScreen({ route }: any) {
 
   if (loading) {
     return (
-      <View style={{ padding: 24 }}>
+      <View style={{ flex: 1, padding: 24, backgroundColor: isDark ? colors.background : '#ffffff' }}>
         <Skeleton height={30} width="80%" />
         <Skeleton height={20} width="50%" />
         <Skeleton height={150} />
@@ -119,64 +121,64 @@ export default function PaperDetailScreen({ route }: any) {
 
   if (!paper) {
     return (
-      <View style={{ padding: 24, alignItems: 'center' }}>
-        <Text style={{ fontSize: 16, color: '#64748b' }}>Paper resource not found.</Text>
+      <View style={{ flex: 1, padding: 24, alignItems: 'center', backgroundColor: isDark ? colors.background : '#ffffff' }}>
+        <Text style={{ fontSize: 16, color: isDark ? colors.mutedText : '#64748b' }}>Paper resource not found.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={{ backgroundColor: isDark ? colors.background : '#ffffff' }} contentContainerStyle={[styles.container, isDark && { backgroundColor: colors.background }]}>
       <View style={styles.badgeRow}>
         <Badge label={paper.type.replace('_', ' ')} variant="success" />
         <Badge label={paper.unitCode} variant="info" />
         <Badge label={paper.status} variant="warning" />
       </View>
 
-      <Text style={styles.title}>{paper.title}</Text>
-      <Text style={styles.unitName}>{paper.unitName}</Text>
+      <Text style={[styles.title, isDark && { color: colors.text }]}>{paper.title}</Text>
+      <Text style={[styles.unitName, isDark && { color: colors.mutedText }]}>{paper.unitName}</Text>
 
-      <View style={styles.infoCard}>
+      <View style={[styles.infoCard, isDark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>School:</Text>
-          <Text style={styles.infoVal}>{paper.school}</Text>
+          <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.school}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Department:</Text>
-          <Text style={styles.infoVal}>{paper.department}</Text>
+          <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.department}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Course Code:</Text>
-          <Text style={styles.infoVal}>{paper.courseCode}</Text>
+          <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.courseCode}</Text>
         </View>
         {paper.academicYear && (
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Academic Year:</Text>
-            <Text style={styles.infoVal}>{paper.academicYear}</Text>
+            <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.academicYear}</Text>
           </View>
         )}
         {paper.semester && (
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Semester:</Text>
-            <Text style={styles.infoVal}>{paper.semester}</Text>
+            <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.semester}</Text>
           </View>
         )}
         {paper.examYear && (
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Exam Year:</Text>
-            <Text style={styles.infoVal}>{paper.examYear}</Text>
+            <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{paper.examYear}</Text>
           </View>
         )}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Downloads:</Text>
-          <Text style={styles.infoVal}>{formatCompactNumber(paper.downloads || (paper as any).downloadCount)}</Text>
+          <Text style={[styles.infoVal, isDark && { color: colors.text }]}>{formatCompactNumber(paper.downloads || (paper as any).downloadCount)}</Text>
         </View>
       </View>
 
       {paper.description && (
         <View style={{ marginBottom: 20 }}>
-          <Text style={styles.sectionHeader}>Description</Text>
-          <Text style={styles.description}>{paper.description}</Text>
+          <Text style={[styles.sectionHeader, isDark && { color: colors.text }]}>Description</Text>
+          <Text style={[styles.description, isDark && { color: colors.mutedText }]}>{paper.description}</Text>
         </View>
       )}
 

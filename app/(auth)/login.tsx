@@ -2,12 +2,14 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useAppNavigation } from '../../src/utils/navigation';
 import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { AppleIcon, ArrowLeftIcon } from '../../src/components/Icons';
 import { GoogleAuthButton } from '../../src/components/GoogleAuthButton';
 
 export default function LoginScreen() {
+  const { isDark, colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={isDark ? { backgroundColor: colors.background } : undefined} contentContainerStyle={[styles.container, isDark && { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
       <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
         <ArrowLeftIcon size={20} color="#0f172a" />
       </TouchableOpacity>
@@ -65,8 +67,8 @@ export default function LoginScreen() {
         <View style={styles.logoBadge}>
           <Text style={styles.logoText}>M</Text>
         </View>
-        <Text style={styles.title}>MConnect Students</Text>
-        <Text style={styles.subtitle}>Academic Resources & Student Rental Marketplace</Text>
+        <Text style={[styles.title, isDark && { color: colors.text }]}>MConnect Students</Text>
+        <Text style={[styles.subtitle, isDark && { color: colors.mutedText }]}>Academic Resources & Student Rental Marketplace</Text>
       </View>
 
       {error && (
@@ -101,7 +103,7 @@ export default function LoginScreen() {
       {/* Divider */}
       <View style={styles.dividerContainer}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or continue with email</Text>
+        <Text style={[styles.dividerText, isDark && { color: colors.mutedText }]}>or continue with email</Text>
         <View style={styles.dividerLine} />
       </View>
 
