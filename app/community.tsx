@@ -142,6 +142,7 @@ export interface CommunityMessage {
   isSystemNotice?: boolean;
   isLiveNotice?: boolean;
   liveHostName?: string;
+  liveHostId?: string;
   eventType?: 'user_connected' | 'user_disconnected' | 'security' | string;
   fileAttachment?: FileAttachment;
   mentions?: string[];
@@ -731,6 +732,7 @@ export default function CommunityScreen() {
   const livePulseAnim = useRef(new Animated.Value(0)).current;
   const [liveBroadcast, setLiveBroadcast] = useState<{ hostName: string; hostId?: string; liveSessionId?: string } | null>(null);
   const liveBroadcastKey = liveBroadcast ? `${liveBroadcast.hostId || ''}:${liveBroadcast.hostName}` : null;
+  const isCurrentUserLiveHost = Boolean(user?._id && liveBroadcast?.hostId && String(user._id) === String(liveBroadcast.hostId));
   const [dismissedLiveBannerKey, setDismissedLiveBannerKey] = useState<string | null>(null);
   const [isForumLoading, setIsForumLoading] = useState(true);
   const [forumHeaderHeight, setForumHeaderHeight] = useState(0);
@@ -1011,7 +1013,7 @@ export default function CommunityScreen() {
     }
   }, [typingUsers.length, deletingUsers.length, botTyping]);
 
-  const handleGoLivePress = async (forceViewer = false) => {
+  const handleGoLivePress = async (mode: 'auto' | 'host' | 'viewer' = 'auto') => {
     if (!user) {
       showIceMessage('Sign in required', 'Please sign in before requesting access to Go Live.');
       return;
@@ -1021,7 +1023,7 @@ export default function CommunityScreen() {
     setLiveEnded(false);
     setLiveLoading(true);
     try {
-      const isHost = !forceViewer && (!liveBroadcast || Boolean(liveBroadcast.hostId && user?._id && String(liveBroadcast.hostId) === String(user._id)));
+      const isHost = mode === 'host' || (mode === 'auto' && (!liveBroadcast || Boolean(liveBroadcast.hostId && user?._id && String(liveBroadcast.hostId) === String(user._id))));
       const response = await apiRequest<{ url: string; token: string; isConfigured?: boolean }>(
         `/community/live/token?role=${isHost ? 'host' : 'viewer'}`
       );
@@ -1048,7 +1050,7 @@ export default function CommunityScreen() {
     if (route.params?.openLive !== '1' || !isForumFocused || authLoading) return;
     const timer = setTimeout(() => {
       navigation.setParams({ openLive: undefined });
-      void handleGoLivePress();
+      void handleGoLivePress('host');
     }, 400);
     return () => clearTimeout(timer);
   }, [route.params?.openLive, isForumFocused, authLoading, user?._id]);
@@ -1071,7 +1073,7 @@ export default function CommunityScreen() {
         return;
       }
       setLiveBroadcast({ hostName: status.hostName || 'A student', hostId: status.hostId, liveSessionId: status.liveSessionId });
-      void handleGoLivePress(true);
+      void handleGoLivePress('viewer');
     };
     timeout = setTimeout(() => {
       if (finished) return;
@@ -1564,7 +1566,8 @@ export default function CommunityScreen() {
             isoDate: now.toISOString(),
             isMe: false,
             isSystemNotice: true,
-            eventType: 'live_start'
+            eventType: 'live_start',
+            liveHostId: broadcast?.hostId
           };
 
           setMessages((prev) => {
@@ -3515,10 +3518,10 @@ export default function CommunityScreen() {
 
           <TouchableOpacity
             style={[styles.goLiveHeaderBtn, liveBroadcast && styles.goLiveHeaderBtnActive]}
-            onPress={handleGoLivePress}
+            onPress={() => handleGoLivePress(liveBroadcast ? (isCurrentUserLiveHost ? 'host' : 'viewer') : 'host')}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={liveLoading ? 'Connecting to live' : liveBroadcast ? `Join live with ${liveBroadcast.hostName}` : 'Start a live broadcast'}
+            accessibilityLabel={liveLoading ? 'Connecting to live' : liveBroadcast ? (isCurrentUserLiveHost ? 'Resume your live broadcast' : `Join live with ${liveBroadcast.hostName}`) : 'Start a live broadcast'}
             disabled={liveLoading || Boolean(liveSession)}
           >
             {liveBroadcast && (
@@ -3649,7 +3652,7 @@ export default function CommunityScreen() {
                         </View>
                         <Text style={styles.liveNoticeSubtitle}>Join the live campus chat</Text>
                       </View>
-                      <TouchableOpacity style={styles.liveNoticeJoin} onPress={handleGoLivePress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`Join live with ${item.liveHostName || item.senderName}`}>
+                      <TouchableOpacity style={styles.liveNoticeJoin} onPress={() => handleGoLivePress('viewer')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={`Join live with ${item.liveHostName || item.senderName}`}>
                         <Text style={styles.liveNoticeJoinText}>Join</Text>
                       </TouchableOpacity>
                     </View>
@@ -3665,7 +3668,7 @@ export default function CommunityScreen() {
                   <View style={styles.systemNoticeContainer}>
                     <TouchableOpacity
                       activeOpacity={isLiveStart && !liveSession ? 0.75 : 1}
-                      onPress={isLiveStart && !liveSession ? handleGoLivePress : undefined}
+                      onPress={isLiveStart && !liveSession ? () => handleGoLivePress(item.liveHostId && user?._id && String(item.liveHostId) === String(user._id) ? 'host' : 'viewer') : undefined}
                       style={[
                         styles.systemNoticePill,
                         isLiveStart && styles.systemNoticeLiveStartPill,
@@ -4431,7 +4434,7 @@ export default function CommunityScreen() {
                   <View style={styles.liveJoinBannerActions}>
                     <TouchableOpacity
                       style={styles.liveJoinBannerAction}
-                      onPress={handleGoLivePress}
+                      onPress={() => handleGoLivePress(isMyBroadcast ? 'host' : 'viewer')}
                       activeOpacity={0.8}
                       accessibilityRole="button"
                       accessibilityLabel={isMyBroadcast ? 'Resume your live broadcast' : `Join live with ${liveBroadcast.hostName}`}
