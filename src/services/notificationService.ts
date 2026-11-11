@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 import { apiRequest } from './api';
 import { showIceMessage } from '../components/IceMessageCard';
+import { getSocket } from './socket';
 
 // Configure foreground push notification presentation handler
 if (Platform.OS !== 'web') {
@@ -28,6 +29,7 @@ export const DOWNLOADS_NOTIFICATION_CHANNEL_ID = 'mconnect_downloads_v2';
 // sound/vibration so existing installs receive a channel with the new settings.
 const LOGIN_NOTIFICATION_CHANNEL_ID = 'mconnect_login_v3';
 const COMMUNITY_MESSAGE_CATEGORY = 'community_message';
+const FORUM_LIVE_CATEGORY = 'forum_live';
 export const DOWNLOAD_NOTIFICATION_CATEGORY = 'media_download_action';
 let registrationEnabled = false;
 let registrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -70,8 +72,15 @@ AppState.addEventListener('change', (state) => {
 });
 
 async function configureNotificationCategories() {
-  if (Platform.OS !== 'android') return;
   try {
+    await Notifications.setNotificationCategoryAsync(FORUM_LIVE_CATEGORY, [
+      {
+        identifier: 'join_live',
+        buttonTitle: '🔴 Join',
+        options: { opensAppToForeground: true }
+      }
+    ]);
+    if (Platform.OS !== 'android') return;
     await Notifications.setNotificationCategoryAsync(COMMUNITY_MESSAGE_CATEGORY, [
       {
         identifier: 'open_forum',
@@ -434,7 +443,9 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
     .then((response) => {
       if (response?.notification) {
         const data = response.notification.request.content.data;
-        if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
+        if (data?.notificationType === 'forum_live' && typeof data.liveSessionId === 'string') {
+          onNavigate(`/community?joinLiveId=${encodeURIComponent(data.liveSessionId)}`);
+        } else if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
           void handleCommunityNotificationAction(response);
           onNavigate('/(tabs)/messages');
         } else if (data && data.screen === 'chat' && data.conversationId) {
@@ -456,7 +467,9 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
       }
       return;
     }
-    if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
+    if (data?.notificationType === 'forum_live' && typeof data.liveSessionId === 'string') {
+      onNavigate(`/community?joinLiveId=${encodeURIComponent(data.liveSessionId)}`);
+    } else if (data && (data.screen === 'community' || data.channelId === 'community_chat')) {
       void handleCommunityNotificationAction(response);
       onNavigate('/(tabs)/messages');
     } else if (data && data.screen === 'chat' && data.conversationId) {
@@ -467,6 +480,73 @@ export function setupNotificationResponseListener(onNavigate: (screenPath: strin
   return () => {
     subscription.remove();
   };
+}
+
+export function setupForumLiveNotificationCleanup(): () => void {
+  if (Platform.OS === 'web') return () => {};
+
+  let socket: Awaited<ReturnType<typeof getSocket>> | null = null;
+  let disposed = false;
+  const dismissMatching = async (shouldDismiss: (sessionId: string) => boolean) => {
+    try {
+      const presented = await Notifications.getPresentedNotificationsAsync();
+      const stale = presented.filter((notification) => {
+        const data = notification.request.content.data as any;
+        return data?.notificationType === 'forum_live' && shouldDismiss(String(data.liveSessionId || ''));
+      });
+      await Promise.all(stale.map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier).catch(() => {})));
+    } catch (error) {
+      console.warn('[Notifications]: Could not clear stale forum live alerts:', error);
+    }
+  };
+  const requestStatus = () => {
+    if (socket?.connected) socket.emit('community:request_live_notification_status');
+  };
+  const handleEnd = (data?: { liveSessionId?: string }) => {
+    const endedId = String(data?.liveSessionId || '');
+    void dismissMatching((id) => !endedId || id === endedId);
+  };
+  const handleStatus = (status?: { active?: boolean; liveSessionId?: string }) => {
+    const activeId = status?.active ? String(status.liveSessionId || '') : '';
+    void dismissMatching((id) => !activeId || id !== activeId);
+  };
+  const received = Notifications.addNotificationReceivedListener((notification) => {
+    if ((notification.request.content.data as any)?.notificationType === 'forum_live') requestStatus();
+  });
+  const appState = AppState.addEventListener('change', (state) => {
+    if (state === 'active') requestStatus();
+  });
+  void getSocket().then((connectedSocket) => {
+    socket = connectedSocket;
+    if (disposed) return;
+    socket.on('community:live_notification_end', handleEnd);
+    socket.on('community:live_notification_status', handleStatus);
+    (socket as any).io?.on('open', requestStatus);
+    requestStatus();
+  }).catch((error) => console.warn('[Notifications]: Could not monitor forum live status:', error));
+
+  return () => {
+    disposed = true;
+    received.remove();
+    appState.remove();
+    socket?.off('community:live_notification_end', handleEnd);
+    socket?.off('community:live_notification_status', handleStatus);
+    (socket as any)?.io?.off('open', requestStatus);
+  };
+}
+
+export async function dismissForumLiveNotificationForSession(liveSessionId: string): Promise<void> {
+  if (Platform.OS === 'web' || !liveSessionId) return;
+  try {
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    const matching = presented.filter((notification) => {
+      const data = notification.request.content.data as any;
+      return data?.notificationType === 'forum_live' && String(data.liveSessionId || '') === liveSessionId;
+    });
+    await Promise.all(matching.map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier).catch(() => {})));
+  } catch (error) {
+    console.warn('[Notifications]: Could not clear joined forum live alert:', error);
+  }
 }
 
 async function handleCommunityNotificationAction(response: Notifications.NotificationResponse) {
