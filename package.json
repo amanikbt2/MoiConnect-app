@@ -11,6 +11,7 @@
     "ios": "npm run generate:stickers && expo run:ios",
     "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js && node scripts/patch-rich-chat-input.js && node scripts/generate-pdfjs-assets.js",
     "web": "npm run generate:pdfjs && expo start --web --offline --port 8082",
+    "web:sandbox": "npm run web",
     "eas": "eas"
   },
   "dependencies": {

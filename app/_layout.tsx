@@ -12,7 +12,7 @@ import { GlobalBottomBar } from '../src/components/GlobalBottomBar';
 import { IceMessageHost } from '../src/components/IceMessageCard';
 import { InAppPopupModal } from '../src/components/InAppPopupModal';
 import { checkAppPopups } from '../src/services/popupService';
-import { setupNotificationResponseListener } from '../src/services/notificationService';
+import { setupForumLiveNotificationCleanup, setupNotificationResponseListener } from '../src/services/notificationService';
 import { useAuth } from '../src/context/AuthContext';
 import { UniversityProvider } from '../src/context/UniversityContext';
 import { UniversitySetupModal } from '../src/components/UniversitySetupModal';
@@ -34,6 +34,7 @@ function AppRuntimeServices() {
   const [activePopup, setActivePopup] = useState<any>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const popupCheckInFlight = useRef(false);
+  useEffect(() => setupForumLiveNotificationCleanup(), []);
   const loadPopup = async () => {
     if (popupCheckInFlight.current) return;
     popupCheckInFlight.current = true;

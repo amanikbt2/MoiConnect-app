@@ -4,6 +4,9 @@ import Constants from 'expo-constants';
 const PRODUCTION_BACKEND_URL = 'https://mconnect.keysire.com';
 const LOCAL_BACKEND_PORT = '5000';
 
+const isLocalWebOrigin = () => Platform.OS === 'web' && typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+
 const getDynamicHost = () => {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
@@ -39,9 +42,11 @@ const getDynamicHost = () => {
 
 export const config = {
   get apiUrl() {
+    if (isLocalWebOrigin()) return `http://localhost:${LOCAL_BACKEND_PORT}/api/v1`;
     return process.env.EXPO_PUBLIC_API_URL || `${getDynamicHost()}/api/v1`;
   },
   get socketUrl() {
+    if (isLocalWebOrigin()) return `http://localhost:${LOCAL_BACKEND_PORT}`;
     if (process.env.EXPO_PUBLIC_SOCKET_URL) {
       return process.env.EXPO_PUBLIC_SOCKET_URL;
     }

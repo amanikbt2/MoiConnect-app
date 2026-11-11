@@ -85,7 +85,7 @@ import {
   getStudentPersonalDetails,
   StudentPersonalDetails
 } from '../src/services/offlineStorage';
-import { setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
+import { dismissForumLiveNotificationForSession, setupNotificationResponseListener, sendWebBrowserNotification } from '../src/services/notificationService';
 import { mediaDownloadManager, ActiveMediaDownload } from '../src/services/mediaDownloadManager';
 import { getAllowCommunityChatSetting, getForumParticipationSetting, getShowDemoMaterialsSetting } from '../src/services/appSettingsService';
 import { LinkifiedText } from '../src/components/LinkifiedText';
@@ -729,7 +729,7 @@ export default function CommunityScreen() {
 
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const livePulseAnim = useRef(new Animated.Value(0)).current;
-  const [liveBroadcast, setLiveBroadcast] = useState<{ hostName: string; hostId?: string } | null>(null);
+  const [liveBroadcast, setLiveBroadcast] = useState<{ hostName: string; hostId?: string; liveSessionId?: string } | null>(null);
   const liveBroadcastKey = liveBroadcast ? `${liveBroadcast.hostId || ''}:${liveBroadcast.hostName}` : null;
   const [dismissedLiveBannerKey, setDismissedLiveBannerKey] = useState<string | null>(null);
   const [isForumLoading, setIsForumLoading] = useState(true);
@@ -1011,7 +1011,7 @@ export default function CommunityScreen() {
     }
   }, [typingUsers.length, deletingUsers.length, botTyping]);
 
-  const handleGoLivePress = async () => {
+  const handleGoLivePress = async (forceViewer = false) => {
     if (!user) {
       showIceMessage('Sign in required', 'Please sign in before requesting access to Go Live.');
       return;
@@ -1021,7 +1021,7 @@ export default function CommunityScreen() {
     setLiveEnded(false);
     setLiveLoading(true);
     try {
-      const isHost = !liveBroadcast || Boolean(liveBroadcast.hostId && user?._id && String(liveBroadcast.hostId) === String(user._id));
+      const isHost = !forceViewer && (!liveBroadcast || Boolean(liveBroadcast.hostId && user?._id && String(liveBroadcast.hostId) === String(user._id)));
       const response = await apiRequest<{ url: string; token: string; isConfigured?: boolean }>(
         `/community/live/token?role=${isHost ? 'host' : 'viewer'}`
       );
@@ -1053,6 +1053,41 @@ export default function CommunityScreen() {
     return () => clearTimeout(timer);
   }, [route.params?.openLive, isForumFocused, authLoading, user?._id]);
 
+  useEffect(() => {
+    const requestedLiveId = typeof route.params?.joinLiveId === 'string' ? route.params.joinLiveId : '';
+    const socket = socketInstanceRef.current;
+    if (!requestedLiveId || !isForumFocused || !socketOnline || !socket?.connected || authLoading) return;
+
+    let finished = false;
+    let timeout: ReturnType<typeof setTimeout>;
+    const finishJoin = (status?: { active?: boolean; liveSessionId?: string; hostName?: string; hostId?: string }) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      socket.off('community:live_status', finishJoin);
+      navigation.setParams({ joinLiveId: undefined });
+      if (!status?.active || String(status.liveSessionId || '') !== requestedLiveId) {
+        showIceMessage('Live has ended', 'This forum live is no longer active.');
+        return;
+      }
+      setLiveBroadcast({ hostName: status.hostName || 'A student', hostId: status.hostId, liveSessionId: status.liveSessionId });
+      void handleGoLivePress(true);
+    };
+    timeout = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      socket.off('community:live_status', finishJoin);
+      showIceMessage('Could not check live', 'Reconnect to the internet and try joining again.');
+    }, 8000);
+
+    socket.on('community:live_status', finishJoin);
+    socket.emit('community:request_live_status');
+    return () => {
+      clearTimeout(timeout);
+      socket.off('community:live_status', finishJoin);
+    };
+  }, [route.params?.joinLiveId, isForumFocused, socketOnline, authLoading]);
+
   const handleLiveRoomReady = () => {
     const socket = socketInstanceRef.current;
     if (!socket?.connected || !liveSession) return;
@@ -1063,6 +1098,9 @@ export default function CommunityScreen() {
         hostId: user?._id
       });
     } else {
+      if (liveBroadcast?.liveSessionId) {
+        void dismissForumLiveNotificationForSession(liveBroadcast.liveSessionId);
+      }
       socket.emit('community:live_join', {
         id: socket.id,
         name: user?.name || 'Moi Student',
@@ -1510,10 +1548,10 @@ export default function CommunityScreen() {
         socket.on('community:forum_access', (status: { allowed?: boolean }) => {
           if (typeof status?.allowed === 'boolean') setForumParticipationAllowed(status.allowed);
         });
-        socket.on('community:live_start', (broadcast: { hostName?: string; hostId?: string }) => {
+        socket.on('community:live_start', (broadcast: { hostName?: string; hostId?: string; liveSessionId?: string }) => {
           const hostName = broadcast?.hostName || 'A student';
           const isMe = user?._id && broadcast?.hostId && String(user._id) === String(broadcast.hostId);
-          setLiveBroadcast({ hostName, hostId: broadcast?.hostId });
+          setLiveBroadcast({ hostName, hostId: broadcast?.hostId, liveSessionId: broadcast?.liveSessionId });
 
           const now = new Date();
           const liveStartMsg: CommunityMessage = {
@@ -1535,9 +1573,9 @@ export default function CommunityScreen() {
             return [...prev, liveStartMsg];
           });
         });
-        socket.on('community:live_status', (status: { active?: boolean; hostName?: string; hostId?: string }) => {
+        socket.on('community:live_status', (status: { active?: boolean; liveSessionId?: string; hostName?: string; hostId?: string }) => {
           setLiveBroadcast(status?.active
-            ? { hostName: status.hostName || 'A student', hostId: status.hostId }
+            ? { hostName: status.hostName || 'A student', hostId: status.hostId, liveSessionId: status.liveSessionId }
             : null);
         });
         socket.on('community:live_end', (data?: { hostName?: string }) => {
@@ -4790,12 +4828,12 @@ export default function CommunityScreen() {
               <TextInput
                 value={privateMessageText}
                 onChangeText={setPrivateMessageText}
-                placeholder={privateRecipient ? `Write to ${privateRecipient.name}…` : 'Choose a recipient first'}
+                placeholder={privateRecipient ? `Write to ${privateRecipient.name}…` : 'Write your message; choose a recipient to send'}
                 placeholderTextColor="#94a3b8"
-                style={[styles.privateMessageInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }, !privateRecipient && styles.privateMessageInputDisabled]}
+                style={[styles.privateMessageInput, isDark && { backgroundColor: colors.input, borderColor: colors.border, color: colors.text }]}
                 multiline
                 maxLength={2000}
-                editable={!!privateRecipient && !privateMessageSending}
+                editable={!privateMessageSending}
                 textAlignVertical="top"
               />
               <View style={styles.privateMessageFooter}>
@@ -6756,7 +6794,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19
   },
-  privateMessageInputDisabled: { backgroundColor: '#f8fafc' },
   privateMessageFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
   privateCharacterCount: { color: '#94a3b8', fontSize: 10, fontWeight: '600' },
   privateSendButton: { minHeight: 40, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#15803d', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
