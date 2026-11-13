@@ -29,6 +29,7 @@ import { parseSmartSearchQuery } from '../../src/utils/smartSearchParser';
 import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocomplete';
 import { useSearchFocus } from '../../src/hooks/useSearchFocus';
 import Constants from 'expo-constants';
+import { APP_VERSION } from '../../src/config/appVersion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showIceMessage } from '../../src/components/IceMessageCard';
 
@@ -702,7 +703,7 @@ export default function HomeScreen() {
           <Text style={styles.footerLink}>Support</Text>
         </TouchableOpacity>
         <Text style={styles.footerDivider}>·</Text>
-        <Text style={styles.footerVersion}>MConnect v3.0.0</Text>
+        <Text style={styles.footerVersion}>{APP_VERSION ? `MConnect v${APP_VERSION}` : 'MConnect'}</Text>
       </View>
 
       {/* Built-in Portal Viewer Modal with Header & Back Button */}

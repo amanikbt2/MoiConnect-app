@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { apiRequest } from './api';
 import { IUser } from '@moi/shared';
+import { APP_VERSION } from '../config/appVersion';
 
 const DISMISSED_POPUPS_KEY = 'moi_dismissed_popup_ids';
 
@@ -84,7 +85,7 @@ export interface ClientPopupResponse {
 }
 
 export const checkAppPopups = async (
-  currentVersion: string = '1.0.6',
+  currentVersion: string | null = APP_VERSION,
   user?: IUser | null,
   studentCourse?: string
 ): Promise<ClientPopupResponse> => {

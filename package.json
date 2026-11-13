@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "main": "index.js",
   "scripts": {
     "start": "npm run generate:stickers && npm run generate:pdfjs && expo start --offline",

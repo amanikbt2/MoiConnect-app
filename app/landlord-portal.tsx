@@ -21,6 +21,7 @@ import { useAppNavigation } from '../src/utils/navigation';
 import { useAuth } from '../src/context/AuthContext';
 import { useTheme } from '../src/context/ThemeContext';
 import { apiRequest } from '../src/services/api';
+import { APP_VERSION } from '../src/config/appVersion';
 import { IHouse, MOI_LOCATIONS, PROPERTY_TYPES } from '@moi/shared';
 import {
   ShieldCheckIcon,
@@ -133,7 +134,7 @@ export default function LandlordPortalScreen() {
   const [popExpiryDays, setPopExpiryDays] = useState('7');
 
   // Notify Tab State (Update Popup)
-  const [upMinVersion, setUpMinVersion] = useState('1.0.7');
+  const [upMinVersion, setUpMinVersion] = useState('');
   const [upTitle, setUpTitle] = useState('MConnect v{version} Available!');
   const [upSubtitle, setUpSubtitle] = useState('Upgrade now for faster PDF downloads and new features.');
   const [upImage, setUpImage] = useState('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80');
@@ -1337,14 +1338,15 @@ export default function LandlordPortalScreen() {
                 <View style={styles.notifyFormCard}>
                   <Text style={styles.notifyFormTitle}>Broadcast App Update Popup</Text>
                   <Text style={styles.notifyFormSubtitle}>
-                    Push mandatory or optional version update prompts to users whose app version is outdated.
+                    Only installs below the required version you enter will receive this update popup. The current app version is {APP_VERSION}.
                   </Text>
 
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Minimum Required App Version <Text style={styles.required}>*</Text></Text>
+                     <Text style={styles.notifyFormSubtitle}>Use x.y.z format. Only installed versions below the required version receive this popup.</Text>
                     <TextInput
                       style={styles.textInput}
-                      placeholder="e.g. 1.0.7"
+                      placeholder="e.g. 3.0.2"
                       placeholderTextColor="#94a3b8"
                       value={upMinVersion}
                       onChangeText={setUpMinVersion}

@@ -17,6 +17,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { UniversityProvider } from '../src/context/UniversityContext';
 import { UniversitySetupModal } from '../src/components/UniversitySetupModal';
 import { syncCommunityUnreadBackground } from '../src/services/offlineStorage';
+import { APP_VERSION } from '../src/config/appVersion';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { initSocket } from '../src/services/socket';
@@ -39,7 +40,7 @@ function AppRuntimeServices() {
     if (popupCheckInFlight.current) return;
     popupCheckInFlight.current = true;
     try {
-      const result = await checkAppPopups('1.1.5', user);
+      const result = await checkAppPopups(APP_VERSION, user);
       if (result.hasPopup && result.popup) {
         setActivePopup(result.popup);
         setPopupVisible(true);

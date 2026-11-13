@@ -42,6 +42,7 @@ import { SmartSearchAutocomplete } from '../../src/components/SmartSearchAutocom
 import { useSearchFocus } from '../../src/hooks/useSearchFocus';
 import { HighlightText } from '../../src/components/HighlightText';
 import Constants from 'expo-constants';
+import { APP_VERSION } from '../../src/config/appVersion';
 
 import {
   DownloadIcon,
@@ -1623,7 +1624,7 @@ export default function AcademicsScreen({ route }: any) {
               <Text style={styles.footerLink}>Support</Text>
             </TouchableOpacity>
             <Text style={styles.footerDivider}>·</Text>
-            <Text style={styles.footerVersion}>MConnect v3.0.0</Text>
+            <Text style={styles.footerVersion}>{APP_VERSION ? `MConnect v${APP_VERSION}` : 'MConnect'}</Text>
           </View>
 
           <View style={{ height: 40 }} />

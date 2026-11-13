@@ -2,7 +2,7 @@
   "expo": {
     "name": "MConnect",
     "slug": "moiconnect",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "orientation": "default",
     "softwareKeyboardLayoutMode": "resize",
     "icon": "./assets/icon.png",
@@ -97,6 +97,7 @@
     "scheme": "moiconnect",
     "owner": "sliver2",
     "extra": {
+      "AdminCompareVersion": "3.0.1",
       "eas": {
         "projectId": "6bc75097-4c94-43f5-950e-5b576b4fb62a"
       }
