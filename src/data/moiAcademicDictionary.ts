@@ -2,7 +2,7 @@
  * Moi University Master Academic Dictionary & Corpus (100% OFFLINE)
  * Statically compiled from the offline corpus: moi_academic_corpus.txt
  * Zero online API dependencies, instant sub-millisecond execution.
- * Total Units: 303
+ * Total Units: 457
  */
 
 export interface AcademicUnitEntry {
@@ -3919,6 +3919,1084 @@ export const MOI_ACADEMIC_UNITS: AcademicUnitEntry[] = [
     "aliases": [
       "THL 320: Studies in the Old Testament 1"
     ]
+  },
+  {
+    "code": "ABT 211",
+    "name": "Soil Chemistry",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ABT 211 Soil Chemistry"]
+  },
+  {
+    "code": "BAS 402",
+    "name": "History of Science",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BAS 402 History of Science"]
+  },
+  {
+    "code": "BIO 411",
+    "name": "DNA Technology",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["BIO 411 DNA Technology"]
+  },
+  {
+    "code": "BIT 111",
+    "name": "Principles of Information Technology",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["BIT 111 Principles of Information Technology"]
+  },
+  {
+    "code": "CMM 311",
+    "name": "Introduction to Communication",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["CMM 311 Introduction to Communication"]
+  },
+  {
+    "code": "CMM 421",
+    "name": "International Communication",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["CMM 421 International Communication"]
+  },
+  {
+    "code": "CMM 416E",
+    "name": "Analogue and Digital Simulation",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["CMM 416E Analogue and Digital Simulation"]
+  },
+  {
+    "code": "ENS 210",
+    "name": "Environment and Development",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ENS 210 Environment and Development"]
+  },
+  {
+    "code": "GEO 212",
+    "name": "Computer Science for Geography",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["GEO 212 Computer Science for Geography"]
+  },
+  {
+    "code": "HRD 200",
+    "name": "State, Society and Development",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["HRD 200 State, Society and Development"]
+  },
+  {
+    "code": "INF 430",
+    "name": "Programming for the Internet and Mobile Devices",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INF 430 Programming for the Internet and Mobile Devices"]
+  },
+  {
+    "code": "INS 217",
+    "name": "Principles of Information Materials",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 217 Principles of Information Materials"]
+  },
+  {
+    "code": "LIN 311",
+    "name": "Suprasegmental Phonology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LIN 311 Suprasegmental Phonology"]
+  },
+  {
+    "code": "LIT 211",
+    "name": "Fundamentals of Literature II",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LIT 211 Fundamentals of Literature II"]
+  },
+  {
+    "code": "PHY 425E",
+    "name": "Physics of Semiconductor Devices",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["PHY 425E Physics of Semiconductor Devices"]
+  },
+  {
+    "code": "PSA 112",
+    "name": "Introduction to Government and Politics in Africa",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSA 112 Introduction to Government and Politics in Africa"]
+  },
+  {
+    "code": "PSA 120",
+    "name": "Introduction to International Relations",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSA 120 Introduction to International Relations"]
+  },
+  {
+    "code": "REL 311",
+    "name": "African Mythology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["REL 311 African Mythology"]
+  },
+  {
+    "code": "STA 113",
+    "name": "Fundamentals of Data Science",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["STA 113 Fundamentals of Data Science"]
+  },
+  {
+    "code": "SZL 111",
+    "name": "Fundamentals of Zoology I",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["SZL 111 Fundamentals of Zoology I"]
+  },
+  {
+    "code": "ACS 212",
+    "name": "Fundamentals of Actuarial Mathematics",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["ACS 212 Fundamentals of Actuarial Mathematics"]
+  },
+  {
+    "code": "ACS 403",
+    "name": "Risk Assessment",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["ACS 403 Risk Assessment"]
+  },
+  {
+    "code": "ANS 213",
+    "name": "Animal Growth and Development",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ANS 213 Animal Growth and Development"]
+  },
+  {
+    "code": "ANS 324",
+    "name": "Computer Applications in Animal Science",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ANS 324 Computer Applications in Animal Science"]
+  },
+  {
+    "code": "ANS 412",
+    "name": "Dairy Technology",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ANS 412 Dairy Technology"]
+  },
+  {
+    "code": "ANT 110",
+    "name": "Introduction to Anthropology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ANT 110 Introduction to Anthropology"]
+  },
+  {
+    "code": "ANT 412",
+    "name": "Gender and Development",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ANT 412 Gender and Development"]
+  },
+  {
+    "code": "BIO 311",
+    "name": "Enzymology",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["BIO 311 Enzymology"]
+  },
+  {
+    "code": "BKS 410",
+    "name": "Semantics and Pragmatics in Kiswahili",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BKS 410 Semantics and Pragmatics in Kiswahili"]
+  },
+  {
+    "code": "CMD 211",
+    "name": "Group Techniques and Analysis",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["CMD 211 Group Techniques and Analysis"]
+  },
+  {
+    "code": "CMJ 312",
+    "name": "Theories of Journalism",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["CMJ 312 Theories of Journalism"]
+  },
+  {
+    "code": "CPR 311",
+    "name": "Theories of Public Relations",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["CPR 311 Theories of Public Relations"]
+  },
+  {
+    "code": "CSA 303",
+    "name": "Remote Sensing and GIS",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["CSA 303 Remote Sensing and GIS"]
+  },
+  {
+    "code": "CSC 114",
+    "name": "Internet Fundamentals",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["CSC 114 Internet Fundamentals"]
+  },
+  {
+    "code": "EHE 410E",
+    "name": "Disaster Preparedness and Response",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["EHE 410E Disaster Preparedness and Response"]
+  },
+  {
+    "code": "ENG 311",
+    "name": "Language and Gender Talk",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ENG 311 Language and Gender Talk"]
+  },
+  {
+    "code": "FMS 211",
+    "name": "Film Directing",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FMS 211 Film Directing"]
+  },
+  {
+    "code": "GEO 311",
+    "name": "Biogeography",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["GEO 311 Biogeography"]
+  },
+  {
+    "code": "GEO 415",
+    "name": "Digital Image Processing",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["GEO 415 Digital Image Processing"]
+  },
+  {
+    "code": "INF 210",
+    "name": "Data Structures and Algorithms II",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INF 210 Data Structures and Algorithms II"]
+  },
+  {
+    "code": "INS 311",
+    "name": "Data Structures and Algorithms",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 311 Data Structures and Algorithms"]
+  },
+  {
+    "code": "LTF 410",
+    "name": "Discourses on African Art",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LTF 410 Discourses on African Art"]
+  },
+  {
+    "code": "MPE 114",
+    "name": "Basic Engineering Mechanics",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["MPE 114 Basic Engineering Mechanics"]
+  },
+  {
+    "code": "PSS 214",
+    "name": "Security Threat Analysis",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSS 214 Security Threat Analysis"]
+  },
+  {
+    "code": "PSS 315",
+    "name": "Law and Society",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSS 315 Law and Society"]
+  },
+  {
+    "code": "PSS 411",
+    "name": "Crime, Media, Gender and Justice",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSS 411 Crime, Media, Gender and Justice"]
+  },
+  {
+    "code": "SAS 202",
+    "name": "Critical Thinking and Decision Making",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["SAS 202 Critical Thinking and Decision Making"]
+  },
+  {
+    "code": "SBE 110",
+    "name": "Critical Thinking and Decision Making",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["SBE 110 Critical Thinking and Decision Making"]
+  },
+  {
+    "code": "SOC 413",
+    "name": "Sociology of Work and Industry",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["SOC 413 Sociology of Work and Industry"]
+  },
+  {
+    "code": "AMT 422",
+    "name": "Thermodynamics",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["AMT 422 Thermodynamics"]
+  },
+  {
+    "code": "ANT 111",
+    "name": "Culture and Society",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ANT 111 Culture and Society"]
+  },
+  {
+    "code": "ANT 213",
+    "name": "Urban Anthropology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ANT 213 Urban Anthropology"]
+  },
+  {
+    "code": "ANT 414",
+    "name": "Population Studies",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ANT 414 Population Studies"]
+  },
+  {
+    "code": "BGS 210",
+    "name": "Rural Geography",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BGS 210 Rural Geography"]
+  },
+  {
+    "code": "BIO 312",
+    "name": "Microbial Biochemistry",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["BIO 312 Microbial Biochemistry"]
+  },
+  {
+    "code": "BIO 412",
+    "name": "Forensic and Clinical Biochemistry",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["BIO 412 Forensic and Clinical Biochemistry"]
+  },
+  {
+    "code": "CHE 414",
+    "name": "Quantum Chemistry",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["CHE 414 Quantum Chemistry"]
+  },
+  {
+    "code": "CMM 211",
+    "name": "Public Speaking",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["CMM 211 Public Speaking"]
+  },
+  {
+    "code": "CMM 411",
+    "name": "Signal Processing",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["CMM 411 Signal Processing"]
+  },
+  {
+    "code": "CSC 315",
+    "name": "Artificial Intelligence",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["CSC 315 Artificial Intelligence"]
+  },
+  {
+    "code": "ERM 410",
+    "name": "Regional Environmental Studies",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["ERM 410 Regional Environmental Studies"]
+  },
+  {
+    "code": "FMS 212",
+    "name": "Television Drama and Film Genres",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FMS 212 Television Drama and Film Genres"]
+  },
+  {
+    "code": "INF 310",
+    "name": "Research Methods in Information Systems",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INF 310 Research Methods in Information Systems"]
+  },
+  {
+    "code": "INS 401",
+    "name": "Management Information Systems",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 401 Management Information Systems"]
+  },
+  {
+    "code": "LIN 316",
+    "name": "Developmental Language Disorders",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LIN 316 Developmental Language Disorders"]
+  },
+  {
+    "code": "SNE 100",
+    "name": "Introduction to Special Needs",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["SNE 100 Introduction to Special Needs"]
+  },
+  {
+    "code": "REL 411",
+    "name": "New Religious Movements",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["REL 411 New Religious Movements"]
+  },
+  {
+    "code": "SCH 311",
+    "name": "Chemical Kinetics",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["SCH 311 Chemical Kinetics"]
+  },
+  {
+    "code": "SMA 211",
+    "name": "Linear Algebra I",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["SMA 211 Linear Algebra I"]
+  },
+  {
+    "code": "ABT 412",
+    "name": "Dryland Agriculture and Irrigation",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ABT 412 Dryland Agriculture and Irrigation"]
+  },
+  {
+    "code": "ABT 315",
+    "name": "Seed Science and Technology",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ABT 315 Seed Science and Technology"]
+  },
+  {
+    "code": "ANS 313",
+    "name": "Beef Cattle Production and Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ANS 313 Beef Cattle Production and Management"]
+  },
+  {
+    "code": "ANS 414",
+    "name": "Feed Manufacturing Technology",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ANS 414 Feed Manufacturing Technology"]
+  },
+  {
+    "code": "ARE 412",
+    "name": "Value Chain Analysis",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ARE 412 Value Chain Analysis"]
+  },
+  {
+    "code": "BBM 211",
+    "name": "Managerial Statistics",
+    "department": "Department not specified in timetable",
+    "school": "School of Business and Economics",
+    "aliases": ["BBM 211 Managerial Statistics"]
+  },
+  {
+    "code": "BGS 110",
+    "name": "History and Philosophy of Geography",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BGS 110 History and Philosophy of Geography"]
+  },
+  {
+    "code": "BGS 310",
+    "name": "Tourism and Travel Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BGS 310 Tourism and Travel Management"]
+  },
+  {
+    "code": "CMM 212",
+    "name": "Inter and Intragroup Communication",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["CMM 212 Inter and Intragroup Communication"]
+  },
+  {
+    "code": "ENS 214",
+    "name": "Environmental Pollution and Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ENS 214 Environmental Pollution and Management"]
+  },
+  {
+    "code": "EPM 411",
+    "name": "Tourism Planning, Management and Conservation",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["EPM 411 Tourism Planning, Management and Conservation"]
+  },
+  {
+    "code": "FMS 412",
+    "name": "Media and Public Relations",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FMS 412 Media and Public Relations"]
+  },
+  {
+    "code": "FRE 110",
+    "name": "The French Verb",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FRE 110 The French Verb"]
+  },
+  {
+    "code": "GER 210",
+    "name": "Intermediate German Language I",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["GER 210 Intermediate German Language I"]
+  },
+  {
+    "code": "GER 413",
+    "name": "German Semantics",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["GER 413 German Semantics"]
+  },
+  {
+    "code": "INS 213",
+    "name": "Principles and Practice of Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 213 Principles and Practice of Management"]
+  },
+  {
+    "code": "KIS 313",
+    "name": "Text Types and Translation",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["KIS 313 Text Types and Translation"]
+  },
+  {
+    "code": "LIT 313",
+    "name": "Caribbean Drama",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LIT 313 Caribbean Drama"]
+  },
+  {
+    "code": "MAT 415",
+    "name": "Differential Geometry",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["MAT 415 Differential Geometry"]
+  },
+  {
+    "code": "MIC 316",
+    "name": "Microbiology of Domestic Water and Sewage",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["MIC 316 Microbiology of Domestic Water and Sewage"]
+  },
+  {
+    "code": "MIC 410",
+    "name": "Microbial Metabolism",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["MIC 410 Microbial Metabolism"]
+  },
+  {
+    "code": "PSA 412",
+    "name": "Research Project",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSA 412 Research Project"]
+  },
+  {
+    "code": "SBT 314",
+    "name": "Applied Microbiology",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["SBT 314 Applied Microbiology"]
+  },
+  {
+    "code": "SCH 211",
+    "name": "Atomic Structure and Bonding",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["SCH 211 Atomic Structure and Bonding"]
+  },
+  {
+    "code": "SOC 211",
+    "name": "Social Psychology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["SOC 211 Social Psychology"]
+  },
+  {
+    "code": "ABT 316",
+    "name": "Post-Harvest Physiology and Technology",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ABT 316 Post-Harvest Physiology and Technology"]
+  },
+  {
+    "code": "ANS 301",
+    "name": "Dairy Cattle Production and Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ANS 301 Dairy Cattle Production and Management"]
+  },
+  {
+    "code": "BAS 401",
+    "name": "Issues in Social Ethics",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BAS 401 Issues in Social Ethics"]
+  },
+  {
+    "code": "BGS 212",
+    "name": "Spatial Organization",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["BGS 212 Spatial Organization"]
+  },
+  {
+    "code": "BIO 211",
+    "name": "General Biochemistry",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["BIO 211 General Biochemistry"]
+  },
+  {
+    "code": "BIO 314",
+    "name": "Analytical Biochemistry",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["BIO 314 Analytical Biochemistry"]
+  },
+  {
+    "code": "BIT 113",
+    "name": "IT Support in Organizations",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["BIT 113 IT Support in Organizations"]
+  },
+  {
+    "code": "CIM 321",
+    "name": "Special Methods in Biology II",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["CIM 321 Special Methods in Biology II"]
+  },
+  {
+    "code": "CMM 413",
+    "name": "Research and Academic Writing in Communication",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["CMM 413 Research and Academic Writing in Communication"]
+  },
+  {
+    "code": "COM 413",
+    "name": "Object-Oriented Programming",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["COM 413 Object-Oriented Programming"]
+  },
+  {
+    "code": "COM 414",
+    "name": "Semiconductor Devices",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["COM 414 Semiconductor Devices"]
+  },
+  {
+    "code": "EDG 314",
+    "name": "English Education II",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["EDG 314 English Education II"]
+  },
+  {
+    "code": "EDG 313",
+    "name": "Geography Education II",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["EDG 313 Geography Education II"]
+  },
+  {
+    "code": "FMS 311",
+    "name": "Cinematography and Camera Techniques",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FMS 311 Cinematography and Camera Techniques"]
+  },
+  {
+    "code": "FMS 310",
+    "name": "Acting for the Screen",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FMS 310 Acting for the Screen"]
+  },
+  {
+    "code": "INF 311",
+    "name": "Data Structures and Algorithms II",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INF 311 Data Structures and Algorithms II"]
+  },
+  {
+    "code": "INF 440",
+    "name": "ICT Security",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INF 440 ICT Security"]
+  },
+  {
+    "code": "INS 411",
+    "name": "Software Engineering",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 411 Software Engineering"]
+  },
+  {
+    "code": "KIS 212",
+    "name": "20th Century Kiswahili Poetry",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["KIS 212 20th Century Kiswahili Poetry"]
+  },
+  {
+    "code": "LIN 110",
+    "name": "Introduction to the Study of Language",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LIN 110 Introduction to the Study of Language"]
+  },
+  {
+    "code": "LIN 411",
+    "name": "Contrastive Linguistics",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LIN 411 Contrastive Linguistics"]
+  },
+  {
+    "code": "MUS 211",
+    "name": "African Music and Dance",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["MUS 211 African Music and Dance"]
+  },
+  {
+    "code": "PSA 122",
+    "name": "Introduction to Conflict Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSA 122 Introduction to Conflict Management"]
+  },
+  {
+    "code": "ABE 311",
+    "name": "Agribusiness Operations and Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ABE 311 Agribusiness Operations and Management"]
+  },
+  {
+    "code": "ACS 112",
+    "name": "Introduction to Financial Statement Analysis",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["ACS 112 Introduction to Financial Statement Analysis"]
+  },
+  {
+    "code": "ACS 410E",
+    "name": "Investment and Asset Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["ACS 410E Investment and Asset Management"]
+  },
+  {
+    "code": "ARE 315",
+    "name": "Agricultural Finance",
+    "department": "Department not specified in timetable",
+    "school": "School of Agriculture and Natural Resources",
+    "aliases": ["ARE 315 Agricultural Finance"]
+  },
+  {
+    "code": "AUT 212",
+    "name": "Engineering Technology and Practice",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["AUT 212 Engineering Technology and Practice"]
+  },
+  {
+    "code": "BBM 207",
+    "name": "Fundamentals of Sales",
+    "department": "Department not specified in timetable",
+    "school": "School of Business and Economics",
+    "aliases": ["BBM 207 Fundamentals of Sales"]
+  },
+  {
+    "code": "BCT 212",
+    "name": "Construction Materials",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["BCT 212 Construction Materials"]
+  },
+  {
+    "code": "BIT 112",
+    "name": "Computer Applications",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["BIT 112 Computer Applications"]
+  },
+  {
+    "code": "BPM 112",
+    "name": "Project Tools and Techniques",
+    "department": "Department not specified in timetable",
+    "school": "School of Business and Economics",
+    "aliases": ["BPM 112 Project Tools and Techniques"]
+  },
+  {
+    "code": "CIM 411",
+    "name": "Communication Theories",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["CIM 411 Communication Theories"]
+  },
+  {
+    "code": "CPE 111",
+    "name": "Introduction to Material Science",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["CPE 111 Introduction to Material Science"]
+  },
+  {
+    "code": "CPR 421",
+    "name": "Public Relations in Diplomatic Context",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["CPR 421 Public Relations in Diplomatic Context"]
+  },
+  {
+    "code": "CSC 314",
+    "name": "Modelling and Simulation",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["CSC 314 Modelling and Simulation"]
+  },
+  {
+    "code": "EDH 312",
+    "name": "History Education II",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["EDH 312 History Education II"]
+  },
+  {
+    "code": "EET 212",
+    "name": "Electrical Measurement",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["EET 212 Electrical Measurement"]
+  },
+  {
+    "code": "EGC 301",
+    "name": "Behaviour Disorders",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["EGC 301 Behaviour Disorders"]
+  },
+  {
+    "code": "ENG 211",
+    "name": "English Morphology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["ENG 211 English Morphology"]
+  },
+  {
+    "code": "FRE 112",
+    "name": "Skills in Oral Expression",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["FRE 112 Skills in Oral Expression"]
+  },
+  {
+    "code": "GER 112",
+    "name": "Selected Readings in German",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["GER 112 Selected Readings in German"]
+  },
+  {
+    "code": "GER 312",
+    "name": "German Syntax",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["GER 312 German Syntax"]
+  },
+  {
+    "code": "INF 240",
+    "name": "Database Systems I",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INF 240 Database Systems I"]
+  },
+  {
+    "code": "INS 113",
+    "name": "Introduction to Archives Management",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 113 Introduction to Archives Management"]
+  },
+  {
+    "code": "INS 212",
+    "name": "Introduction to Information Literacy",
+    "department": "Department not specified in timetable",
+    "school": "School of Information Sciences",
+    "aliases": ["INS 212 Introduction to Information Literacy"]
+  },
+  {
+    "code": "LTF 311",
+    "name": "Art and Psychology",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["LTF 311 Art and Psychology"]
+  },
+  {
+    "code": "PEH 200",
+    "name": "Biostatistics",
+    "department": "Department not specified in timetable",
+    "school": "School of Public Health",
+    "aliases": ["PEH 200 Biostatistics"]
+  },
+  {
+    "code": "PHL 314",
+    "name": "Systematic Ethics",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PHL 314 Systematic Ethics"]
+  },
+  {
+    "code": "PHY 411",
+    "name": "Thermodynamics",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["PHY 411 Thermodynamics"]
+  },
+  {
+    "code": "PSA 411",
+    "name": "Public Personnel Administration",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["PSA 411 Public Personnel Administration"]
+  },
+  {
+    "code": "SAS 104",
+    "name": "Social Science Perspective on HIV and AIDS",
+    "department": "Department not specified in timetable",
+    "school": "School of Arts and Social Sciences",
+    "aliases": ["SAS 104 Social Science Perspective on HIV and AIDS"]
+  },
+  {
+    "code": "SBL 214",
+    "name": "General Microbiology",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["SBL 214 General Microbiology"]
+  },
+  {
+    "code": "SNE 301E",
+    "name": "Curriculum for Visual Impairments",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["SNE 301E Curriculum for Visual Impairments"]
+  },
+  {
+    "code": "SNE 302E",
+    "name": "Curriculum for Hearing Impairments",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["SNE 302E Curriculum for Hearing Impairments"]
+  },
+  {
+    "code": "SNE 303E",
+    "name": "Curriculum for EBD",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["SNE 303E Curriculum for EBD"]
+  },
+  {
+    "code": "SNE 304E",
+    "name": "Assessment and Placement of Learners with Physical Impairments",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["SNE 304E Assessment and Placement of Learners with Physical Impairments"]
+  },
+  {
+    "code": "SPH 112",
+    "name": "Basic Physics I",
+    "department": "Department not specified in timetable",
+    "school": "School of Public Health",
+    "aliases": ["SPH 112 Basic Physics I"]
+  },
+  {
+    "code": "TEC 201",
+    "name": "Computer Programming",
+    "department": "Department not specified in timetable",
+    "school": "School of Education",
+    "aliases": ["TEC 201 Computer Programming"]
+  },
+  {
+    "code": "ZOO 425",
+    "name": "Advanced Genetics",
+    "department": "Department not specified in timetable",
+    "school": "School of Science and Aerospace Studies",
+    "aliases": ["ZOO 425 Advanced Genetics"]
   }
 ];
 

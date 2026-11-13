@@ -41,7 +41,7 @@ MATERIAL_TYPE | notes | Revision Notes | notes, revision notes, lecture notes, p
 MATERIAL_TYPE | cat | CAT / Quiz | cat, cats, cat paper, quiz, continuous assessment, cat 1, cat 2, midterm, mid-term
 MATERIAL_TYPE | solution | Exam Solution | solution, answers, marking scheme, worked solutions, solved paper
 
-### SECTION 6: COURSE UNITS (303 Total Units) ###
+### SECTION 6: COURSE UNITS (457 Total Units) ###
 UNIT | ANT 311 | Political and Legal Anthropology | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 311 Political Legal Anthropology Exam
 UNIT | ANT 312 | Economic Anthropology | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 312 Economic Anthropology Exam
 UNIT | ANT 313 | Human Evolution | Department of Anthropology and Human Ecology | School of Arts and Social Sciences | ANT 313 Human Evolution Exam
@@ -345,6 +345,160 @@ UNIT | TEC 103 | Basic Engineering Mathematics II | Department of Engineering Ma
 UNIT | TEC 111 | Introduction to Material Science | Chemical & Process / Mechanical Engineering | School of Engineering | TEC 111 Introduction to Material Science First Year Second Semester Regular Examination March 2018
 UNIT | THE 320 | Costume Design | Department of Literature, Linguistics, Foreign Languages and Film Studies | School of Arts and Social Sciences | THE 320 Costume Design Exam
 UNIT | THL 320 | Studies in the Old Testament 1 | Department of Philosophy & Religious Studies | School of Arts and Social Sciences (SASS) | THL 320: Studies in the Old Testament 1
+UNIT | ABT 211 | Soil Chemistry | Department not specified in timetable | School of Agriculture and Natural Resources | ABT 211 Soil Chemistry
+UNIT | BAS 402 | History of Science | Department not specified in timetable | School of Arts and Social Sciences | BAS 402 History of Science
+UNIT | BIO 411 | DNA Technology | Department not specified in timetable | School of Science and Aerospace Studies | BIO 411 DNA Technology
+UNIT | BIT 111 | Principles of Information Technology | Department not specified in timetable | School of Information Sciences | BIT 111 Principles of Information Technology
+UNIT | CMM 311 | Introduction to Communication | Department not specified in timetable | School of Arts and Social Sciences | CMM 311 Introduction to Communication
+UNIT | CMM 421 | International Communication | Department not specified in timetable | School of Arts and Social Sciences | CMM 421 International Communication
+UNIT | CMM 416E | Analogue and Digital Simulation | Department not specified in timetable | School of Science and Aerospace Studies | CMM 416E Analogue and Digital Simulation
+UNIT | ENS 210 | Environment and Development | Department not specified in timetable | School of Arts and Social Sciences | ENS 210 Environment and Development
+UNIT | GEO 212 | Computer Science for Geography | Department not specified in timetable | School of Arts and Social Sciences | GEO 212 Computer Science for Geography
+UNIT | HRD 200 | State, Society and Development | Department not specified in timetable | School of Arts and Social Sciences | HRD 200 State, Society and Development
+UNIT | INF 430 | Programming for the Internet and Mobile Devices | Department not specified in timetable | School of Information Sciences | INF 430 Programming for the Internet and Mobile Devices
+UNIT | INS 217 | Principles of Information Materials | Department not specified in timetable | School of Information Sciences | INS 217 Principles of Information Materials
+UNIT | LIN 311 | Suprasegmental Phonology | Department not specified in timetable | School of Arts and Social Sciences | LIN 311 Suprasegmental Phonology
+UNIT | LIT 211 | Fundamentals of Literature II | Department not specified in timetable | School of Arts and Social Sciences | LIT 211 Fundamentals of Literature II
+UNIT | PHY 425E | Physics of Semiconductor Devices | Department not specified in timetable | School of Science and Aerospace Studies | PHY 425E Physics of Semiconductor Devices
+UNIT | PSA 112 | Introduction to Government and Politics in Africa | Department not specified in timetable | School of Arts and Social Sciences | PSA 112 Introduction to Government and Politics in Africa
+UNIT | PSA 120 | Introduction to International Relations | Department not specified in timetable | School of Arts and Social Sciences | PSA 120 Introduction to International Relations
+UNIT | REL 311 | African Mythology | Department not specified in timetable | School of Arts and Social Sciences | REL 311 African Mythology
+UNIT | STA 113 | Fundamentals of Data Science | Department not specified in timetable | School of Science and Aerospace Studies | STA 113 Fundamentals of Data Science
+UNIT | SZL 111 | Fundamentals of Zoology I | Department not specified in timetable | School of Science and Aerospace Studies | SZL 111 Fundamentals of Zoology I
+UNIT | ACS 212 | Fundamentals of Actuarial Mathematics | Department not specified in timetable | School of Science and Aerospace Studies | ACS 212 Fundamentals of Actuarial Mathematics
+UNIT | ACS 403 | Risk Assessment | Department not specified in timetable | School of Science and Aerospace Studies | ACS 403 Risk Assessment
+UNIT | ANS 213 | Animal Growth and Development | Department not specified in timetable | School of Agriculture and Natural Resources | ANS 213 Animal Growth and Development
+UNIT | ANS 324 | Computer Applications in Animal Science | Department not specified in timetable | School of Agriculture and Natural Resources | ANS 324 Computer Applications in Animal Science
+UNIT | ANS 412 | Dairy Technology | Department not specified in timetable | School of Agriculture and Natural Resources | ANS 412 Dairy Technology
+UNIT | ANT 110 | Introduction to Anthropology | Department not specified in timetable | School of Arts and Social Sciences | ANT 110 Introduction to Anthropology
+UNIT | ANT 412 | Gender and Development | Department not specified in timetable | School of Arts and Social Sciences | ANT 412 Gender and Development
+UNIT | BIO 311 | Enzymology | Department not specified in timetable | School of Science and Aerospace Studies | BIO 311 Enzymology
+UNIT | BKS 410 | Semantics and Pragmatics in Kiswahili | Department not specified in timetable | School of Arts and Social Sciences | BKS 410 Semantics and Pragmatics in Kiswahili
+UNIT | CMD 211 | Group Techniques and Analysis | Department not specified in timetable | School of Arts and Social Sciences | CMD 211 Group Techniques and Analysis
+UNIT | CMJ 312 | Theories of Journalism | Department not specified in timetable | School of Arts and Social Sciences | CMJ 312 Theories of Journalism
+UNIT | CPR 311 | Theories of Public Relations | Department not specified in timetable | School of Information Sciences | CPR 311 Theories of Public Relations
+UNIT | CSA 303 | Remote Sensing and GIS | Department not specified in timetable | School of Science and Aerospace Studies | CSA 303 Remote Sensing and GIS
+UNIT | CSC 114 | Internet Fundamentals | Department not specified in timetable | School of Information Sciences | CSC 114 Internet Fundamentals
+UNIT | EHE 410E | Disaster Preparedness and Response | Department not specified in timetable | School of Arts and Social Sciences | EHE 410E Disaster Preparedness and Response
+UNIT | ENG 311 | Language and Gender Talk | Department not specified in timetable | School of Arts and Social Sciences | ENG 311 Language and Gender Talk
+UNIT | FMS 211 | Film Directing | Department not specified in timetable | School of Arts and Social Sciences | FMS 211 Film Directing
+UNIT | GEO 311 | Biogeography | Department not specified in timetable | School of Science and Aerospace Studies | GEO 311 Biogeography
+UNIT | GEO 415 | Digital Image Processing | Department not specified in timetable | School of Science and Aerospace Studies | GEO 415 Digital Image Processing
+UNIT | INF 210 | Data Structures and Algorithms II | Department not specified in timetable | School of Information Sciences | INF 210 Data Structures and Algorithms II
+UNIT | INS 311 | Data Structures and Algorithms | Department not specified in timetable | School of Information Sciences | INS 311 Data Structures and Algorithms
+UNIT | LTF 410 | Discourses on African Art | Department not specified in timetable | School of Arts and Social Sciences | LTF 410 Discourses on African Art
+UNIT | MPE 114 | Basic Engineering Mechanics | Department not specified in timetable | School of Education | MPE 114 Basic Engineering Mechanics
+UNIT | PSS 214 | Security Threat Analysis | Department not specified in timetable | School of Arts and Social Sciences | PSS 214 Security Threat Analysis
+UNIT | PSS 315 | Law and Society | Department not specified in timetable | School of Arts and Social Sciences | PSS 315 Law and Society
+UNIT | PSS 411 | Crime, Media, Gender and Justice | Department not specified in timetable | School of Arts and Social Sciences | PSS 411 Crime, Media, Gender and Justice
+UNIT | SAS 202 | Critical Thinking and Decision Making | Department not specified in timetable | School of Arts and Social Sciences | SAS 202 Critical Thinking and Decision Making
+UNIT | SBE 110 | Critical Thinking and Decision Making | Department not specified in timetable | School of Arts and Social Sciences | SBE 110 Critical Thinking and Decision Making
+UNIT | SOC 413 | Sociology of Work and Industry | Department not specified in timetable | School of Arts and Social Sciences | SOC 413 Sociology of Work and Industry
+UNIT | AMT 422 | Thermodynamics | Department not specified in timetable | School of Science and Aerospace Studies | AMT 422 Thermodynamics
+UNIT | ANT 111 | Culture and Society | Department not specified in timetable | School of Arts and Social Sciences | ANT 111 Culture and Society
+UNIT | ANT 213 | Urban Anthropology | Department not specified in timetable | School of Arts and Social Sciences | ANT 213 Urban Anthropology
+UNIT | ANT 414 | Population Studies | Department not specified in timetable | School of Arts and Social Sciences | ANT 414 Population Studies
+UNIT | BGS 210 | Rural Geography | Department not specified in timetable | School of Arts and Social Sciences | BGS 210 Rural Geography
+UNIT | BIO 312 | Microbial Biochemistry | Department not specified in timetable | School of Science and Aerospace Studies | BIO 312 Microbial Biochemistry
+UNIT | BIO 412 | Forensic and Clinical Biochemistry | Department not specified in timetable | School of Science and Aerospace Studies | BIO 412 Forensic and Clinical Biochemistry
+UNIT | CHE 414 | Quantum Chemistry | Department not specified in timetable | School of Science and Aerospace Studies | CHE 414 Quantum Chemistry
+UNIT | CMM 211 | Public Speaking | Department not specified in timetable | School of Arts and Social Sciences | CMM 211 Public Speaking
+UNIT | CMM 411 | Signal Processing | Department not specified in timetable | School of Science and Aerospace Studies | CMM 411 Signal Processing
+UNIT | CSC 315 | Artificial Intelligence | Department not specified in timetable | School of Science and Aerospace Studies | CSC 315 Artificial Intelligence
+UNIT | ERM 410 | Regional Environmental Studies | Department not specified in timetable | School of Information Sciences | ERM 410 Regional Environmental Studies
+UNIT | FMS 212 | Television Drama and Film Genres | Department not specified in timetable | School of Arts and Social Sciences | FMS 212 Television Drama and Film Genres
+UNIT | INF 310 | Research Methods in Information Systems | Department not specified in timetable | School of Information Sciences | INF 310 Research Methods in Information Systems
+UNIT | INS 401 | Management Information Systems | Department not specified in timetable | School of Information Sciences | INS 401 Management Information Systems
+UNIT | LIN 316 | Developmental Language Disorders | Department not specified in timetable | School of Arts and Social Sciences | LIN 316 Developmental Language Disorders
+UNIT | SNE 100 | Introduction to Special Needs | Department not specified in timetable | School of Education | SNE 100 Introduction to Special Needs
+UNIT | REL 411 | New Religious Movements | Department not specified in timetable | School of Arts and Social Sciences | REL 411 New Religious Movements
+UNIT | SCH 311 | Chemical Kinetics | Department not specified in timetable | School of Science and Aerospace Studies | SCH 311 Chemical Kinetics
+UNIT | SMA 211 | Linear Algebra I | Department not specified in timetable | School of Science and Aerospace Studies | SMA 211 Linear Algebra I
+UNIT | ABT 412 | Dryland Agriculture and Irrigation | Department not specified in timetable | School of Agriculture and Natural Resources | ABT 412 Dryland Agriculture and Irrigation
+UNIT | ABT 315 | Seed Science and Technology | Department not specified in timetable | School of Agriculture and Natural Resources | ABT 315 Seed Science and Technology
+UNIT | ANS 313 | Beef Cattle Production and Management | Department not specified in timetable | School of Agriculture and Natural Resources | ANS 313 Beef Cattle Production and Management
+UNIT | ANS 414 | Feed Manufacturing Technology | Department not specified in timetable | School of Agriculture and Natural Resources | ANS 414 Feed Manufacturing Technology
+UNIT | ARE 412 | Value Chain Analysis | Department not specified in timetable | School of Agriculture and Natural Resources | ARE 412 Value Chain Analysis
+UNIT | BBM 211 | Managerial Statistics | Department not specified in timetable | School of Business and Economics | BBM 211 Managerial Statistics
+UNIT | BGS 110 | History and Philosophy of Geography | Department not specified in timetable | School of Arts and Social Sciences | BGS 110 History and Philosophy of Geography
+UNIT | BGS 310 | Tourism and Travel Management | Department not specified in timetable | School of Arts and Social Sciences | BGS 310 Tourism and Travel Management
+UNIT | CMM 212 | Inter and Intragroup Communication | Department not specified in timetable | School of Information Sciences | CMM 212 Inter and Intragroup Communication
+UNIT | ENS 214 | Environmental Pollution and Management | Department not specified in timetable | School of Arts and Social Sciences | ENS 214 Environmental Pollution and Management
+UNIT | EPM 411 | Tourism Planning, Management and Conservation | Department not specified in timetable | School of Arts and Social Sciences | EPM 411 Tourism Planning, Management and Conservation
+UNIT | FMS 412 | Media and Public Relations | Department not specified in timetable | School of Arts and Social Sciences | FMS 412 Media and Public Relations
+UNIT | FRE 110 | The French Verb | Department not specified in timetable | School of Arts and Social Sciences | FRE 110 The French Verb
+UNIT | GER 210 | Intermediate German Language I | Department not specified in timetable | School of Arts and Social Sciences | GER 210 Intermediate German Language I
+UNIT | GER 413 | German Semantics | Department not specified in timetable | School of Arts and Social Sciences | GER 413 German Semantics
+UNIT | INS 213 | Principles and Practice of Management | Department not specified in timetable | School of Information Sciences | INS 213 Principles and Practice of Management
+UNIT | KIS 313 | Text Types and Translation | Department not specified in timetable | School of Arts and Social Sciences | KIS 313 Text Types and Translation
+UNIT | LIT 313 | Caribbean Drama | Department not specified in timetable | School of Arts and Social Sciences | LIT 313 Caribbean Drama
+UNIT | MAT 415 | Differential Geometry | Department not specified in timetable | School of Science and Aerospace Studies | MAT 415 Differential Geometry
+UNIT | MIC 316 | Microbiology of Domestic Water and Sewage | Department not specified in timetable | School of Science and Aerospace Studies | MIC 316 Microbiology of Domestic Water and Sewage
+UNIT | MIC 410 | Microbial Metabolism | Department not specified in timetable | School of Science and Aerospace Studies | MIC 410 Microbial Metabolism
+UNIT | PSA 412 | Research Project | Department not specified in timetable | School of Arts and Social Sciences | PSA 412 Research Project
+UNIT | SBT 314 | Applied Microbiology | Department not specified in timetable | School of Science and Aerospace Studies | SBT 314 Applied Microbiology
+UNIT | SCH 211 | Atomic Structure and Bonding | Department not specified in timetable | School of Science and Aerospace Studies | SCH 211 Atomic Structure and Bonding
+UNIT | SOC 211 | Social Psychology | Department not specified in timetable | School of Arts and Social Sciences | SOC 211 Social Psychology
+UNIT | ABT 316 | Post-Harvest Physiology and Technology | Department not specified in timetable | School of Agriculture and Natural Resources | ABT 316 Post-Harvest Physiology and Technology
+UNIT | ANS 301 | Dairy Cattle Production and Management | Department not specified in timetable | School of Agriculture and Natural Resources | ANS 301 Dairy Cattle Production and Management
+UNIT | BAS 401 | Issues in Social Ethics | Department not specified in timetable | School of Arts and Social Sciences | BAS 401 Issues in Social Ethics
+UNIT | BGS 212 | Spatial Organization | Department not specified in timetable | School of Arts and Social Sciences | BGS 212 Spatial Organization
+UNIT | BIO 211 | General Biochemistry | Department not specified in timetable | School of Science and Aerospace Studies | BIO 211 General Biochemistry
+UNIT | BIO 314 | Analytical Biochemistry | Department not specified in timetable | School of Science and Aerospace Studies | BIO 314 Analytical Biochemistry
+UNIT | BIT 113 | IT Support in Organizations | Department not specified in timetable | School of Information Sciences | BIT 113 IT Support in Organizations
+UNIT | CIM 321 | Special Methods in Biology II | Department not specified in timetable | School of Education | CIM 321 Special Methods in Biology II
+UNIT | CMM 413 | Research and Academic Writing in Communication | Department not specified in timetable | School of Information Sciences | CMM 413 Research and Academic Writing in Communication
+UNIT | COM 413 | Object-Oriented Programming | Department not specified in timetable | School of Science and Aerospace Studies | COM 413 Object-Oriented Programming
+UNIT | COM 414 | Semiconductor Devices | Department not specified in timetable | School of Science and Aerospace Studies | COM 414 Semiconductor Devices
+UNIT | EDG 314 | English Education II | Department not specified in timetable | School of Education | EDG 314 English Education II
+UNIT | EDG 313 | Geography Education II | Department not specified in timetable | School of Education | EDG 313 Geography Education II
+UNIT | FMS 311 | Cinematography and Camera Techniques | Department not specified in timetable | School of Arts and Social Sciences | FMS 311 Cinematography and Camera Techniques
+UNIT | FMS 310 | Acting for the Screen | Department not specified in timetable | School of Arts and Social Sciences | FMS 310 Acting for the Screen
+UNIT | INF 311 | Data Structures and Algorithms II | Department not specified in timetable | School of Information Sciences | INF 311 Data Structures and Algorithms II
+UNIT | INF 440 | ICT Security | Department not specified in timetable | School of Information Sciences | INF 440 ICT Security
+UNIT | INS 411 | Software Engineering | Department not specified in timetable | School of Information Sciences | INS 411 Software Engineering
+UNIT | KIS 212 | 20th Century Kiswahili Poetry | Department not specified in timetable | School of Arts and Social Sciences | KIS 212 20th Century Kiswahili Poetry
+UNIT | LIN 110 | Introduction to the Study of Language | Department not specified in timetable | School of Arts and Social Sciences | LIN 110 Introduction to the Study of Language
+UNIT | LIN 411 | Contrastive Linguistics | Department not specified in timetable | School of Arts and Social Sciences | LIN 411 Contrastive Linguistics
+UNIT | MUS 211 | African Music and Dance | Department not specified in timetable | School of Arts and Social Sciences | MUS 211 African Music and Dance
+UNIT | PSA 122 | Introduction to Conflict Management | Department not specified in timetable | School of Arts and Social Sciences | PSA 122 Introduction to Conflict Management
+UNIT | ABE 311 | Agribusiness Operations and Management | Department not specified in timetable | School of Agriculture and Natural Resources | ABE 311 Agribusiness Operations and Management
+UNIT | ACS 112 | Introduction to Financial Statement Analysis | Department not specified in timetable | School of Science and Aerospace Studies | ACS 112 Introduction to Financial Statement Analysis
+UNIT | ACS 410E | Investment and Asset Management | Department not specified in timetable | School of Science and Aerospace Studies | ACS 410E Investment and Asset Management
+UNIT | ARE 315 | Agricultural Finance | Department not specified in timetable | School of Agriculture and Natural Resources | ARE 315 Agricultural Finance
+UNIT | AUT 212 | Engineering Technology and Practice | Department not specified in timetable | School of Education | AUT 212 Engineering Technology and Practice
+UNIT | BBM 207 | Fundamentals of Sales | Department not specified in timetable | School of Business and Economics | BBM 207 Fundamentals of Sales
+UNIT | BCT 212 | Construction Materials | Department not specified in timetable | School of Education | BCT 212 Construction Materials
+UNIT | BIT 112 | Computer Applications | Department not specified in timetable | School of Information Sciences | BIT 112 Computer Applications
+UNIT | BPM 112 | Project Tools and Techniques | Department not specified in timetable | School of Business and Economics | BPM 112 Project Tools and Techniques
+UNIT | CIM 411 | Communication Theories | Department not specified in timetable | School of Information Sciences | CIM 411 Communication Theories
+UNIT | CPE 111 | Introduction to Material Science | Department not specified in timetable | School of Education | CPE 111 Introduction to Material Science
+UNIT | CPR 421 | Public Relations in Diplomatic Context | Department not specified in timetable | School of Information Sciences | CPR 421 Public Relations in Diplomatic Context
+UNIT | CSC 314 | Modelling and Simulation | Department not specified in timetable | School of Science and Aerospace Studies | CSC 314 Modelling and Simulation
+UNIT | EDH 312 | History Education II | Department not specified in timetable | School of Education | EDH 312 History Education II
+UNIT | EET 212 | Electrical Measurement | Department not specified in timetable | School of Education | EET 212 Electrical Measurement
+UNIT | EGC 301 | Behaviour Disorders | Department not specified in timetable | School of Education | EGC 301 Behaviour Disorders
+UNIT | ENG 211 | English Morphology | Department not specified in timetable | School of Arts and Social Sciences | ENG 211 English Morphology
+UNIT | FRE 112 | Skills in Oral Expression | Department not specified in timetable | School of Arts and Social Sciences | FRE 112 Skills in Oral Expression
+UNIT | GER 112 | Selected Readings in German | Department not specified in timetable | School of Arts and Social Sciences | GER 112 Selected Readings in German
+UNIT | GER 312 | German Syntax | Department not specified in timetable | School of Arts and Social Sciences | GER 312 German Syntax
+UNIT | INF 240 | Database Systems I | Department not specified in timetable | School of Information Sciences | INF 240 Database Systems I
+UNIT | INS 113 | Introduction to Archives Management | Department not specified in timetable | School of Information Sciences | INS 113 Introduction to Archives Management
+UNIT | INS 212 | Introduction to Information Literacy | Department not specified in timetable | School of Information Sciences | INS 212 Introduction to Information Literacy
+UNIT | LTF 311 | Art and Psychology | Department not specified in timetable | School of Arts and Social Sciences | LTF 311 Art and Psychology
+UNIT | PEH 200 | Biostatistics | Department not specified in timetable | School of Public Health | PEH 200 Biostatistics
+UNIT | PHL 314 | Systematic Ethics | Department not specified in timetable | School of Arts and Social Sciences | PHL 314 Systematic Ethics
+UNIT | PHY 411 | Thermodynamics | Department not specified in timetable | School of Science and Aerospace Studies | PHY 411 Thermodynamics
+UNIT | PSA 411 | Public Personnel Administration | Department not specified in timetable | School of Arts and Social Sciences | PSA 411 Public Personnel Administration
+UNIT | SAS 104 | Social Science Perspective on HIV and AIDS | Department not specified in timetable | School of Arts and Social Sciences | SAS 104 Social Science Perspective on HIV and AIDS
+UNIT | SBL 214 | General Microbiology | Department not specified in timetable | School of Science and Aerospace Studies | SBL 214 General Microbiology
+UNIT | SNE 301E | Curriculum for Visual Impairments | Department not specified in timetable | School of Education | SNE 301E Curriculum for Visual Impairments
+UNIT | SNE 302E | Curriculum for Hearing Impairments | Department not specified in timetable | School of Education | SNE 302E Curriculum for Hearing Impairments
+UNIT | SNE 303E | Curriculum for EBD | Department not specified in timetable | School of Education | SNE 303E Curriculum for EBD
+UNIT | SNE 304E | Assessment and Placement of Learners with Physical Impairments | Department not specified in timetable | School of Education | SNE 304E Assessment and Placement of Learners with Physical Impairments
+UNIT | SPH 112 | Basic Physics I | Department not specified in timetable | School of Public Health | SPH 112 Basic Physics I
+UNIT | TEC 201 | Computer Programming | Department not specified in timetable | School of Education | TEC 201 Computer Programming
+UNIT | ZOO 425 | Advanced Genetics | Department not specified in timetable | School of Science and Aerospace Studies | ZOO 425 Advanced Genetics
 
 ### SECTION 7: KENYAN UNIVERSITIES (OFFLINE SEARCH NAMES AND ALIASES; CUE APPROVED LIST PLUS EXISTING APP ENTRIES) ###
 UNIVERSITY | UON | University of Nairobi | UON, University of Nairobi, Uni of Nairobi, Nairobi
