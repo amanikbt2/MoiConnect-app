@@ -1,10 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://mconnect-app.keysire.com/</loc>
   </url>
   <url>
     <loc>https://mconnect-app.keysire.com/about/</loc>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/home-dashboard.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/downloads.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/uni-forum.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/live-study-room.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/past-exam-papers.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/notes-pdf.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/cat-papers.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/contribute-material.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/home-shortcuts.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/student-rewards.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/profile-settings.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://mconnect-app.keysire.com/about/screenshots/rental-marketplace.png</image:loc>
+    </image:image>
   </url>
   <url>
     <loc>https://mconnect-app.keysire.com/faq/</loc>

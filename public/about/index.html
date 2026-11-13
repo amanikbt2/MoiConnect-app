@@ -101,6 +101,14 @@
     h2 { margin: 0 0 10px; font-size: clamp(1.8rem, 3vw, 2.45rem); line-height: 1.16; letter-spacing: -.035em; }
     .section-heading p, .feature p { margin: 0; color: var(--muted); }
     .features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .screenshots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .screenshot-card { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: 0 8px 24px #14241d0a; }
+    .screenshot-card a { display: block; background: #f4f8f5; text-align: center; }
+    .screenshot-card img { display: block; width: 100%; height: auto; max-height: 560px; object-fit: contain; margin: 0 auto; }
+    .screenshot-caption { padding: 18px 18px 20px; }
+    .screenshot-caption h3 { margin: 0 0 6px; font-size: 1.08rem; line-height: 1.3; }
+    .screenshot-caption p { margin: 0; color: var(--muted); font-size: .94rem; line-height: 1.55; }
+
     .feature { padding: 24px; border: 1px solid var(--line); border-radius: 18px; }
     .feature-icon { display: grid; width: 42px; height: 42px; margin-bottom: 16px; place-items: center; border-radius: 13px; background: var(--mint); font-size: 1.3rem; }
     .feature h3 { margin: 0 0 7px; font-size: 1.1rem; }
@@ -110,7 +118,8 @@
     footer { margin-top: 58px; padding: 24px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: .92rem; }
     .footer-row { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
     .footer-links { display: flex; gap: 18px; }
-    @media (max-width: 650px) { .wrap { width: min(1100px, calc(100% - 28px)); } .hero { padding: 52px 0; } .features { grid-template-columns: 1fr; } .nav-links { gap: 12px; font-size: .85rem; } .nav-links .button { padding: 9px 11px; } .brand img { width: 34px; height: 34px; } }
+    @media (max-width: 900px) { .screenshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 650px) { .wrap { width: min(1100px, calc(100% - 28px)); } .hero { padding: 52px 0; } .features, .screenshots { grid-template-columns: 1fr; } .nav-links { gap: 12px; font-size: .85rem; } .nav-links .button { padding: 9px 11px; } .brand img { width: 34px; height: 34px; } }
   </style>
 </head>
 <body>
@@ -139,6 +148,25 @@
           <article class="feature"><div class="feature-icon" aria-hidden="true">🏠</div><h3>Explore student rentals</h3><p>Browse off-campus housing listings and compare details such as rent, deposits, location and amenities.</p></article>
           <article class="feature"><div class="feature-icon" aria-hidden="true">💬</div><h3>Connect with students</h3><p>Join campus discussion spaces and share revision notes, past papers and study guides with fellow students.</p></article>
           <article class="feature"><div class="feature-icon" aria-hidden="true">🔊</div><h3>Listen to study notes</h3><p>Use text-to-speech to listen to supported notes while studying or on the move.</p></article>
+        </div>
+      </div>
+    </section>
+    <section id="screenshots" aria-labelledby="screenshots-title">
+      <div class="wrap">
+        <div class="section-heading"><p class="eyebrow">See MConnect in action</p><h2 id="screenshots-title">Screenshots of the MConnect app</h2><p>Explore the main ways students use MConnect to find study materials, connect with classmates and manage campus life.</p></div>
+        <div class="screenshots">
+          <figure class="screenshot-card"><a href="/about/screenshots/home-dashboard.png"><img src="/about/screenshots/home-dashboard.png" alt="MConnect home screen with a study search box, quick access to past papers and bottom navigation for Home, Downloads and Uni Forum" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>MConnect home and study search</h3><p>Start from the home screen, search for study help in your own words, and jump into frequently used student features.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/downloads.png"><img src="/about/screenshots/downloads.png" alt="MConnect Downloads screen showing where saved past papers and revision notes appear for offline reading" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Saved downloads for offline study</h3><p>Keep downloaded past papers and revision notes together so they are available when you are offline.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/uni-forum.png"><img src="/about/screenshots/uni-forum.png" alt="MConnect Uni Forum chat showing students interacting with Campus AI to request a course paper" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Uni Forum and Campus AI</h3><p>Talk with students in the Uni Forum and ask Campus AI to help locate relevant course materials.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/live-study-room.png"><img src="/about/screenshots/live-study-room.png" alt="MConnect live study room with microphone and camera controls for a video session" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Live study rooms</h3><p>Join a live room and manage your microphone and camera while studying with others.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/past-exam-papers.png"><img src="/about/screenshots/past-exam-papers.png" alt="MConnect Past Exam Papers feed showing course code, paper details, downloads and ratings" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Past examination papers</h3><p>Browse exam papers by course and review details such as semester, downloads and student ratings.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/notes-pdf.png"><img src="/about/screenshots/notes-pdf.png" alt="MConnect Notes PDF screen with resource filters and recommended revision notes" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Notes and revision resources</h3><p>Find notes and learning resources with filters for all resources, recommendations and new releases.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/cat-papers.png"><img src="/about/screenshots/cat-papers.png" alt="MConnect CAT Papers feed featuring continuous assessment tests and quizzes" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>CAT papers and practice</h3><p>Explore continuous assessment tests and quizzes across different courses and faculties.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/contribute-material.png"><img src="/about/screenshots/contribute-material.png" alt="MConnect Contribute Material screen for uploading past papers, CATs and notes from a phone" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Share study materials</h3><p>Contribute past papers, CATs and notes from your device to help other students.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/home-shortcuts.png"><img src="/about/screenshots/home-shortcuts.png" alt="MConnect home screen shortcuts for student rentals, contributing study material, student portal and e-learning" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Campus shortcuts</h3><p>Reach student rentals, material contributions and campus services from the home screen.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/student-rewards.png"><img src="/about/screenshots/student-rewards.png" alt="MConnect Student Rewards panel showing points earned for contributing study materials and referral milestones" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Student rewards</h3><p>See contribution points and the reward milestones available in the MConnect points system.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/profile-settings.png"><img src="/about/screenshots/profile-settings.png" alt="MConnect Student Profile and Settings page with course details, dark theme and recommendation settings" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Student profile and settings</h3><p>Manage study details and personalize app preferences such as dark theme and recommendations.</p></figcaption></figure>
+          <figure class="screenshot-card"><a href="/about/screenshots/rental-marketplace.png"><img src="/about/screenshots/rental-marketplace.png" alt="MConnect Student Rental Marketplace with search, location filters and room type filters" loading="lazy" decoding="async"></a><figcaption class="screenshot-caption"><h3>Student rental marketplace</h3><p>Search housing near campus and narrow listings by location and room type.</p></figcaption></figure>
         </div>
       </div>
     </section>

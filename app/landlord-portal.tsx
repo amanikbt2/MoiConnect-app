@@ -1228,7 +1228,7 @@ export default function LandlordPortalScreen() {
                         { target: '/notes', label: 'Notes PDF 📄' },
                         { target: '/past-papers', label: 'Past Papers 📑' },
                         { target: '/cat-papers', label: 'CAT Papers 📝' },
-                        { target: '/community', label: 'Forum Chat 💬' },
+                        { target: '/community', label: 'Uni Forum 💬' },
                         { target: '/profile', label: 'Profile 👤' },
                         { target: '/profile?openEdit=1', label: 'Edit Profile ✏️' },
                         { target: '/popup/student-portal', label: 'Student Portal 🎓' },

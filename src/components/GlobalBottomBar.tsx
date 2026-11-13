@@ -227,7 +227,7 @@ export function GlobalBottomBar({ currentRoute = 'HomeTab', onNavigate, onMentio
           ) : null}
         </View>
         <Text style={[styles.tabLabel, isCommunityActive ? styles.tabLabelActive : (isDark ? styles.darkTabLabel : styles.tabLabelInactive)]}>
-          Forum Chat
+          Uni Forum
         </Text>
       </TouchableOpacity>
     </View>
