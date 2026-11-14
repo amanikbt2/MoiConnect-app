@@ -109,6 +109,7 @@
     .brand img { width: 38px; height: 38px; border-radius: 11px; }
     .nav-links { display: flex; align-items: center; gap: 18px; font-size: .94rem; font-weight: 650; }
     .nav-links a:not(.button) { text-decoration: none; }
+    .nav-desktop-short { display: none; }
     .button { display: inline-flex; align-items: center; justify-content: center; padding: 12px 18px; border-radius: 12px; background: var(--green); color: #fff; font-weight: 750; text-decoration: none; box-shadow: 0 7px 18px #075b3b22; }
     .button:hover { background: var(--green-dark); }
     .hero { padding: 72px 0 64px; background: linear-gradient(135deg, #f2fbf5 0%, #fff 68%); }
@@ -155,14 +156,14 @@
     .footer-row { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
     .footer-links { display: flex; gap: 18px; }
     @media (max-width: 900px) { .screenshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } .desktop-panel { grid-template-columns: 1fr; } .desktop-action { width: min(100%, 360px); } }
-    @media (max-width: 650px) { .wrap { width: min(1100px, calc(100% - 28px)); } .hero { padding: 52px 0; } .features, .screenshots { grid-template-columns: 1fr; } .nav-links { gap: 12px; font-size: .85rem; } .nav-links .button { padding: 9px 11px; } .brand img { width: 34px; height: 34px; } .desktop-panel { padding: 24px 20px; } }
+    @media (max-width: 650px) { .wrap { width: min(1100px, calc(100% - 28px)); } .hero { padding: 52px 0; } .features, .screenshots { grid-template-columns: 1fr; } .nav { flex-wrap: wrap; } .nav-links { width: 100%; justify-content: space-between; gap: 8px; font-size: .82rem; } .nav-desktop-full { display: none; } .nav-desktop-short { display: inline; } .nav-links .button { padding: 8px 10px; } .brand img { width: 34px; height: 34px; } .desktop-panel { padding: 24px 20px; } }
   </style>
 </head>
 <body>
   <header>
     <nav class="wrap nav" aria-label="Main navigation">
       <a class="brand" href="/" aria-label="Open MConnect app"><img src="/favicon.png" alt=""><span>MConnect</span></a>
-      <div class="nav-links"><a href="#features">Features</a><a href="/faq/">Help</a><a class="button" href="https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect">Get the app</a></div>
+      <div class="nav-links"><a href="#features">Features</a><a href="/faq/">Help</a><a href="#windows-desktop" aria-label="Jump to MConnect for Desktop"><span class="nav-desktop-full">MConnect for Desktop</span><span class="nav-desktop-short" aria-hidden="true">Desktop</span></a><a class="button" href="https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect">Get the app</a></div>
     </nav>
   </header>
   <main>
