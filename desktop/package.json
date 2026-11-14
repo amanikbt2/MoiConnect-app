@@ -1,0 +1,46 @@
+{
+  "name": "mconnect-desktop",
+  "productName": "MConnect",
+  "version": "3.0.1",
+  "author": "MConnect",
+  "dependencies": {},
+  "description": "MConnect for Windows",
+  "main": "main.cjs",
+  "devDependencies": {
+    "electron": "45.3.2"
+  },
+  "build": {
+    "appId": "com.amanikbt1.moiconnect.desktop",
+    "productName": "MConnect",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "package.json",
+      "resources/mconnect.png"
+    ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "resources/mconnect.png",
+      "artifactName": "MConnect-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MConnect"
+    }
+  }
+}

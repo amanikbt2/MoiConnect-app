@@ -11,6 +11,8 @@ web-build/
 **/web-build/
 build/
 **/build/
+desktop/release/
+release/
 
 # Environment variables
 .env

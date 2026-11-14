@@ -11,6 +11,8 @@
     "ios": "npm run generate:stickers && expo run:ios",
     "postinstall": "npm --prefix packages/shared run build && node scripts/patch-expo-modules.js && node scripts/patch-rich-chat-input.js && node scripts/generate-pdfjs-assets.js",
     "web": "npm run generate:pdfjs && expo start --web --offline --port 8082",
+    "desktop": "electron desktop",
+    "build:windows": "electron-builder --projectDir desktop --win nsis",
     "eas": "eas"
   },
   "dependencies": {
@@ -68,6 +70,8 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~19.2.0",
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0",
     "typescript": "~5.9.3"
   },
   "private": true

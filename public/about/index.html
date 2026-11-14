@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>About MConnect | University Notes, Past Papers &amp; CATs</title>
-  <meta name="description" content="MConnect helps Kenyan university students find notes, past papers and CATs, explore student rentals, and connect with campus communities.">
+  <meta name="description" content="Discover MConnect for Android and Windows: find university notes, past papers and CATs, read on a bigger screen, explore rentals and connect with students.">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta name="theme-color" content="#075b3b">
   <link rel="canonical" href="https://mconnect-app.keysire.com/about/">
@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="MConnect">
   <meta property="og:title" content="About MConnect | Your university life, in one app">
-  <meta property="og:description" content="Discover MConnect: university notes, past papers, CATs, student rentals and campus collaboration in one place.">
+  <meta property="og:description" content="Discover MConnect for Android and Windows: university notes, past papers, CATs, a larger desktop reading experience, student rentals and campus collaboration.">
   <meta property="og:locale" content="en_KE">
   <meta property="og:url" content="https://mconnect-app.keysire.com/about/">
   <meta property="og:image" content="https://mconnect-app.keysire.com/about/mconnect-share.jpg">
@@ -23,7 +23,7 @@
   <meta property="og:image:alt" content="MConnect student app feature graphic with the MConnect logo and study, past paper and student collaboration features">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="About MConnect | Your university life, in one app">
-  <meta name="twitter:description" content="University notes, past papers, CATs, student rentals and campus collaboration for Kenyan university students.">
+  <meta name="twitter:description" content="MConnect for Android and Windows: university notes, past papers, CATs, student rentals and campus collaboration.">
   <meta name="twitter:image" content="https://mconnect-app.keysire.com/about/mconnect-share.jpg">
   <meta name="twitter:image:alt" content="MConnect student app feature graphic with the MConnect logo and study, past paper and student collaboration features">
   <script type="application/ld+json">
@@ -63,14 +63,36 @@
         ]
       },
       {
+        "@type": "SoftwareApplication",
+        "@id": "https://mconnect-app.keysire.com/about/#windows-desktop",
+        "name": "MConnect Desktop for Windows",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": ["Windows 10", "Windows 11"],
+        "description": "The 64-bit Windows desktop edition of MConnect. Read university notes, past examination papers and CATs on a bigger screen, and access MConnect's online student features.",
+        "url": "https://mconnect-app.keysire.com/about/#windows-desktop",
+        "downloadUrl": "https://mconnect.keysire.com/download/windows",
+        "installUrl": "https://mconnect.keysire.com/download/windows",
+        "softwareVersion": "3.0.1",
+        "author": { "@id": "https://mconnect-app.keysire.com/about/#noman-keli" },
+        "featureList": [
+          "Read notes and past examination papers on a larger screen",
+          "Search study materials by course code and name",
+          "Access CAT preparation resources",
+          "Use MConnect's online student community and campus features"
+        ]
+      },
+      {
         "@type": "AboutPage",
         "@id": "https://mconnect-app.keysire.com/about/#webpage",
         "url": "https://mconnect-app.keysire.com/about/",
         "name": "About MConnect | University Notes, Past Papers & CATs",
-        "description": "Learn how MConnect helps Kenyan university students find study resources, explore rentals and connect with campus communities.",
+        "description": "Learn how MConnect for Android and Windows helps Kenyan university students find study resources, read on a larger screen, explore rentals and connect with campus communities.",
         "inLanguage": "en-KE",
         "author": { "@id": "https://mconnect-app.keysire.com/about/#noman-keli" },
-        "about": { "@id": "https://mconnect-app.keysire.com/#application" }
+        "about": [
+          { "@id": "https://mconnect-app.keysire.com/#application" },
+          { "@id": "https://mconnect-app.keysire.com/about/#windows-desktop" }
+        ]
       }
     ]
   }
@@ -108,6 +130,20 @@
     .screenshot-caption { padding: 18px 18px 20px; }
     .screenshot-caption h3 { margin: 0 0 6px; font-size: 1.08rem; line-height: 1.3; }
     .screenshot-caption p { margin: 0; color: var(--muted); font-size: .94rem; line-height: 1.55; }
+    .desktop-download { padding-top: 16px; }
+    .desktop-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 28px; padding: clamp(26px, 5vw, 48px); border: 1px solid #cce8d5; border-radius: 24px; background: linear-gradient(135deg, #f0fbf4, #fff 75%); box-shadow: 0 16px 40px #075b3b12; }
+    .desktop-brand { display: flex; align-items: center; gap: 13px; margin-bottom: 15px; }
+    .windows-mark { display: grid; width: 54px; height: 54px; flex: 0 0 auto; place-items: center; border-radius: 15px; background: #e2f5e9; color: #087b3e; }
+    .windows-mark svg { width: 31px; height: 31px; }
+    .desktop-brand .eyebrow { margin: 0; }
+    .desktop-panel h2 { margin: 0 0 12px; }
+    .desktop-copy { max-width: 700px; margin: 0; color: var(--muted); }
+    .desktop-specs { display: flex; flex-wrap: wrap; gap: 9px; margin: 20px 0 0; padding: 0; list-style: none; }
+    .desktop-specs li { padding: 6px 11px; border: 1px solid #d8e9de; border-radius: 999px; background: #fff; color: #355246; font-size: .86rem; font-weight: 700; }
+    .desktop-action { min-width: 220px; text-align: center; }
+    .desktop-action .button { width: 100%; min-height: 50px; gap: 9px; }
+    .download-arrow { font-size: 1.2rem; line-height: 1; }
+    .desktop-action p { margin: 11px 0 0; color: var(--muted); font-size: .8rem; line-height: 1.5; }
 
     .feature { padding: 24px; border: 1px solid var(--line); border-radius: 18px; }
     .feature-icon { display: grid; width: 42px; height: 42px; margin-bottom: 16px; place-items: center; border-radius: 13px; background: var(--mint); font-size: 1.3rem; }
@@ -118,8 +154,8 @@
     footer { margin-top: 58px; padding: 24px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: .92rem; }
     .footer-row { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
     .footer-links { display: flex; gap: 18px; }
-    @media (max-width: 900px) { .screenshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 650px) { .wrap { width: min(1100px, calc(100% - 28px)); } .hero { padding: 52px 0; } .features, .screenshots { grid-template-columns: 1fr; } .nav-links { gap: 12px; font-size: .85rem; } .nav-links .button { padding: 9px 11px; } .brand img { width: 34px; height: 34px; } }
+    @media (max-width: 900px) { .screenshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } .desktop-panel { grid-template-columns: 1fr; } .desktop-action { width: min(100%, 360px); } }
+    @media (max-width: 650px) { .wrap { width: min(1100px, calc(100% - 28px)); } .hero { padding: 52px 0; } .features, .screenshots { grid-template-columns: 1fr; } .nav-links { gap: 12px; font-size: .85rem; } .nav-links .button { padding: 9px 11px; } .brand img { width: 34px; height: 34px; } .desktop-panel { padding: 24px 20px; } }
   </style>
 </head>
 <body>
@@ -170,6 +206,35 @@
         </div>
       </div>
     </section>
+    <section class="desktop-download" id="windows-desktop" aria-labelledby="windows-title">
+      <div class="wrap">
+        <div class="desktop-panel">
+          <div>
+            <div class="desktop-brand">
+              <span class="windows-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Windows logo">
+                  <path d="M2 4.8 10.6 3.6v7.8H2V4.8Zm9.7-1.4L22 2v9.4h-10.3V3.4ZM2 12.6h8.6v7.8L2 19.2v-6.6Zm9.7 0H22V22l-10.3-1.4v-8Z" />
+                </svg>
+              </span>
+              <div><p class="eyebrow">MConnect Desktop</p><strong>For Windows PCs</strong></div>
+            </div>
+            <h2 id="windows-title">Read and study on a bigger screen</h2>
+            <p class="desktop-copy">Install MConnect on your Windows computer for a comfortable desktop view of university notes, past examination papers and CATs. Search course materials, open PDFs, and use MConnect's online student features in a dedicated desktop window.</p>
+            <ul class="desktop-specs" aria-label="Windows app details">
+              <li>Windows 10 &amp; 11</li>
+              <li>64-bit x64 installer</li>
+              <li>Internet connection required</li>
+            </ul>
+          </div>
+          <div class="desktop-action">
+            <a class="button" href="https://mconnect.keysire.com/download/windows" aria-label="Download MConnect Desktop for Windows 64-bit">
+              <span class="download-arrow" aria-hidden="true">↓</span> Download for Windows
+            </a>
+            <p>Windows setup wizard • x64<br>Downloads the official MConnect installer.</p>
+          </div>
+        </div>
+      </div>
+    </section>
     <section id="developer">
       <div class="wrap section-heading">
         <p class="eyebrow">The person behind MConnect</p>
@@ -178,7 +243,7 @@
       </div>
     </section>
     <section>
-      <div class="wrap cta"><h2>Make studying and campus life simpler</h2><p>MConnect is available as an Android app on Google Play. Get the official app to find academic materials, explore student rentals and connect with your campus community.</p><a class="button" href="https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect">Get MConnect on Google Play</a></div>
+      <div class="wrap cta"><h2>Make studying and campus life simpler</h2><p>Get MConnect for Android on Google Play, or install MConnect Desktop on a Windows 10 or Windows 11 x64 computer to read on a bigger screen.</p><a class="button" href="https://play.google.com/store/apps/details?id=com.amanikbt1.moiconnect">Get MConnect on Google Play</a></div>
     </section>
   </main>
   <footer><div class="wrap footer-row"><span>© MConnect</span><div class="footer-links"><a href="/faq/">FAQ &amp; support</a><a href="/privacy/">Privacy policy</a><a href="/">Open app</a></div></div></footer>
